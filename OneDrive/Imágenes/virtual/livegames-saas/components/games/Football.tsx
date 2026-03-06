@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Video {
   id: string;
@@ -17,6 +17,17 @@ export default function Football() {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Sincronizar video seleccionado con el estado global
+  useEffect(() => {
+    if (selectedVideo) {
+      fetch('/api/game-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentFootballVideo: selectedVideo })
+      }).catch(err => console.error('Error syncing football video:', err));
+    }
+  }, [selectedVideo]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();

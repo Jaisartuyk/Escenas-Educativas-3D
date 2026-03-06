@@ -16,6 +16,7 @@ export default function PresentationMode() {
   const [showInstrumental, setShowInstrumental] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [mode, setMode] = useState<'music' | 'football'>('music');
+  const [currentFootballVideo, setCurrentFootballVideo] = useState<any>(null);
 
   // Detectar modo desde URL
   useEffect(() => {
@@ -33,9 +34,11 @@ export default function PresentationMode() {
         const response = await fetch('/api/game-state');
         const data = await response.json();
         
-        if (data.currentSong) {
+        if (mode === 'music' && data.currentSong) {
           setCurrentSong(data.currentSong);
           setShowInstrumental(data.showInstrumental || false);
+        } else if (mode === 'football' && data.currentFootballVideo) {
+          setCurrentFootballVideo(data.currentFootballVideo);
         }
         setIsLoading(false);
       } catch (error) {
@@ -44,7 +47,7 @@ export default function PresentationMode() {
     }, 500); // Sincronizar cada 500ms
 
     return () => clearInterval(syncInterval);
-  }, []);
+  }, [mode]);
 
   const extractYouTubeId = (url: string): string | null => {
     if (!url) return null;
@@ -53,6 +56,10 @@ export default function PresentationMode() {
   };
 
   const getVideoUrl = () => {
+    if (mode === 'football') {
+      return currentFootballVideo?.id || null;
+    }
+    
     if (!currentSong) return null;
     
     const url = showInstrumental && currentSong.instrumentalUrl 
@@ -63,7 +70,9 @@ export default function PresentationMode() {
   };
 
   const videoUrl = getVideoUrl();
-  const videoId = videoUrl ? extractYouTubeId(videoUrl) : null;
+  const videoId = mode === 'football' 
+    ? videoUrl // En football, videoUrl ya es el ID
+    : (videoUrl ? extractYouTubeId(videoUrl) : null);
 
   if (isLoading) {
     return (
@@ -101,7 +110,11 @@ export default function PresentationMode() {
     );
   }
 
-  if (!currentSong || !videoId) {
+  const hasContent = mode === 'football' 
+    ? (currentFootballVideo && videoId) 
+    : (currentSong && videoId);
+
+  if (!hasContent) {
     return (
       <div style={{
         width: '100vw',
@@ -201,7 +214,7 @@ export default function PresentationMode() {
         </div>
       </div>
 
-      {/* Información de la canción - Barra inferior */}
+      {/* Información de la canción/partido - Barra inferior */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(155, 93, 229, 0.95), rgba(247, 37, 133, 0.95))',
         padding: '30px 50px',
@@ -216,7 +229,7 @@ export default function PresentationMode() {
             fontSize: '60px',
             filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))'
           }}>
-            {currentSong.emoji}
+            {mode === 'football' ? '⚽' : currentSong?.emoji}
           </div>
           <div>
             <div style={{
@@ -228,7 +241,7 @@ export default function PresentationMode() {
               marginBottom: '8px',
               textShadow: '0 2px 10px rgba(0,0,0,0.3)'
             }}>
-              {currentSong.song}
+              {mode === 'football' ? currentFootballVideo?.title : currentSong?.song}
             </div>
             <div style={{
               fontSize: '24px',
@@ -236,7 +249,9 @@ export default function PresentationMode() {
               fontWeight: 700,
               textShadow: '0 2px 8px rgba(0,0,0,0.2)'
             }}>
-              {currentSong.artist} • {currentSong.year}
+              {mode === 'football' 
+                ? currentFootballVideo?.channel 
+                : `${currentSong?.artist} • ${currentSong?.year}`}
             </div>
           </div>
         </div>
@@ -254,7 +269,9 @@ export default function PresentationMode() {
           border: '2px solid rgba(255,255,255,0.3)',
           boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
         }}>
-          {showInstrumental ? '🎹 INSTRUMENTAL' : '🎤 ORIGINAL'}
+          {mode === 'football' 
+            ? '⚽ RESUMEN' 
+            : (showInstrumental ? '🎹 INSTRUMENTAL' : '🎤 ORIGINAL')}
         </div>
       </div>
     </div>

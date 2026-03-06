@@ -5,6 +5,7 @@ let gameState = {
   currentSong: null as any,
   showInstrumental: false,
   currentIndex: 0,
+  currentFootballVideo: null as any,
   timestamp: Date.now()
 };
 
