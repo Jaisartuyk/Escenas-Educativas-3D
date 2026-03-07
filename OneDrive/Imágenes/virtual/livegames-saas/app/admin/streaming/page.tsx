@@ -229,7 +229,7 @@ export default function StreamingAdmin() {
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '10px' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '10px', color: '#1a1a1a' }}>
           📺 Panel de Streaming
         </h1>
         <p style={{ color: '#666', fontSize: '16px' }}>
@@ -246,7 +246,7 @@ export default function StreamingAdmin() {
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
           marginBottom: '30px'
         }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '20px', color: '#1a1a1a' }}>
             Nueva Transmisión
           </h2>
           
@@ -262,7 +262,8 @@ export default function StreamingAdmin() {
               borderRadius: '10px',
               fontSize: '16px',
               marginBottom: '15px',
-              outline: 'none'
+              outline: 'none',
+              color: '#1a1a1a'
             }}
           />
 
@@ -387,12 +388,12 @@ export default function StreamingAdmin() {
         borderRadius: '15px',
         boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
       }}>
-        <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '20px', color: '#1a1a1a' }}>
           📋 Historial de Transmisiones
         </h2>
 
         {streams.length === 0 ? (
-          <p style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
+          <p style={{ color: '#666', textAlign: 'center', padding: '20px' }}>
             No hay transmisiones aún
           </p>
         ) : (
@@ -410,10 +411,10 @@ export default function StreamingAdmin() {
                 }}
               >
                 <div>
-                  <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '5px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '5px', color: '#1a1a1a' }}>
                     {stream.title}
                   </h3>
-                  <p style={{ fontSize: '12px', color: '#999' }}>
+                  <p style={{ fontSize: '12px', color: '#666' }}>
                     {stream.active ? '🔴 Activa' : '⚫ Finalizada'} • 
                     Código: {stream.id} • 
                     {new Date(stream.created_at).toLocaleString('es-ES')}
