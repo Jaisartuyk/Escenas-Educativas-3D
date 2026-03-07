@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
+import { io, Socket } from 'socket.io-client';
+import SimplePeer from 'simple-peer';
 
 interface Stream {
   id: string;
@@ -17,8 +19,11 @@ export default function WatchStream() {
   const [stream, setStream] = useState<Stream | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const peerRef = useRef<SimplePeer.Instance | null>(null);
 
   useEffect(() => {
     loadStream();
@@ -44,12 +49,82 @@ export default function WatchStream() {
       setStream(data.stream);
       setLoading(false);
 
-      // Aquí se conectaría con WebRTC para recibir el stream
-      // Por ahora mostramos la interfaz
+      // Conectar a WebSocket
+      const socket = io();
+      socketRef.current = socket;
+
+      // Unirse a la sala como viewer
+      socket.emit('join-room', { roomId: streamId, isStreamer: false });
+
+      // Esperar offer del streamer
+      socket.on('offer', ({ offer, streamerId }: { offer: any; streamerId: string }) => {
+        console.log('Recibida offer del streamer');
+        createPeerConnection(offer, streamerId);
+      });
+
+      // Recibir ICE candidates
+      socket.on('ice-candidate', ({ candidate }: { candidate: any }) => {
+        if (peerRef.current) {
+          peerRef.current.signal(candidate);
+        }
+      });
+
+      // Streamer desconectado
+      socket.on('streamer-disconnected', () => {
+        setError('El streamer ha finalizado la transmisión');
+        if (peerRef.current) {
+          peerRef.current.destroy();
+        }
+      });
+
     } catch (err) {
       setError('Error al cargar la transmisión');
       setLoading(false);
     }
+  };
+
+  const createPeerConnection = (offer: any, streamerId: string) => {
+    const peer = new SimplePeer({
+      initiator: false,
+      trickle: true,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    });
+
+    peer.on('signal', (signal) => {
+      // Enviar answer al streamer
+      socketRef.current?.emit('answer', {
+        roomId: streamId,
+        answer: signal,
+        streamerId
+      });
+    });
+
+    peer.on('stream', (remoteStream) => {
+      console.log('Stream recibido!');
+      if (videoRef.current) {
+        videoRef.current.srcObject = remoteStream;
+        setIsConnected(true);
+      }
+    });
+
+    peer.on('error', (err) => {
+      console.error('Error en peer connection:', err);
+      setError('Error al conectar con el streamer');
+    });
+
+    peer.on('close', () => {
+      console.log('Conexión cerrada');
+      setError('La transmisión ha finalizado');
+    });
+
+    // Procesar la offer
+    peer.signal(offer);
+    peerRef.current = peer;
   };
 
   if (loading) {
@@ -147,22 +222,27 @@ export default function WatchStream() {
         />
 
         {/* Mensaje de espera */}
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          textAlign: 'center',
-          color: 'white'
-        }}>
-          <div style={{ fontSize: '64px', marginBottom: '20px' }}>📡</div>
-          <div style={{ fontSize: '24px', fontWeight: 700 }}>
-            Conectando a la transmisión...
+        {!isConnected && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+            color: 'white',
+            background: 'rgba(0,0,0,0.8)',
+            padding: '40px',
+            borderRadius: '20px'
+          }}>
+            <div style={{ fontSize: '64px', marginBottom: '20px' }}>📡</div>
+            <div style={{ fontSize: '24px', fontWeight: 700 }}>
+              Conectando a la transmisión...
+            </div>
+            <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginTop: '10px' }}>
+              Esperando señal del streamer
+            </div>
           </div>
-          <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginTop: '10px' }}>
-            El streamer iniciará pronto
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Barra inferior */}

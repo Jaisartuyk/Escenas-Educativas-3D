@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { io, Socket } from 'socket.io-client';
+import SimplePeer from 'simple-peer';
 
 interface Stream {
   id: string;
@@ -18,9 +20,12 @@ export default function StreamingAdmin() {
   const [streamTitle, setStreamTitle] = useState('');
   const [loading, setLoading] = useState(false);
   const [session, setSession] = useState<any>(null);
+  const [viewersCount, setViewersCount] = useState(0);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const peersRef = useRef<Map<string, SimplePeer.Instance>>(new Map());
 
   useEffect(() => {
     // Verificar sesión
@@ -41,6 +46,41 @@ export default function StreamingAdmin() {
     if (data) {
       setStreams(data);
     }
+  };
+
+  const createPeerConnection = (viewerId: string, stream: MediaStream) => {
+    const peer = new SimplePeer({
+      initiator: true,
+      trickle: true,
+      stream: stream,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    });
+
+    peer.on('signal', (signal) => {
+      // Enviar offer al viewer
+      socketRef.current?.emit('offer', {
+        roomId: currentStream?.id,
+        offer: signal,
+        viewerId
+      });
+    });
+
+    peer.on('error', (err) => {
+      console.error('Error en peer connection:', err);
+      peersRef.current.delete(viewerId);
+    });
+
+    peer.on('close', () => {
+      console.log('Peer connection cerrada:', viewerId);
+      peersRef.current.delete(viewerId);
+    });
+
+    peersRef.current.set(viewerId, peer);
   };
 
   const startStreaming = async () => {
@@ -82,6 +122,40 @@ export default function StreamingAdmin() {
         setIsStreaming(true);
         loadStreams();
         
+        // Conectar a WebSocket
+        const socket = io();
+        socketRef.current = socket;
+
+        // Unirse a la sala como streamer
+        socket.emit('join-room', { roomId: data.stream.id, isStreamer: true });
+
+        // Escuchar cuando un viewer se une
+        socket.on('viewer-joined', ({ viewerId }: { viewerId: string }) => {
+          console.log('Nuevo viewer:', viewerId);
+          createPeerConnection(viewerId, stream);
+        });
+
+        // Recibir respuestas de viewers
+        socket.on('answer', ({ answer, viewerId }: { answer: any; viewerId: string }) => {
+          const peer = peersRef.current.get(viewerId);
+          if (peer) {
+            peer.signal(answer);
+          }
+        });
+
+        // Recibir ICE candidates
+        socket.on('ice-candidate', ({ candidate, senderId }: { candidate: any; senderId: string }) => {
+          const peer = peersRef.current.get(senderId);
+          if (peer) {
+            peer.signal(candidate);
+          }
+        });
+
+        // Actualizar conteo de viewers
+        socket.on('viewer-count', (count: number) => {
+          setViewersCount(count);
+        });
+        
         // Detectar cuando el usuario deja de compartir
         stream.getVideoTracks()[0].onended = () => {
           stopStreaming();
@@ -96,11 +170,25 @@ export default function StreamingAdmin() {
   };
 
   const stopStreaming = async () => {
+    // Cerrar todas las conexiones peer
+    peersRef.current.forEach((peer) => {
+      peer.destroy();
+    });
+    peersRef.current.clear();
+
+    // Desconectar WebSocket
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    // Detener media stream
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
     }
 
+    // Desactivar transmisión en la base de datos
     if (currentStream) {
       await fetch(`/api/stream/${currentStream.id}`, {
         method: 'DELETE'
@@ -110,6 +198,7 @@ export default function StreamingAdmin() {
     setIsStreaming(false);
     setCurrentStream(null);
     setStreamTitle('');
+    setViewersCount(0);
     loadStreams();
   };
 
@@ -203,9 +292,21 @@ export default function StreamingAdmin() {
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
           marginBottom: '30px'
         }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '20px', color: '#22c55e' }}>
-            🔴 Transmitiendo en vivo
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#22c55e', margin: 0 }}>
+              🔴 Transmitiendo en vivo
+            </h2>
+            <div style={{
+              background: '#22c55e',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontSize: '14px',
+              fontWeight: 700
+            }}>
+              👥 {viewersCount} {viewersCount === 1 ? 'espectador' : 'espectadores'}
+            </div>
+          </div>
 
           {/* Preview */}
           <video
