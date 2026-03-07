@@ -267,6 +267,7 @@ export default function LiveGamesApp() {
           <div className={`nav-item c-green ${activePage === 'music' ? 'active' : ''}`} onClick={() => goPage('music')}><span className="nav-icon">🎵</span>Adivina la Canción</div>
           <div className={`nav-item c-purple ${activePage === 'football' ? 'active' : ''}`} onClick={() => goPage('football')}><span className="nav-icon">⚽</span>Resúmenes de Fútbol</div>
           <div className="nav-divider"></div>
+          <div className={`nav-item c-pink ${activePage === 'streaming' ? 'active' : ''}`} onClick={() => window.location.href = '/admin/streaming'}><span className="nav-icon">📺</span>Streaming</div>
           <div className={`nav-item c-gray ${activePage === 'editor' ? 'active' : ''}`} onClick={() => goPage('editor')}><span className="nav-icon">✏️</span>Editor</div>
         </nav>
         <div className="sidebar-footer">

@@ -1,0 +1,215 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'next/navigation';
+
+interface Stream {
+  id: string;
+  title: string;
+  active: boolean;
+  created_at: string;
+}
+
+export default function WatchStream() {
+  const params = useParams();
+  const streamId = params.id as string;
+  
+  const [stream, setStream] = useState<Stream | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    loadStream();
+  }, [streamId]);
+
+  const loadStream = async () => {
+    try {
+      const response = await fetch(`/api/stream/${streamId}`);
+      const data = await response.json();
+
+      if (data.error) {
+        setError('Transmisión no encontrada');
+        setLoading(false);
+        return;
+      }
+
+      if (!data.stream.active) {
+        setError('Esta transmisión ha finalizado');
+        setLoading(false);
+        return;
+      }
+
+      setStream(data.stream);
+      setLoading(false);
+
+      // Aquí se conectaría con WebRTC para recibir el stream
+      // Por ahora mostramos la interfaz
+    } catch (err) {
+      setError('Error al cargar la transmisión');
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{
+        width: '100vw',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{ fontSize: '48px' }}>⏳</div>
+        <div style={{
+          fontSize: '24px',
+          fontWeight: 800,
+          color: '#fff',
+          fontFamily: "'Bebas Neue', sans-serif"
+        }}>
+          CARGANDO TRANSMISIÓN...
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !stream) {
+    return (
+      <div style={{
+        width: '100vw',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'column',
+        gap: '30px',
+        padding: '40px'
+      }}>
+        <div style={{ fontSize: '120px' }}>📺</div>
+        <div style={{
+          fontSize: '48px',
+          fontWeight: 800,
+          color: '#fff',
+          fontFamily: "'Bebas Neue', sans-serif",
+          textAlign: 'center',
+          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text'
+        }}>
+          {error || 'TRANSMISIÓN NO DISPONIBLE'}
+        </div>
+        <div style={{
+          fontSize: '20px',
+          color: 'rgba(255,255,255,0.6)',
+          fontWeight: 600,
+          textAlign: 'center',
+          maxWidth: '600px'
+        }}>
+          Esta transmisión ha finalizado o el código es incorrecto.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      width: '100vw',
+      height: '100vh',
+      background: '#000',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
+      {/* Video */}
+      <div style={{
+        flex: 1,
+        position: 'relative',
+        background: '#000',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain'
+          }}
+        />
+
+        {/* Mensaje de espera */}
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          textAlign: 'center',
+          color: 'white'
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '20px' }}>📡</div>
+          <div style={{ fontSize: '24px', fontWeight: 700 }}>
+            Conectando a la transmisión...
+          </div>
+          <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginTop: '10px' }}>
+            El streamer iniciará pronto
+          </div>
+        </div>
+      </div>
+
+      {/* Barra inferior */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.95), rgba(118, 75, 162, 0.95))',
+        padding: '20px 40px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(10px)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ fontSize: '40px' }}>⚽</div>
+          <div>
+            <div style={{
+              fontSize: '24px',
+              fontWeight: 800,
+              color: '#fff',
+              fontFamily: "'Bebas Neue', sans-serif",
+              lineHeight: 1
+            }}>
+              {stream.title}
+            </div>
+            <div style={{
+              fontSize: '14px',
+              color: 'rgba(255,255,255,0.8)',
+              marginTop: '5px'
+            }}>
+              🔴 EN VIVO
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          background: 'rgba(255,255,255,0.2)',
+          padding: '10px 20px',
+          borderRadius: '50px',
+          fontSize: '14px',
+          fontWeight: 700,
+          color: '#fff',
+          backdropFilter: 'blur(10px)',
+          border: '2px solid rgba(255,255,255,0.3)'
+        }}>
+          📺 TRANSMISIÓN PRIVADA
+        </div>
+      </div>
+    </div>
+  );
+}
