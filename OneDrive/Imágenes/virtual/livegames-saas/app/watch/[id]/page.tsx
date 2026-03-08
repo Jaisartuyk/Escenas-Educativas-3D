@@ -50,7 +50,8 @@ export default function WatchStream() {
       setLoading(false);
 
       // Conectar a WebSocket
-      const socket = io();
+      const socketUrl = process.env.NEXT_PUBLIC_RAILWAY_URL || window.location.origin;
+      const socket = io(socketUrl);
       socketRef.current = socket;
 
       // Unirse a la sala como viewer
