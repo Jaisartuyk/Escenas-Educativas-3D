@@ -10,7 +10,21 @@ const app = next({ dev, hostname, port });
 const handler = app.getRequestHandler();
 
 app.prepare().then(() => {
-  const httpServer = createServer(handler);
+  const httpServer = createServer((req, res) => {
+    // Agregar headers CORS a todas las peticiones
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+    
+    handler(req, res);
+  });
   
   const io = new Server(httpServer, {
     cors: {
