@@ -31,8 +31,18 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
 
   const socketRef = useRef<Socket | null>(null);
   const peersRef = useRef<Map<string, SimplePeer.Instance>>(new Map());
+  // Use a ref to store the current roomId so closures always have the latest value
+  const roomIdRef = useRef<string | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   const createPeerConnection = (viewerId: string, stream: MediaStream) => {
+    // Destroy existing peer for this viewer if any
+    const existingPeer = peersRef.current.get(viewerId);
+    if (existingPeer) {
+      existingPeer.destroy();
+      peersRef.current.delete(viewerId);
+    }
+
     const peer = new SimplePeer({
       initiator: true,
       trickle: true,
@@ -57,8 +67,15 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
     });
 
     peer.on('signal', (signal) => {
+      // Use roomIdRef instead of currentStream (fixes stale closure bug)
+      const roomId = roomIdRef.current;
+      if (!roomId) {
+        console.error('No roomId available for signaling');
+        return;
+      }
+      console.log('Streamer sending signal type:', signal.type || 'candidate', 'to viewer:', viewerId);
       socketRef.current?.emit('offer', {
-        roomId: currentStream?.id,
+        roomId,
         offer: signal,
         viewerId
       });
@@ -74,20 +91,25 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
       peersRef.current.delete(viewerId);
     });
 
+    peer.on('connect', () => {
+      console.log('Peer connection established with viewer:', viewerId);
+    });
+
     peersRef.current.set(viewerId, peer);
   };
 
   const startStreaming = async (title: string, userId: string) => {
     try {
-      // Solicitar permiso para compartir pantalla
+      // Request screen share permission
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { width: 1920, height: 1080 },
         audio: true
       });
 
       setMediaStream(stream);
+      mediaStreamRef.current = stream;
 
-      // Crear transmisión en la base de datos
+      // Create stream in database
       const response = await fetch('/api/stream/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,45 +119,54 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
 
       if (data.success) {
-        setCurrentStream(data.stream);
+        const streamData = data.stream;
+        // Store roomId in ref BEFORE setting up socket events
+        roomIdRef.current = streamData.id;
+
+        setCurrentStream(streamData);
         setIsStreaming(true);
 
-        // Conectar a WebSocket
+        // Connect to WebSocket
         const socketUrl = process.env.NEXT_PUBLIC_RAILWAY_URL || window.location.origin;
         const socket = io(socketUrl);
         socketRef.current = socket;
 
-        // Unirse a la sala como streamer
-        socket.emit('join-room', { roomId: data.stream.id, isStreamer: true });
+        // Join room as streamer
+        socket.emit('join-room', { roomId: streamData.id, isStreamer: true });
 
-        // Escuchar cuando un viewer se une
+        // Listen for new viewers
         socket.on('viewer-joined', ({ viewerId }: { viewerId: string }) => {
-          console.log('Nuevo viewer:', viewerId);
-          createPeerConnection(viewerId, stream);
+          console.log('New viewer joined:', viewerId);
+          // Use mediaStreamRef to always get the current stream
+          if (mediaStreamRef.current) {
+            createPeerConnection(viewerId, mediaStreamRef.current);
+          }
         });
 
-        // Recibir respuestas de viewers
+        // Receive answers from viewers
         socket.on('answer', ({ answer, viewerId }: { answer: any; viewerId: string }) => {
+          console.log('Received answer from viewer:', viewerId);
           const peer = peersRef.current.get(viewerId);
           if (peer) {
             peer.signal(answer);
           }
         });
 
-        // Recibir ICE candidates
+        // Receive ICE candidates
         socket.on('ice-candidate', ({ candidate, senderId }: { candidate: any; senderId: string }) => {
+          console.log('Received ICE candidate from:', senderId);
           const peer = peersRef.current.get(senderId);
           if (peer) {
             peer.signal(candidate);
           }
         });
 
-        // Actualizar conteo de viewers
+        // Update viewer count
         socket.on('viewer-count', (count: number) => {
           setViewersCount(count);
         });
 
-        // Detectar cuando el usuario deja de compartir
+        // Detect when user stops sharing
         stream.getVideoTracks()[0].onended = () => {
           stopStreaming();
         };
@@ -147,31 +178,35 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
   };
 
   const stopStreaming = async () => {
-    // Cerrar todas las conexiones peer
+    // Close all peer connections
     peersRef.current.forEach((peer) => {
       peer.destroy();
     });
     peersRef.current.clear();
 
-    // Desconectar WebSocket
+    // Disconnect WebSocket
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
 
-    // Detener media stream
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(track => track.stop());
+    // Stop media stream
+    const stream = mediaStreamRef.current || mediaStream;
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
       setMediaStream(null);
+      mediaStreamRef.current = null;
     }
 
-    // Desactivar transmisión en la base de datos
-    if (currentStream) {
-      await fetch(`/api/stream/${currentStream.id}`, {
+    // Deactivate stream in database
+    const roomId = roomIdRef.current;
+    if (roomId) {
+      await fetch(`/api/stream/${roomId}`, {
         method: 'DELETE'
       });
     }
 
+    roomIdRef.current = null;
     setIsStreaming(false);
     setCurrentStream(null);
     setViewersCount(0);

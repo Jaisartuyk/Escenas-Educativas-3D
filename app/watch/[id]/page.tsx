@@ -15,18 +15,31 @@ interface Stream {
 export default function WatchStream() {
   const params = useParams();
   const streamId = params.id as string;
-  
+
   const [stream, setStream] = useState<Stream | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isConnected, setIsConnected] = useState(false);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const peerRef = useRef<SimplePeer.Instance | null>(null);
+  const streamerIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     loadStream();
+
+    return () => {
+      // Cleanup on unmount
+      if (peerRef.current) {
+        peerRef.current.destroy();
+        peerRef.current = null;
+      }
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
   }, [streamId]);
 
   const loadStream = async () => {
@@ -49,33 +62,46 @@ export default function WatchStream() {
       setStream(data.stream);
       setLoading(false);
 
-      // Conectar a WebSocket
+      // Connect to WebSocket
       const socketUrl = process.env.NEXT_PUBLIC_RAILWAY_URL || window.location.origin;
       const socket = io(socketUrl);
       socketRef.current = socket;
 
-      // Unirse a la sala como viewer
+      // Join room as viewer
       socket.emit('join-room', { roomId: streamId, isStreamer: false });
 
-      // Esperar offer del streamer
+      // Receive signals from streamer (offers and ICE candidates)
       socket.on('offer', ({ offer, streamerId }: { offer: any; streamerId: string }) => {
-        console.log('Recibida offer del streamer');
-        createPeerConnection(offer, streamerId);
-      });
+        console.log('Received signal from streamer, type:', offer.type || 'candidate');
 
-      // Recibir ICE candidates
-      socket.on('ice-candidate', ({ candidate }: { candidate: any }) => {
-        if (peerRef.current) {
-          peerRef.current.signal(candidate);
+        if (!peerRef.current) {
+          // First signal — create peer connection and process it
+          console.log('Creating new peer connection');
+          streamerIdRef.current = streamerId;
+          createPeerConnection(offer, streamerId);
+        } else {
+          // Subsequent signals (ICE candidates) — feed to existing peer
+          console.log('Feeding signal to existing peer');
+          try {
+            peerRef.current.signal(offer);
+          } catch (err) {
+            console.error('Error signaling to peer:', err);
+          }
         }
       });
 
-      // Streamer desconectado
+      // Streamer disconnected
       socket.on('streamer-disconnected', () => {
         setError('El streamer ha finalizado la transmisión');
         if (peerRef.current) {
           peerRef.current.destroy();
+          peerRef.current = null;
         }
+      });
+
+      // If streamer is already ready (we joined late), request a connection
+      socket.on('streamer-ready', () => {
+        console.log('Streamer is ready, waiting for offer...');
       });
 
     } catch (err) {
@@ -84,7 +110,7 @@ export default function WatchStream() {
     }
   };
 
-  const createPeerConnection = (offer: any, streamerId: string) => {
+  const createPeerConnection = (initialSignal: any, streamerId: string) => {
     const peer = new SimplePeer({
       initiator: false,
       trickle: true,
@@ -108,7 +134,7 @@ export default function WatchStream() {
     });
 
     peer.on('signal', (signal) => {
-      // Enviar answer al streamer
+      console.log('Viewer sending signal type:', signal.type || 'candidate');
       socketRef.current?.emit('answer', {
         roomId: streamId,
         answer: signal,
@@ -117,25 +143,31 @@ export default function WatchStream() {
     });
 
     peer.on('stream', (remoteStream) => {
-      console.log('Stream recibido!');
+      console.log('Remote stream received! Tracks:', remoteStream.getTracks().length);
       if (videoRef.current) {
         videoRef.current.srcObject = remoteStream;
         setIsConnected(true);
       }
     });
 
+    peer.on('connect', () => {
+      console.log('Peer connection established!');
+      setIsConnected(true);
+    });
+
     peer.on('error', (err) => {
       console.error('Error en peer connection:', err);
-      setError('Error al conectar con el streamer');
+      setError('Error al conectar con el streamer. Intenta recargar la página.');
     });
 
     peer.on('close', () => {
-      console.log('Conexión cerrada');
+      console.log('Peer connection closed');
       setError('La transmisión ha finalizado');
+      peerRef.current = null;
     });
 
-    // Procesar la offer
-    peer.signal(offer);
+    // Process the initial signal (the offer)
+    peer.signal(initialSignal);
     peerRef.current = peer;
   };
 
@@ -187,7 +219,7 @@ export default function WatchStream() {
           background: 'linear-gradient(135deg, #ef4444, #dc2626)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
+          backgroundClip: 'text' as any
         }}>
           {error || 'TRANSMISIÓN NO DISPONIBLE'}
         </div>
@@ -200,6 +232,21 @@ export default function WatchStream() {
         }}>
           Esta transmisión ha finalizado o el código es incorrecto.
         </div>
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            padding: '12px 30px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            fontSize: '16px',
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}
+        >
+          🔄 Reintentar
+        </button>
       </div>
     );
   }
@@ -233,7 +280,7 @@ export default function WatchStream() {
           }}
         />
 
-        {/* Mensaje de espera */}
+        {/* Waiting message */}
         {!isConnected && (
           <div style={{
             position: 'absolute',
@@ -246,7 +293,7 @@ export default function WatchStream() {
             padding: '40px',
             borderRadius: '20px'
           }}>
-            <div style={{ fontSize: '64px', marginBottom: '20px' }}>📡</div>
+            <div style={{ fontSize: '64px', marginBottom: '20px', animation: 'pulse 2s ease-in-out infinite' }}>📡</div>
             <div style={{ fontSize: '24px', fontWeight: 700 }}>
               Conectando a la transmisión...
             </div>
@@ -257,7 +304,7 @@ export default function WatchStream() {
         )}
       </div>
 
-      {/* Barra inferior */}
+      {/* Bottom bar */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.95), rgba(118, 75, 162, 0.95))',
         padding: '20px 40px',
@@ -284,22 +331,22 @@ export default function WatchStream() {
               color: 'rgba(255,255,255,0.8)',
               marginTop: '5px'
             }}>
-              🔴 EN VIVO
+              {isConnected ? '🔴 EN VIVO' : '⏳ Conectando...'}
             </div>
           </div>
         </div>
 
         <div style={{
-          background: 'rgba(255,255,255,0.2)',
+          background: isConnected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255,255,255,0.2)',
           padding: '10px 20px',
           borderRadius: '50px',
           fontSize: '14px',
           fontWeight: 700,
           color: '#fff',
           backdropFilter: 'blur(10px)',
-          border: '2px solid rgba(255,255,255,0.3)'
+          border: isConnected ? '2px solid rgba(34, 197, 94, 0.5)' : '2px solid rgba(255,255,255,0.3)'
         }}>
-          📺 TRANSMISIÓN PRIVADA
+          {isConnected ? '✅ CONECTADO' : '📡 CONECTANDO...'}
         </div>
       </div>
     </div>
