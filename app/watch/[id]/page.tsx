@@ -20,6 +20,7 @@ export default function WatchStream() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -285,10 +286,10 @@ export default function WatchStream() {
           ref={videoRef}
           autoPlay
           playsInline
-          muted
+          muted={isMuted}
           onLoadedMetadata={(e) => {
             const vid = e.currentTarget;
-            vid.play().catch(() => console.log('Autoplay blocked, user interaction needed'));
+            vid.play().catch(() => console.log('Autoplay blocked'));
           }}
           style={{
             width: '100%',
@@ -296,6 +297,35 @@ export default function WatchStream() {
             objectFit: 'contain'
           }}
         />
+
+        {/* Unmute button */}
+        {isConnected && isMuted && (
+          <button
+            onClick={() => {
+              setIsMuted(false);
+              if (videoRef.current) videoRef.current.muted = false;
+            }}
+            style={{
+              position: 'absolute',
+              bottom: '100px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              padding: '14px 32px',
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50px',
+              fontSize: '18px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 8px 30px rgba(102, 126, 234, 0.5)',
+              animation: 'pulse 2s ease-in-out infinite',
+              zIndex: 10
+            }}
+          >
+            🔊 Activar Audio
+          </button>
+        )}
 
         {/* Waiting message */}
         {!isConnected && (
