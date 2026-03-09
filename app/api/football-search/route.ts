@@ -15,9 +15,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Buscar resúmenes de fútbol en YouTube
-    const searchQuery = `${query} resumen highlights goles`;
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchQuery)}&type=video&videoEmbeddable=true&maxResults=10&key=${apiKey}&order=date`;
+    // Search YouTube directly with the user's query (like YouTube itself)
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoEmbeddable=true&maxResults=15&key=${apiKey}&order=relevance&relevanceLanguage=es`;
 
     const response = await fetch(url);
     const data = await response.json();
@@ -26,7 +25,7 @@ export async function GET(request: NextRequest) {
       throw new Error(data.error?.message || 'YouTube API error');
     }
 
-    // Formatear resultados
+    // Format results
     const videos = data.items?.map((item: any) => ({
       id: item.id.videoId,
       title: item.snippet.title,
@@ -39,8 +38,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ videos });
   } catch (error: any) {
     console.error('Football search error:', error);
-    return NextResponse.json({ 
-      error: error.message || 'Failed to search football videos' 
+    return NextResponse.json({
+      error: error.message || 'Failed to search videos'
     }, { status: 500 });
   }
 }

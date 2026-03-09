@@ -59,7 +59,7 @@ export default function StreamingDailyAdmin() {
 
       // Crear transmisión en Supabase
       const streamCode = Math.random().toString(36).substring(2, 10);
-      
+
       const { data, error } = await supabase
         .from('streams')
         .insert({
@@ -95,7 +95,7 @@ export default function StreamingDailyAdmin() {
         .from('streams')
         .update({ active: false })
         .eq('id', currentStream.id);
-      
+
       // Cerrar sala de Daily.co
       if (currentStream.daily_room_url) {
         const roomName = currentStream.daily_room_url.split('/').pop();
@@ -109,7 +109,7 @@ export default function StreamingDailyAdmin() {
           console.error('Error closing Daily room:', error);
         }
       }
-      
+
       setCurrentStream(null);
       loadStreams();
     }
@@ -122,7 +122,12 @@ export default function StreamingDailyAdmin() {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', height: '100vh', overflowY: 'auto' }}>
+      {/* Back */}
+      <button onClick={() => window.location.href = '/'} style={{ padding: '8px 18px', background: 'rgba(0,0,0,0.05)', border: '1px solid #e0e0e0', borderRadius: '10px', color: '#666', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginBottom: '20px' }}>
+        ← Volver al inicio
+      </button>
+
       <div style={{ marginBottom: '30px' }}>
         <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '10px', color: '#1a1a1a' }}>
           📺 Panel de Streaming (Daily.co)
@@ -143,7 +148,7 @@ export default function StreamingDailyAdmin() {
           <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '20px', color: '#1a1a1a' }}>
             Nueva Transmisión
           </h2>
-          
+
           <input
             type="text"
             value={streamTitle}
@@ -287,7 +292,7 @@ export default function StreamingDailyAdmin() {
                   {stream.title}
                 </h3>
                 <p style={{ fontSize: '12px', color: '#666' }}>
-                  {stream.active ? '🔴 Activa' : '⚫ Finalizada'} • 
+                  {stream.active ? '🔴 Activa' : '⚫ Finalizada'} •
                   {new Date(stream.created_at).toLocaleString('es-ES')}
                 </p>
               </div>

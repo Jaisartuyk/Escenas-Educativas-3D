@@ -113,6 +113,11 @@ export default function StreamingAdmin() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', height: '100vh', overflowY: 'auto' }}>
+      {/* Back */}
+      <button onClick={() => window.location.href = '/'} style={{ padding: '8px 18px', background: 'rgba(0,0,0,0.05)', border: '1px solid #e0e0e0', borderRadius: '10px', color: '#666', fontSize: '14px', fontWeight: 600, cursor: 'pointer', marginBottom: '20px' }}>
+        ← Volver al inicio
+      </button>
+
       {/* Header */}
       <div style={{ marginBottom: '30px' }}>
         <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '10px', color: '#1a1a1a' }}>

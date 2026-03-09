@@ -66,6 +66,23 @@ export default function Football() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Back button */}
+      <button
+        onClick={() => window.location.href = '/'}
+        style={{
+          padding: '8px 18px',
+          background: 'rgba(255,255,255,0.1)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          borderRadius: '10px',
+          color: '#fff',
+          fontSize: '14px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          marginBottom: '20px'
+        }}
+      >
+        ← Volver al inicio
+      </button>
       {/* Header */}
       <div style={{ marginBottom: '30px' }}>
         <div style={{
@@ -90,14 +107,15 @@ export default function Football() {
 
       {/* Buscador */}
       <form onSubmit={handleSearch} style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '10px', maxWidth: '600px' }}>
+        <div style={{ display: 'flex', gap: '10px', maxWidth: '600px', flexWrap: 'wrap' }}>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Ej: Real Madrid vs Barcelona"
+            placeholder="Busca cualquier video de YouTube..."
             style={{
               flex: 1,
+              minWidth: '200px',
               padding: '12px 20px',
               border: '2px solid #e0e0e0',
               borderRadius: '10px',
@@ -218,6 +236,7 @@ export default function Football() {
               }}>
                 <iframe
                   src={`https://www.youtube.com/embed/${selectedVideo.id}?autoplay=1`}
+                  loading="lazy"
                   style={{
                     position: 'absolute',
                     top: 0,
