@@ -144,9 +144,21 @@ export default function WatchStream() {
 
     peer.on('stream', (remoteStream) => {
       console.log('Remote stream received! Tracks:', remoteStream.getTracks().length);
+      remoteStream.getTracks().forEach(t => console.log('  Track:', t.kind, t.readyState, t.enabled));
       if (videoRef.current) {
         videoRef.current.srcObject = remoteStream;
-        setIsConnected(true);
+        videoRef.current.play().then(() => {
+          console.log('Video playing!');
+          setIsConnected(true);
+        }).catch((err) => {
+          console.log('Play failed, trying muted:', err);
+          if (videoRef.current) {
+            videoRef.current.muted = true;
+            videoRef.current.play().then(() => {
+              setIsConnected(true);
+            }).catch(e => console.error('Even muted play failed:', e));
+          }
+        });
       }
     });
 
@@ -273,6 +285,11 @@ export default function WatchStream() {
           ref={videoRef}
           autoPlay
           playsInline
+          muted
+          onLoadedMetadata={(e) => {
+            const vid = e.currentTarget;
+            vid.play().catch(() => console.log('Autoplay blocked, user interaction needed'));
+          }}
           style={{
             width: '100%',
             height: '100%',

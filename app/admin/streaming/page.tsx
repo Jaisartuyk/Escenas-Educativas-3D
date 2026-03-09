@@ -112,7 +112,7 @@ export default function StreamingAdmin() {
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', height: '100vh', overflowY: 'auto' }}>
       {/* Header */}
       <div style={{ marginBottom: '30px' }}>
         <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '10px', color: '#1a1a1a' }}>
