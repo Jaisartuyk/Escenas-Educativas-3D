@@ -16,16 +16,16 @@ app.prepare().then(() => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
+
     if (req.method === 'OPTIONS') {
       res.writeHead(200);
       res.end();
       return;
     }
-    
+
     handler(req, res);
   });
-  
+
   const io = new Server(httpServer, {
     cors: {
       origin: '*',
@@ -42,10 +42,10 @@ app.prepare().then(() => {
   io.on('connection', (socket) => {
     console.log('Cliente conectado:', socket.id);
 
-    // Streamer se une a una sala
+    // Streamer o viewer se une a una sala
     socket.on('join-room', ({ roomId, isStreamer }) => {
       socket.join(roomId);
-      
+
       if (!rooms.has(roomId)) {
         rooms.set(roomId, { streamer: null, viewers: new Set() });
       }
@@ -55,13 +55,19 @@ app.prepare().then(() => {
       if (isStreamer) {
         room.streamer = socket.id;
         console.log(`Streamer ${socket.id} se unió a sala ${roomId}`);
-        
-        // Notificar a todos los viewers que el streamer está listo
+
+        // Notify streamer about ALL existing viewers waiting
+        room.viewers.forEach((viewerId) => {
+          console.log(`Notificando streamer sobre viewer existente: ${viewerId}`);
+          io.to(socket.id).emit('viewer-joined', { viewerId });
+        });
+
+        // Notify viewers that streamer is ready
         socket.to(roomId).emit('streamer-ready');
       } else {
         room.viewers.add(socket.id);
         console.log(`Viewer ${socket.id} se unió a sala ${roomId}`);
-        
+
         // Si hay streamer, notificarle que hay un nuevo viewer
         if (room.streamer) {
           io.to(room.streamer).emit('viewer-joined', { viewerId: socket.id });
@@ -91,7 +97,7 @@ app.prepare().then(() => {
     // Desconexión
     socket.on('disconnect', () => {
       console.log('Cliente desconectado:', socket.id);
-      
+
       // Limpiar de todas las salas
       rooms.forEach((room, roomId) => {
         if (room.streamer === socket.id) {

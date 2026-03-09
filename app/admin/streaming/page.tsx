@@ -17,9 +17,9 @@ export default function StreamingAdmin() {
   const [streamTitle, setStreamTitle] = useState('');
   const [loading, setLoading] = useState(false);
   const [session, setSession] = useState<any>(null);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
-  
+
   // Usar el contexto global de streaming
   const {
     isStreaming,
@@ -44,7 +44,7 @@ export default function StreamingAdmin() {
     if (videoRef.current && mediaStream) {
       videoRef.current.srcObject = mediaStream;
     }
-  }, [mediaStream]);
+  }, [mediaStream, isStreaming]);
 
   // Debug: ver estado actual
   useEffect(() => {
@@ -135,7 +135,7 @@ export default function StreamingAdmin() {
           <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '20px', color: '#1a1a1a' }}>
             Nueva Transmisión
           </h2>
-          
+
           <input
             type="text"
             value={streamTitle}
@@ -317,8 +317,8 @@ export default function StreamingAdmin() {
                     {stream.title}
                   </h3>
                   <p style={{ fontSize: '12px', color: '#666' }}>
-                    {stream.active ? '🔴 Activa' : '⚫ Finalizada'} • 
-                    Código: {stream.id} • 
+                    {stream.active ? '🔴 Activa' : '⚫ Finalizada'} •
+                    Código: {stream.id} •
                     {new Date(stream.created_at).toLocaleString('es-ES')}
                   </p>
                 </div>
