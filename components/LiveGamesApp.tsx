@@ -386,9 +386,9 @@ export default function LiveGamesApp() {
             <Music items={songs} idx={songIdx} setIdx={setSongIdx} timerSeconds={timerMusic} onShowEditor={() => goPage('editor')} triggerConfetti={triggerConfetti} />
           )}
 
-          {activePage === 'football' && (
+          <div style={{ display: activePage === 'football' ? 'block' : 'none' }}>
             <Football />
-          )}
+          </div>
 
           {activePage === 'editor' && (
             <Editor
