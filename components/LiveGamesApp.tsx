@@ -227,6 +227,25 @@ export default function LiveGamesApp() {
             <button className="login-btn" type="submit">
               {isSignUp ? '✨ Registrarse' : '🚀 Entrar al panel'}
             </button>
+            <button
+              className="login-btn"
+              type="button"
+              style={{
+                marginTop: '10px',
+                background: '#000',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+              onClick={() => alert('La integración oficial de TikTok está en proceso de revisión')}
+            >
+              <svg width="20" height="20" viewBox="0 0 448 512" fill="currentColor">
+                <path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/>
+              </svg>
+              Continuar con TikTok
+            </button>
           </form>
 
           {authError && <div className="login-error show" style={{ marginTop: '14px' }}>❌ {authError}</div>}
@@ -237,6 +256,11 @@ export default function LiveGamesApp() {
             onClick={() => { setIsSignUp(!isSignUp); setAuthError(''); }}
           >
             {isSignUp ? '¿Ya tienes cuenta? Inicia sesión aquí' : '¿No tienes cuenta? Regístrate gratis'}
+          </div>
+
+          <div style={{ marginTop: '25px', fontSize: '12px', textAlign: 'center', color: '#888', lineHeight: '1.5' }}>
+            Al continuar, aceptas nuestros <br />
+            <a href="https://jaisartuyk.github.io/LiveGames-SaaS/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: '#fe2c55', textDecoration: 'none', fontWeight: 'bold' }}>Términos de Servicio</a> y nuestra <a href="https://jaisartuyk.github.io/LiveGames-SaaS/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: '#fe2c55', textDecoration: 'none', fontWeight: 'bold' }}>Política de Privacidad</a>.
           </div>
         </div>
       </div>
