@@ -17,6 +17,13 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "🎮 TikTok LiveGames IA",
   description: "Panel de control para TikTok Lives generados con IA",
+  manifest: "/manifest.json",
+  themeColor: "#fe2c55",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "LiveGames IA",
+  },
 };
 
 export default function RootLayout({
