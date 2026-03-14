@@ -85,6 +85,43 @@ export default function LiveGamesApp() {
   const [challengeIdx, setChallengeIdx] = useState(0);
   const [songIdx, setSongIdx] = useState(0);
 
+  // Wake Lock (Prevent screen from sleeping)
+  useEffect(() => {
+    let wakeLock: any = null;
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          // @ts-ignore
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Screen Wake Lock is active');
+          wakeLock.addEventListener('release', () => {
+            console.log('Screen Wake Lock was released');
+          });
+        }
+      } catch (err: any) {
+        console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    // Delay a bit to ensure the document is fully ready for wake lock
+    setTimeout(requestWakeLock, 1000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (wakeLock !== null) {
+        wakeLock.release().catch(console.error);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     setIsClient(true);
 
