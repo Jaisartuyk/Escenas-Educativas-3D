@@ -53,6 +53,7 @@ export default function LiveGamesApp() {
   const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [activePage, setActivePage] = useState("home");
 
   useEffect(() => {
@@ -137,9 +138,14 @@ export default function LiveGamesApp() {
     return () => subscription.unsubscribe();
   }, []);
 
+
   const loadUserData = useCallback(async () => {
     if (!session?.user) return;
-    setDataLoading(true);
+    
+    // Solo mostrar pantalla de carga si es la primera vez
+    if (!initialLoadDone) {
+      setDataLoading(true);
+    }
 
     try {
       const { data, error } = await supabase
@@ -176,8 +182,9 @@ export default function LiveGamesApp() {
       console.error("Error loading data:", err);
     } finally {
       setDataLoading(false);
+      setInitialLoadDone(true);
     }
-  }, [session]);
+  }, [session, initialLoadDone]);
 
   useEffect(() => {
     if (session) {
