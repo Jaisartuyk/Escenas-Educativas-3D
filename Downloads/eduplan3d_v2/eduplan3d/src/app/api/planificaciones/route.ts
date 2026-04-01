@@ -108,11 +108,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar límite del plan free
-    const { data: profile } = await supabase
+    const { data: profile } = await (supabase as any)
       .from('profiles').select('plan').eq('id', user.id).single() as { data: { plan: string } | null }
 
     if (profile?.plan === 'free') {
-      const { count } = await supabase
+      const { count } = await (supabase as any)
         .from('planificaciones')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     // ─── LÓGICA RAG: EXTRAER PDFs DE LA BIBLIOTECA ───
     let contextoExtra = ''
     try {
-      const { data: docs } = await supabase
+      const { data: docs } = await (supabase as any)
         .from('documentos')
         .select('storage_path')
         .eq('user_id', user.id)
@@ -139,9 +139,10 @@ export async function POST(request: NextRequest) {
         .eq('grado', body.grade)
 
       if (docs && docs.length > 0) {
-        const pdfParse = (await import('pdf-parse')).default
+        const pdfMod = await import('pdf-parse')
+        const pdfParse = (pdfMod as any).default || pdfMod
 
-        for (const d of docs) {
+        for (const d of docs as any[]) {
           const { data: fileData, error: downloadError } = await supabase.storage
             .from('biblioteca')
             .download(d.storage_path)
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
     const title = `${body.subject} — ${body.topic}`.slice(0, 80)
 
     // Guardar en Supabase
-    const { data: saved, error } = await supabase
+    const { data: saved, error } = await (supabase as any)
       .from('planificaciones')
       .insert({
         user_id:       user.id,
