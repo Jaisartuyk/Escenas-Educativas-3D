@@ -166,7 +166,7 @@ export function SceneEditorClient() {
       const { error: uploadErr } = await supabase.storage.from('modelos_3d').upload(fileName, file)
       if (uploadErr) throw new Error('Error al subir GLB: ' + uploadErr.message)
 
-      const { data: escena, error: dbErr } = await supabase.from('escenas_custom').insert({
+      const { data: escena, error: dbErr } = await (supabase as any).from('escenas_custom').insert({
         user_id: user.id,
         titulo,
         asignatura,
@@ -182,7 +182,7 @@ export function SceneEditorClient() {
           titulo: p.titulo,
           descripcion: p.descripcion
         }))
-        const { error: ptErr } = await supabase.from('escena_puntos').insert(insertPoints)
+        const { error: ptErr } = await (supabase as any).from('escena_puntos').insert(insertPoints)
         if (ptErr) throw new Error('Error al guardar puntos: ' + ptErr.message)
       }
 

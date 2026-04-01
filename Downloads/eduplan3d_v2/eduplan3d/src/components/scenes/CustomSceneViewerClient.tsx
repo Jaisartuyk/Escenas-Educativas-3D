@@ -21,13 +21,13 @@ export function CustomSceneViewerClient({ id }: { id: string }) {
 
   useEffect(() => {
     async function fetchScene() {
-      const { data: escena, error } = await supabase.from('escenas_custom').select('*').eq('id', id).single()
+      const { data: escena, error } = await (supabase as any).from('escenas_custom').select('*').eq('id', id).single()
       if (error || !escena) {
         toast.error('Error cargando escena')
         return setLoading(false)
       }
       
-      const { data: puntos } = await supabase.from('escena_puntos').select('*').eq('escena_id', id)
+      const { data: puntos } = await (supabase as any).from('escena_puntos').select('*').eq('escena_id', id)
       
       const { data: fileData, error: dlErr } = await supabase.storage.from('modelos_3d').download(escena.storage_path)
       if (dlErr) {

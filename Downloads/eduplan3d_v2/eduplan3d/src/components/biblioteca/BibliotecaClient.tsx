@@ -62,7 +62,7 @@ export function BibliotecaClient() {
       
       if (uploadError) throw new Error('Error al subir PDF: (Asegúrate de haber creado el bucket "biblioteca" y sus políticas). ' + uploadError.message)
 
-      const { error: dbError } = await supabase.from('documentos').insert({
+      const { error: dbError } = await (supabase as any).from('documentos').insert({
         user_id: user.id,
         titulo,
         asignatura,
@@ -88,7 +88,7 @@ export function BibliotecaClient() {
     const t = toast.loading('Eliminando...')
     try {
       await supabase.storage.from('biblioteca').remove([path])
-      await supabase.from('documentos').delete().eq('id', id)
+      await (supabase as any).from('documentos').delete().eq('id', id)
       toast.success('Eliminado', { id: t })
       loadDocs()
     } catch (err: any) {

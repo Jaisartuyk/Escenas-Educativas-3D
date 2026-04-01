@@ -21,7 +21,7 @@ export function CustomScenesList() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase.from('escenas_custom').select('*').order('created_at', { ascending: false })
+    const { data } = await (supabase as any).from('escenas_custom').select('*').order('created_at', { ascending: false })
     if (data) setScenes(data)
     setLoading(false)
   }
