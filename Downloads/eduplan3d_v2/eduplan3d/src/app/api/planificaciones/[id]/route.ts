@@ -8,7 +8,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
 
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('planificaciones')
     .delete()
     .eq('id', params.id)

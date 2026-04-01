@@ -65,7 +65,7 @@ export async function updateProfile(formData: FormData) {
   const full_name  = formData.get('full_name')  as string
   const institution = formData.get('institution') as string
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('profiles')
     .update({ full_name, institution })
     .eq('id', user.id)

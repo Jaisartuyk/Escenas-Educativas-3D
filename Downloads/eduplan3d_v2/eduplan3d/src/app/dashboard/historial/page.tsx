@@ -9,7 +9,7 @@ export default async function HistorialPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: planificaciones } = await supabase
+  const { data: planificaciones } = await (supabase as any)
     .from('planificaciones')
     .select('*')
     .eq('user_id', user!.id)
