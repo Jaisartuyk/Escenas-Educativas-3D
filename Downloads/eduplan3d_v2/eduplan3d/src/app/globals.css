@@ -1,0 +1,104 @@
+/* src/app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-bricolage: 'Bricolage Grotesque';
+    --font-instrument: 'Instrument Sans';
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: #06050f;
+    color: #f0eeff;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: #06050f; }
+  ::-webkit-scrollbar-thumb { background: #221e3e; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2d2850; }
+
+  ::selection { background: rgba(124,109,250,0.3); color: #f0eeff; }
+}
+
+@layer components {
+  /* ── Inputs ── */
+  .input-base {
+    @apply w-full px-3.5 py-2.5 bg-bg2 border border-[rgba(120,100,255,0.14)]
+           rounded-[10px] text-ink text-sm outline-none
+           placeholder:text-ink3 transition-colors
+           focus:border-violet focus:ring-0;
+  }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply px-5 py-2.5 bg-gradient-to-br from-violet to-violet2
+           rounded-[10px] text-sm font-semibold text-white
+           font-display tracking-tight transition-all
+           hover:opacity-90 hover:-translate-y-px
+           active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed
+           shadow-[0_4px_20px_rgba(124,109,250,0.25)];
+  }
+
+  .btn-secondary {
+    @apply px-5 py-2.5 border border-[rgba(120,100,255,0.26)]
+           rounded-[10px] text-sm font-medium text-ink2
+           transition-all hover:border-violet hover:text-ink hover:bg-surface;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 rounded-[8px] text-sm font-medium text-ink3
+           transition-all hover:text-ink hover:bg-surface;
+  }
+
+  /* ── Cards ── */
+  .card {
+    @apply bg-surface border border-[rgba(120,100,255,0.14)]
+           rounded-2xl transition-colors;
+  }
+
+  .card-hover {
+    @apply card hover:border-[rgba(120,100,255,0.26)] hover:-translate-y-0.5
+           transition-all duration-200;
+  }
+
+  /* ── Badges ── */
+  .badge-violet { @apply px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[rgba(124,109,250,0.12)] text-violet2; }
+  .badge-amber  { @apply px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[rgba(255,179,71,0.12)] text-amber; }
+  .badge-rose   { @apply px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[rgba(240,98,146,0.12)] text-rose; }
+  .badge-teal   { @apply px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[rgba(38,215,180,0.12)] text-teal; }
+
+  /* ── Gradient text ── */
+  .gradient-text {
+    @apply bg-gradient-to-br from-violet to-violet2 bg-clip-text text-transparent;
+  }
+}
+
+/* ── Animaciones ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .4; transform: scale(1.5); }
+}
+@keyframes dotBounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%           { transform: translateY(-7px); }
+}
+
+.animate-fade-up  { animation: fadeUp  .4s ease both; }
+.animate-fade-in  { animation: fadeIn  .3s ease both; }
+.dot-bounce span  { display: inline-block; animation: dotBounce 1s infinite; }
+.dot-bounce span:nth-child(2) { animation-delay: .15s; }
+.dot-bounce span:nth-child(3) { animation-delay: .30s; }

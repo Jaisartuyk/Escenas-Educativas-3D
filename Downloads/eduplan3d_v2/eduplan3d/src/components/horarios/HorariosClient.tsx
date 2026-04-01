@@ -1,0 +1,142 @@
+'use client'
+// src/components/horarios/HorariosClient.tsx
+
+import { useState, useCallback } from 'react'
+import { StepInstitucion }  from './steps/StepInstitucion'
+import { StepDocentes }     from './steps/StepDocentes'
+import { StepHoras }        from './steps/StepHoras'
+import { StepGenerar }      from './steps/StepGenerar'
+import { StepEditar }       from './steps/StepEditar'
+import { generarHorario }   from '@/lib/horarios/generator'
+import type { HorariosState } from '@/types/horarios'
+import { DEFAULT_CONFIG, DEFAULT_DOCENTES, DEFAULT_HORAS } from '@/types/horarios'
+import toast from 'react-hot-toast'
+
+const STEPS = [
+  { n: 1, label: 'Institución' },
+  { n: 2, label: 'Docentes' },
+  { n: 3, label: 'Horas' },
+  { n: 4, label: 'Generar' },
+  { n: 5, label: 'Editar y exportar' },
+]
+
+export function HorariosClient() {
+  const [state, setState] = useState<HorariosState>({
+    config:        DEFAULT_CONFIG,
+    docentes:      DEFAULT_DOCENTES,
+    horasPorCurso: DEFAULT_HORAS,
+    horario:       {},
+    step:          0,
+  })
+
+  function setStep(n: number) { setState(s => ({ ...s, step: n })) }
+
+  const handleGenerar = useCallback(() => {
+    const horario = generarHorario(state.config, state.docentes, state.horasPorCurso)
+    setState(s => ({ ...s, horario, step: 4 }))
+    toast.success('Horario generado sin conflictos ✓')
+  }, [state.config, state.docentes, state.horasPorCurso])
+
+  async function handleExport() {
+    const t = toast.loading('Generando Excel...')
+    try {
+      const res = await fetch('/api/horarios/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config:        state.config,
+          docentes:      state.docentes,
+          horasPorCurso: state.horasPorCurso,
+          horario:       state.horario,
+        }),
+      })
+      if (!res.ok) throw new Error('Error al generar Excel')
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `HORARIO_${state.config.anio.replace(/\s/g, '')}.xlsx`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Excel descargado', { id: t })
+    } catch (err: any) {
+      toast.error(err.message, { id: t })
+    }
+  }
+
+  return (
+    <div>
+      {/* ── STEPS INDICATOR ── */}
+      <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-1">
+        {STEPS.map((s, i) => (
+          <div key={s.n} className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => i <= state.step || i === state.step + 1 ? setStep(i) : undefined}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
+                state.step === i
+                  ? 'bg-[rgba(124,109,250,0.15)] border-[rgba(124,109,250,0.4)] text-violet2'
+                  : i < state.step
+                  ? 'bg-[rgba(38,215,180,0.1)] border-[rgba(38,215,180,0.3)] text-teal cursor-pointer'
+                  : 'border-[rgba(120,100,255,0.14)] text-ink3 cursor-not-allowed'
+              }`}
+            >
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                i < state.step ? 'bg-teal text-[#04342C]' : state.step === i ? 'bg-violet text-white' : 'bg-surface2 text-ink3'
+              }`}>
+                {i < state.step ? '✓' : s.n}
+              </span>
+              {s.label}
+            </button>
+            {i < STEPS.length - 1 && (
+              <div className={`w-6 h-px flex-shrink-0 ${i < state.step ? 'bg-teal' : 'bg-[rgba(120,100,255,0.2)]'}`} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ── STEP CONTENT ── */}
+      {state.step === 0 && (
+        <StepInstitucion
+          config={state.config}
+          onChange={config => setState(s => ({ ...s, config }))}
+          onNext={() => setStep(1)}
+        />
+      )}
+      {state.step === 1 && (
+        <StepDocentes
+          docentes={state.docentes}
+          jornadaInstitucional={state.config.jornada}
+          onChange={docentes => setState(s => ({ ...s, docentes }))}
+          onBack={() => setStep(0)}
+          onNext={() => setStep(2)}
+        />
+      )}
+      {state.step === 2 && (
+        <StepHoras
+          cursos={state.config.cursos}
+          docentes={state.docentes}
+          horasPorCurso={state.horasPorCurso}
+          jornada={state.config.jornada}
+          onChange={horasPorCurso => setState(s => ({ ...s, horasPorCurso }))}
+          onBack={() => setStep(1)}
+          onNext={() => setStep(3)}
+        />
+      )}
+      {state.step === 3 && (
+        <StepGenerar
+          state={state}
+          onBack={() => setStep(2)}
+          onGenerar={handleGenerar}
+        />
+      )}
+      {state.step === 4 && (
+        <StepEditar
+          state={state}
+          onChange={horario => setState(s => ({ ...s, horario }))}
+          onBack={() => setStep(3)}
+          onExport={handleExport}
+        />
+      )}
+    </div>
+  )
+}
