@@ -11,7 +11,7 @@ interface Props { params: { id: string } }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createClient()
-  const { data } = await supabase.from('planificaciones').select('title').eq('id', params.id).single()
+  const { data } = await (supabase as any).from('planificaciones').select('title').eq('id', params.id).single()
   return { title: data?.title ?? 'Planificación' }
 }
 
@@ -22,7 +22,7 @@ export default async function PlanificacionDetailPage({ params }: Props) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: plan } = await supabase
+  const { data: plan } = await (supabase as any)
     .from('planificaciones')
     .select('*')
     .eq('id', params.id)

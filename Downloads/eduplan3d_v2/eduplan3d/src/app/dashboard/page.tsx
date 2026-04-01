@@ -18,25 +18,25 @@ export default async function DashboardPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: profile } = await supabase
+  const { data: profile } = await (supabase as any)
     .from('profiles')
     .select('*')
     .eq('id', user!.id)
     .single()
 
-  const { data: planificaciones } = await supabase
+  const { data: planificaciones } = await (supabase as any)
     .from('planificaciones')
     .select('*')
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
     .limit(5)
 
-  const { count: totalPlans } = await supabase
+  const { count: totalPlans } = await (supabase as any)
     .from('planificaciones')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user!.id)
 
-  const { count: thisMonth } = await supabase
+  const { count: thisMonth } = await (supabase as any)
     .from('planificaciones')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user!.id)
@@ -103,7 +103,7 @@ export default async function DashboardPage() {
                 <p className="font-medium text-sm mb-1">Aún no tienes planificaciones</p>
                 <p className="text-xs">Ve al Planificador para generar tu primera</p>
               </div>
-            ) : planificaciones.map(p => (
+            ) : planificaciones.map((p: any) => (
               <Link key={p.id} href={`/dashboard/historial/${p.id}`}
                 className="card-hover p-4 flex items-center gap-4 cursor-pointer">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
