@@ -251,13 +251,16 @@ class WebSocketService {
         case 'audio_broadcast':
         case 'audio_message':
           final audio = data['audio'] as String? ?? data['audioData'] as String? ?? data['data'] as String?;
-          final speakerId = data['driver_id'] as String? ?? data['speakerId'] as String? ?? data['from'] as String?;
+          final senderId = data['driver_id']?.toString() ?? data['speakerId']?.toString() ?? data['from']?.toString();
           
-          if (audio != null) {
-            print('🔊 Audio recibido de conductor: $speakerId (${audio.length} caracteres)');
+          // No reproducir el propio audio (anti-eco)
+          if (audio != null && senderId != _driverId) {
+            print('🔊 Audio recibido de conductor: $senderId (${audio.length} caracteres)');
             onAudioReceived?.call(audio);
+          } else if (senderId == _driverId) {
+            print('🔇 Audio propio ignorado (anti-eco)');
           } else {
-            print('⚠️ Mensaje de audio sin datos de audio');
+            print('⚠️ Mensaje de audio sin datos de audio o sin senderId válido');
           }
           break;
 

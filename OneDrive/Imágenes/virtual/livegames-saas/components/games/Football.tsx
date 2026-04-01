@@ -18,6 +18,36 @@ export default function Football() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Cargar estado de localStorage al iniciar
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedQuery = localStorage.getItem('livegames_football_searchQuery');
+      const savedVideos = localStorage.getItem('livegames_football_videos');
+      const savedSelected = localStorage.getItem('livegames_football_selectedVideo');
+
+      if (savedQuery) setSearchQuery(savedQuery);
+      if (savedVideos) {
+        try { setVideos(JSON.parse(savedVideos)); } catch (e) {}
+      }
+      if (savedSelected) {
+        try { setSelectedVideo(JSON.parse(savedSelected)); } catch (e) {}
+      }
+    }
+  }, []);
+
+  // Guardar estado en localStorage al cambiar
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('livegames_football_searchQuery', searchQuery);
+      localStorage.setItem('livegames_football_videos', JSON.stringify(videos));
+      if (selectedVideo) {
+        localStorage.setItem('livegames_football_selectedVideo', JSON.stringify(selectedVideo));
+      } else {
+        localStorage.removeItem('livegames_football_selectedVideo');
+      }
+    }
+  }, [searchQuery, videos, selectedVideo]);
+
   // Sincronizar video seleccionado con el estado global
   useEffect(() => {
     if (selectedVideo) {
@@ -66,9 +96,26 @@ export default function Football() {
 
   return (
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Back button */}
+      <button
+        onClick={() => window.location.href = '/'}
+        style={{
+          padding: '8px 18px',
+          background: 'rgba(255,255,255,0.1)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          borderRadius: '10px',
+          color: '#fff',
+          fontSize: '14px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          marginBottom: '20px'
+        }}
+      >
+        ← Volver al inicio
+      </button>
       {/* Header */}
       <div style={{ marginBottom: '30px' }}>
-        <div style={{ 
+        <div style={{
           display: 'inline-block',
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
@@ -90,14 +137,15 @@ export default function Football() {
 
       {/* Buscador */}
       <form onSubmit={handleSearch} style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', gap: '10px', maxWidth: '600px' }}>
+        <div style={{ display: 'flex', gap: '10px', maxWidth: '600px', flexWrap: 'wrap' }}>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Ej: Real Madrid vs Barcelona"
+            placeholder="Busca cualquier video de YouTube..."
             style={{
               flex: 1,
+              minWidth: '200px',
               padding: '12px 20px',
               border: '2px solid #e0e0e0',
               borderRadius: '10px',
@@ -159,7 +207,7 @@ export default function Football() {
               key={search}
               onClick={() => {
                 setSearchQuery(search);
-                handleSearch({ preventDefault: () => {} } as React.FormEvent);
+                handleSearch({ preventDefault: () => { } } as React.FormEvent);
               }}
               style={{
                 padding: '8px 16px',
@@ -202,7 +250,7 @@ export default function Football() {
       )}
 
       {/* Contenido principal */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }} className="football-grid">
         {/* Reproductor */}
         <div>
           {selectedVideo ? (
@@ -218,6 +266,7 @@ export default function Football() {
               }}>
                 <iframe
                   src={`https://www.youtube.com/embed/${selectedVideo.id}?autoplay=1`}
+                  loading="lazy"
                   style={{
                     position: 'absolute',
                     top: 0,

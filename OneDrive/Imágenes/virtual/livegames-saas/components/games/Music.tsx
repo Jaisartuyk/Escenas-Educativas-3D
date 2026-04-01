@@ -127,11 +127,11 @@ export default function Music({
 
   const renderYtPlayer = () => {
     if (!currentSong) return null;
-    
+
     // Determinar qué URL usar (original, instrumental configurado, o video encontrado automáticamente)
     let currentUrl = currentSong.ytUrl;
     let videoId = null;
-    
+
     if (showInstrumental) {
       if (currentSong.instrumentalUrl) {
         currentUrl = currentSong.instrumentalUrl;
@@ -139,17 +139,17 @@ export default function Music({
         videoId = autoFoundVideo.videoId;
       }
     }
-    
+
     if (!videoId) {
       videoId = ytIdFromUrl(currentUrl);
     }
-    
+
     // Generar búsqueda automática para instrumental
     const instrumentalSearchQuery = encodeURIComponent(`${currentSong.song} ${currentSong.artist} instrumental karaoke`);
     const instrumentalSearchUrl = `https://www.youtube.com/results?search_query=${instrumentalSearchQuery}`;
-    
+
     const hasInstrumental = currentSong.instrumentalUrl && ytIdFromUrl(currentSong.instrumentalUrl);
-    
+
     // Si estamos buscando el video automáticamente
     if (showInstrumental && !hasInstrumental && searchingVideo) {
       return (
@@ -165,7 +165,7 @@ export default function Music({
         </div>
       );
     }
-    
+
     // Si estamos en modo instrumental, no hay URL configurada, y no se encontró video automáticamente
     if (showInstrumental && !hasInstrumental && !autoFoundVideo) {
       return (
@@ -178,16 +178,16 @@ export default function Music({
             Busca manualmente en YouTube:<br />
             <span style={{ color: '#9b5de5', fontWeight: 700 }}>"{currentSong.song} {currentSong.artist} instrumental"</span>
           </div>
-          <button 
-            onClick={() => window.open(instrumentalSearchUrl, '_blank')} 
-            style={{ 
-              background: 'linear-gradient(135deg, #9b5de5, #f72585)', 
-              border: 'none', 
-              color: '#fff', 
-              fontSize: '14px', 
-              fontWeight: 800, 
-              padding: '14px 28px', 
-              borderRadius: '12px', 
+          <button
+            onClick={() => window.open(instrumentalSearchUrl, '_blank')}
+            style={{
+              background: 'linear-gradient(135deg, #9b5de5, #f72585)',
+              border: 'none',
+              color: '#fff',
+              fontSize: '14px',
+              fontWeight: 800,
+              padding: '14px 28px',
+              borderRadius: '12px',
               cursor: 'pointer',
               boxShadow: '0 4px 15px rgba(155, 93, 229, 0.4)',
               transition: 'transform 0.2s',
@@ -204,7 +204,7 @@ export default function Music({
         </div>
       );
     }
-    
+
     if (!videoId) {
       return (
         <div className="yt-no-video" id="yt-placeholder">
@@ -213,42 +213,42 @@ export default function Music({
         </div>
       );
     }
-    
+
     const thumb = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
     const isAutoFound = showInstrumental && autoFoundVideo && !hasInstrumental;
-    
+
     return (
       <>
         {/* Botones para cambiar entre original e instrumental */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', padding: '0 4px' }}>
-          <button 
-            onClick={() => setShowInstrumental(false)} 
-            style={{ 
-              flex: 1, 
-              background: !showInstrumental ? 'linear-gradient(135deg, #ff6d00, #ff0000)' : 'rgba(255,255,255,0.1)', 
-              border: 'none', 
-              color: '#fff', 
-              fontSize: '11px', 
-              fontWeight: 800, 
-              padding: '8px 12px', 
-              borderRadius: '8px', 
+          <button
+            onClick={() => setShowInstrumental(false)}
+            style={{
+              flex: 1,
+              background: !showInstrumental ? 'linear-gradient(135deg, #ff6d00, #ff0000)' : 'rgba(255,255,255,0.1)',
+              border: 'none',
+              color: '#fff',
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '8px 12px',
+              borderRadius: '8px',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
           >
             🎤 Original
           </button>
-          <button 
-            onClick={() => setShowInstrumental(true)} 
-            style={{ 
-              flex: 1, 
-              background: showInstrumental ? 'linear-gradient(135deg, #9b5de5, #f72585)' : 'rgba(255,255,255,0.1)', 
-              border: 'none', 
-              color: '#fff', 
-              fontSize: '11px', 
-              fontWeight: 800, 
-              padding: '8px 12px', 
-              borderRadius: '8px', 
+          <button
+            onClick={() => setShowInstrumental(true)}
+            style={{
+              flex: 1,
+              background: showInstrumental ? 'linear-gradient(135deg, #9b5de5, #f72585)' : 'rgba(255,255,255,0.1)',
+              border: 'none',
+              color: '#fff',
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '8px 12px',
+              borderRadius: '8px',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
@@ -256,31 +256,32 @@ export default function Music({
             🎹 Instrumental {isAutoFound && '✨'}
           </button>
         </div>
-        
+
         {isAutoFound && (
           <div style={{ background: 'linear-gradient(135deg, rgba(155, 93, 229, 0.2), rgba(247, 37, 133, 0.2))', padding: '8px 12px', borderRadius: '8px', marginBottom: '8px', fontSize: '11px', color: '#9b5de5', fontWeight: 700, textAlign: 'center' }}>
             ✨ Video encontrado automáticamente: "{autoFoundVideo.title}"
           </div>
         )}
-        
+
         {/* Reproductor de YouTube embebido - RECUADRO EXTRA GRANDE */}
-        <div style={{ 
-          position: 'relative', 
-          width: '100%', 
-          height: '700px',
-          borderRadius: '12px', 
-          background: '#000', 
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)', 
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          aspectRatio: '16/9',
+          maxHeight: '700px',
+          borderRadius: '12px',
+          background: '#000',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           marginBottom: '12px',
           overflow: 'hidden'
         }}>
           <iframe
-            style={{ 
+            style={{
               position: 'absolute',
               top: 0,
               left: 0,
-              width: '100%', 
-              height: '100%', 
+              width: '100%',
+              height: '100%',
               border: 'none'
             }}
             src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
@@ -290,7 +291,7 @@ export default function Music({
             allowFullScreen
           ></iframe>
         </div>
-        
+
         <div style={{ padding: '10px 14px', background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginTop: '8px', borderRadius: '0 0 8px 8px' }}>
           <span style={{ fontSize: '11px', color: 'rgba(255,255,255,.5)', fontWeight: 700, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: '150px' }}>
             {showInstrumental ? (isAutoFound ? '✨ Auto-encontrado' : '🎹 Instrumental') : '🎤 Original'}
@@ -319,7 +320,7 @@ export default function Music({
     <div className="page active" style={{ animation: 'fadeUp .35s ease' }}>
       <div className="split">
         <div className="split-left">
-          <div className="yt-player-wrap" style={{ minHeight: '600px' }}>
+          <div className="yt-player-wrap" style={{ minHeight: '300px' }}>
             {renderYtPlayer()}
           </div>
           <div>
@@ -331,7 +332,7 @@ export default function Music({
                 Canción {items.length > 0 ? idx + 1 : 0} / {items.length}
               </div>
             </div>
-            
+
             {!currentSong && (
               <div style={{ color: 'var(--text2)', fontSize: '14px', fontWeight: 700, textAlign: 'center', padding: '20px' }}>
                 Ve al Editor para agregar canciones con IA
@@ -390,7 +391,7 @@ export default function Music({
               </div>
             </div>
           </div>
-          
+
           <div className="panel">
             <div className="panel-title">Controles</div>
             <div className="ctrl-group">
@@ -400,14 +401,14 @@ export default function Music({
               </div>
               <button className="ctrl-btn ctrl-secondary" onClick={() => items.length && setIdx(Math.floor(Math.random() * items.length))}>🎲 Canción al azar</button>
               <button className="ctrl-btn ctrl-secondary" onClick={onShowEditor}>✏️ Editar canciones</button>
-              <button 
-                className="ctrl-btn" 
-                style={{ 
-                  background: 'linear-gradient(135deg, #9b5de5, #f72585)', 
-                  color: '#fff', 
+              <button
+                className="ctrl-btn"
+                style={{
+                  background: 'linear-gradient(135deg, #9b5de5, #f72585)',
+                  color: '#fff',
                   fontWeight: 800,
                   marginTop: '8px'
-                }} 
+                }}
                 onClick={() => window.open('/present', '_blank', 'width=1920,height=1080')}
               >
                 📺 Abrir Modo Presentación
@@ -415,7 +416,7 @@ export default function Music({
             </div>
           </div>
 
-          <TikTokLiveIntegration 
+          <TikTokLiveIntegration
             onLikeReceived={(totalLikes) => {
               const newLikes = totalLikes - lastRecordedLikes;
               setCurrentTikTokLikes(newLikes);
@@ -423,7 +424,7 @@ export default function Music({
           />
 
           <div style={{ marginTop: '14px' }}>
-            <ParticipantsManager 
+            <ParticipantsManager
               currentLikes={currentTikTokLikes}
               onReset={() => {
                 setLastRecordedLikes(lastRecordedLikes + currentTikTokLikes);

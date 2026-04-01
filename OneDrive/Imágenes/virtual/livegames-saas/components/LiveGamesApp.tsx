@@ -53,7 +53,16 @@ export default function LiveGamesApp() {
   const [session, setSession] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [activePage, setActivePage] = useState("home");
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedPage = localStorage.getItem('livegames_activePage');
+      if (savedPage) setActivePage(savedPage);
+    }
+  }, []);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [confettiActive, setConfettiActive] = useState(false);
   const [toastMsg, setToastMsg] = useState({ msg: "", show: false });
 
@@ -77,9 +86,46 @@ export default function LiveGamesApp() {
   const [challengeIdx, setChallengeIdx] = useState(0);
   const [songIdx, setSongIdx] = useState(0);
 
+  // Wake Lock (Prevent screen from sleeping)
+  useEffect(() => {
+    let wakeLock: any = null;
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          // @ts-ignore
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Screen Wake Lock is active');
+          wakeLock.addEventListener('release', () => {
+            console.log('Screen Wake Lock was released');
+          });
+        }
+      } catch (err: any) {
+        console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (wakeLock !== null && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    // Delay a bit to ensure the document is fully ready for wake lock
+    setTimeout(requestWakeLock, 1000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (wakeLock !== null) {
+        wakeLock.release().catch(console.error);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     setIsClient(true);
-    
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setAuthLoading(false);
@@ -92,9 +138,14 @@ export default function LiveGamesApp() {
     return () => subscription.unsubscribe();
   }, []);
 
+
   const loadUserData = useCallback(async () => {
     if (!session?.user) return;
-    setDataLoading(true);
+    
+    // Solo mostrar pantalla de carga si es la primera vez
+    if (!initialLoadDone) {
+      setDataLoading(true);
+    }
 
     try {
       const { data, error } = await supabase
@@ -131,8 +182,9 @@ export default function LiveGamesApp() {
       console.error("Error loading data:", err);
     } finally {
       setDataLoading(false);
+      setInitialLoadDone(true);
     }
-  }, [session]);
+  }, [session, initialLoadDone]);
 
   useEffect(() => {
     if (session) {
@@ -151,20 +203,20 @@ export default function LiveGamesApp() {
   const setTrivia = (newT: any) => { setTriviaState(newT); updateSupabase('trivia_data', newT); };
   const setChallenges = (newC: any) => { setChallengesState(newC); updateSupabase('challenge_data', newC); };
   const setSongs = (newS: any) => { setSongsState(newS); updateSupabase('music_data', newS); };
-  
-  const setTimerTrivia = (val: number) => { 
-    setTimerTriviaState(val); 
-    updateSupabase('timers_data', { trivia: val, music: timerMusic }); 
+
+  const setTimerTrivia = (val: number) => {
+    setTimerTriviaState(val);
+    updateSupabase('timers_data', { trivia: val, music: timerMusic });
   };
-  const setTimerMusic = (val: number) => { 
-    setTimerMusicState(val); 
-    updateSupabase('timers_data', { trivia: timerTrivia, music: val }); 
+  const setTimerMusic = (val: number) => {
+    setTimerMusicState(val);
+    updateSupabase('timers_data', { trivia: timerTrivia, music: val });
   };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
-    
+
     if (isSignUp) {
       const { error } = await supabase.auth.signUp({ email, password });
       if (error) setAuthError(error.message);
@@ -200,35 +252,59 @@ export default function LiveGamesApp() {
         <div className="login-box">
           <div className="login-logo">🎮 LiveGames IA</div>
           <div className="login-sub">{isSignUp ? 'Crear nueva cuenta' : 'Panel de control — Acceso'}</div>
-          
+
           <form onSubmit={handleAuth}>
             <div className="login-field">
               <label className="login-label">Correo Electrónico</label>
-              <input 
-                className="login-input" type="email" placeholder="tu@correo.com" 
-                value={email} onChange={(e) => setEmail(e.target.value)} required 
+              <input
+                className="login-input" type="email" placeholder="tu@correo.com"
+                value={email} onChange={(e) => setEmail(e.target.value)} required
               />
             </div>
             <div className="login-field">
               <label className="login-label">Contraseña</label>
-              <input 
-                className="login-input" type="password" placeholder="••••••••" 
-                value={password} onChange={(e) => setPassword(e.target.value)} required 
+              <input
+                className="login-input" type="password" placeholder="••••••••"
+                value={password} onChange={(e) => setPassword(e.target.value)} required
               />
             </div>
             <button className="login-btn" type="submit">
               {isSignUp ? '✨ Registrarse' : '🚀 Entrar al panel'}
             </button>
+            <button
+              className="login-btn"
+              type="button"
+              style={{
+                marginTop: '10px',
+                background: '#000',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+              onClick={() => alert('La integración oficial de TikTok está en proceso de revisión')}
+            >
+              <svg width="20" height="20" viewBox="0 0 448 512" fill="currentColor">
+                <path d="M448,209.91a210.06,210.06,0,0,1-122.77-39.25V349.38A162.55,162.55,0,1,1,185,188.31V278.2a74.62,74.62,0,1,0,52.23,71.18V0l88,0a121.18,121.18,0,0,0,1.86,22.17h0A122.18,122.18,0,0,0,381,102.39a121.43,121.43,0,0,0,67,20.14Z"/>
+              </svg>
+              Continuar con TikTok
+            </button>
           </form>
 
           {authError && <div className="login-error show" style={{ marginTop: '14px' }}>❌ {authError}</div>}
-          
-          <div 
-            className="login-hint" 
+
+          <div
+            className="login-hint"
             style={{ cursor: 'pointer', textDecoration: 'underline', marginTop: '20px' }}
             onClick={() => { setIsSignUp(!isSignUp); setAuthError(''); }}
           >
             {isSignUp ? '¿Ya tienes cuenta? Inicia sesión aquí' : '¿No tienes cuenta? Regístrate gratis'}
+          </div>
+
+          <div style={{ marginTop: '25px', fontSize: '12px', textAlign: 'center', color: '#888', lineHeight: '1.5' }}>
+            Al continuar, aceptas nuestros <br />
+            <a href="https://jaisartuyk.github.io/LiveGames-SaaS/terms.html" target="_blank" rel="noopener noreferrer" style={{ color: '#fe2c55', textDecoration: 'none', fontWeight: 'bold' }}>Términos de Servicio</a> y nuestra <a href="https://jaisartuyk.github.io/LiveGames-SaaS/privacy.html" target="_blank" rel="noopener noreferrer" style={{ color: '#fe2c55', textDecoration: 'none', fontWeight: 'bold' }}>Política de Privacidad</a>.
           </div>
         </div>
       </div>
@@ -243,7 +319,7 @@ export default function LiveGamesApp() {
     );
   }
 
-  const goPage = (page: string) => setActivePage(page);
+  const goPage = (page: string) => { setActivePage(page); localStorage.setItem('livegames_activePage', page); setSidebarOpen(false); };
 
   return (
     <div id="app" className="visible">
@@ -252,7 +328,7 @@ export default function LiveGamesApp() {
       <Confetti active={confettiActive} />
       <Toast msg={toastMsg.msg} show={toastMsg.show} />
 
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="logo">
           <div className="logo-mark">🎮 LiveGames IA</div>
           <div className="logo-sub">Powered by Claude</div>
@@ -267,7 +343,7 @@ export default function LiveGamesApp() {
           <div className={`nav-item c-green ${activePage === 'music' ? 'active' : ''}`} onClick={() => goPage('music')}><span className="nav-icon">🎵</span>Adivina la Canción</div>
           <div className={`nav-item c-purple ${activePage === 'football' ? 'active' : ''}`} onClick={() => goPage('football')}><span className="nav-icon">⚽</span>Resúmenes de Fútbol</div>
           <div className="nav-divider"></div>
-          <div className={`nav-item c-pink ${activePage === 'streaming' ? 'active' : ''}`} onClick={() => window.location.href = '/admin/streaming'}><span className="nav-icon">📺</span>Streaming</div>
+          <div className={`nav-item c-pink ${activePage === 'streaming' ? 'active' : ''}`} onClick={() => window.location.href = '/admin/streaming-daily'}><span className="nav-icon">📺</span>Streaming</div>
           <div className={`nav-item c-gray ${activePage === 'editor' ? 'active' : ''}`} onClick={() => goPage('editor')}><span className="nav-icon">✏️</span>Editor</div>
         </nav>
         <div className="sidebar-footer">
@@ -277,16 +353,20 @@ export default function LiveGamesApp() {
           </div>
         </div>
       </aside>
+      <div className={`sidebar-overlay ${sidebarOpen ? 'sidebar-overlay-show' : ''}`} onClick={() => setSidebarOpen(false)} />
 
       <main className="main">
         <div className="topbar">
-          <div className="page-title">
-            {activePage === 'home' ? '🏠 Inicio' : 
-             activePage === 'vote' ? '🗳️ Votación' : 
-             activePage === 'roulette' ? '🎰 Ruleta' : 
-             activePage === 'trivia' ? '❓ Trivia' : 
-             activePage === 'challenge' ? '🎯 Reto del Día' : 
-             activePage === 'music' ? '🎵 Adivina la Canción' : '✏️ Editor'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button className="hamburger-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
+            <div className="page-title">
+              {activePage === 'home' ? '🏠 Inicio' :
+                activePage === 'vote' ? '🗳️ Votación' :
+                  activePage === 'roulette' ? '🎰 Ruleta' :
+                    activePage === 'trivia' ? '❓ Trivia' :
+                      activePage === 'challenge' ? '🎯 Reto del Día' :
+                        activePage === 'music' ? '🎵 Adivina la Canción' : '✏️ Editor'}
+            </div>
           </div>
           <div className="topbar-right">
             <button className="tb-btn" onClick={() => goPage('editor')}>✏️ Editor</button>
@@ -297,9 +377,9 @@ export default function LiveGamesApp() {
 
         <div className="content">
           {activePage === 'home' && (
-            <div className="page active" style={{animation: 'fadeUp .35s ease'}}>
-              <p style={{fontSize:'14px',color:'var(--text2)',fontWeight:700,marginBottom:'18px'}}>
-                Usa el <strong style={{color:'var(--purple)'}}>✏️ Editor</strong> para generar contenido con IA y configurar cada juego antes de tu live 🔥
+            <div className="page active" style={{ animation: 'fadeUp .35s ease' }}>
+              <p style={{ fontSize: '14px', color: 'var(--text2)', fontWeight: 700, marginBottom: '18px' }}>
+                Usa el <strong style={{ color: 'var(--purple)' }}>✏️ Editor</strong> para generar contenido con IA y configurar cada juego antes de tu live 🔥
               </p>
               <div className="home-grid">
                 <div className="game-card gc-vote" onClick={() => goPage('vote')}>
@@ -322,7 +402,7 @@ export default function LiveGamesApp() {
           )}
 
           {activePage === 'vote' && (
-            <div className="page active" style={{animation: 'fadeUp .35s ease'}}>
+            <div className="page active" style={{ animation: 'fadeUp .35s ease' }}>
               <div className="split">
                 <div className="split-left">
                   <div className="panel">
@@ -332,20 +412,20 @@ export default function LiveGamesApp() {
                       <div className="vtb-line"></div>
                     </div>
                     <div className="vote-q">{vote.q}</div>
-                    <div className="vote-options" style={{marginTop:'18px'}}>
-                      <div className={`vopt vopt-a`} onClick={() => { setVote({...vote, vA: vote.vA + 1}); triggerConfetti(); }}>
+                    <div className="vote-options" style={{ marginTop: '18px' }}>
+                      <div className={`vopt vopt-a`} onClick={() => { setVote({ ...vote, vA: vote.vA + 1 }); triggerConfetti(); }}>
                         <span className="vo-emoji">{vote.eA}</span>
                         <div className="vo-name">{vote.nA}</div>
                         <div className="vo-pct">{vote.vA + vote.vB > 0 ? Math.round((vote.vA / (vote.vA + vote.vB)) * 100) : 0}%</div>
                         <div className="vo-cnt">{vote.vA.toLocaleString()} votos</div>
-                        <div className="vo-bar"><div className="vo-fill fill-a" style={{width: `${vote.vA + vote.vB > 0 ? (vote.vA / (vote.vA + vote.vB)) * 100 : 0}%`}}></div></div>
+                        <div className="vo-bar"><div className="vo-fill fill-a" style={{ width: `${vote.vA + vote.vB > 0 ? (vote.vA / (vote.vA + vote.vB)) * 100 : 0}%` }}></div></div>
                       </div>
-                      <div className={`vopt vopt-b`} onClick={() => { setVote({...vote, vB: vote.vB + 1}); triggerConfetti(); }}>
+                      <div className={`vopt vopt-b`} onClick={() => { setVote({ ...vote, vB: vote.vB + 1 }); triggerConfetti(); }}>
                         <span className="vo-emoji">{vote.eB}</span>
                         <div className="vo-name">{vote.nB}</div>
                         <div className="vo-pct">{vote.vA + vote.vB > 0 ? Math.round((vote.vB / (vote.vA + vote.vB)) * 100) : 0}%</div>
                         <div className="vo-cnt">{vote.vB.toLocaleString()} votos</div>
-                        <div className="vo-bar"><div className="vo-fill fill-b" style={{width: `${vote.vA + vote.vB > 0 ? (vote.vB / (vote.vA + vote.vB)) * 100 : 0}%`}}></div></div>
+                        <div className="vo-bar"><div className="vo-fill fill-b" style={{ width: `${vote.vA + vote.vB > 0 ? (vote.vB / (vote.vA + vote.vB)) * 100 : 0}%` }}></div></div>
                       </div>
                     </div>
                   </div>
@@ -354,10 +434,10 @@ export default function LiveGamesApp() {
                   <div className="panel">
                     <div className="panel-title">Controles</div>
                     <div className="ctrl-group">
-                      <button className="ctrl-btn ctrl-primary" onClick={() => { setVote({...vote, vA: vote.vA + 1}); }}>{vote.eA} +1 {vote.nA}</button>
-                      <button className="ctrl-btn ctrl-secondary" style={{borderColor:'rgba(155,93,229,.3)', color:'var(--purple)'}} onClick={() => { setVote({...vote, vB: vote.vB + 1}); }}>{vote.eB} +1 {vote.nB}</button>
-                      <button className="ctrl-btn ctrl-danger" onClick={() => { if(window.confirm('¿Reiniciar votos?')) { setVote({...vote, vA: 0, vB: 0}); showToast('✅ Votos reiniciados'); } }}>🗑️ Reiniciar votos</button>
-                      <button className="ctrl-btn ctrl-secondary" onClick={() => goPage('editor')} style={{marginTop:'4px'}}>✏️ Editar votación</button>
+                      <button className="ctrl-btn ctrl-primary" onClick={() => { setVote({ ...vote, vA: vote.vA + 1 }); }}>{vote.eA} +1 {vote.nA}</button>
+                      <button className="ctrl-btn ctrl-secondary" style={{ borderColor: 'rgba(155,93,229,.3)', color: 'var(--purple)' }} onClick={() => { setVote({ ...vote, vB: vote.vB + 1 }); }}>{vote.eB} +1 {vote.nB}</button>
+                      <button className="ctrl-btn ctrl-danger" onClick={() => { if (window.confirm('¿Reiniciar votos?')) { setVote({ ...vote, vA: 0, vB: 0 }); showToast('✅ Votos reiniciados'); } }}>🗑️ Reiniciar votos</button>
+                      <button className="ctrl-btn ctrl-secondary" onClick={() => goPage('editor')} style={{ marginTop: '4px' }}>✏️ Editar votación</button>
                     </div>
                   </div>
                 </div>
@@ -381,12 +461,12 @@ export default function LiveGamesApp() {
             <Music items={songs} idx={songIdx} setIdx={setSongIdx} timerSeconds={timerMusic} onShowEditor={() => goPage('editor')} triggerConfetti={triggerConfetti} />
           )}
 
-          {activePage === 'football' && (
+          <div style={{ display: activePage === 'football' ? 'block' : 'none' }}>
             <Football />
-          )}
+          </div>
 
           {activePage === 'editor' && (
-            <Editor 
+            <Editor
               vote={vote} setVote={setVote}
               roulette={roulette} setRoulette={setRoulette}
               trivia={trivia} setTrivia={setTrivia}
