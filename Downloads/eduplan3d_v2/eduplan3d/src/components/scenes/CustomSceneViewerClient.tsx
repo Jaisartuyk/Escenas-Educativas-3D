@@ -51,7 +51,7 @@ export function CustomSceneViewerClient({ id }: { id: string }) {
     const pointElements = Array.from(pointsContainerRef.current.children) as HTMLElement[]
 
     async function init() {
-      THREE = (await import('three')).default ?? await import('three')
+      THREE = ((await import('three')) as any).default ?? await import('three')
       const mod = await import('three/examples/jsm/loaders/GLTFLoader.js')
       GLTFLoader = mod.GLTFLoader
 

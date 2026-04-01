@@ -38,7 +38,7 @@ export function SceneEditorClient() {
     let scene: any, camera: any, renderer: any
 
     async function init() {
-      THREE = (await import('three')).default ?? await import('three')
+      THREE = ((await import('three')) as any).default ?? await import('three')
       const mod = await import('three/examples/jsm/loaders/GLTFLoader.js')
       GLTFLoader = mod.GLTFLoader
 
@@ -133,7 +133,7 @@ export function SceneEditorClient() {
     const x = ((e.clientX - rect.left) / rect.width) * 2 - 1
     const y = -((e.clientY - rect.top) / rect.height) * 2 + 1
 
-    const THREE = (await import('three')).default ?? await import('three')
+    const THREE = ((await import('three')) as any).default ?? await import('three')
     const raycaster = new THREE.Raycaster()
     raycaster.setFromCamera(new THREE.Vector2(x, y), cameraRef.current)
 
