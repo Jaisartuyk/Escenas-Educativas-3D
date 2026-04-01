@@ -240,7 +240,7 @@ function buildCelula(T: any, scene: any, anims: any[]) {
   const nuc = new T.Mesh(new T.SphereGeometry(0.9, 24, 24),
     new T.MeshPhongMaterial({ color: 0x6c63ff, emissive: 0x3b1f9e, emissiveIntensity: 0.3 }))
   nuc.position.set(0.2, 0.1, 0); scene.add(nuc)
-  anims.push(t: any) => { nuc.rotation.y = t * 0.3 })
+  anims.push((t: any) => { nuc.rotation.y = t * 0.3 })
 
   // Mitocondrias
   ;[[-1.5, 0.5, 0.8],[1.4,-0.6,0.5],[-0.8,-1.2,-0.5]].forEach((pos, i) => {
@@ -248,27 +248,27 @@ function buildCelula(T: any, scene: any, anims: any[]) {
       new T.MeshPhongMaterial({ color: [0xff6b6b,0xf97316,0xef4444][i], emissive: 0x7c1010, emissiveIntensity: 0.2 }))
     m.position.set(...(pos as [number,number,number])); m.scale.set(1.8, 1, 1); scene.add(m)
     const off = i * 2.1
-    anims.push(t: any) => { m.position.x = pos[0] + Math.sin(t*0.5+off)*0.12; m.position.y = pos[1] + Math.cos(t*0.4+off)*0.08 })
+    anims.push((t: any) => { m.position.x = pos[0] + Math.sin(t*0.5+off)*0.12; m.position.y = pos[1] + Math.cos(t*0.4+off)*0.08 })
   })
   // RE
   ;[0,1.2,2.4].forEach((angle, i) => {
     const tor = new T.Mesh(new T.TorusGeometry(0.55+i*0.1,0.07,8,24),
       new T.MeshPhongMaterial({ color: 0x34d399, transparent: true, opacity: 0.7 }))
     tor.position.set(-1.2,0.5-i*0.3,-0.8); tor.rotation.set(0.5,angle,0.3); scene.add(tor)
-    anims.push(t: any) => { tor.rotation.z = t*0.2+angle })
+    anims.push((t: any) => { tor.rotation.z = t*0.2+angle })
   })
   // Ribosomas
   const geo = new T.BufferGeometry()
   const v = []; for (let i=0;i<80;i++) { const th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1),r=1.2+Math.random()*1.4; v.push(r*Math.sin(ph)*Math.cos(th),r*Math.sin(ph)*Math.sin(th),r*Math.cos(ph)) }
   geo.setAttribute('position', new T.Float32BufferAttribute(v, 3))
   const pts = new T.Points(geo, new T.PointsMaterial({ color: 0xfbbf24, size: 0.07 })); scene.add(pts)
-  anims.push(t: any) => { pts.rotation.y = t * 0.07 })
+  anims.push((t: any) => { pts.rotation.y = t * 0.07 })
 }
 
 function buildAtomo(T: any, scene: any, anims: any[]) {
   const nuc = new T.Mesh(new T.SphereGeometry(0.55,24,24),
     new T.MeshPhongMaterial({ color: 0xef4444, emissive: 0x7f1d1d, emissiveIntensity: 0.4 }))
-  scene.add(nuc); anims.push(t: any) => { nuc.rotation.y = t*0.6 })
+  scene.add(nuc); anims.push((t: any) => { nuc.rotation.y = t*0.6 })
 
   ;[[0.22,0,0],[-0.22,0,0],[0,0.22,0],[0,-0.22,0],[0,0,0.22]].forEach((p,i) => {
     const b = new T.Mesh(new T.SphereGeometry(0.14,10,10),
@@ -283,14 +283,14 @@ function buildAtomo(T: any, scene: any, anims: any[]) {
     const el = new T.Mesh(new T.SphereGeometry(0.14,10,10),
       new T.MeshPhongMaterial({ color: o.color, emissive: o.color, emissiveIntensity:0.5 }))
     scene.add(el)
-    anims.push(t: any) => { const a=t*o.speed; el.position.x=Math.cos(a)*o.r; el.position.y=Math.sin(a)*o.r*Math.cos(o.ry); el.position.z=Math.sin(a)*o.r*Math.sin(o.ry) })
+    anims.push((t: any) => { const a=t*o.speed; el.position.x=Math.cos(a)*o.r; el.position.y=Math.sin(a)*o.r*Math.cos(o.ry); el.position.z=Math.sin(a)*o.r*Math.sin(o.ry) })
   })
 }
 
 function buildSolar(T: any, scene: any, anims: any[]) {
   const sun = new T.Mesh(new T.SphereGeometry(1.2,24,24),
     new T.MeshPhongMaterial({ color:0xfde68a,emissive:0xf59e0b,emissiveIntensity:0.8 }))
-  scene.add(sun); anims.push(t: any) => { sun.rotation.y=t*0.3 })
+  scene.add(sun); anims.push((t: any) => { sun.rotation.y=t*0.3 })
 
   ;[{r:2.2,s:.18,c:0x94a3b8,sp:2},{r:3.2,s:.28,c:0xfcd34d,sp:1.4},{r:4.4,s:.30,c:0x38bdf8,sp:1},{r:5.8,s:.22,c:0xef4444,sp:.75},{r:7.2,s:.65,c:0xfbbf24,sp:.45}].forEach(p => {
     const ring = new T.Mesh(new T.TorusGeometry(p.r,0.015,8,64),
@@ -298,7 +298,7 @@ function buildSolar(T: any, scene: any, anims: any[]) {
     ring.rotation.x=Math.PI/2; scene.add(ring)
     const mesh = new T.Mesh(new T.SphereGeometry(p.s,16,16),
       new T.MeshPhongMaterial({ color:p.c })); scene.add(mesh)
-    anims.push(t: any) => { const a=t*p.sp*0.3; mesh.position.x=Math.cos(a)*p.r; mesh.position.z=Math.sin(a)*p.r; mesh.rotation.y=t*0.6 })
+    anims.push((t: any) => { const a=t*p.sp*0.3; mesh.position.x=Math.cos(a)*p.r; mesh.position.z=Math.sin(a)*p.r; mesh.rotation.y=t*0.6 })
   })
 }
 
@@ -318,7 +318,7 @@ function buildADN(T: any, scene: any, anims: any[]) {
       cyl.position.set((x1+x2)/2,y,(z1+z2)/2); cyl.lookAt(x1,y,z1); cyl.rotateX(Math.PI/2); scene.add(cyl)
     }
   }
-  anims.push(t: any) => { scene.rotation.y = t * 0.25 })
+  anims.push((t: any) => { scene.rotation.y = t * 0.25 })
 }
 
 function buildGeometria(T: any, scene: any, anims: any[]) {
@@ -332,7 +332,7 @@ function buildGeometria(T: any, scene: any, anims: any[]) {
     mesh.position.set(...(s.pos as [number,number,number])); wire.position.set(...(s.pos as [number,number,number]))
     scene.add(mesh,wire)
     const off=i*1.2
-    anims.push(t: any) => { mesh.rotation.x=t*.4+off; mesh.rotation.y=t*.6+off; wire.rotation.x=mesh.rotation.x; wire.rotation.y=mesh.rotation.y })
+    anims.push((t: any) => { mesh.rotation.x=t*.4+off; mesh.rotation.y=t*.6+off; wire.rotation.x=mesh.rotation.x; wire.rotation.y=mesh.rotation.y })
   })
 }
 
@@ -351,7 +351,7 @@ function buildVolcan(T: any, scene: any, anims: any[]) {
   const magma = new T.Mesh(new T.SphereGeometry(1.2,24,24),
     new T.MeshPhongMaterial({ color:0xff6f00,emissive:0xf4511e,emissiveIntensity:0.6 }))
   magma.position.y = -3.5; scene.add(magma)
-  anims.push(t: any) => { magma.material.emissiveIntensity = 0.4+Math.sin(t*2)*0.3 })
+  anims.push((t: any) => { magma.material.emissiveIntensity = 0.4+Math.sin(t*2)*0.3 })
 
   // Partículas de lava
   const lavaGeo = new T.BufferGeometry()
@@ -359,7 +359,7 @@ function buildVolcan(T: any, scene: any, anims: any[]) {
   lavaGeo.setAttribute('position', new T.Float32BufferAttribute(lv,3))
   const lavaParticles = new T.Points(lavaGeo, new T.PointsMaterial({ color:0xff3d00,size:0.12 }))
   lavaParticles.position.y = 1; scene.add(lavaParticles)
-  anims.push(t: any) => {
+  anims.push((t: any) => {
     const pos = lavaParticles.geometry.attributes.position.array as Float32Array
     for(let i=1;i<pos.length;i+=3) { pos[i] += 0.02; if(pos[i]>2.5) pos[i]=0 }
     lavaParticles.geometry.attributes.position.needsUpdate = true
@@ -370,6 +370,6 @@ function buildVolcan(T: any, scene: any, anims: any[]) {
     const cloud = new T.Mesh(new T.SphereGeometry(0.35,12,12),
       new T.MeshPhongMaterial({ color:0x9e9e9e,transparent:true,opacity:0.5 }))
     cloud.position.set(...(p as [number,number,number])); scene.add(cloud)
-    anims.push(t: any) => { cloud.position.y = p[1] + Math.sin(t*0.8+p[0])*0.1; cloud.material.opacity = 0.3+Math.sin(t)*0.2 })
+    anims.push((t: any) => { cloud.position.y = p[1] + Math.sin(t*0.8+p[0])*0.1; cloud.material.opacity = 0.3+Math.sin(t)*0.2 })
   })
 }
