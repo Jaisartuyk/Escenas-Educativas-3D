@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     // Verificar límite del plan free
     const { data: profile } = await supabase
-      .from('profiles').select('plan').eq('id', user.id).single()
+      .from('profiles').select('plan').eq('id', user.id).single() as { data: { plan: string } | null }
 
     if (profile?.plan === 'free') {
       const { count } = await supabase
