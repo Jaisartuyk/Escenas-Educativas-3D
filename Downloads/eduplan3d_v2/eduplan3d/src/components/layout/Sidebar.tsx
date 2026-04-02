@@ -4,8 +4,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
+import type { UserRole } from '@/types/supabase'
 
-const NAV = [
+const NAV_FULL = [
   { href: '/dashboard',                 icon: '⊞',  label: 'Dashboard'    },
   { href: '/dashboard/planificador',    icon: '📋', label: 'Planificador'  },
   { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios'      },
@@ -15,8 +16,14 @@ const NAV = [
   { href: '/dashboard/configuracion',   icon: '⚙️', label: 'Configuración' },
 ]
 
-export function Sidebar() {
+const NAV_HORARIOS_ONLY = [
+  { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios'      },
+  { href: '/dashboard/configuracion',   icon: '⚙️', label: 'Configuración' },
+]
+
+export function Sidebar({ role = 'full' }: { role?: UserRole }) {
   const pathname = usePathname()
+  const NAV = role === 'horarios_only' ? NAV_HORARIOS_ONLY : NAV_FULL
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === href : pathname.startsWith(href)

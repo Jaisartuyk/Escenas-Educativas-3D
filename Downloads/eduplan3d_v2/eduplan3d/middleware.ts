@@ -38,6 +38,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
+  // Control de acceso por rol: usuarios con rol 'horarios_only' solo pueden
+  // acceder a /dashboard/horarios y /dashboard/configuracion
+  if (user && pathname.startsWith('/dashboard')) {
+    const { data: profile } = await (supabase as any)
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role === 'horarios_only') {
+      const allowed =
+        pathname === '/dashboard' ||
+        pathname.startsWith('/dashboard/horarios') ||
+        pathname.startsWith('/dashboard/configuracion')
+
+      if (!allowed) {
+        return NextResponse.redirect(new URL('/dashboard/horarios', request.url))
+      }
+    }
+  }
+
   return supabaseResponse
 }
 

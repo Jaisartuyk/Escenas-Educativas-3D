@@ -4,6 +4,8 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
+export type UserRole = 'admin' | 'full' | 'horarios_only'
+
 export interface Database {
   public: {
     Tables: {
@@ -15,6 +17,7 @@ export interface Database {
           avatar_url: string | null
           plan: 'free' | 'pro' | 'institucion'
           institution: string | null
+          role: UserRole
           created_at: string
           updated_at: string
         }
@@ -46,6 +49,7 @@ export interface Database {
     Enums: {
       plan_type: 'free' | 'pro' | 'institucion'
       planificacion_type: 'clase' | 'unidad' | 'rubrica'
+      user_role: UserRole
     }
   }
 }
