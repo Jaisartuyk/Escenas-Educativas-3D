@@ -20,7 +20,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
   const [cursoActivo, setCursoActivo] = useState(config.cursos[0] ?? '')
   const [vistaDoc, setVistaDoc] = useState(false)
 
-  const conflictos = detectConflictos(horario, docentes, config.nPeriodos, config.jornada)
+  const conflictos = detectConflictos(horario, docentes, config.nPeriodos, config.jornada, config.nivel)
   const conflictoSet = new Set(
     conflictos.map(c => `${c.curso}|${c.dia}|${c.periodo}`)
   )
@@ -38,7 +38,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
       DIAS.forEach(d => {
         horario[c]?.[d]?.forEach((m, p) => {
           if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO') return
-          const doc = getDocForMateria(m, docentes, config.jornada)
+          const doc = getDocForMateria(m, docentes, config.jornada, config.nivel)
           if (doc === '—') return
           if (!result[doc]) result[doc] = {} as any
           if (!result[doc][d]) result[doc][d] = Array(config.nPeriodos).fill('')
@@ -131,7 +131,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                         const val = datos?.[d]?.[pi] ?? ''
                         const isConflict = conflictoSet.has(`${cursoActivo}|${d}|${pi}`)
                         const isAcomp = val === 'ACOMPAÑAMIENTO'
-                        const doc = val && !isAcomp ? getDocForMateria(val, docentes, config.jornada) : ''
+                        const doc = val && !isAcomp ? getDocForMateria(val, docentes, config.jornada, config.nivel) : ''
 
                         return (
                           <td

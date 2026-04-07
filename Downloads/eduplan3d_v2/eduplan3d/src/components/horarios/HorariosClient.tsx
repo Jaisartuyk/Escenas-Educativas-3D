@@ -106,6 +106,7 @@ export function HorariosClient() {
         <StepDocentes
           docentes={state.docentes}
           jornadaInstitucional={state.config.jornada}
+          nivelInstitucional={state.config.nivel}
           onChange={docentes => setState(s => ({ ...s, docentes }))}
           onBack={() => setStep(0)}
           onNext={() => setStep(2)}

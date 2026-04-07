@@ -2,7 +2,7 @@
 // src/components/horarios/steps/StepInstitucion.tsx
 
 import type { InstitucionConfig } from '@/types/horarios'
-import { HORARIOS_MATUTINA, HORARIOS_VESPERTINA } from '@/types/horarios'
+import { HORARIOS_MATUTINA, HORARIOS_VESPERTINA, DEFAULT_CURSOS_ESCUELA, DEFAULT_CURSOS_COLEGIO } from '@/types/horarios'
 
 interface Props {
   config: InstitucionConfig
@@ -17,6 +17,11 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
 
   function handleJornada(j: 'MATUTINA' | 'VESPERTINA') {
     onChange({ ...config, jornada: j, horarios: j === 'VESPERTINA' ? HORARIOS_VESPERTINA : HORARIOS_MATUTINA })
+  }
+
+  function handleNivel(n: 'Escuela' | 'Colegio') {
+    const cursos = n === 'Escuela' ? [...DEFAULT_CURSOS_ESCUELA] : [...DEFAULT_CURSOS_COLEGIO]
+    onChange({ ...config, nivel: n, cursos, tutores: {} })
   }
 
   function handleHorario(i: number, val: string) {
@@ -46,7 +51,7 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
           </div>
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nivel</label>
-            <select value={config.nivel ?? 'Colegio'} onChange={e => set('nivel', e.target.value as any)} className="input-base">
+            <select value={config.nivel ?? 'Colegio'} onChange={e => handleNivel(e.target.value as any)} className="input-base">
               <option value="Colegio">Colegio / Bachillerato</option>
               <option value="Escuela">Escuela / Básica</option>
             </select>

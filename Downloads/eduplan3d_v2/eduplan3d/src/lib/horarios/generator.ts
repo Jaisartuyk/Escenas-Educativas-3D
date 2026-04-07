@@ -2,10 +2,11 @@
 import type { HorarioGrid, HorasPorCurso, Docente, InstitucionConfig, Dia } from '@/types/horarios'
 import { DIAS, RECESO_IDX } from '@/types/horarios'
 
-export function getDocForMateria(materia: string, docentes: Docente[], jornada: string = ''): string {
+export function getDocForMateria(materia: string, docentes: Docente[], jornada: string = '', nivel?: string): string {
   const d = docentes.find(d => 
     d.materias.includes(materia) && 
-    (!jornada || !d.jornada || d.jornada === 'AMBAS' || d.jornada === jornada)
+    (!jornada || !d.jornada || d.jornada === 'AMBAS' || d.jornada === jornada) &&
+    (!nivel || !d.nivel || d.nivel === 'AMBOS' || d.nivel === nivel)
   )
   return d ? `${d.titulo} ${d.nombre}` : '—'
 }
@@ -48,7 +49,7 @@ export function generarHorario(
       .sort(([, a], [, b]) => b - a)
 
     pool.forEach(([materia, horas]) => {
-      const doc = getDocForMateria(materia, docentes, config.jornada)
+      const doc = getDocForMateria(materia, docentes, config.jornada, config.nivel)
       let colocadas = 0
       let intentos = 0
 
@@ -105,7 +106,8 @@ export function detectConflictos(
   horario: HorarioGrid,
   docentes: Docente[],
   nPeriodos: number,
-  jornada: string = ''
+  jornada: string = '',
+  nivel?: string
 ): { curso: string; dia: Dia; periodo: number; materia: string; docente: string }[] {
   const conflictos: { curso: string; dia: Dia; periodo: number; materia: string; docente: string }[] = []
   const cursos = Object.keys(horario)
@@ -116,7 +118,7 @@ export function detectConflictos(
       cursos.forEach(c => {
         const m = horario[c]?.[d]?.[p]
         if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO') return
-        const doc = getDocForMateria(m, docentes, jornada)
+        const doc = getDocForMateria(m, docentes, jornada, nivel)
         if (doc === '—') return
         if (!ocupado[doc]) ocupado[doc] = []
         ocupado[doc].push(c)

@@ -8,6 +8,7 @@ import { TODAS_MATERIAS } from '@/types/horarios'
 interface Props {
   docentes: Docente[]
   jornadaInstitucional: string
+  nivelInstitucional?: string
   onChange: (d: Docente[]) => void
   onBack: () => void
   onNext: () => void
@@ -15,12 +16,13 @@ interface Props {
 
 const TITULOS = ['Lcdo.','Lcda.','Ing.','Prof.','Msc.','Dr.','Dra.']
 
-export function StepDocentes({ docentes, jornadaInstitucional, onChange, onBack, onNext }: Props) {
+export function StepDocentes({ docentes, jornadaInstitucional, nivelInstitucional, onChange, onBack, onNext }: Props) {
   const [showForm,  setShowForm]  = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [nombre,    setNombre]    = useState('')
   const [titulo,    setTitulo]    = useState('Lcdo.')
   const [jornada,   setJornada]   = useState<'MATUTINA'|'VESPERTINA'|'AMBAS'>('AMBAS')
+  const [nivel,     setNivel]     = useState<'Escuela'|'Colegio'|'AMBOS'>('AMBOS')
   const [mats,      setMats]      = useState<string[]>([])
 
   function toggleMat(m: string) {
@@ -30,15 +32,15 @@ export function StepDocentes({ docentes, jornadaInstitucional, onChange, onBack,
   function save() {
     if (!nombre.trim()) return
     if (editingId) {
-      onChange(docentes.map(d => d.id === editingId ? { ...d, titulo, nombre: nombre.trim(), materias: mats, jornada } : d))
+      onChange(docentes.map(d => d.id === editingId ? { ...d, titulo, nombre: nombre.trim(), materias: mats, jornada, nivel } : d))
     } else {
-      onChange([...docentes, { id: Date.now().toString(), titulo, nombre: nombre.trim(), materias: mats, jornada }])
+      onChange([...docentes, { id: Date.now().toString(), titulo, nombre: nombre.trim(), materias: mats, jornada, nivel }])
     }
     cancel()
   }
 
   function cancel() {
-    setNombre(''); setTitulo('Lcdo.'); setJornada('AMBAS'); setMats([]); setShowForm(false); setEditingId(null)
+    setNombre(''); setTitulo('Lcdo.'); setJornada('AMBAS'); setNivel('AMBOS'); setMats([]); setShowForm(false); setEditingId(null)
   }
 
   function edit(d: Docente) {
@@ -47,6 +49,7 @@ export function StepDocentes({ docentes, jornadaInstitucional, onChange, onBack,
     setTitulo(d.titulo)
     setMats(d.materias)
     setJornada(d.jornada || 'AMBAS')
+    setNivel(d.nivel || 'AMBOS')
     setShowForm(true)
   }
 
@@ -56,7 +59,10 @@ export function StepDocentes({ docentes, jornadaInstitucional, onChange, onBack,
     return nombre.split(/[\s,]+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
   }
 
-  const docentesFiltrados = docentes.filter(d => !d.jornada || d.jornada === 'AMBAS' || d.jornada === jornadaInstitucional)
+  const docentesFiltrados = docentes.filter(d => 
+    (!d.jornada || d.jornada === 'AMBAS' || d.jornada === jornadaInstitucional) &&
+    (!d.nivel || d.nivel === 'AMBOS' || d.nivel === nivelInstitucional)
+  )
 
   return (
     <div>
@@ -76,11 +82,19 @@ export function StepDocentes({ docentes, jornadaInstitucional, onChange, onBack,
                 <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nombre (Apellido, Nombre)</label>
                 <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Giler Tapia, Oswaldo" className="input-base" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Título</label>
                   <select value={titulo} onChange={e => setTitulo(e.target.value)} className="input-base">
                     {TITULOS.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nivel</label>
+                  <select value={nivel} onChange={e => setNivel(e.target.value as any)} className="input-base">
+                    <option value="AMBOS">Ambos</option>
+                    <option value="Escuela">Escuela</option>
+                    <option value="Colegio">Colegio</option>
                   </select>
                 </div>
                 <div>
@@ -132,6 +146,7 @@ export function StepDocentes({ docentes, jornadaInstitucional, onChange, onBack,
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold">{d.titulo} {d.nombre}</p>
                     <span className="px-1.5 py-0.5 rounded uppercase text-[9px] font-bold bg-[rgba(124,109,250,0.1)] text-violet2">{d.jornada || 'AMBAS'}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[rgba(38,215,180,0.1)] text-teal">{d.nivel || 'AMBOS'}</span>
                   </div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {d.materias.map(m => (
