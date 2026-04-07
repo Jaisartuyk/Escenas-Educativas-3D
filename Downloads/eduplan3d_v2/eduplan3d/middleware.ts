@@ -38,16 +38,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Control de acceso por rol: usuarios con rol 'horarios_only' solo pueden
-  // acceder a /dashboard/horarios y /dashboard/configuracion
+  // Control de acceso por email
   if (user && pathname.startsWith('/dashboard')) {
-    const { data: profile } = await (supabase as any)
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.role === 'horarios_only') {
+    if (user.email === 'israferaldascarlett15@gmail.com') {
       const allowed =
         pathname === '/dashboard' ||
         pathname.startsWith('/dashboard/horarios') ||

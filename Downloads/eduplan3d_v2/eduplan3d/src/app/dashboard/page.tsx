@@ -45,6 +45,7 @@ export default async function DashboardPage() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Docente'
+  const isHorariosOnly = user?.email === 'israferaldascarlett15@gmail.com'
 
   return (
     <div className="animate-fade-in">
@@ -135,7 +136,7 @@ export default async function DashboardPage() {
               { icon: '📚', title: 'Nueva unidad didáctica',       sub: 'Completa y estructurada', href: '/dashboard/planificador?type=unidad',  bg: 'bg-[rgba(255,179,71,0.15)]' },
               { icon: '📅', title: 'Generar horario',              sub: 'Sin choques de docentes', href: '/dashboard/horarios',                  bg: 'bg-[rgba(38,215,180,0.15)]'  },
               { icon: '🔬', title: 'Explorar escenas 3D',          sub: '6 modelos interactivos',  href: '/dashboard/escenas',                  bg: 'bg-[rgba(240,98,146,0.15)]'  },
-            ].map(a => (
+            ].filter(a => isHorariosOnly ? a.href.includes('horarios') : true).map(a => (
               <Link key={a.title} href={a.href}
                 className="card-hover p-4 flex items-center gap-4 group">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${a.bg}`}>

@@ -14,6 +14,7 @@ export interface InstitucionConfig {
   nombre:    string
   anio:      string
   jornada:   'MATUTINA' | 'VESPERTINA'
+  nivel?:    'Colegio' | 'Escuela'
   nPeriodos: number
   cursos:    string[]
   horarios:  string[]   // label de cada período, ej. "07:00-07:45"
@@ -76,6 +77,7 @@ export const DEFAULT_CONFIG: InstitucionConfig = {
   nombre:    'UNIDAD EDUCATIVA PARTICULAR LICEO "24 DE JULIO"',
   anio:      '2026 - 2027',
   jornada:   'VESPERTINA',
+  nivel:     'Colegio',
   nPeriodos: 8,
   cursos:    ['8VO', '9NO', '10MO', '1ERO BGU', '2DO BGU', '3ERO BGU'],
   horarios:  HORARIOS_VESPERTINA,
