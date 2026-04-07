@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
+import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
@@ -15,6 +16,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .select('*')
     .eq('id', user.id)
     .single()
+
+  if (!profile?.institution_id) {
+    return <OnboardingModal profileName={profile?.full_name ?? 'Usuario'} />
+  }
 
   return (
     <div className="min-h-screen flex bg-bg">
