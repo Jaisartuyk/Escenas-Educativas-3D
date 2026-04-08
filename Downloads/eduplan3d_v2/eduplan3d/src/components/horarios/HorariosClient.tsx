@@ -1,7 +1,7 @@
 'use client'
 // src/components/horarios/HorariosClient.tsx
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { StepInstitucion }  from './steps/StepInstitucion'
 import { StepDocentes }     from './steps/StepDocentes'
 import { StepHoras }        from './steps/StepHoras'
@@ -9,7 +9,7 @@ import { StepGenerar }      from './steps/StepGenerar'
 import { StepEditar }       from './steps/StepEditar'
 import { generarHorario }   from '@/lib/horarios/generator'
 import type { HorariosState } from '@/types/horarios'
-import { DEFAULT_CONFIG, DEFAULT_DOCENTES, DEFAULT_HORAS } from '@/types/horarios'
+import { getEmptyConfig, DEFAULT_HORAS } from '@/types/horarios'
 import toast from 'react-hot-toast'
 
 const STEPS = [
@@ -21,19 +21,56 @@ const STEPS = [
 ]
 
 export function HorariosClient() {
+  const [loadingInitial, setLoadingInitial] = useState(true)
   const [state, setState] = useState<HorariosState>({
-    config:        DEFAULT_CONFIG,
-    docentes:      DEFAULT_DOCENTES,
+    config:        getEmptyConfig('Cargando...'),
+    docentes:      [],
     horasPorCurso: DEFAULT_HORAS,
     horario:       {},
     step:          0,
   })
 
-  function setStep(n: number) { setState(s => ({ ...s, step: n })) }
+  useEffect(() => {
+    fetch('/api/horarios')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) setState(data)
+        setLoadingInitial(false)
+      })
+      .catch((e) => {
+        toast.error('Error al cargar datos del horario')
+        setLoadingInitial(false)
+      })
+  }, [])
+
+  // Guarda automáticamente en el backend
+  const saveStateToDB = async (newState: HorariosState) => {
+    try {
+      await fetch('/api/horarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newState),
+      })
+    } catch (e) {
+      console.error('Error auto-saving', e)
+    }
+  }
+
+  function updateState(updater: Partial<HorariosState> | ((s: HorariosState) => HorariosState)) {
+    setState((s) => {
+      const newState = typeof updater === 'function' ? updater(s) : { ...s, ...updater }
+      saveStateToDB(newState)
+      return newState
+    })
+  }
+
+  function setStep(n: number) { 
+    updateState(s => ({ ...s, step: n })) 
+  }
 
   const handleGenerar = useCallback(() => {
     const horario = generarHorario(state.config, state.docentes, state.horasPorCurso)
-    setState(s => ({ ...s, horario, step: 4 }))
+    updateState(s => ({ ...s, horario, step: 4 }))
     toast.success('Horario generado sin conflictos ✓')
   }, [state.config, state.docentes, state.horasPorCurso])
 
@@ -95,48 +132,54 @@ export function HorariosClient() {
       </div>
 
       {/* ── STEP CONTENT ── */}
-      {state.step === 0 && (
-        <StepInstitucion
-          config={state.config}
-          onChange={config => setState(s => ({ ...s, config }))}
-          onNext={() => setStep(1)}
-        />
-      )}
-      {state.step === 1 && (
-        <StepDocentes
-          docentes={state.docentes}
-          jornadaInstitucional={state.config.jornada}
-          nivelInstitucional={state.config.nivel}
-          onChange={docentes => setState(s => ({ ...s, docentes }))}
-          onBack={() => setStep(0)}
-          onNext={() => setStep(2)}
-        />
-      )}
-      {state.step === 2 && (
-        <StepHoras
-          cursos={state.config.cursos}
-          docentes={state.docentes}
-          horasPorCurso={state.horasPorCurso}
-          jornada={state.config.jornada}
-          onChange={horasPorCurso => setState(s => ({ ...s, horasPorCurso }))}
-          onBack={() => setStep(1)}
-          onNext={() => setStep(3)}
-        />
-      )}
-      {state.step === 3 && (
-        <StepGenerar
-          state={state}
-          onBack={() => setStep(2)}
-          onGenerar={handleGenerar}
-        />
-      )}
-      {state.step === 4 && (
-        <StepEditar
-          state={state}
-          onChange={horario => setState(s => ({ ...s, horario }))}
-          onBack={() => setStep(3)}
-          onExport={handleExport}
-        />
+      {loadingInitial ? (
+        <div className="flex justify-center items-center py-20 text-ink3">Cargando datos de institución...</div>
+      ) : (
+        <>
+          {state.step === 0 && (
+            <StepInstitucion
+              config={state.config}
+              onChange={config => updateState(s => ({ ...s, config }))}
+              onNext={() => setStep(1)}
+            />
+          )}
+          {state.step === 1 && (
+            <StepDocentes
+              docentes={state.docentes}
+              jornadaInstitucional={state.config.jornada}
+              nivelInstitucional={state.config.nivel}
+              onChange={docentes => updateState(s => ({ ...s, docentes }))}
+              onBack={() => setStep(0)}
+              onNext={() => setStep(2)}
+            />
+          )}
+          {state.step === 2 && (
+            <StepHoras
+              cursos={state.config.cursos}
+              docentes={state.docentes}
+              horasPorCurso={state.horasPorCurso}
+              jornada={state.config.jornada}
+              onChange={horasPorCurso => updateState(s => ({ ...s, horasPorCurso }))}
+              onBack={() => setStep(1)}
+              onNext={() => setStep(3)}
+            />
+          )}
+          {state.step === 3 && (
+            <StepGenerar
+              state={state}
+              onBack={() => setStep(2)}
+              onGenerar={handleGenerar}
+            />
+          )}
+          {state.step === 4 && (
+            <StepEditar
+              state={state}
+              onChange={horario => updateState(s => ({ ...s, horario }))}
+              onBack={() => setStep(3)}
+              onExport={handleExport}
+            />
+          )}
+        </>
       )}
     </div>
   )

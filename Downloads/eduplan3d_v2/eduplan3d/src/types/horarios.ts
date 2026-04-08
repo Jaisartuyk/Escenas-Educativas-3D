@@ -83,6 +83,20 @@ export const DEFAULT_HORAS: HorasPorCurso = {
   '3ERO BGU': { LENGUA:5, MATEMATICA:5, HISTORIA:3, BIOLOGIA:3, QUIMICA:3, FISICA:3, INGLES:4, ECA:2, CIUDADANIA:2, COMPUTACION:2, ROBOTICA:2, 'ED. FISICA':2, 'INST. FORMAL':2, EMPRENDIMIENTO:2 },
 }
 
+// Configuración predeterminada limpia para una nueva institución
+export function getEmptyConfig(institutionName: string): InstitucionConfig {
+  return {
+    nombre:    institutionName,
+    anio:      new Date().getFullYear() + ' - ' + (new Date().getFullYear() + 1),
+    jornada:   'VESPERTINA', // Default safe
+    nivel:     'Colegio',
+    nPeriodos: 8,
+    cursos:    ['8VO', '9NO', '10MO', '1ERO BGU', '2DO BGU', '3ERO BGU'], // Default Mineduc
+    horarios:  HORARIOS_VESPERTINA,
+    tutores:   {}, // Vacío para que el usuario asigne a sus propios docentes
+  }
+}
+
 export const DEFAULT_CONFIG: InstitucionConfig = {
   nombre:    'UNIDAD EDUCATIVA PARTICULAR LICEO "24 DE JULIO"',
   anio:      '2026 - 2027',
