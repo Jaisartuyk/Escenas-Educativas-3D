@@ -16,14 +16,22 @@ export async function createInstitution(name: string): Promise<{ error?: string 
 
   const code = 'EDU-' + generateJoinCode()
 
-  // Usar RPC con SECURITY DEFINER para saltarse RLS
-  const { data, error } = await (supabase as any).rpc('create_institution_for_user', {
-    inst_name: name.trim(),
-    inst_code: code,
-    calling_user_id: user.id,
-  })
+  // 1. Crear institución
+  const { data: inst, error: instErr } = await (supabase as any)
+    .from('institutions')
+    .insert({ name: name.trim(), join_code: code })
+    .select('id')
+    .single()
 
-  if (error) return { error: error.message }
+  if (instErr) return { error: instErr.message }
+
+  // 2. Actualizar perfil directamente (RLS deshabilitado)
+  const { error: profErr } = await (supabase as any)
+    .from('profiles')
+    .update({ institution_id: inst.id, role: 'admin' })
+    .eq('id', user.id)
+
+  if (profErr) return { error: profErr.message }
 
   revalidatePath('/dashboard', 'layout')
   return {}
@@ -34,7 +42,7 @@ export async function joinInstitution(code: string): Promise<{ error?: string }>
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autenticado' }
 
-  // Buscar colegio por código
+  // Buscar colegio
   const { data: inst, error: instErr } = await (supabase as any)
     .from('institutions')
     .select('id')
@@ -43,14 +51,13 @@ export async function joinInstitution(code: string): Promise<{ error?: string }>
 
   if (instErr || !inst) return { error: 'Código inválido o no encontrado' }
 
-  // Usar RPC para unirse
-  const { error } = await (supabase as any).rpc('join_institution_for_user', {
-    inst_id: inst.id,
-    user_role: 'teacher',
-    calling_user_id: user.id,
-  })
+  // Actualizar perfil directamente (RLS deshabilitado)
+  const { error: profErr } = await (supabase as any)
+    .from('profiles')
+    .update({ institution_id: inst.id, role: 'teacher' })
+    .eq('id', user.id)
 
-  if (error) return { error: error.message }
+  if (profErr) return { error: profErr.message }
 
   revalidatePath('/dashboard', 'layout')
   return {}
