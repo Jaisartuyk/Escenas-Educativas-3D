@@ -3,7 +3,12 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Topbar } from '@/components/layout/Topbar'
-import { OnboardingModal } from '@/components/onboarding/OnboardingModal'
+import dynamic from 'next/dynamic'
+
+const OnboardingModal = dynamic(
+  () => import('@/components/onboarding/OnboardingModal').then(mod => mod.OnboardingModal),
+  { ssr: false }
+)
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
@@ -22,7 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen flex bg-bg relative">
-      {isMissingInstitution && <OnboardingModal profileName={profile?.full_name ?? 'Usuario'} />}
+      {isMissingInstitution && <OnboardingModal profileName={profile?.full_name || 'Usuario'} />}
       <Sidebar role={user.email === 'israferaldascarlett15@gmail.com' ? 'horarios_only' : 'full'} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar profile={profile} />
