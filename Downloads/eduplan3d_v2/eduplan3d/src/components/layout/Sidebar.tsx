@@ -10,6 +10,7 @@ const NAV_FULL = [
   { href: '/dashboard',                 icon: '⊞',  label: 'Dashboard'    },
   { href: '/dashboard/planificador',    icon: '📋', label: 'Planificador'  },
   { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios'      },
+  { href: '/dashboard/institucion',     icon: '🏢', label: 'Institución'   },
   { href: '/dashboard/biblioteca',      icon: '📚', label: 'Biblioteca'    },
   { href: '/dashboard/escenas',         icon: '🔬', label: 'Escenas 3D'    },
   { href: '/dashboard/historial',       icon: '📂', label: 'Historial'     },
