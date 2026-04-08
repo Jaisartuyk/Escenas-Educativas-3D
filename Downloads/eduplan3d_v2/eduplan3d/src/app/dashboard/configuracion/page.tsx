@@ -1,5 +1,6 @@
 // src/app/dashboard/configuracion/page.tsx
 import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ConfiguracionClient } from '@/components/layout/ConfiguracionClient'
 
@@ -9,10 +10,14 @@ export default async function ConfiguracionPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  if (!user) {
+    redirect('/auth/login')
+  }
+
   const { data: profile } = await (supabase as any)
     .from('profiles')
     .select('*')
-    .eq('id', user!.id)
+    .eq('id', user.id)
     .single()
 
   return (

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
@@ -18,10 +19,14 @@ export default async function DashboardPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  if (!user) {
+    redirect('/auth/login')
+  }
+
   const { data: profile } = await (supabase as any)
     .from('profiles')
     .select('*')
-    .eq('id', user!.id)
+    .eq('id', user.id)
     .single()
 
   const { data: planificaciones } = await (supabase as any)
