@@ -23,13 +23,13 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
     if (!institutionName.trim()) return toast.error('Escribe el nombre de la escuela')
     
     setLoading(true)
-    try {
-      await createInstitution(institutionName)
-      toast.success('¡Ecosistema creado! Cargando...')
-      window.location.href = '/dashboard'
-    } catch (error: any) {
-      toast.error(error.message)
+    const result = await createInstitution(institutionName)
+    if (result.error) {
+      toast.error(result.error)
       setLoading(false)
+    } else {
+      toast.success('¡Institución creada! Cargando...')
+      window.location.href = '/dashboard'
     }
   }
 
@@ -38,13 +38,13 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
     if (!joinCode.trim()) return toast.error('Escribe el código de invitación')
     
     setLoading(true)
-    try {
-      await joinInstitution(joinCode)
-      toast.success('¡Unido a la institución! Cargando...')
-      window.location.href = '/dashboard'
-    } catch (error: any) {
-      toast.error(error.message)
+    const result = await joinInstitution(joinCode)
+    if (result.error) {
+      toast.error(result.error)
       setLoading(false)
+    } else {
+      toast.success('¡Unido! Cargando...')
+      window.location.href = '/dashboard'
     }
   }
 

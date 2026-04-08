@@ -2,7 +2,6 @@
 
 // src/lib/actions/institution.ts
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 function generateJoinCode() {
@@ -10,60 +9,47 @@ function generateJoinCode() {
   return Array.from({length: 6}, () => chars[Math.floor(Math.random() * chars.length)]).join('')
 }
 
-export async function createInstitution(name: string) {
+export async function createInstitution(name: string): Promise<{ error?: string }> {
   const supabase = createClient()
-  const admin = createAdminClient()
-
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('No autenticado')
+  if (!user) return { error: 'No autenticado' }
 
   const code = 'EDU-' + generateJoinCode()
 
-  // 1. Crear institución (con admin para saltarse RLS)
-  const { data: inst, error: instErr } = await admin
-    .from('institutions')
-    .insert({ name: name.trim(), join_code: code })
-    .select('id')
-    .single()
-    
-  if (instErr) throw new Error('Error al crear institución: ' + instErr.message)
+  // Usar RPC con SECURITY DEFINER para saltarse RLS
+  const { data, error } = await (supabase as any).rpc('create_institution_for_user', {
+    inst_name: name.trim(),
+    inst_code: code,
+  })
 
-  // 2. Vincular usuario actual como admin (con admin para actualizar profiles)
-  const { error: profErr } = await admin
-    .from('profiles')
-    .update({ institution_id: inst.id, role: 'admin' })
-    .eq('id', user.id)
-    
-  if (profErr) throw new Error('Error al vincular perfil: ' + profErr.message)
+  if (error) return { error: error.message }
 
   revalidatePath('/dashboard', 'layout')
-  return true
+  return {}
 }
 
-export async function joinInstitution(code: string) {
+export async function joinInstitution(code: string): Promise<{ error?: string }> {
   const supabase = createClient()
-  const admin = createAdminClient()
-
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('No autenticado')
+  if (!user) return { error: 'No autenticado' }
 
-  // 1. Buscar colegio por código
-  const { data: inst, error: instErr } = await admin
+  // Buscar colegio por código
+  const { data: inst, error: instErr } = await (supabase as any)
     .from('institutions')
-    .select('id, name')
+    .select('id')
     .eq('join_code', code.trim().toUpperCase())
     .single()
-    
-  if (instErr || !inst) throw new Error('Código de institución inválido o no encontrado')
 
-  // 2. Vincular como docente
-  const { error: profErr } = await admin
-    .from('profiles')
-    .update({ institution_id: inst.id, role: 'teacher' })
-    .eq('id', user.id)
-    
-  if (profErr) throw new Error('Error al unirse a la institución: ' + profErr.message)
+  if (instErr || !inst) return { error: 'Código inválido o no encontrado' }
+
+  // Usar RPC para unirse
+  const { error } = await (supabase as any).rpc('join_institution_for_user', {
+    inst_id: inst.id,
+    user_role: 'teacher',
+  })
+
+  if (error) return { error: error.message }
 
   revalidatePath('/dashboard', 'layout')
-  return true
+  return {}
 }
