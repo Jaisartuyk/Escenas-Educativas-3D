@@ -3,8 +3,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
@@ -80,7 +78,7 @@ export default async function DashboardPage() {
           {greeting}, {firstName} 👋
         </h1>
         <p className="text-ink3 text-sm mt-1">
-          {format(new Date(), "EEEE d 'de' MMMM, yyyy", { locale: es })}
+        {new Intl.DateTimeFormat('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}
         </p>
       </div>
 
@@ -137,7 +135,7 @@ export default async function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{p.title}</p>
-                  <p className="text-xs text-ink3 mt-0.5">{p.subject} · {p.grade} · {format(new Date(p.created_at), "d MMM", { locale: es })}</p>
+                  <p className="text-xs text-ink3 mt-0.5">{p.subject} · {p.grade} · {new Date(p.created_at).toLocaleDateString('es-EC', { day: 'numeric', month: 'short' })}</p>
                 </div>
                 <span className={`${TYPE_CLASSES[p.type]} flex-shrink-0`}>{TYPE_LABELS[p.type]}</span>
               </Link>
