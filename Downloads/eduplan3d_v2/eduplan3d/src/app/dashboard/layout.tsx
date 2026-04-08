@@ -1,13 +1,15 @@
 // src/app/dashboard/layout.tsx
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 export const revalidate = 0
 
-const Sidebar = dynamic(() => import('@/components/layout/Sidebar').then(m => m.Sidebar), { ssr: false })
-const Topbar = dynamic(() => import('@/components/layout/Topbar').then(m => m.Topbar), { ssr: false })
-const OnboardingModal = dynamic(() => import('@/components/onboarding/OnboardingModal').then(mod => mod.OnboardingModal), { ssr: false })
+const Sidebar = nextDynamic(() => import('@/components/layout/Sidebar').then(m => m.Sidebar), { ssr: false })
+const Topbar = nextDynamic(() => import('@/components/layout/Topbar').then(m => m.Topbar), { ssr: false })
+const OnboardingModal = nextDynamic(() => import('@/components/onboarding/OnboardingModal').then(mod => mod.OnboardingModal), { ssr: false })
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
