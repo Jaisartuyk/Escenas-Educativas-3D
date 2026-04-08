@@ -25,11 +25,17 @@ export async function createInstitution(name: string): Promise<{ error?: string 
 
   if (instErr) return { error: instErr.message }
 
-  // 2. Actualizar perfil directamente (RLS deshabilitado)
+  // 2. Upsert perfil — crea si no existe, actualiza si existe
   const { error: profErr } = await (supabase as any)
     .from('profiles')
-    .update({ institution_id: inst.id, role: 'admin' })
-    .eq('id', user.id)
+    .upsert({
+      id: user.id,
+      email: user.email,
+      full_name: user.user_metadata?.full_name ?? user.email?.split('@')[0],
+      institution_id: inst.id,
+      role: 'admin',
+      plan: 'free',
+    }, { onConflict: 'id' })
 
   if (profErr) return { error: profErr.message }
 
