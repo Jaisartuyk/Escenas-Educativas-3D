@@ -20,6 +20,7 @@ export async function createInstitution(name: string): Promise<{ error?: string 
   const { data, error } = await (supabase as any).rpc('create_institution_for_user', {
     inst_name: name.trim(),
     inst_code: code,
+    calling_user_id: user.id,
   })
 
   if (error) return { error: error.message }
@@ -46,6 +47,7 @@ export async function joinInstitution(code: string): Promise<{ error?: string }>
   const { error } = await (supabase as any).rpc('join_institution_for_user', {
     inst_id: inst.id,
     user_role: 'teacher',
+    calling_user_id: user.id,
   })
 
   if (error) return { error: error.message }
