@@ -11,11 +11,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await (supabase as any)
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  try {
+    const { data: profile } = await (supabase as any)
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
 
   const isMissingInstitution = !profile?.institution_id
 
@@ -31,4 +32,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </div>
     </div>
   )
+  } catch (err: any) {
+    return (
+      <div className="p-8 text-rose bg-surface font-mono overflow-auto text-sm min-h-screen">
+        <h2 className="font-bold text-xl mb-4">SSR LAYOUT EXCEPTION CAUGHT:</h2>
+        <p><strong>Message:</strong> {err.message}</p>
+        <pre className="mt-4">{err.stack}</pre>
+        <p className="mt-4 break-all">{JSON.stringify(err)}</p>
+      </div>
+    )
+  }
 }
