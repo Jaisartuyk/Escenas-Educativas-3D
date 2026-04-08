@@ -1,10 +1,10 @@
 // src/app/dashboard/page.tsx
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
@@ -19,20 +19,17 @@ export default async function DashboardPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) {
-    redirect('/auth/login')
-  }
+  if (!user) redirect('/auth/login')
 
-  try {
-    const { data: profile } = await (supabase as any)
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+  const { data: profile } = await (supabase as any)
+    .from('profiles')
+    .select('full_name, plan, email')
+    .eq('id', user!.id)
+    .single()
 
   const { data: planificaciones } = await (supabase as any)
     .from('planificaciones')
-    .select('*')
+    .select('id, title, subject, grade, type, created_at')
     .eq('user_id', user!.id)
     .order('created_at', { ascending: false })
     .limit(5)
@@ -48,10 +45,10 @@ export default async function DashboardPage() {
     .eq('user_id', user!.id)
     .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
 
-  const hour = new Date().getHours()
+  const hour = new Date().getUTCHours() - 5 // Ecuador UTC-5
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Docente'
-  const isHorariosOnly = user?.email === 'israferaldascarlett15@gmail.com'
+  const isHorariosOnly = user!.email === 'israferaldascarlett15@gmail.com'
 
   return (
     <div className="animate-fade-in">
@@ -160,14 +157,4 @@ export default async function DashboardPage() {
       </div>
     </div>
   )
-  } catch (err: any) {
-    return (
-      <div className="p-8 text-rose bg-surface font-mono overflow-auto text-sm">
-        <h2 className="font-bold text-xl mb-4">SSR PAGE EXCEPTION CAUGHT:</h2>
-        <p><strong>Message:</strong> {err.message}</p>
-        <pre className="mt-4">{err.stack}</pre>
-        <p className="mt-4 break-all">{JSON.stringify(err)}</p>
-      </div>
-    )
-  }
 }

@@ -9,23 +9,23 @@ const OnboardingModal = dynamic(() => import('@/components/onboarding/Onboarding
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) redirect('/auth/login')
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/auth/login')
 
-  try {
-    const { data: profile } = await (supabase as any)
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+  const { data: profile } = await (supabase as any)
+    .from('profiles')
+    .select('id, full_name, institution_id, plan, email')
+    .eq('id', user!.id)
+    .single()
 
   const isMissingInstitution = !profile?.institution_id
+  const isHorariosOnly = user!.email === 'israferaldascarlett15@gmail.com'
 
   return (
     <div className="min-h-screen flex bg-bg relative">
       {isMissingInstitution && <OnboardingModal profileName={profile?.full_name || 'Usuario'} />}
-      <Sidebar role={user.email === 'israferaldascarlett15@gmail.com' ? 'horarios_only' : 'full'} />
+      <Sidebar role={isHorariosOnly ? 'horarios_only' : 'full'} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar profile={profile} />
         <main className="flex-1 p-8 max-w-[1200px] w-full mx-auto">
@@ -34,14 +34,4 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </div>
     </div>
   )
-  } catch (err: any) {
-    return (
-      <div className="p-8 text-rose bg-surface font-mono overflow-auto text-sm min-h-screen">
-        <h2 className="font-bold text-xl mb-4">SSR LAYOUT EXCEPTION CAUGHT:</h2>
-        <p><strong>Message:</strong> {err.message}</p>
-        <pre className="mt-4">{err.stack}</pre>
-        <p className="mt-4 break-all">{JSON.stringify(err)}</p>
-      </div>
-    )
-  }
 }
