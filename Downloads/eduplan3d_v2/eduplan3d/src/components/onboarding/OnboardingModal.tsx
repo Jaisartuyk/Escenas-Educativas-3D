@@ -2,6 +2,7 @@
 
 // src/components/onboarding/OnboardingModal.tsx
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createInstitution, joinInstitution } from '@/lib/actions/institution'
 import toast from 'react-hot-toast'
 import { Logo } from '@/components/ui/Logo'
@@ -9,6 +10,7 @@ import { Logo } from '@/components/ui/Logo'
 type OnboardingMode = 'select' | 'create' | 'join'
 
 export function OnboardingModal({ profileName }: { profileName: string }) {
+  const router = useRouter()
   const [mode, setMode] = useState<OnboardingMode>('select')
   const [loading, setLoading] = useState(false)
   
@@ -23,7 +25,8 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
     setLoading(true)
     try {
       await createInstitution(institutionName)
-      toast.success('¡Ecosistema creado!')
+      toast.success('¡Ecosistema creado! Cargando...')
+      window.location.href = '/dashboard'
     } catch (error: any) {
       toast.error(error.message)
       setLoading(false)
@@ -37,7 +40,8 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
     setLoading(true)
     try {
       await joinInstitution(joinCode)
-      toast.success('¡Unido a la institución!')
+      toast.success('¡Unido a la institución! Cargando...')
+      window.location.href = '/dashboard'
     } catch (error: any) {
       toast.error(error.message)
       setLoading(false)
