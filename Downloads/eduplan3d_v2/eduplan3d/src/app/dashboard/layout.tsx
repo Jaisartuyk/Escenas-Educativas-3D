@@ -17,12 +17,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq('id', user.id)
     .single()
 
-  if (!profile?.institution_id) {
-    return <OnboardingModal profileName={profile?.full_name ?? 'Usuario'} />
-  }
+  const isMissingInstitution = !profile?.institution_id
 
   return (
-    <div className="min-h-screen flex bg-bg">
+    <div className="min-h-screen flex bg-bg relative">
+      {isMissingInstitution && <OnboardingModal profileName={profile?.full_name ?? 'Usuario'} />}
       <Sidebar role={user.email === 'israferaldascarlett15@gmail.com' ? 'horarios_only' : 'full'} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar profile={profile} />
