@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import type { HorariosState, HorarioGrid, Dia } from '@/types/horarios'
-import { DIAS, TODAS_MATERIAS, RECESO_IDX } from '@/types/horarios'
+import { DIAS, TODAS_MATERIAS } from '@/types/horarios'
 import { detectConflictos, getDocForMateria } from '@/lib/horarios/generator'
 
 interface Props {
@@ -111,7 +111,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
               </thead>
               <tbody>
                 {config.horarios.map((hora, pi) => {
-                  const isReceso = pi === RECESO_IDX
+                  const isReceso = (config.recesos || [4]).includes(pi)
                   return (
                     <tr key={pi}>
                       <td className={`text-center text-xs font-semibold border border-[rgba(120,100,255,0.14)] ${isReceso ? 'bg-[rgba(38,215,180,0.15)] text-teal' : 'bg-surface text-ink3'}`}>
@@ -204,13 +204,14 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {config.horarios.map((hora, pi) => (
+                    {config.horarios.map((hora, pi) => {
+                      const isR = (config.recesos || [4]).includes(pi)
+                      return (
                       <tr key={pi}>
-                        <td className="text-center text-[11px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{pi === RECESO_IDX ? 'R' : pi + 1}</td>
+                        <td className="text-center text-[11px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{isR ? 'R' : pi + 1}</td>
                         <td className="text-center text-[10px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{hora}</td>
                         {DIAS.map(d => {
                           const v = diasDoc[d]?.[pi] ?? ''
-                          const isR = pi === RECESO_IDX
                           return (
                             <td key={d} className={`text-center text-[11px] border border-[rgba(120,100,255,0.14)] px-1 py-1 ${isR ? 'bg-[rgba(38,215,180,0.12)] text-teal' : v ? 'bg-[rgba(124,109,250,0.06)] text-ink font-medium' : 'text-ink3'}`}>
                               {isR ? 'RECESO' : (v || '—')}
@@ -218,7 +219,8 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                           )
                         })}
                       </tr>
-                    ))}
+                    )
+                    })}
                   </tbody>
                 </table>
               </div>
