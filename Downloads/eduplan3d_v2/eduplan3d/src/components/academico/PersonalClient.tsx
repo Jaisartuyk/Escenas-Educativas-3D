@@ -150,7 +150,8 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
              })}
              {students.length === 0 && <p className="text-xs text-ink4 italic">Sin alumnos verificados.</p>}
            </div>
-        </div>
+         </div>
+      </div>
 
       {selectedUser && (
         <ProfileDetailsPanel 
