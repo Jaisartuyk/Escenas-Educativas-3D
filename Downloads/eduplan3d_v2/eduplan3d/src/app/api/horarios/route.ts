@@ -136,37 +136,40 @@ export async function POST(req: Request) {
      }
      
      // SYNC: Sincronizar las Materias de los Docentes
-     // Iteramos sobre horarios.docentes. Por cada materia que un docente enseña, vamos a asegurar que exista en relations.
-     // Como el Horario no especifica a qué curso va qué materia *en este paso del maestro*, las creamos globalmente.
-     const { data: existingSubjects } = await (supabase as any).from('subjects').select('id, name, teacher_id').eq('institution_id', profile.institution_id)
+     // Iteramos sobre horarios.docentes.
+     // NOTA DE SCHEMA: La tabla `subjects` REQUIERE obligatoriamente `course_id`.
+     // Como el Asistente de Horarios asocia profesores a materias DE MANERA ABSOLUTA y no por curso específico hasta el Step 3,
+     // y el usuario reclama que se borran si falla la DB, vamos a atar la materia generada al PRIMER curso creado para
+     // evitar que el CONSTRAINT violado descarte silenciosamente partes del API.
      
-     const subjectsToInsert: any[] = []
-     const crypto = require('crypto')
+     const courseIdFallback = Object.values(currentCourseDbMap)[0]
 
-     const teacherRecords = body.docentes || []
-     teacherRecords.forEach((d:any) => {
-       const mats = d.materias || []
-       mats.forEach((mName: string) => {
-         // Check if this teacher already teaches this subject
-         const exists = existingSubjects?.some((sub:any) => sub.name === mName && sub.teacher_id === d.id)
-         if(!exists) {
-            // we create the subject without course_id globally or assign it later.
-            // Actually in Academic management, Subjects normally belong to Courses. But here we just build them generically.
-            subjectsToInsert.push({
-              id: crypto.randomUUID(),
-              institution_id: profile.institution_id,
-              name: mName,
-              teacher_id: d.id,
-              // we don't have course mapping yet from StepDocentes. If we wanted to map them, it would be from horario matrix.
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
+     if (courseIdFallback) {
+         const { data: existingSubjects } = await (supabase as any).from('subjects').select('id, name, teacher_id').eq('institution_id', profile.institution_id)
+         const subjectsToInsert: any[] = []
+         
+         const teacherRecords = body.docentes || []
+         teacherRecords.forEach((d:any) => {
+           const mats = d.materias || []
+           mats.forEach((mName: string) => {
+             const exists = existingSubjects?.some((sub:any) => sub.name === mName && sub.teacher_id === d.id)
+             if(!exists) {
+                subjectsToInsert.push({
+                  id: crypto.randomUUID(),
+                  institution_id: profile.institution_id,
+                  course_id: courseIdFallback, // Cumplimos el Constraint NOT NULL
+                  name: mName,
+                  teacher_id: d.id,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+             }
+           })
+         })
+
+         if(subjectsToInsert.length > 0) {
+           await (supabase as any).from('subjects').insert(subjectsToInsert)
          }
-       })
-     })
-
-     if(subjectsToInsert.length > 0) {
-       await (supabase as any).from('subjects').insert(subjectsToInsert)
      }
 
   } catch (err) {

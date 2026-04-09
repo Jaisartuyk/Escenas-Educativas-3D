@@ -69,11 +69,29 @@ export function HorariosClient() {
   }, [])
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastStateRef = useRef<HorariosState | null>(null)
+
+  // Sincroniza al desmontar la vista si hay cambios en cola (Navigator abandona / cambia pagina)
+  useEffect(() => {
+    lastStateRef.current = state
+  }, [state])
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current && lastStateRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+        try {
+           fetch('/api/horarios', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lastStateRef.current) }).catch(()=>{})
+        } catch(e) {}
+      }
+    }
+  }, [])
 
   // Guarda automáticamente en el backend (Debounced 1 segundo para evitar Overwrites)
-  const saveStateToDB = (newState: HorariosState) => {
+  const saveStateToDB = (newState: HorariosState, forceNow = false) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    saveTimeoutRef.current = setTimeout(async () => {
+    
+    const doSave = async () => {
       try {
         await fetch('/api/horarios', {
           method: 'POST',
@@ -83,19 +101,25 @@ export function HorariosClient() {
       } catch (e) {
         console.error('Error auto-saving', e)
       }
-    }, 1000)
+    }
+
+    if (forceNow) {
+      doSave()
+    } else {
+      saveTimeoutRef.current = setTimeout(doSave, 800)
+    }
   }
 
-  function updateState(updater: Partial<HorariosState> | ((s: HorariosState) => HorariosState)) {
+  function updateState(updater: Partial<HorariosState> | ((s: HorariosState) => HorariosState), forceSave = false) {
     setState((s) => {
       const newState = typeof updater === 'function' ? updater(s) : { ...s, ...updater }
-      saveStateToDB(newState)
+      saveStateToDB(newState, forceSave)
       return newState
     })
   }
 
   function setStep(n: number) { 
-    updateState(s => ({ ...s, step: n })) 
+    updateState(s => ({ ...s, step: n }), true) // FORZAR GUARDADO INMEDIATO
   }
 
   const handleGenerar = useCallback(() => {
