@@ -35,7 +35,7 @@ export async function GET() {
   }
 
   // Auto-inyección: Leer perfiles reales de docentes de la DB y agregarlos si no existen
-  const { data: dbTeachers } = await (supabase as any).from('profiles').select('id, full_name').eq('institution_id', profile.institution_id).in('role', ['teacher', 'admin'])
+  const { data: dbTeachers } = await (supabase as any).from('profiles').select('id, full_name').eq('institution_id', profile.institution_id).eq('role', 'teacher')
   
   if (dbTeachers) {
     const existingWorkerNames = horariosConfig.docentes.map((d: any) => d.nombre?.toLowerCase() || d.name?.toLowerCase())

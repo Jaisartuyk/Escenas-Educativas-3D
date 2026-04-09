@@ -42,7 +42,7 @@ export default async function AcademicoPage() {
     .from('profiles')
     .select('*')
     .eq('institution_id', profile.institution_id)
-    .in('role', ['teacher', 'admin'])
+    .eq('role', 'teacher')
     .order('full_name', { ascending: true })
 
   return (
