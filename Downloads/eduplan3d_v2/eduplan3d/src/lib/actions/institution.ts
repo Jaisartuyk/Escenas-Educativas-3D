@@ -60,7 +60,7 @@ export async function joinInstitution(code: string): Promise<{ error?: string }>
   // Actualizar perfil directamente (RLS deshabilitado)
   const { error: profErr } = await (supabase as any)
     .from('profiles')
-    .update({ institution_id: inst.id, role: 'teacher' })
+    .update({ institution_id: inst.id, role: 'student' })
     .eq('id', user.id)
 
   if (profErr) return { error: profErr.message }

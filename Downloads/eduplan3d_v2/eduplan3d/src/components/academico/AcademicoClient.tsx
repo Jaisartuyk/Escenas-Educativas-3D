@@ -5,9 +5,10 @@ import { Plus, Users, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
 import { createClient } from '@/lib/supabase/client'
+import { PersonalClient } from './PersonalClient'
 
-export function AcademicoClient({ initialCourses, initialStudents, initialSubjects, initialEnrollments, teachers, institutionId }: any) {
-  const [activeTab, setActiveTab] = useState<'cursos' | 'matriculas'>('cursos')
+export function AcademicoClient({ initialCourses, initialStudents, initialSubjects, initialEnrollments, teachers, horariosDocentes, institutionId }: any) {
+  const [activeTab, setActiveTab] = useState<'cursos' | 'matriculas' | 'personal'>('cursos')
   const [courses, setCourses] = useState(initialCourses)
   const [subjects, setSubjects] = useState(initialSubjects)
   const [enrollments, setEnrollments] = useState(initialEnrollments)
@@ -77,7 +78,8 @@ export function AcademicoClient({ initialCourses, initialStudents, initialSubjec
       {/* Tabs */}
       <div className="flex border-b border-surface">
         <button onClick={() => setActiveTab('cursos')} className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'cursos' ? 'border-violet text-violet font-bold' : 'border-transparent text-ink3 hover:text-ink2 hover:border-surface2'}`}>Cursos y Materias</button>
-        <button onClick={() => setActiveTab('matriculas')} className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'matriculas' ? 'border-teal text-teal font-bold' : 'border-transparent text-ink3 hover:text-ink2 hover:border-surface2'}`}>Estudiantes y Matrículas</button>
+        <button onClick={() => setActiveTab('matriculas')} className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'matriculas' ? 'border-teal text-teal font-bold' : 'border-transparent text-ink3 hover:text-ink2 hover:border-surface2'}`}>Nómina (Vincular)</button>
+        <button onClick={() => setActiveTab('personal')} className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'personal' ? 'border-[#F8D25A] text-[#F8D25A] font-bold' : 'border-transparent text-ink3 hover:text-ink2 hover:border-surface2'}`}>Gestión de Cuentas (Crear)</button>
       </div>
 
       <div className="mt-8">
@@ -183,6 +185,10 @@ export function AcademicoClient({ initialCourses, initialStudents, initialSubjec
               </table>
             )}
           </div>
+        )}
+
+        {activeTab === 'personal' && (
+           <PersonalClient institutionId={institutionId} teachers={teachers} students={initialStudents} horariosDocentes={horariosDocentes} />
         )}
       </div>
     </div>

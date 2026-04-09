@@ -14,7 +14,7 @@ export default async function AcademicoPage() {
 
   const { data: profile } = await (supabase as any)
     .from('profiles')
-    .select('*, institutions(name)')
+    .select('*, institutions(name, settings)')
     .eq('id', user.id)
     .single()
 
@@ -58,6 +58,7 @@ export default async function AcademicoPage() {
         initialSubjects={subjectsRes.data || []}
         initialEnrollments={enrollments || []}
         teachers={teachers || []}
+        horariosDocentes={profile.institutions?.settings?.horarios?.docentes || []}
         institutionId={profile.institution_id}
       />
     </div>
