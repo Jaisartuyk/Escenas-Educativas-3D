@@ -41,10 +41,20 @@ export function HorariosClient() {
           safeConfig.horarios = safeConfig.horarios || []
           safeConfig.tutores = safeConfig.tutores || {}
           
+          // Safeguard: Normalize teachers if english keys were used by accident in the DB
+          const safeDocentes = (data.docentes || []).map((d: any) => ({
+            id: d.id,
+            titulo: d.titulo || '',
+            nombre: d.nombre || d.name || 'Profesor',
+            materias: d.materias || d.subjects || [],
+            jornada: d.jornada || 'AMBAS',
+            nivel: d.nivel || 'AMBOS'
+          }))
+
           setState({
             ...data,
             config: safeConfig,
-            docentes: data.docentes || [],
+            docentes: safeDocentes,
             horasPorCurso: data.horasPorCurso || {},
             horario: data.horario || {},
             step: 0
