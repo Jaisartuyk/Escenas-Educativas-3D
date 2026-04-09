@@ -64,7 +64,7 @@ export function StepGenerar({ state, onBack, onGenerar }: Props) {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {materias.map(([m, h]) => (
-                    <span key={m} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.05)] border border-[rgba(120,100,255,0.12)] text-ink3">
+                    <span key={m} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(0,0,0,0.05)] border border-[rgba(120,100,255,0.12)] text-ink3">
                       {m} ×{h}
                     </span>
                   ))}

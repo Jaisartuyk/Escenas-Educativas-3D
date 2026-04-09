@@ -71,10 +71,10 @@ export function ProfileDetailsPanel({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div className="w-full max-w-md bg-[#0F0C20] border-l border-[rgba(120,100,255,0.15)] h-full shadow-2xl flex flex-col animate-slide-left" onClick={e => e.stopPropagation()}>
-        <div className="p-5 border-b border-[rgba(255,255,255,0.05)] flex items-center justify-between">
+      <div className="w-full max-w-md bg-surface border-l border-[rgba(120,100,255,0.15)] h-full shadow-2xl flex flex-col animate-slide-left" onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b border-[rgba(0,0,0,0.05)] flex items-center justify-between">
           <h2 className="font-display font-bold text-lg">Ficha del Personal</h2>
-          <button onClick={onClose} className="p-2 hover:bg-[rgba(255,255,255,0.1)] rounded-full transition-colors"><X size={18} /></button>
+          <button onClick={onClose} className="p-2 hover:bg-[rgba(0,0,0,0.1)] rounded-full transition-colors"><X size={18} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
@@ -106,7 +106,7 @@ export function ProfileDetailsPanel({
             
             {isStudent ? (
               <>
-                <div className="pt-2 border-t border-[rgba(255,255,255,0.05)]">
+                <div className="pt-2 border-t border-[rgba(0,0,0,0.05)]">
                   <h4 className="text-xs font-bold text-teal mb-3 uppercase tracking-wider">Datos de la Madre</h4>
                 </div>
                 <div>
@@ -124,7 +124,7 @@ export function ProfileDetailsPanel({
                   </div>
                 </div>
 
-                <div className="pt-2 mt-2 border-t border-[rgba(255,255,255,0.05)]">
+                <div className="pt-2 mt-2 border-t border-[rgba(0,0,0,0.05)]">
                   <h4 className="text-xs font-bold text-[#F8D25A] mb-3 uppercase tracking-wider">Datos del Padre</h4>
                 </div>
                 <div>
@@ -142,7 +142,7 @@ export function ProfileDetailsPanel({
                   </div>
                 </div>
 
-                <div className="pt-2 mt-2 border-t border-[rgba(255,255,255,0.05)]">
+                <div className="pt-2 mt-2 border-t border-[rgba(0,0,0,0.05)]">
                   <h4 className="text-xs font-bold text-violet2 mb-3 uppercase tracking-wider">Representación y Emergencia</h4>
                 </div>
                 <div>
@@ -173,7 +173,7 @@ export function ProfileDetailsPanel({
               </>
             ) : (
               <>
-                <div className="pt-2 border-t border-[rgba(255,255,255,0.05)]">
+                <div className="pt-2 border-t border-[rgba(0,0,0,0.05)]">
                   <h4 className="text-xs font-bold text-violet2 mb-3 uppercase tracking-wider">Datos del Profesional</h4>
                 </div>
                 <div>
@@ -189,7 +189,7 @@ export function ProfileDetailsPanel({
           </div>
         </div>
 
-        <div className="p-5 border-t border-[rgba(255,255,255,0.05)]">
+        <div className="p-5 border-t border-[rgba(0,0,0,0.05)]">
           <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3 flex justify-center items-center gap-2">
             {loading ? 'Guardando...' : <><Save size={18}/> Guardar Perfil</>}
           </button>

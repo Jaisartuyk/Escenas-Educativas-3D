@@ -26,7 +26,7 @@ export function Topbar({ profile }: Props) {
   return (
     <header className="h-16 flex items-center justify-between px-8 border-b border-[rgba(120,100,255,0.14)] bg-bg2 sticky top-0 z-40">
       {/* Search (decorativo por ahora) */}
-      <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[rgba(255,255,255,0.04)] border border-[rgba(120,100,255,0.12)] w-64">
+      <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[rgba(0,0,0,0.04)] border border-[rgba(120,100,255,0.12)] w-64">
         <span className="text-ink3 text-sm">🔍</span>
         <span className="text-ink3 text-sm">Buscar planificación...</span>
         <kbd className="ml-auto text-[10px] text-ink3 border border-[rgba(120,100,255,0.2)] rounded px-1.5 py-0.5">⌘K</kbd>

@@ -14,16 +14,16 @@
   html { scroll-behavior: smooth; }
 
   body {
-    background-color: #06050f;
-    color: #f0eeff;
+    background-color: #F8FAFC;
+    color: #0F172A;
   }
 
   ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: #06050f; }
-  ::-webkit-scrollbar-thumb { background: #221e3e; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #2d2850; }
+  ::-webkit-scrollbar-track { background: #F8FAFC; }
+  ::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #CBD5E1; }
 
-  ::selection { background: rgba(124,109,250,0.3); color: #f0eeff; }
+  ::selection { background: rgba(79,70,229,0.15); color: #0F172A; }
 }
 
 @layer components {
@@ -42,7 +42,7 @@
            font-display tracking-tight transition-all
            hover:opacity-90 hover:-translate-y-px
            active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed
-           shadow-[0_4px_20px_rgba(124,109,250,0.25)];
+           shadow-[0_4px_20px_rgba(79,70,229,0.3)];
   }
 
   .btn-secondary {

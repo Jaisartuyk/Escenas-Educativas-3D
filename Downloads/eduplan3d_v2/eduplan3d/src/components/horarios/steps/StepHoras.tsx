@@ -80,7 +80,7 @@ export function StepHoras({ cursos, docentes, horasPorCurso, jornada, onChange, 
                 const doc = getDocForMateria(m, docentes, jornada)
                 const sinDoc = doc === '—' && h > 0
                 return (
-                  <tr key={m} className={`border-b border-[rgba(120,100,255,0.07)] ${idx % 2 === 0 ? 'bg-[rgba(255,255,255,0.02)]' : ''}`}>
+                  <tr key={m} className={`border-b border-[rgba(120,100,255,0.07)] ${idx % 2 === 0 ? 'bg-[rgba(0,0,0,0.02)]' : ''}`}>
                     <td className={`py-2 text-sm font-${h > 0 ? 'semibold' : 'normal'} ${h > 0 ? 'text-ink' : 'text-ink3'}`}>{m}</td>
                     <td className={`py-2 text-xs ${sinDoc ? 'text-rose' : 'text-ink3'}`}>
                       {sinDoc ? '⚠ Sin docente' : doc}
@@ -91,7 +91,7 @@ export function StepHoras({ cursos, docentes, horasPorCurso, jornada, onChange, 
                         min={0} max={10}
                         value={h}
                         onChange={e => updateHoras(cursoActivo, m, parseInt(e.target.value) || 0)}
-                        className="w-14 text-center py-1 px-2 border border-[rgba(120,100,255,0.2)] rounded-lg bg-[rgba(255,255,255,0.05)] text-sm text-ink focus:outline-none focus:border-violet"
+                        className="w-14 text-center py-1 px-2 border border-[rgba(120,100,255,0.2)] rounded-lg bg-[rgba(0,0,0,0.05)] text-sm text-ink focus:outline-none focus:border-violet"
                       />
                     </td>
                     <td className="py-2 pr-2">

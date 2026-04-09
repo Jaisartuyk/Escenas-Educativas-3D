@@ -134,7 +134,7 @@ export function BibliotecaClient() {
       {loading ? (
         <p className="text-ink3 text-center py-10">Cargando...</p>
       ) : docs.length === 0 ? (
-        <div className="text-center py-16 border border-[rgba(120,100,255,0.14)] rounded-xl bg-[rgba(255,255,255,0.01)]">
+        <div className="text-center py-16 border border-[rgba(120,100,255,0.14)] rounded-xl bg-[rgba(0,0,0,0.01)]">
           <p className="text-ink text-lg font-bold mb-2">No tienes documentos formativos</p>
           <p className="text-sm text-ink3 max-w-sm mx-auto">
             Sube el texto guía en formato PDF e ingresa la asignatura y el curso. Al generar planificaciones con IA de esa combinación exactas, la matriz se basará enteramente en ello.
@@ -156,7 +156,7 @@ export function BibliotecaClient() {
                 </button>
               </div>
               <h3 className="font-bold text-md text-ink mb-1 truncate" title={d.titulo}>{d.titulo}</h3>
-              <p className="text-[11px] text-ink3 flex items-center justify-between mt-3 pt-3 border-t border-[rgba(255,255,255,0.07)]">
+              <p className="text-[11px] text-ink3 flex items-center justify-between mt-3 pt-3 border-t border-[rgba(0,0,0,0.07)]">
                 <span>{(d.file_size / 1024 / 1024).toFixed(2)} MB</span>
                 <span>{new Date(d.created_at).toLocaleDateString()}</span>
               </p>

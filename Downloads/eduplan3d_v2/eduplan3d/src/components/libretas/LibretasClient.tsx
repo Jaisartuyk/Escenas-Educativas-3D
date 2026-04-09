@@ -47,7 +47,7 @@ export function LibretasClient({ role, institutionName, courses, students, subje
   return (
     <div className="space-y-6">
       {/* Controles (ocultos en impresión) */}
-      <div className="print:hidden p-5 bg-surface rounded-2xl border border-[rgba(255,255,255,0.02)] flex flex-wrap gap-4 items-end">
+      <div className="print:hidden p-5 bg-surface rounded-2xl border border-[rgba(0,0,0,0.02)] flex flex-wrap gap-4 items-end">
         {role !== 'student' && (
           <div className="flex-1 min-w-[200px] space-y-1">
              <label className="text-xs text-ink4 font-medium px-1">Seleccionar Curso</label>

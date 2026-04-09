@@ -53,7 +53,7 @@ export function AcademicoClient({ initialCourses, initialStudents, initialSubjec
 
       <div className="mt-8">
         {activeTab === 'cursos' && (
-           <div className="bg-surface rounded-2xl border border-[rgba(255,255,255,0.02)] p-6">
+           <div className="bg-surface rounded-2xl border border-[rgba(0,0,0,0.02)] p-6">
              <div className="mb-6">
                <h3 className="font-display font-bold text-lg">Cursos Sincronizados</h3>
                <p className="text-xs text-ink3 mt-1">Los cursos y las materias ahora se manipulan visualmente desde el <span className="text-violet font-semibold">Generador de Horarios</span> para evitar duplicaciones. Cada vez que construyas y guardes tu Horario, los Cursos aparecerán automáticamente aquí listos para Matricular a tus Alumnos.</p>
@@ -71,7 +71,7 @@ export function AcademicoClient({ initialCourses, initialStudents, initialSubjec
         )}
 
         {activeTab === 'matriculas' && (
-          <div className="bg-surface rounded-2xl border border-[rgba(255,255,255,0.02)] overflow-hidden">
+          <div className="bg-surface rounded-2xl border border-[rgba(0,0,0,0.02)] overflow-hidden">
             <div className="p-4 border-b border-surface2 flex justify-between items-center">
               <h3 className="font-bold text-ink flex items-center gap-2"><Users size={18} className="text-teal"/> Nómina Estudiantil</h3>
               <p className="text-xs text-ink3">Selecciona los cursos a los que pertenece cada estudiante.</p>

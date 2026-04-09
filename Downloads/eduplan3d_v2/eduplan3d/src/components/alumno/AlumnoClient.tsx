@@ -54,8 +54,8 @@ export function AlumnoClient({ courses, subjects, assignments, initialGrades, st
         const courseSubjects = subjects.filter((s:any) => s.course_id === course.id)
         
         return (
-          <div key={course.id} className="bg-surface rounded-2xl border border-[rgba(255,255,255,0.02)] overflow-hidden">
-             <div className="bg-[#1a1b26] p-5 border-b border-surface2">
+          <div key={course.id} className="bg-surface rounded-2xl border border-[rgba(0,0,0,0.02)] overflow-hidden">
+             <div className="bg-bg3 p-5 border-b border-surface2">
                 <h2 className="text-lg font-bold font-display text-ink flex items-center gap-2"><BookOpen size={20} className="text-violet"/> {course.name} {course.parallel}</h2>
              </div>
              

@@ -232,7 +232,7 @@ export function SceneEditorClient() {
         </div>
         
         <div 
-          className="rounded-2xl overflow-hidden border border-[rgba(120,100,255,0.14)] cursor-grab active:cursor-grabbing bg-[#06050f]"
+          className="rounded-2xl overflow-hidden border border-[rgba(120,100,255,0.14)] cursor-grab active:cursor-grabbing bg-bg"
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}

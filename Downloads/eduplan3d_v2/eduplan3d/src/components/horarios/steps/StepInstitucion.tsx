@@ -104,7 +104,7 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
 
         {/* Horarios por período */}
         <div>
-          <div className="flex items-center justify-between mb-3 border-t border-[rgba(255,255,255,0.05)] pt-4 mt-2">
+          <div className="flex items-center justify-between mb-3 border-t border-[rgba(0,0,0,0.05)] pt-4 mt-2">
              <label className="text-[11px] font-bold uppercase tracking-[.5px] text-ink3">Bloques y Recreos de Clase ({config.nPeriodos || 8} Períodos)</label>
              <div className="flex gap-2">
                <button onClick={handleRemovePeriod} className="w-6 h-6 flex items-center justify-center rounded-md bg-surface2 text-ink3 hover:bg-surface border border-transparent transition-colors font-bold text-sm">-</button>

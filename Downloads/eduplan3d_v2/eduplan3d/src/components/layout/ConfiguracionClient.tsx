@@ -47,7 +47,7 @@ export function ConfiguracionClient({ profile }: Props) {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium w-full text-left transition-all ${
-              activeTab === tab ? 'bg-surface2 text-ink' : 'text-ink3 hover:text-ink2 hover:bg-[rgba(255,255,255,0.03)]'
+              activeTab === tab ? 'bg-surface2 text-ink' : 'text-ink3 hover:text-ink2 hover:bg-[rgba(0,0,0,0.03)]'
             }`}
           >
             <span>{icon}</span>{label}

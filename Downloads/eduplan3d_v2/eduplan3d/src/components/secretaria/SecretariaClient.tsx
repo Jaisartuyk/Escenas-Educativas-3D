@@ -72,27 +72,27 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
          </div>
          <div className="bg-[rgba(38,215,180,0.05)] border border-[rgba(38,215,180,0.2)] rounded-2xl p-5">
             <p className="text-teal text-xs font-bold uppercase tracking-wider mb-2">Cobros Pagados</p>
-            <p className="text-3xl font-display font-medium text-white">{payments.filter((p:any) => p.status === 'pagado').length}</p>
+            <p className="text-3xl font-display font-medium text-ink">{payments.filter((p:any) => p.status === 'pagado').length}</p>
          </div>
          <div className="bg-[rgba(255,100,100,0.05)] border border-[rgba(255,100,100,0.2)] rounded-2xl p-5">
             <p className="text-red-400 text-xs font-bold uppercase tracking-wider mb-2">Pagos Pendientes</p>
-            <p className="text-3xl font-display font-medium text-white">{payments.filter((p:any) => p.status === 'pendiente' || p.status === 'atrasado').length}</p>
+            <p className="text-3xl font-display font-medium text-ink">{payments.filter((p:any) => p.status === 'pendiente' || p.status === 'atrasado').length}</p>
          </div>
       </div>
 
-      <div className="bg-surface rounded-2xl border border-[rgba(255,255,255,0.05)] overflow-hidden">
-        <div className="p-5 border-b border-[rgba(255,255,255,0.05)] flex justify-between items-center">
+      <div className="bg-surface rounded-2xl border border-[rgba(0,0,0,0.05)] overflow-hidden">
+        <div className="p-5 border-b border-[rgba(0,0,0,0.05)] flex justify-between items-center">
           <h2 className="font-display font-semibold text-lg">Historial de Cobros y Pensiones</h2>
           <button 
              onClick={() => setIsAddingPayment(!isAddingPayment)}
-             className="bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.1)] transition-colors px-4 py-2 rounded-xl text-sm flex items-center gap-2"
+             className="bg-[rgba(0,0,0,0.05)] hover:bg-[rgba(0,0,0,0.1)] transition-colors px-4 py-2 rounded-xl text-sm flex items-center gap-2"
           >
              <Plus size={16}/> Emitir Cobro
           </button>
         </div>
 
         {isAddingPayment && (
-           <div className="p-5 bg-surface2/50 border-b border-[rgba(255,255,255,0.05)]">
+           <div className="p-5 bg-surface2/50 border-b border-[rgba(0,0,0,0.05)]">
              <form onSubmit={handleCreatePayment} className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="md:col-span-2">
                    <label className="block text-xs font-medium text-ink4 mb-1">Estudiante</label>
@@ -123,7 +123,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="bg-[rgba(255,255,255,0.02)]">
+              <tr className="bg-[rgba(0,0,0,0.02)]">
                 <th className="px-5 py-3 font-semibold text-ink4">Alumno</th>
                 <th className="px-5 py-3 font-semibold text-ink4">Concepto</th>
                 <th className="px-5 py-3 font-semibold text-ink4">Monto ($)</th>
@@ -131,7 +131,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 <th className="px-5 py-3 font-semibold text-ink4">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[rgba(255,255,255,0.05)]">
+            <tbody className="divide-y divide-[rgba(0,0,0,0.05)]">
                {payments.length === 0 ? (
                  <tr>
                    <td colSpan={5} className="px-5 py-12 text-center text-ink4">No hay registros financieros.</td>
@@ -143,20 +143,20 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                  if (p.status === 'pagado') {
                    statusBadge = <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider bg-[rgba(38,215,180,0.1)] text-teal border border-[rgba(38,215,180,0.2)]"><Check size={12}/> PAGADO</span>
                  } else if (p.status === 'pendiente') {
-                   statusBadge = <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider bg-[rgba(255,255,255,0.05)] text-ink2 border border-[rgba(255,255,255,0.1)]"><Clock size={12}/> PENDIENTE</span>
+                   statusBadge = <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider bg-[rgba(0,0,0,0.05)] text-ink2 border border-[rgba(0,0,0,0.1)]"><Clock size={12}/> PENDIENTE</span>
                  } else {
                    statusBadge = <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wider bg-[rgba(255,100,100,0.1)] text-red-400 border border-[rgba(255,100,100,0.2)]"><AlertCircle size={12}/> ATRASADO</span>
                  }
 
                  return (
-                   <tr key={p.id} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors group">
+                   <tr key={p.id} className="hover:bg-[rgba(0,0,0,0.02)] transition-colors group">
                      <td className="px-5 py-4 font-medium">{student?.full_name || 'Desconocido'}</td>
                      <td className="px-5 py-4 text-ink2">{p.description} <br/><span className="text-[10px] text-ink4">Vence: {p.due_date || 'Sin fecha'}</span></td>
                      <td className="px-5 py-4 font-display font-semibold">${p.amount}</td>
                      <td className="px-5 py-4">{statusBadge}</td>
                      <td className="px-5 py-4">
                         {p.status !== 'pagado' && (
-                           <button onClick={() => markAsPaid(p.id)} className="text-teal hover:text-white text-xs font-semibold mr-3 transition-colors">Cobrar</button>
+                           <button onClick={() => markAsPaid(p.id)} className="text-teal hover:text-ink text-xs font-semibold mr-3 transition-colors">Cobrar</button>
                         )}
                         <button onClick={() => deletePayment(p.id)} className="text-ink4 hover:text-red-400 text-xs font-medium transition-colors">Eliminar</button>
                      </td>

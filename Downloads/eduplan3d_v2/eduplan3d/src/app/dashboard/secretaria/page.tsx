@@ -47,7 +47,7 @@ export default async function SecretariaPage() {
   return (
     <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="font-display text-4xl font-bold tracking-tight text-white mb-2">Secretaría Académica</h1>
+        <h1 className="font-display text-4xl font-bold tracking-tight text-ink mb-2">Secretaría Académica</h1>
         <p className="text-ink3 text-sm">Control financiero y gestión de matrículas de estudiantes.</p>
       </div>
       <SecretariaClient 

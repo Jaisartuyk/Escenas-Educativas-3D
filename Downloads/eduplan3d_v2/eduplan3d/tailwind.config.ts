@@ -13,22 +13,23 @@ const config: Config = {
         body:    ['var(--font-instrument)', 'sans-serif'],
       },
       colors: {
-        bg:      '#06050f',
-        bg2:     '#0e0c1e',
-        bg3:     '#13112a',
-        surface: '#1a1730',
-        surface2:'#221e3e',
-        violet:  '#7c6dfa',
-        violet2: '#a99bff',
-        rose:    '#f06292',
-        teal:    '#26d7b4',
-        amber:   '#ffb347',
-        ink:     '#f0eeff',
-        ink2:    '#b8b0d8',
-        ink3:    '#7a72a0',
+        bg:      '#F8FAFC', // Slate 50
+        bg2:     '#FFFFFF', // White
+        bg3:     '#F1F5F9', // Slate 100
+        surface: '#FFFFFF',
+        surface2:'#F8FAFC',
+        violet:  '#4F46E5', // Indigo 600
+        violet2: '#6366F1', // Indigo 500
+        rose:    '#F43F5E', // Rose 500
+        teal:    '#10B981', // Emerald 500
+        amber:   '#F59E0B', // Amber 500
+        ink:     '#0F172A', // Slate 900
+        ink2:    '#334155', // Slate 700
+        ink3:    '#64748B', // Slate 500
+        ink4:    '#94A3B8', // Slate 400
       },
       borderColor: {
-        DEFAULT: 'rgba(120,100,255,0.14)',
+        DEFAULT: 'rgba(0,0,0,0.08)',
       },
     },
   },

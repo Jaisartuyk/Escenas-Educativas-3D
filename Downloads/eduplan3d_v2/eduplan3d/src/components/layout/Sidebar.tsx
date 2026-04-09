@@ -52,7 +52,7 @@ export function Sidebar({ role = 'admin' }: { role?: string }) {
             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
               isActive(item.href)
                 ? 'bg-[rgba(124,109,250,0.15)] text-violet2 border border-[rgba(124,109,250,0.25)]'
-                : 'text-ink3 hover:text-ink hover:bg-[rgba(255,255,255,0.04)]'
+                : 'text-ink3 hover:text-ink hover:bg-[rgba(0,0,0,0.04)]'
             }`}
           >
             <span className="text-base w-5 text-center">{item.icon}</span>

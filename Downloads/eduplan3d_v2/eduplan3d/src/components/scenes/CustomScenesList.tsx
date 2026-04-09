@@ -38,7 +38,7 @@ export function CustomScenesList() {
       {loading ? (
         <p className="text-center text-ink3 py-10">Cargando...</p>
       ) : scenes.length === 0 ? (
-        <div className="text-center py-16 border border-[rgba(120,100,255,0.14)] rounded-xl bg-[rgba(255,255,255,0.01)]">
+        <div className="text-center py-16 border border-[rgba(120,100,255,0.14)] rounded-xl bg-[rgba(0,0,0,0.01)]">
           <p className="text-ink font-bold mb-2">No tienes modelos subidos</p>
           <p className="text-sm text-ink3">Descarga un modelo 3D (.glb o .gltf) y añádele etiquetas para tu clase.</p>
         </div>
@@ -50,7 +50,7 @@ export function CustomScenesList() {
                 {s.asignatura}
               </span>
               <h3 className="font-bold text-md text-ink mb-1 truncate">{s.titulo}</h3>
-              <p className="text-[11px] text-ink3 mt-3 pt-3 border-t border-[rgba(255,255,255,0.07)]">
+              <p className="text-[11px] text-ink3 mt-3 pt-3 border-t border-[rgba(0,0,0,0.07)]">
                 {new Date(s.created_at).toLocaleDateString()}
               </p>
             </Link>

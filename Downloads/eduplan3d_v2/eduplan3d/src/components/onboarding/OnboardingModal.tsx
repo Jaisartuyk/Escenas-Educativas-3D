@@ -60,8 +60,8 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
           <Logo size="md" />
         </div>
 
-        <div className="bg-[#121025] border border-[rgba(124,109,250,0.2)] rounded-2xl p-8 shadow-2xl backdrop-blur-xl">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-white mb-2 text-center">
+        <div className="bg-surface border border-[rgba(124,109,250,0.2)] rounded-2xl p-8 shadow-2xl backdrop-blur-xl">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink mb-2 text-center">
             ¡Hola, {profileName.split(' ')[0]}! 👋
           </h1>
           <p className="text-sm text-ink3 text-center mb-8">
@@ -77,7 +77,7 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
                 <div className="w-12 h-12 rounded-full bg-[rgba(124,109,250,0.15)] text-violet2 flex items-center justify-center text-xl mb-3 transition-transform group-hover:scale-110">
                   🏫
                 </div>
-                <h3 className="font-bold text-white text-base">Soy el Administrador / Creador</h3>
+                <h3 className="font-bold text-ink text-base">Soy el Administrador / Creador</h3>
                 <p className="text-xs text-ink3 font-medium mt-1">Registrar mi colegio por primera vez</p>
               </button>
 
@@ -88,7 +88,7 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
                 <div className="w-12 h-12 rounded-full bg-[rgba(38,215,180,0.15)] text-teal flex items-center justify-center text-xl mb-3 transition-transform group-hover:scale-110">
                   🔑
                 </div>
-                <h3 className="font-bold text-white text-base">Soy un Docente / Alumno</h3>
+                <h3 className="font-bold text-ink text-base">Soy un Docente / Alumno</h3>
                 <p className="text-xs text-ink3 font-medium mt-1">Tengo un código de invitación</p>
               </button>
             </div>
@@ -111,7 +111,7 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
                 <button type="submit" disabled={loading} className="btn-primary w-full py-3.5 text-sm">
                   {loading ? 'Creando infraestructura...' : 'Crear mi escuela'}
                 </button>
-                <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-xs font-semibold text-ink3 hover:text-white py-2 transition-colors">
+                <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-xs font-semibold text-ink3 hover:text-ink py-2 transition-colors">
                   ← Volver
                 </button>
               </div>
@@ -136,7 +136,7 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
                 <button type="submit" disabled={loading} className="bg-teal hover:bg-[#1fb395] text-[#04342C] font-bold rounded-xl w-full py-3.5 text-sm transition-colors cursor-pointer">
                   {loading ? 'Verificando código...' : 'Unirme a la plataforma'}
                 </button>
-                <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-xs font-semibold text-ink3 hover:text-white py-2 transition-colors">
+                <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-xs font-semibold text-ink3 hover:text-ink py-2 transition-colors">
                   ← Volver
                 </button>
               </div>

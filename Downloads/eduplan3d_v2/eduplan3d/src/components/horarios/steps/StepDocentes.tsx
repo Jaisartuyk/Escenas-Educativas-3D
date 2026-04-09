@@ -157,7 +157,7 @@ export function StepDocentes({ docentes, jornadaInstitucional, nivelInstituciona
                   </div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {d.materias.map(m => (
-                      <span key={m} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[rgba(255,255,255,0.05)] border border-[rgba(120,100,255,0.14)] text-ink3">
+                      <span key={m} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[rgba(0,0,0,0.05)] border border-[rgba(120,100,255,0.14)] text-ink3">
                         {m}
                       </span>
                     ))}

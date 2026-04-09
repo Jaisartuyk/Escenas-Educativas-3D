@@ -103,7 +103,7 @@ export function DocenteClient({ initialSubjects, enrollments, initialAssignments
 
       {/* Contenido de la Materia */}
       <div className="flex-1 space-y-6">
-        <div className="flex gap-4 p-4 bg-surface rounded-2xl border border-[rgba(255,255,255,0.02)]">
+        <div className="flex gap-4 p-4 bg-surface rounded-2xl border border-[rgba(0,0,0,0.02)]">
           <form className="flex-1 space-y-3" onSubmit={handleCreateAssignment}>
              <h3 className="text-sm font-bold text-ink">Crear nueva tarea en {activeSubject?.name}</h3>
              <input required type="text" value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="Ej. Ensayo sobre la célula" className="w-full bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet transition-colors" />
@@ -118,11 +118,11 @@ export function DocenteClient({ initialSubjects, enrollments, initialAssignments
         {activeAssignments.length === 0 ? (
           <div className="p-8 text-center text-ink4 border border-dashed border-surface2 rounded-2xl">Aún no hay tareas publicadas en esta materia.</div>
         ) : (
-          <div className="bg-surface rounded-2xl border border-[rgba(255,255,255,0.02)] overflow-x-auto">
+          <div className="bg-surface rounded-2xl border border-[rgba(0,0,0,0.02)] overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap min-w-max">
-              <thead className="bg-[#1a1b26] text-ink3 text-xs uppercase tracking-wider relative border-b border-surface2">
+              <thead className="bg-bg3 text-ink3 text-xs uppercase tracking-wider relative border-b border-surface2">
                 <tr>
-                  <th className="px-4 py-3 font-bold sticky left-0 bg-[#1a1b26] z-10 w-48 shadow-[2px_0_4px_rgba(0,0,0,0.1)]">Estudiante</th>
+                  <th className="px-4 py-3 font-bold sticky left-0 bg-bg3 z-10 w-48 shadow-[2px_0_4px_rgba(0,0,0,0.1)]">Estudiante</th>
                   {activeAssignments.map((a:any) => (
                     <th key={a.id} className="px-4 py-3 font-medium min-w-[120px]">
                       <div className="text-violet2 truncate w-32" title={a.title}>{a.title}</div>

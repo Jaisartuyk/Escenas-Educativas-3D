@@ -158,7 +158,7 @@ export function CustomSceneViewerClient({ id }: { id: string }) {
         <p className="text-sm text-ink3 uppercase tracking-widest">{data.escena.asignatura}</p>
       </div>
 
-      <div className="relative rounded-2xl overflow-hidden border border-[rgba(120,100,255,0.14)] bg-[#06050f]" ref={containerRef}>
+      <div className="relative rounded-2xl overflow-hidden border border-[rgba(120,100,255,0.14)] bg-bg" ref={containerRef}>
         
         <div 
           className="cursor-grab active:cursor-grabbing w-full h-[600px]"
@@ -192,7 +192,7 @@ export function CustomSceneViewerClient({ id }: { id: string }) {
 
       <div className="mt-4 card p-4 flex gap-4 overflow-x-auto">
         {data.puntos.map((p, i) => (
-          <button key={p.id} onClick={() => setActiveInfo(p)} className="flex-shrink-0 flex items-center gap-2 bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(124,109,250,0.1)] px-3 py-2 rounded-lg border border-[rgba(120,100,255,0.1)] transition-colors">
+          <button key={p.id} onClick={() => setActiveInfo(p)} className="flex-shrink-0 flex items-center gap-2 bg-[rgba(0,0,0,0.03)] hover:bg-[rgba(124,109,250,0.1)] px-3 py-2 rounded-lg border border-[rgba(120,100,255,0.1)] transition-colors">
             <span className="w-5 h-5 rounded-full bg-violet2 text-white text-[10px] flex items-center justify-center font-bold">{i + 1}</span>
             <span className="text-sm font-medium whitespace-nowrap">{p.titulo}</span>
           </button>
