@@ -45,6 +45,14 @@ export default async function AcademicoPage() {
     .eq('role', 'teacher')
     .order('full_name', { ascending: true })
 
+  const { data: inst } = await (supabase as any)
+    .from('institutions')
+    .select('settings')
+    .eq('id', profile.institution_id)
+    .single()
+
+  const directoryMetadata = inst?.settings?.directory || {}
+
   return (
     <div className="animate-fade-in max-w-5xl mx-auto space-y-8">
       <div>
@@ -60,6 +68,7 @@ export default async function AcademicoPage() {
         teachers={teachers || []}
         horariosDocentes={profile.institutions?.settings?.horarios?.docentes || []}
         institutionId={profile.institution_id}
+        directoryMetadata={directoryMetadata}
       />
     </div>
   )

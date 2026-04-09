@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { Plus, Download, UserPlus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createInstitutionUser } from '@/lib/actions/users'
+import { ProfileDetailsPanel } from './ProfileDetailsPanel'
 
-export function PersonalClient({ institutionId, teachers, students, horariosDocentes }: { institutionId: string, teachers: any[], students: any[], horariosDocentes: any[] }) {
+export function PersonalClient({ institutionId, teachers, students, horariosDocentes, directoryMetadata }: { institutionId: string, teachers: any[], students: any[], horariosDocentes: any[], directoryMetadata: any }) {
   const [loading, setLoading] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<any | null>(null)
   const [formData, setFormData] = useState({
     full_name: '',
     dni: '',
@@ -79,24 +81,44 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
         <div className="bg-bg border border-surface rounded-2xl p-5">
            <h4 className="font-bold mb-4">Directorio de Docentes ({teachers.length})</h4>
            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-             {teachers.map(t => (
-               <div key={t.id} className="p-3 bg-surface rounded-xl border border-[rgba(255,255,255,0.02)]">
-                 <p className="font-medium text-sm">{t.full_name}</p>
-                 <p className="text-xs text-ink4">{t.email}</p>
+             {teachers.map(t => {
+               const meta = directoryMetadata[t.id] || {}
+               return (
+               <div key={t.id} onClick={() => setSelectedUser(t)} className="p-3 bg-surface rounded-xl border border-[rgba(255,255,255,0.02)] cursor-pointer hover:bg-[rgba(124,109,250,0.05)] transition-colors flex items-center gap-3">
+                 {meta.avatar_url ? (
+                   <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-violet2" />
+                 ) : (
+                   <div className="w-10 h-10 rounded-full bg-[rgba(124,109,250,0.15)] flex items-center justify-center text-violet2 font-bold text-xs">{t.full_name.charAt(0)}</div>
+                 )}
+                 <div>
+                   <p className="font-medium text-sm">{t.full_name}</p>
+                   <p className="text-xs text-ink4">{t.email}</p>
+                 </div>
                </div>
-             ))}
+               )
+             })}
              {teachers.length === 0 && <p className="text-xs text-ink4 italic">Sin profesores verificados.</p>}
            </div>
         </div>
         <div className="bg-bg border border-surface rounded-2xl p-5">
            <h4 className="font-bold mb-4 text-teal">Alumnos Inscritos ({students.length})</h4>
            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-             {students.map(s => (
-               <div key={s.id} className="p-3 bg-[rgba(38,215,180,0.05)] text-teal rounded-xl border border-[rgba(38,215,180,0.1)]">
-                 <p className="font-medium text-sm">{s.full_name}</p>
-                 <p className="text-xs opacity-70">{s.email}</p>
+             {students.map(s => {
+               const meta = directoryMetadata[s.id] || {}
+               return (
+               <div key={s.id} onClick={() => setSelectedUser(s)} className="p-3 bg-[rgba(38,215,180,0.05)] text-teal rounded-xl border border-[rgba(38,215,180,0.1)] cursor-pointer hover:bg-[rgba(38,215,180,0.1)] transition-colors flex items-center gap-3">
+                 {meta.avatar_url ? (
+                   <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-teal" />
+                 ) : (
+                   <div className="w-10 h-10 rounded-full bg-[rgba(38,215,180,0.15)] flex items-center justify-center text-teal font-bold text-xs">{s.full_name.charAt(0)}</div>
+                 )}
+                 <div>
+                   <p className="font-medium text-sm">{s.full_name}</p>
+                   <p className="text-xs opacity-70">{s.email}</p>
+                 </div>
                </div>
-             ))}
+               )
+             })}
              {students.length === 0 && <p className="text-xs text-ink4 italic">Sin alumnos verificados.</p>}
            </div>
         </div>
@@ -131,6 +153,15 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
            </div>
         </div>
       </div>
+
+      {selectedUser && (
+        <ProfileDetailsPanel 
+          user={selectedUser} 
+          metadata={directoryMetadata[selectedUser.id] || {}} 
+          institutionId={institutionId} 
+          onClose={() => setSelectedUser(null)} 
+        />
+      )}
     </div>
   )
 }

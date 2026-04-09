@@ -7,7 +7,18 @@ import { v4 as uuidv4 } from 'uuid'
 import { createClient } from '@/lib/supabase/client'
 import { PersonalClient } from './PersonalClient'
 
-export function AcademicoClient({ initialCourses, initialStudents, initialSubjects, initialEnrollments, teachers, horariosDocentes, institutionId }: any) {
+interface Props {
+  initialCourses: any[]
+  initialStudents: any[]
+  initialSubjects: any[]
+  initialEnrollments: any[]
+  teachers: any[]
+  horariosDocentes: any[]
+  institutionId: string
+  directoryMetadata: any
+}
+
+export function AcademicoClient({ initialCourses, initialStudents, initialSubjects, initialEnrollments, teachers, horariosDocentes, institutionId, directoryMetadata }: Props) {
   const [activeTab, setActiveTab] = useState<'cursos' | 'matriculas' | 'personal'>('cursos')
   const [courses, setCourses] = useState(initialCourses)
   const [subjects, setSubjects] = useState(initialSubjects)
@@ -111,7 +122,13 @@ export function AcademicoClient({ initialCourses, initialStudents, initialSubjec
         )}
 
         {activeTab === 'personal' && (
-           <PersonalClient institutionId={institutionId} teachers={teachers} students={initialStudents} horariosDocentes={horariosDocentes} />
+           <PersonalClient 
+             institutionId={institutionId} 
+             teachers={teachers} 
+             students={initialStudents} 
+             horariosDocentes={horariosDocentes} 
+             directoryMetadata={directoryMetadata}
+           />
         )}
       </div>
     </div>

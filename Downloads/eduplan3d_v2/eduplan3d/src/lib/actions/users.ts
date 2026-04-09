@@ -63,3 +63,23 @@ export async function createInstitutionUser(data: {
   
   return { success: true, userId: newUserId }
 }
+
+export async function updateProfileMetadata(institutionId: string, userId: string, metadata: any) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: inst, error: fetchErr } = await supabase.from('institutions').select('settings').eq('id', institutionId).single()
+  if (fetchErr) return { error: fetchErr.message }
+
+  const settings = inst.settings || {}
+  settings.directory = settings.directory || {}
+  settings.directory[userId] = { ...(settings.directory[userId] || {}), ...metadata }
+
+  const { error } = await supabase.from('institutions').update({ settings }).eq('id', institutionId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/academico')
+  return { success: true }
+}
