@@ -43,17 +43,19 @@ export function ProfileDetailsPanel({
       const ext = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${ext}`
       
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, { upsert: true })
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('fileName', fileName)
 
-      if (uploadError) throw uploadError
+      const res = await fetch('/api/avatars', {
+        method: 'POST',
+        body: formData
+      })
+      const apiData = await res.json()
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName)
+      if (!res.ok || apiData.error) throw new Error(apiData.error || 'Fallo al subir.')
 
-      setAvatarUrl(publicUrl)
+      setAvatarUrl(apiData.publicUrl)
       toast.success('Imagen subida', { id: t })
     } catch (err: any) {
       toast.error('Error al subir imagen: ' + err.message, { id: t })
