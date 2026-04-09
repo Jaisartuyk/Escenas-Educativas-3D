@@ -10,12 +10,14 @@ export function ProfileDetailsPanel({
   user, 
   metadata, 
   institutionId, 
-  onClose 
+  onClose,
+  onUpdate
 }: { 
   user: any, 
   metadata: any, 
   institutionId: string, 
-  onClose: () => void 
+  onClose: () => void,
+  onUpdate: (meta: any) => void
 }) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState(metadata || {})
@@ -29,8 +31,13 @@ export function ProfileDetailsPanel({
     setLoading(true)
     const payload = { ...data, avatar_url: avatarUrl }
     const res = await updateProfileMetadata(institutionId, user.id, payload)
-    if (res.error) toast.error(res.error)
-    else toast.success('Perfil actualizado')
+    if (res.error) {
+      toast.error(res.error)
+    } else {
+      toast.success('Perfil actualizado')
+      onUpdate(payload) // Optimistic UI update
+      onClose() // Auto-close modal
+    }
     setLoading(false)
   }
 
@@ -100,23 +107,68 @@ export function ProfileDetailsPanel({
             {isStudent ? (
               <>
                 <div className="pt-2 border-t border-[rgba(255,255,255,0.05)]">
-                  <h4 className="text-xs font-bold text-teal mb-3 uppercase tracking-wider">Datos del Representante</h4>
+                  <h4 className="text-xs font-bold text-teal mb-3 uppercase tracking-wider">Datos de la Madre</h4>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Nombre del Padre/Madre</label>
-                  <input value={data.parent_name || ''} onChange={e => setData({...data, parent_name: e.target.value})} placeholder="Ej. Carlos Pérez" className="input-base" />
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Nombres Completos</label>
+                  <input value={data.mother_name || ''} onChange={e => setData({...data, mother_name: e.target.value})} placeholder="Ej. Ana Villamar" className="input-base" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5"><Phone size={12}/> Teléfono</label>
+                    <input value={data.mother_phone || ''} onChange={e => setData({...data, mother_phone: e.target.value})} placeholder="+593 9..." className="input-base" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5"><Mail size={12}/> Email</label>
+                    <input type="email" value={data.mother_email || ''} onChange={e => setData({...data, mother_email: e.target.value})} placeholder="ana@correo.com" className="input-base" />
+                  </div>
+                </div>
+
+                <div className="pt-2 mt-2 border-t border-[rgba(255,255,255,0.05)]">
+                  <h4 className="text-xs font-bold text-[#F8D25A] mb-3 uppercase tracking-wider">Datos del Padre</h4>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5"><Phone size={12}/> Teléfono de Emergencia</label>
-                  <input value={data.emergency_phone || ''} onChange={e => setData({...data, emergency_phone: e.target.value})} placeholder="+593 9..." className="input-base" />
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Nombres Completos</label>
+                  <input value={data.father_name || ''} onChange={e => setData({...data, father_name: e.target.value})} placeholder="Ej. Carlos Pérez" className="input-base" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5"><Phone size={12}/> Teléfono</label>
+                    <input value={data.father_phone || ''} onChange={e => setData({...data, father_phone: e.target.value})} placeholder="+593 9..." className="input-base" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5"><Mail size={12}/> Email</label>
+                    <input type="email" value={data.father_email || ''} onChange={e => setData({...data, father_email: e.target.value})} placeholder="carlos@correo.com" className="input-base" />
+                  </div>
+                </div>
+
+                <div className="pt-2 mt-2 border-t border-[rgba(255,255,255,0.05)]">
+                  <h4 className="text-xs font-bold text-violet2 mb-3 uppercase tracking-wider">Representación y Emergencia</h4>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5"><Mail size={12}/> Correo del Representante</label>
-                  <input type="email" value={data.parent_email || ''} onChange={e => setData({...data, parent_email: e.target.value})} placeholder="padre@correo.com" className="input-base" />
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">¿Quién es el representante oficial?</label>
+                  <select value={data.representative || 'MADRE'} onChange={e => setData({...data, representative: e.target.value})} className="input-base">
+                    <option value="MADRE">Madre</option>
+                    <option value="PADRE">Padre</option>
+                    <option value="AMBOS">Ambos</option>
+                    <option value="OTRO">Otro (Familiar/Tutor)</option>
+                  </select>
+                </div>
+
+                {data.representative === 'OTRO' && (
+                  <div>
+                    <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Nombre del Tutor Alterno</label>
+                    <input value={data.other_representative_name || ''} onChange={e => setData({...data, other_representative_name: e.target.value})} placeholder="Ej. Abuela María" className="input-base" />
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5"><Phone size={12}/> Teléfono Principal de Emergencia</label>
+                  <input value={data.emergency_phone || ''} onChange={e => setData({...data, emergency_phone: e.target.value})} placeholder="Línea prioritaria" className="input-base" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5">Dirección / Notas</label>
-                  <textarea value={data.address || ''} onChange={e => setData({...data, address: e.target.value})} placeholder="Avenida principal..." className="input-base min-h-[80px]" />
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5">Dirección / Notas Médicas</label>
+                  <textarea value={data.address || ''} onChange={e => setData({...data, address: e.target.value})} placeholder="Dirección, alergias, o instrucciones especiales..." className="input-base min-h-[80px]" />
                 </div>
               </>
             ) : (

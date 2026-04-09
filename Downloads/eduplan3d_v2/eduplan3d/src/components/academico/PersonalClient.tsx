@@ -9,6 +9,10 @@ import { ProfileDetailsPanel } from './ProfileDetailsPanel'
 export function PersonalClient({ institutionId, teachers, students, horariosDocentes, directoryMetadata }: { institutionId: string, teachers: any[], students: any[], horariosDocentes: any[], directoryMetadata: any }) {
   const [loading, setLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
+  
+  // Local state for optimistic updates
+  const [localMetaData, setLocalMetaData] = useState(directoryMetadata || {})
+
   const [formData, setFormData] = useState({
     full_name: '',
     dni: '',
@@ -82,7 +86,7 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
            <h4 className="font-bold mb-4">Directorio de Docentes ({teachers.length})</h4>
            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
              {teachers.map(t => {
-               const meta = directoryMetadata[t.id] || {}
+               const meta = localMetaData[t.id] || {}
                return (
                <div key={t.id} onClick={() => setSelectedUser(t)} className="p-3 bg-surface rounded-xl border border-[rgba(255,255,255,0.02)] cursor-pointer hover:bg-[rgba(124,109,250,0.05)] transition-colors flex items-center gap-3">
                  {meta.avatar_url ? (
@@ -104,7 +108,7 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
            <h4 className="font-bold mb-4 text-teal">Alumnos Inscritos ({students.length})</h4>
            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
              {students.map(s => {
-               const meta = directoryMetadata[s.id] || {}
+               const meta = localMetaData[s.id] || {}
                return (
                <div key={s.id} onClick={() => setSelectedUser(s)} className="p-3 bg-[rgba(38,215,180,0.05)] text-teal rounded-xl border border-[rgba(38,215,180,0.1)] cursor-pointer hover:bg-[rgba(38,215,180,0.1)] transition-colors flex items-center gap-3">
                  {meta.avatar_url ? (
@@ -157,9 +161,10 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
       {selectedUser && (
         <ProfileDetailsPanel 
           user={selectedUser} 
-          metadata={directoryMetadata[selectedUser.id] || {}} 
+          metadata={localMetaData[selectedUser.id] || {}} 
           institutionId={institutionId} 
           onClose={() => setSelectedUser(null)} 
+          onUpdate={(newMeta) => setLocalMetaData((prev:any) => ({ ...prev, [selectedUser.id]: newMeta }))}
         />
       )}
     </div>
