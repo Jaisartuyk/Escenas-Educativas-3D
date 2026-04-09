@@ -60,10 +60,13 @@ export function StepDocentes({ docentes, jornadaInstitucional, nivelInstituciona
     return nombre.split(/[\s,]+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase()
   }
 
-  const docentesFiltrados = docentes.filter(d => 
+  // No longer hiding teachers outright. Teachers from other shifts will just be displayed differently so they don't "vanish" after saving.
+  const isCompatible = (d: Docente) => 
     (!d.jornada || d.jornada === 'AMBAS' || d.jornada === jornadaInstitucional) &&
     (!d.nivel || d.nivel === 'AMBOS' || d.nivel === nivelInstitucional)
-  )
+
+  const docentesCompatibles = docentes.filter(isCompatible)
+  const docentesIncompatibles = docentes.filter(d => !isCompatible(d))
 
   return (
     <div>
@@ -133,12 +136,13 @@ export function StepDocentes({ docentes, jornadaInstitucional, nivelInstituciona
           </div>
         )}
 
-        {/* Lista docentes */}
-        {!docentesFiltrados.length ? (
-          <p className="text-center text-ink3 text-sm py-8">No hay docentes registrados para la jornada {jornadaInstitucional.toLowerCase()}.</p>
+        {/* Lista docentes compatibles */}
+        <h3 className="font-bold text-sm text-ink mb-3 uppercase tracking-wider text-teal">✔ Jornada Compatible ({jornadaInstitucional})</h3>
+        {!docentesCompatibles.length ? (
+          <p className="text-center text-ink3 text-sm py-4">No hay docentes registrados habilitados para esta jornada.</p>
         ) : (
-          <div className="flex flex-col gap-2">
-            {docentesFiltrados.map(d => {
+          <div className="flex flex-col gap-2 mb-6">
+            {docentesCompatibles.map(d => {
               const meta = directoryMetadata[d.id] || {}
               return (
               <div key={d.id} className="flex items-center gap-3 p-3 border border-[rgba(120,100,255,0.14)] rounded-xl">
@@ -171,6 +175,40 @@ export function StepDocentes({ docentes, jornadaInstitucional, nivelInstituciona
               </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Lista docentes incompatibles */}
+        {docentesIncompatibles.length > 0 && (
+          <div className="pt-4 border-t border-[rgba(0,0,0,0.05)]">
+            <h3 className="font-bold text-sm text-ink mb-3 uppercase tracking-wider text-ink4">⏸ Otras Jornadas / Niveles Ocultos ({docentesIncompatibles.length})</h3>
+            <div className="flex flex-col gap-2 opacity-60 hover:opacity-100 transition-opacity">
+              {docentesIncompatibles.map(d => {
+                const meta = directoryMetadata[d.id] || {}
+                return (
+                <div key={d.id} className="flex items-center gap-3 p-3 border border-[rgba(0,0,0,0.08)] bg-bg3 rounded-xl grayscale hover:grayscale-0 transition-all">
+                  {meta.avatar_url ? (
+                    <img src={meta.avatar_url} className="w-9 h-9 rounded-full object-cover border border-violet2 flex-shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-[rgba(124,109,250,0.15)] text-violet2 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                      {initials(d.nombre)}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">{d.titulo} {d.nombre}</p>
+                      <span className="px-1.5 py-0.5 rounded uppercase text-[9px] font-bold bg-[rgba(124,109,250,0.1)] text-violet2">{d.jornada || 'AMBAS'}</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[rgba(38,215,180,0.1)] text-teal">{d.nivel || 'AMBOS'}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => edit(d)} className="text-[11px] text-violet2 hover:text-violet px-2 border-r border-[rgba(0,0,0,0.14)] font-medium transition-colors">Editar</button>
+                    <button onClick={() => remove(d.id)} className="text-[11px] text-rose hover:text-red-400 px-2 font-medium transition-colors">Eliminar</button>
+                  </div>
+                </div>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>

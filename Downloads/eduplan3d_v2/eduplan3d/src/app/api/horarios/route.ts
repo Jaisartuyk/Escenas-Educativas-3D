@@ -109,26 +109,68 @@ export async function POST(req: Request) {
 
   // SYNC: Automáticamente crear los "Cursos" relacionales en la base de datos si no existen
   // Esto permite que Gestión Académica / Secretaría matriculen alumnos a cursos oficiales del Horario.
+  let currentCourseDbMap: Record<string, string> = {}
   try {
      const { data: existingCourses } = await (supabase as any).from('courses').select('id, name').eq('institution_id', profile.institution_id)
      const currentCourseNames = existingCourses?.map((c: any) => c.name) || []
      
+     existingCourses?.forEach((c:any) => currentCourseDbMap[c.name] = c.id)
+
      const coursesToConfig = body.config?.cursos || []
      const newCourseNames = coursesToConfig.filter((c: string) => !currentCourseNames.includes(c))
      
      if (newCourseNames.length > 0) {
         const crypto = require('crypto')
-        const coursesToInsert = newCourseNames.map((c: string) => ({
-           id: crypto.randomUUID(),
-           institution_id: profile.institution_id,
-           name: c,
-           created_at: new Date().toISOString(),
-           updated_at: new Date().toISOString()
-        }))
+        const coursesToInsert = newCourseNames.map((c: string) => {
+           const nid = crypto.randomUUID()
+           currentCourseDbMap[c] = nid
+           return {
+             id: nid,
+             institution_id: profile.institution_id,
+             name: c,
+             created_at: new Date().toISOString(),
+             updated_at: new Date().toISOString()
+           }
+        })
         await (supabase as any).from('courses').insert(coursesToInsert)
      }
+     
+     // SYNC: Sincronizar las Materias de los Docentes
+     // Iteramos sobre horarios.docentes. Por cada materia que un docente enseña, vamos a asegurar que exista en relations.
+     // Como el Horario no especifica a qué curso va qué materia *en este paso del maestro*, las creamos globalmente.
+     const { data: existingSubjects } = await (supabase as any).from('subjects').select('id, name, teacher_id').eq('institution_id', profile.institution_id)
+     
+     const subjectsToInsert: any[] = []
+     const crypto = require('crypto')
+
+     const teacherRecords = body.docentes || []
+     teacherRecords.forEach((d:any) => {
+       const mats = d.materias || []
+       mats.forEach((mName: string) => {
+         // Check if this teacher already teaches this subject
+         const exists = existingSubjects?.some((sub:any) => sub.name === mName && sub.teacher_id === d.id)
+         if(!exists) {
+            // we create the subject without course_id globally or assign it later.
+            // Actually in Academic management, Subjects normally belong to Courses. But here we just build them generically.
+            subjectsToInsert.push({
+              id: crypto.randomUUID(),
+              institution_id: profile.institution_id,
+              name: mName,
+              teacher_id: d.id,
+              // we don't have course mapping yet from StepDocentes. If we wanted to map them, it would be from horario matrix.
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+         }
+       })
+     })
+
+     if(subjectsToInsert.length > 0) {
+       await (supabase as any).from('subjects').insert(subjectsToInsert)
+     }
+
   } catch (err) {
-     console.error('Error syncing courses to DB:', err)
+     console.error('Error syncing correlational data to DB:', err)
   }
 
   return NextResponse.json({ success: true })

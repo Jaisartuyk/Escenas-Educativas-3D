@@ -1,7 +1,7 @@
 'use client'
 // src/components/horarios/HorariosClient.tsx
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { StepInstitucion }  from './steps/StepInstitucion'
 import { StepDocentes }     from './steps/StepDocentes'
 import { StepHoras }        from './steps/StepHoras'
@@ -68,17 +68,22 @@ export function HorariosClient() {
       })
   }, [])
 
-  // Guarda automáticamente en el backend
-  const saveStateToDB = async (newState: HorariosState) => {
-    try {
-      await fetch('/api/horarios', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newState),
-      })
-    } catch (e) {
-      console.error('Error auto-saving', e)
-    }
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Guarda automáticamente en el backend (Debounced 1 segundo para evitar Overwrites)
+  const saveStateToDB = (newState: HorariosState) => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await fetch('/api/horarios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newState),
+        })
+      } catch (e) {
+        console.error('Error auto-saving', e)
+      }
+    }, 1000)
   }
 
   function updateState(updater: Partial<HorariosState> | ((s: HorariosState) => HorariosState)) {
@@ -181,6 +186,7 @@ export function HorariosClient() {
           )}
           {state.step === 2 && (
             <StepHoras
+              config={state.config}
               cursos={state.config.cursos}
               docentes={state.docentes}
               horasPorCurso={state.horasPorCurso}

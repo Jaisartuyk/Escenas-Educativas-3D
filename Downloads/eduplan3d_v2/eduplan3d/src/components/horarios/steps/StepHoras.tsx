@@ -7,6 +7,7 @@ import { TODAS_MATERIAS } from '@/types/horarios'
 import { getDocForMateria } from '@/lib/horarios/generator'
 
 interface Props {
+  config: any
   cursos: string[]
   docentes: Docente[]
   horasPorCurso: HorasPorCurso
@@ -16,7 +17,7 @@ interface Props {
   onNext: () => void
 }
 
-export function StepHoras({ cursos, docentes, horasPorCurso, jornada, onChange, onBack, onNext }: Props) {
+export function StepHoras({ config, cursos, docentes, horasPorCurso, jornada, onChange, onBack, onNext }: Props) {
   const [cursoActivo, setCursoActivo] = useState(cursos[0] ?? '')
 
   function updateHoras(curso: string, materia: string, val: number) {
@@ -28,7 +29,10 @@ export function StepHoras({ cursos, docentes, horasPorCurso, jornada, onChange, 
 
   const hm = horasPorCurso[cursoActivo] ?? {}
   const totalHoras = Object.values(hm).reduce((a, b) => a + b, 0)
-  const slotsDisponibles = 5 * 7 - 1  // 5 días × 7 períodos útiles − 1 de acompañamiento
+  
+  const dailyTotal = config.nPeriodos || 8
+  const validPeriodsPerDay = dailyTotal - (config.recesos?.length || 1)
+  const slotsDisponibles = validPeriodsPerDay * 5 - 1  // 5 días × períodos útiles − 1 de acompañamiento
 
   return (
     <div>

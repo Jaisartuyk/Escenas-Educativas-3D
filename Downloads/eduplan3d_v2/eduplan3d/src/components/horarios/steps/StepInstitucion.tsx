@@ -16,7 +16,13 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
   }
 
   function handleJornada(j: 'MATUTINA' | 'VESPERTINA') {
-    onChange({ ...config, jornada: j, horarios: j === 'VESPERTINA' ? HORARIOS_VESPERTINA : HORARIOS_MATUTINA })
+    onChange({ 
+      ...config, 
+      jornada: j, 
+      horarios: j === 'VESPERTINA' ? [...HORARIOS_VESPERTINA] : [...HORARIOS_MATUTINA],
+      nPeriodos: 8,
+      recesos: [4]
+    })
   }
 
   function handleNivel(n: 'Escuela' | 'Colegio') {
