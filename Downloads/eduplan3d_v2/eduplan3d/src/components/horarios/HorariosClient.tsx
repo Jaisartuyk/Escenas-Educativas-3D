@@ -34,7 +34,22 @@ export function HorariosClient() {
     fetch('/api/horarios')
       .then(res => res.json())
       .then(data => {
-        if (!data.error) setState(data)
+        if (!data.error) {
+          // Safeguard: Merge backend config with empty config to ensure all arrays/objects exist
+          const safeConfig = { ...getEmptyConfig(data.config?.nombre || ''), ...data.config }
+          safeConfig.cursos = safeConfig.cursos || []
+          safeConfig.horarios = safeConfig.horarios || []
+          safeConfig.tutores = safeConfig.tutores || {}
+          
+          setState({
+            ...data,
+            config: safeConfig,
+            docentes: data.docentes || [],
+            horasPorCurso: data.horasPorCurso || {},
+            horario: data.horario || {},
+            step: 0
+          })
+        }
         setLoadingInitial(false)
       })
       .catch((e) => {
