@@ -1,6 +1,6 @@
 // src/lib/horarios/generator.ts
 import type { HorarioGrid, HorasPorCurso, Docente, InstitucionConfig, Dia } from '@/types/horarios'
-import { DIAS, RECESO_IDX } from '@/types/horarios'
+import { DIAS } from '@/types/horarios'
 
 export function getDocForMateria(materia: string, docentes: Docente[], jornada: string = '', nivel?: string): string {
   const d = docentes.find(d => 
@@ -26,8 +26,13 @@ export function generarHorario(
   })
 
   // Marcar receso y acompañamiento
+  const recesos = config.recesos || [4]; // Fallback to 4 for old configs
   cursos.forEach(c => {
-    DIAS.forEach(d => { horario[c][d][RECESO_IDX] = 'RECESO' })
+    DIAS.forEach(d => { 
+      recesos.forEach(r => {
+        if (r < nPeriodos) horario[c][d][r] = 'RECESO' 
+      })
+    })
     horario[c]['Lunes'][0] = 'ACOMPAÑAMIENTO'
   })
 
@@ -38,7 +43,7 @@ export function generarHorario(
     for (let p = 0; p < nPeriodos; p++) docOcupado[d][p] = new Set()
   })
 
-  const slots = Array.from({ length: nPeriodos }, (_, i) => i).filter(i => i !== RECESO_IDX && i !== 0)
+  const slots = Array.from({ length: nPeriodos }, (_, i) => i).filter(i => !recesos.includes(i) && i !== 0)
 
   // Colocar materias con algoritmo de backtracking simple
   cursos.forEach(c => {

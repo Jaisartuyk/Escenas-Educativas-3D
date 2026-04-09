@@ -79,8 +79,9 @@ export async function POST(req: NextRequest) {
     ws1.getRow(row).height = 18
     row++
 
+    const recesos = config.recesos || [4]
     horarios.forEach((hora, pi) => {
-      const isReceso = pi === 4
+      const isReceso = recesos.includes(pi)
       const bg_p = isReceso ? 'E2EFDA' : 'EAF0FB'
       
       sc(ws1.getCell(row, 1), false, 9, '000000', bg_p); ws1.getCell(row, 1).value = isReceso ? '' : pi + 1
@@ -158,8 +159,9 @@ export async function POST(req: NextRequest) {
     })
     ws2.getRow(row2).height = 16; row2++
 
+    const recesos = config.recesos || [4]
     horarios.forEach((hora, pi) => {
-      const isReceso = pi === 4
+      const isReceso = recesos.includes(pi)
       const bg_p = isReceso ? 'E2EFDA' : 'EAF0FB'
 
       sc(ws2.getCell(row2, 1), false, 9, '000000', bg_p); ws2.getCell(row2, 1).value = isReceso ? '' : pi + 1

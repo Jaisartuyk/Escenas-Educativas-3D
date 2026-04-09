@@ -19,6 +19,7 @@ export interface InstitucionConfig {
   nPeriodos: number
   cursos:    string[]
   horarios:  string[]   // label de cada período, ej. "07:00-07:45"
+  recesos:   number[]   // array of indexes that are breaks (e.g. [4])
   tutores:   Record<string, string>  // curso → nombre tutor
 }
 
@@ -37,8 +38,6 @@ export interface HorariosState {
 }
 
 export const DIAS: Dia[] = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']
-
-export const RECESO_IDX = 4
 
 export const TODAS_MATERIAS = [
   'LENGUA', 'MATEMATICA', 'FISICA', 'QUIMICA', 'BIOLOGIA', 'CC.NN',
@@ -93,6 +92,7 @@ export function getEmptyConfig(institutionName: string): InstitucionConfig {
     nPeriodos: 8,
     cursos:    ['8VO', '9NO', '10MO', '1ERO BGU', '2DO BGU', '3ERO BGU'], // Default Mineduc
     horarios:  HORARIOS_VESPERTINA,
+    recesos:   [4], // By default, index 4 is the break
     tutores:   {}, // Vacío para que el usuario asigne a sus propios docentes
   }
 }
@@ -105,6 +105,7 @@ export const DEFAULT_CONFIG: InstitucionConfig = {
   nPeriodos: 8,
   cursos:    ['8VO', '9NO', '10MO', '1ERO BGU', '2DO BGU', '3ERO BGU'],
   horarios:  HORARIOS_VESPERTINA,
+  recesos:   [4],
   tutores: {
     '8VO':       'Ing. Giler Tapia, Oswaldo Xavier',
     '9NO':       'Jhonny Yagual Sanchez',
