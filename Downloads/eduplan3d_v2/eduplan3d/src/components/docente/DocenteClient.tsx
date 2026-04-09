@@ -32,7 +32,8 @@ export function DocenteClient({ initialSubjects, enrollments, initialAssignments
     setNewTitle('')
     setNewDesc('')
 
-    const { error } = await supabase.from('assignments').insert(newAsg as any)
+    // @ts-ignore
+    const { error } = await supabase.from('assignments').insert(newAsg)
     if (error) toast.error('Error al crear tarea')
     else toast.success('Tarea publicada')
   }
@@ -55,12 +56,14 @@ export function DocenteClient({ initialSubjects, enrollments, initialAssignments
     // Optimistic UI
     if (existing) {
       setGrades(grades.map((g:any) => g.id === existing.id ? { ...g, score } : g))
-      await supabase.from('grades').update({ score } as any).eq('id', existing.id)
+      // @ts-ignore
+      await supabase.from('grades').update({ score }).eq('id', existing.id)
     } else {
       const id = uuidv4()
       const newGrade = { id, assignment_id: assignmentId, student_id: studentId, score, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
       setGrades([...grades, newGrade])
-      await supabase.from('grades').insert(newGrade as any)
+      // @ts-ignore
+      await supabase.from('grades').insert(newGrade)
     }
     
     const newEditing = {...editingGrades}

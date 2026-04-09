@@ -26,14 +26,16 @@ export function AlumnoClient({ courses, subjects, assignments, initialGrades, st
        setGrades(newGrades)
        setSubmittingAsg(null)
        toast.success('Entrega actualizada')
-       await supabase.from('grades').update({ submitted_url: submissionUrl } as any).eq('id', existingId)
+       // @ts-ignore
+       await supabase.from('grades').update({ submitted_url: submissionUrl }).eq('id', existingId)
     } else {
        const id = uuidv4()
        const newGrade = { id, assignment_id: assignmentId, student_id: studentId, score: null, submitted_url: submissionUrl, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
        setGrades([...grades, newGrade])
        setSubmittingAsg(null)
        toast.success('Tarea entregada correctamente')
-       await supabase.from('grades').insert(newGrade as any)
+       // @ts-ignore
+       await supabase.from('grades').insert(newGrade)
     }
     setSubmissionUrl('')
   }

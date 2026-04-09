@@ -28,7 +28,8 @@ export function AcademicoClient({ initialCourses, initialStudents, initialSubjec
     setCourses([...courses, newCourse])
     setNewCourseName('')
     
-    const { error } = await supabase.from('courses').insert(newCourse as any)
+    // @ts-ignore - Bypass never generic errors
+    const { error } = await supabase.from('courses').insert(newCourse)
     if (error) { toast.error('Error al crear curso'); setCourses(courses) }
     else toast.success('Curso creado')
   }
@@ -49,7 +50,8 @@ export function AcademicoClient({ initialCourses, initialStudents, initialSubjec
     setAddingSubjectForCourse(null)
     setNewSubject({ name: '', teacher_id: '', weekly_hours: 1 })
 
-    const { error } = await supabase.from('subjects').insert({ id, course_id: newSubj.course_id, teacher_id: newSubj.teacher_id, name: newSubj.name, weekly_hours: newSubj.weekly_hours } as any)
+    // @ts-ignore - Bypass never generic errors
+    const { error } = await supabase.from('subjects').insert({ id, course_id: newSubj.course_id, teacher_id: newSubj.teacher_id, name: newSubj.name, weekly_hours: newSubj.weekly_hours })
     if (error) toast.error('Error al crear materia')
   }
 
@@ -65,7 +67,8 @@ export function AcademicoClient({ initialCourses, initialStudents, initialSubjec
     } else {
       newEnrolls.push({ student_id, course_id })
       setEnrollments(newEnrolls)
-      await supabase.from('enrollments').insert({ student_id, course_id } as any)
+      // @ts-ignore - Bypass never generic errors
+      await supabase.from('enrollments').insert({ student_id, course_id })
     }
   }
 
