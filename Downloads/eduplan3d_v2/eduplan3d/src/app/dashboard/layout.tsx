@@ -24,12 +24,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .single()
 
   const isMissingInstitution = !profile?.institution_id
-  const isHorariosOnly = user!.email === 'israferaldascarlett15@gmail.com'
+  const isHorariosOnly = profile?.role === 'horarios_only' || user!.email === 'israferaldascarlett15@gmail.com'
 
   return (
     <div className="min-h-screen flex bg-bg relative">
       {isMissingInstitution && <OnboardingModal profileName={profile?.full_name || 'Usuario'} />}
-      <Sidebar role={isHorariosOnly ? 'horarios_only' : 'full'} />
+      <Sidebar role={isHorariosOnly ? 'horarios_only' : profile?.role} />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar profile={profile} />
         <main className="flex-1 p-8 max-w-[1200px] w-full mx-auto">

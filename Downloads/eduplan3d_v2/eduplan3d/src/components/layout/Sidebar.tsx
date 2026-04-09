@@ -4,27 +4,33 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
-import type { UserRole } from '@/types/supabase'
 
 const NAV_FULL = [
-  { href: '/dashboard',                 icon: '⊞',  label: 'Dashboard'    },
-  { href: '/dashboard/planificador',    icon: '📋', label: 'Planificador'  },
-  { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios'      },
-  { href: '/dashboard/institucion',     icon: '🏢', label: 'Institución'   },
-  { href: '/dashboard/biblioteca',      icon: '📚', label: 'Biblioteca'    },
-  { href: '/dashboard/escenas',         icon: '🔬', label: 'Escenas 3D'    },
-  { href: '/dashboard/historial',       icon: '📂', label: 'Historial'     },
-  { href: '/dashboard/configuracion',   icon: '⚙️', label: 'Configuración' },
+  { href: '/dashboard',                 icon: '⊞',  label: 'Dashboard',    roles: ['admin', 'teacher', 'student'] },
+  { href: '/dashboard/planificador',    icon: '📋', label: 'Planificador', roles: ['admin', 'teacher'] },
+  { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios',     roles: ['admin', 'teacher'] },
+  { href: '/dashboard/academico',       icon: '🎓', label: 'Académico',    roles: ['admin'] },
+  { href: '/dashboard/docente',         icon: '📝', label: 'Docencia',     roles: ['admin', 'teacher'] },
+  { href: '/dashboard/alumno',          icon: '🎒', label: 'Mis Tareas',   roles: ['student'] },
+  { href: '/dashboard/libretas',        icon: '📊', label: 'Libretas',     roles: ['admin', 'teacher', 'student'] },
+  { href: '/dashboard/institucion',     icon: '🏢', label: 'Institución',  roles: ['admin'] },
+  { href: '/dashboard/biblioteca',      icon: '📚', label: 'Biblioteca',   roles: ['admin', 'teacher', 'student'] },
+  { href: '/dashboard/escenas',         icon: '🔬', label: 'Escenas 3D',   roles: ['admin', 'teacher', 'student'] },
+  { href: '/dashboard/historial',       icon: '📂', label: 'Historial',    roles: ['admin', 'teacher'] },
+  { href: '/dashboard/configuracion',   icon: '⚙️', label: 'Configuración', roles: ['admin', 'teacher', 'student'] },
 ]
 
-const NAV_HORARIOS_ONLY = [
-  { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios'      },
-  { href: '/dashboard/configuracion',   icon: '⚙️', label: 'Configuración' },
-]
-
-export function Sidebar({ role = 'full' }: { role?: UserRole }) {
+export function Sidebar({ role = 'admin' }: { role?: string }) {
   const pathname = usePathname()
-  const NAV = role === 'horarios_only' ? NAV_HORARIOS_ONLY : NAV_FULL
+  
+  // horarios_only special case
+  let NAV = NAV_FULL.filter(i => i.roles.includes(role))
+  if (role === 'horarios_only') {
+    NAV = [
+      { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios', roles: []},
+      { href: '/dashboard/configuracion',   icon: '⚙️', label: 'Configuración', roles: []},
+    ]
+  }
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === href : pathname.startsWith(href)
@@ -37,7 +43,7 @@ export function Sidebar({ role = 'full' }: { role?: UserRole }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-1">
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {NAV.map(item => (
           <Link
             key={item.href}
