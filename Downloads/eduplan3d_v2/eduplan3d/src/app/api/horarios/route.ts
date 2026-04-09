@@ -34,6 +34,26 @@ export async function GET() {
     step: 0
   }
 
+  // Auto-inyección: Leer perfiles reales de docentes de la DB y agregarlos si no existen
+  const { data: dbTeachers } = await (supabase as any).from('profiles').select('id, full_name').eq('institution_id', profile.institution_id).in('role', ['teacher', 'admin'])
+  
+  if (dbTeachers) {
+    const existingWorkerNames = horariosConfig.docentes.map((d: any) => d.nombre?.toLowerCase() || d.name?.toLowerCase())
+    
+    dbTeachers.forEach((dbT: any) => {
+       if (!existingWorkerNames.includes(dbT.full_name?.toLowerCase())) {
+          horariosConfig.docentes.push({
+            id: dbT.id, // Vaciamos el ID real de Supabase
+            titulo: '', 
+            nombre: dbT.full_name,
+            materias: [],
+            jornada: 'AMBAS',
+            nivel: 'AMBOS'
+          })
+       }
+    })
+  }
+
   return NextResponse.json(horariosConfig)
 }
 
@@ -71,6 +91,30 @@ export async function POST(req: Request) {
     .eq('id', profile.institution_id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // SYNC: Automáticamente crear los "Cursos" relacionales en la base de datos si no existen
+  // Esto permite que Gestión Académica / Secretaría matriculen alumnos a cursos oficiales del Horario.
+  try {
+     const { data: existingCourses } = await (supabase as any).from('courses').select('id, name').eq('institution_id', profile.institution_id)
+     const currentCourseNames = existingCourses?.map((c: any) => c.name) || []
+     
+     const coursesToConfig = body.config?.cursos || []
+     const newCourseNames = coursesToConfig.filter((c: string) => !currentCourseNames.includes(c))
+     
+     if (newCourseNames.length > 0) {
+        const crypto = require('crypto')
+        const coursesToInsert = newCourseNames.map((c: string) => ({
+           id: crypto.randomUUID(),
+           institution_id: profile.institution_id,
+           name: c,
+           created_at: new Date().toISOString(),
+           updated_at: new Date().toISOString()
+        }))
+        await (supabase as any).from('courses').insert(coursesToInsert)
+     }
+  } catch (err) {
+     console.error('Error syncing courses to DB:', err)
+  }
 
   return NextResponse.json({ success: true })
 }
