@@ -64,7 +64,10 @@ export async function GET() {
   }
 
   // Prevenir cache client-side
-  return NextResponse.json(horariosConfig, {
+  return NextResponse.json({
+    ...horariosConfig,
+    directory: inst?.settings?.directory || {}
+  }, {
     headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' }
   })
 }

@@ -173,6 +173,7 @@ export function HorariosClient() {
               docentes={state.docentes}
               jornadaInstitucional={state.config.jornada}
               nivelInstitucional={state.config.nivel}
+              directoryMetadata={(state as any).directory || {}}
               onChange={docentes => updateState(s => ({ ...s, docentes }))}
               onBack={() => setStep(0)}
               onNext={() => setStep(2)}

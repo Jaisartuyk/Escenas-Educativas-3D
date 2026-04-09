@@ -9,6 +9,7 @@ interface Props {
   docentes: Docente[]
   jornadaInstitucional: string
   nivelInstitucional?: string
+  directoryMetadata: any
   onChange: (d: Docente[]) => void
   onBack: () => void
   onNext: () => void
@@ -16,7 +17,7 @@ interface Props {
 
 const TITULOS = ['Lcdo.','Lcda.','Ing.','Prof.','Msc.','Dr.','Dra.']
 
-export function StepDocentes({ docentes, jornadaInstitucional, nivelInstitucional, onChange, onBack, onNext }: Props) {
+export function StepDocentes({ docentes, jornadaInstitucional, nivelInstitucional, directoryMetadata, onChange, onBack, onNext }: Props) {
   const [showForm,  setShowForm]  = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [nombre,    setNombre]    = useState('')
@@ -137,11 +138,17 @@ export function StepDocentes({ docentes, jornadaInstitucional, nivelInstituciona
           <p className="text-center text-ink3 text-sm py-8">No hay docentes registrados para la jornada {jornadaInstitucional.toLowerCase()}.</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {docentesFiltrados.map(d => (
+            {docentesFiltrados.map(d => {
+              const meta = directoryMetadata[d.id] || {}
+              return (
               <div key={d.id} className="flex items-center gap-3 p-3 border border-[rgba(120,100,255,0.14)] rounded-xl">
-                <div className="w-9 h-9 rounded-full bg-[rgba(124,109,250,0.15)] text-violet2 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                  {initials(d.nombre)}
-                </div>
+                {meta.avatar_url ? (
+                  <img src={meta.avatar_url} className="w-9 h-9 rounded-full object-cover border border-violet2 flex-shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-[rgba(124,109,250,0.15)] text-violet2 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                    {initials(d.nombre)}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold">{d.titulo} {d.nombre}</p>
@@ -162,7 +169,8 @@ export function StepDocentes({ docentes, jornadaInstitucional, nivelInstituciona
                   <button onClick={() => remove(d.id)} className="text-[11px] text-rose hover:text-red-400 px-2 font-medium transition-colors">Eliminar</button>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
