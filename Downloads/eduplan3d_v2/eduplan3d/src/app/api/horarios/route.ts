@@ -34,27 +34,37 @@ export async function GET() {
     step: 0
   }
 
-  // Auto-inyección: Leer perfiles reales de docentes de la DB y agregarlos si no existen
+  // Auto-inyección: Leer perfiles reales de docentes de la DB y agregarlos/fusionarlos si no existen
   const { data: dbTeachers } = await (supabase as any).from('profiles').select('id, full_name').eq('institution_id', profile.institution_id).eq('role', 'teacher')
   
   if (dbTeachers) {
-    const existingWorkerNames = horariosConfig.docentes.map((d: any) => d.nombre?.toLowerCase() || d.name?.toLowerCase())
+    const existingWorkerIds = horariosConfig.docentes.map((d: any) => d.id)
     
     dbTeachers.forEach((dbT: any) => {
-       if (!existingWorkerNames.includes(dbT.full_name?.toLowerCase())) {
+       if (!existingWorkerIds.includes(dbT.id)) {
+          // Inyectar maestro faltante
           horariosConfig.docentes.push({
-            id: dbT.id, // Vaciamos el ID real de Supabase
+            id: dbT.id, 
             titulo: '', 
             nombre: dbT.full_name,
             materias: [],
             jornada: 'AMBAS',
             nivel: 'AMBOS'
           })
+       } else {
+          // Si ya existe en horarios, podemos asegurar que su metadata esté en sincronía pero respetamos los bindings locales
+          const idx = horariosConfig.docentes.findIndex((d:any) => d.id === dbT.id)
+          if(idx !== -1) {
+            horariosConfig.docentes[idx].nombre = dbT.full_name // Sincroniza el nombre base
+          }
        }
     })
   }
 
-  return NextResponse.json(horariosConfig)
+  // Prevenir cache client-side
+  return NextResponse.json(horariosConfig, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' }
+  })
 }
 
 export async function POST(req: Request) {
