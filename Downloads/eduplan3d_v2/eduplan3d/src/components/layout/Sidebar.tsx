@@ -10,6 +10,7 @@ const NAV_FULL = [
   { href: '/dashboard/planificador',    icon: '📋', label: 'Planificador', roles: ['admin', 'teacher'] },
   { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios',     roles: ['admin', 'teacher'] },
   { href: '/dashboard/academico',       icon: '🎓', label: 'Académico',    roles: ['admin'] },
+  { href: '/dashboard/secretaria',      icon: '💼', label: 'Secretaría',   roles: ['admin', 'secretary'] },
   { href: '/dashboard/docente',         icon: '📝', label: 'Docencia',     roles: ['admin', 'teacher'] },
   { href: '/dashboard/alumno',          icon: '🎒', label: 'Mis Tareas',   roles: ['student'] },
   { href: '/dashboard/libretas',        icon: '📊', label: 'Libretas',     roles: ['admin', 'teacher', 'student'] },
