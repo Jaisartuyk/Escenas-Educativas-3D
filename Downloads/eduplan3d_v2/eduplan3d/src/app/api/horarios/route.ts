@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEmptyConfig, DEFAULT_HORAS } from '@/types/horarios'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
