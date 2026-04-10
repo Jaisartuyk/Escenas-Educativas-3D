@@ -112,6 +112,14 @@ export default async function DocentePage() {
       initialAssignments={assignments}
       initialGrades={grades}
       teacherId={user.id}
+      _debug={{
+        courseIds,
+        enrollmentsRaw: enrollments.length,
+        studentProfilesCount: studentProfiles.length,
+        studentProfilesData: studentProfiles,
+        mergedSample: mergedEnrollments.slice(0, 3),
+        instId,
+      }}
     />
   )
 }

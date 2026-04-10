@@ -65,7 +65,13 @@ export function DocenteClient({
   profile, mySubjects,
   enrollments: rawEnrollments,
   initialAssignments, initialGrades, teacherId,
+  _debug,
 }: any) {
+  // DEBUG: mostrar datos del servidor en consola
+  if (typeof window !== 'undefined' && _debug) {
+    console.log('[DocenteClient _debug]', JSON.stringify(_debug, null, 2))
+  }
+
   // Enrollments already have student profiles merged server-side
   const enrollments: any[] = (rawEnrollments || []).map((e: any) => ({
     course_id: e.course_id,
