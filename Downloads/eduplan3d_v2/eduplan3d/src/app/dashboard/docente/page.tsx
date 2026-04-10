@@ -46,12 +46,12 @@ export default async function DocentePage() {
     enrollments = data || []
   }
 
-  // ── Tareas de las materias del docente ───────────────────────────────────
+  // ── Tareas de las materias del docente (con parcial/trimestre) ───────────
   let assignments: any[] = []
   if (subjectIds.length > 0) {
     const { data } = await admin
       .from('assignments')
-      .select('*')
+      .select('id, subject_id, title, description, due_date, trimestre, parcial, created_at, updated_at')
       .in('subject_id', subjectIds)
       .order('created_at', { ascending: false })
     assignments = data || []
