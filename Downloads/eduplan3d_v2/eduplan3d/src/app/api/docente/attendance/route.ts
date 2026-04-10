@@ -56,15 +56,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true })
   }
 
+  // Delete existing record first, then insert (no UNIQUE constraint in DB)
+  await admin
+    .from('attendance' as any)
+    .delete()
+    .eq('subject_id', subject_id)
+    .eq('student_id', student_id)
+    .eq('date', date)
+
   const { error } = await admin
     .from('attendance' as any)
-    .upsert(
-      { subject_id, student_id, date, status },
-      { onConflict: 'subject_id,student_id,date' }
-    )
+    .insert({ subject_id, student_id, date, status })
 
   if (error) {
-    console.error('[attendance UPSERT error]', error)
+    console.error('[attendance INSERT error]', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
   return NextResponse.json({ success: true })
