@@ -80,13 +80,18 @@ export function HorariosClient() {
       pendingSaveRef.current = null
       setSaving(true)
       try {
-        await fetch('/api/horarios', {
+        const res = await fetch('/api/horarios', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify(newState),
         })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          toast.error('Error al guardar: ' + (err.error || res.statusText))
+        }
       } catch (e) {
         console.error('Error auto-saving', e)
+        toast.error('Error de conexión al guardar')
       } finally {
         setSaving(false)
       }
