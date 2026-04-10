@@ -45,7 +45,7 @@ export default async function DocentePage() {
       .select('course_id, student_id')
       .in('course_id', courseIds)
 
-    const studentIds = [...new Set((rawEnrollments || []).map((e: any) => e.student_id))]
+    const studentIds = Array.from(new Set((rawEnrollments || []).map((e: any) => e.student_id as string)))
 
     let studentsMap: Record<string, any> = {}
     if (studentIds.length > 0) {
