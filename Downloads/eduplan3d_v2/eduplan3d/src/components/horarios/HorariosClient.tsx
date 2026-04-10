@@ -69,29 +69,17 @@ export function HorariosClient() {
   }, [])
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const lastStateRef = useRef<HorariosState | null>(null)
+  // Ref actualizado sincrónicamente en saveStateToDB (no via useEffect),
+  // garantiza que el unmount handler siempre tenga el estado más reciente.
+  const pendingSaveRef = useRef<HorariosState | null>(null)
 
-  // Sincroniza al desmontar la vista si hay cambios en cola (Navigator abandona / cambia pagina)
-  useEffect(() => {
-    lastStateRef.current = state
-  }, [state])
-
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current && lastStateRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-        try {
-           fetch('/api/horarios', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lastStateRef.current) }).catch(()=>{})
-        } catch(e) {}
-      }
-    }
-  }, [])
-
-  // Guarda automáticamente en el backend (Debounced 1 segundo para evitar Overwrites)
+  // Guarda automáticamente en el backend (Debounced 800ms para evitar overwrites)
   const saveStateToDB = (newState: HorariosState, forceNow = false) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    
+    pendingSaveRef.current = newState // captura sincrónica del estado más reciente
+
     const doSave = async () => {
+      pendingSaveRef.current = null // ya no hay guardado pendiente
       try {
         await fetch('/api/horarios', {
           method: 'POST',
@@ -109,6 +97,22 @@ export function HorariosClient() {
       saveTimeoutRef.current = setTimeout(doSave, 800)
     }
   }
+
+  // Al desmontar: cancelar el debounce y guardar inmediatamente con el estado correcto
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+      const pending = pendingSaveRef.current
+      if (pending) {
+        fetch('/api/horarios', {
+          method: 'POST',
+          keepalive: true,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pending),
+        }).catch(() => {})
+      }
+    }
+  }, [])
 
   function updateState(updater: Partial<HorariosState> | ((s: HorariosState) => HorariosState), forceSave = false) {
     setState((s) => {
