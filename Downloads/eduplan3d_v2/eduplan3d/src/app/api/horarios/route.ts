@@ -182,12 +182,18 @@ export async function POST(req: Request) {
     })
 
     const subjectsToUpsert: any[] = []
+    // Mapa course_id → nombres de materias con horas > 0 (los que deben existir)
+    const validSubjectNames: Record<string, string[]> = {}
+
     Object.entries(body.horasPorCurso || {}).forEach(([cursName, materias]) => {
       const course_id = courseMap[cursName]
       if (!course_id) return
 
+      validSubjectNames[course_id] = []
+
       Object.entries(materias as Record<string, number>).forEach(([matName, hours]) => {
         if (!hours || hours <= 0) return
+        validSubjectNames[course_id].push(matName)
         subjectsToUpsert.push({
           course_id,
           institution_id: instId,
@@ -198,11 +204,37 @@ export async function POST(req: Request) {
       })
     })
 
+    // Upsert materias con horas > 0
     if (subjectsToUpsert.length > 0) {
       await admin.from('subjects' as any).upsert(subjectsToUpsert, {
         onConflict:       'course_id,name',
         ignoreDuplicates: false,
       })
+    }
+
+    // ── Eliminar materias que bajaron a 0 horas o fueron quitadas ──────────
+    const courseIdsInConfig = Object.keys(validSubjectNames)
+    if (courseIdsInConfig.length > 0) {
+      const { data: existingSubjects } = await admin
+        .from('subjects' as any)
+        .select('id, course_id, name')
+        .in('course_id', courseIdsInConfig)
+        .eq('institution_id', instId)
+
+      if (existingSubjects) {
+        const idsToDelete = (existingSubjects as any[])
+          .filter((s: any) => {
+            const valid = validSubjectNames[s.course_id] || []
+            return !valid.includes(s.name)
+          })
+          .map((s: any) => s.id)
+
+        if (idsToDelete.length > 0) {
+          await admin.from('subjects' as any)
+            .delete()
+            .in('id', idsToDelete)
+        }
+      }
     }
 
   } catch (err) {
