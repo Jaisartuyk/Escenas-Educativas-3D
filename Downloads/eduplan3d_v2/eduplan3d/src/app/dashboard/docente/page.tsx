@@ -49,16 +49,16 @@ export default async function DocentePage() {
 
     enrollments = rawEnr || []
 
-    const studentIds = Array.from(new Set(enrollments.map((e: any) => e.student_id as string)))
-    console.log('[docente/page] enrollment count:', enrollments.length, 'studentIds:', studentIds)
-
-    if (studentIds.length > 0) {
-      const { data: profs, error: profsError } = await admin
+    // Fetch all students of this institution — avoid .in('id',...) which can fail silently
+    if (enrollments.length > 0) {
+      const { data: allStudents } = await admin
         .from('profiles')
         .select('id, full_name, email, avatar_url')
-        .in('id', studentIds)
-      console.log('[docente/page] profiles fetched:', profs?.length, 'error:', profsError?.message)
-      studentProfiles = profs || []
+        .eq('institution_id', instId)
+        .eq('role', 'student')
+
+      const enrolledIds = new Set(enrollments.map((e: any) => e.student_id as string))
+      studentProfiles = (allStudents || []).filter((p: any) => enrolledIds.has(p.id))
     }
   }
 
