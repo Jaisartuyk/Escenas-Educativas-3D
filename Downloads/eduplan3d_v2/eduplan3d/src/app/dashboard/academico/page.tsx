@@ -76,10 +76,37 @@ export default async function AcademicoPage() {
   const horariosDocentes  = instSettings.horarios?.docentes || []
   const tutores: Record<string, string> = (scheduleRes.data as any)?.tutores || {}
 
+  // ── Paso 3: assignments, grades, categories para Promoción ──────────────
+  const subjectIds = (subjectsRes.data || []).map((s: any) => s.id)
+  let assignmentsData: any[] = []
+  let gradesData: any[] = []
+
+  if (subjectIds.length > 0) {
+    const { data: aData } = await admin
+      .from('assignments' as any)
+      .select('id, subject_id, title, trimestre, parcial, category_id')
+      .in('subject_id', subjectIds)
+    assignmentsData = aData || []
+
+    if (assignmentsData.length > 0) {
+      const { data: gData } = await admin
+        .from('grades' as any)
+        .select('assignment_id, student_id, score')
+        .in('assignment_id', assignmentsData.map((a: any) => a.id))
+      gradesData = gData || []
+    }
+  }
+
+  const { data: categories } = await admin
+    .from('grade_categories' as any)
+    .select('*')
+    .eq('institution_id', instId)
+    .order('sort_order')
+
   return (
-    <div className="animate-fade-in max-w-5xl mx-auto space-y-8">
+    <div className="animate-fade-in max-w-6xl mx-auto space-y-8">
       <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight">Gestión Académica</h1>
+        <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">Gestión Académica</h1>
         <p className="text-ink3 text-sm mt-1">Crea cursos, asigna materias a docentes y matricula estudiantes.</p>
       </div>
 
@@ -88,6 +115,9 @@ export default async function AcademicoPage() {
         initialStudents={studentsRes.data   || []}
         initialSubjects={subjectsRes.data   || []}
         initialEnrollments={enrollments     || []}
+        initialAssignments={assignmentsData}
+        initialGrades={gradesData}
+        initialCategories={categories       || []}
         teachers={teachersRes.data          || []}
         horariosDocentes={horariosDocentes}
         institutionId={instId}

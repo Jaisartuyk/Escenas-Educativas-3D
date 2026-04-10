@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import { createInstitutionUser } from '@/lib/actions/users'
 import { ProfileDetailsPanel } from './ProfileDetailsPanel'
 
-export function PersonalClient({ institutionId, teachers, students, horariosDocentes, directoryMetadata }: { institutionId: string, teachers: any[], students: any[], horariosDocentes: any[], directoryMetadata: any }) {
+export function PersonalClient({ institutionId, teachers, students, horariosDocentes, directoryMetadata, courses = [] }: { institutionId: string, teachers: any[], students: any[], horariosDocentes: any[], directoryMetadata: any, courses?: any[] }) {
   const [loading, setLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
   const [showRegistrarForm, setShowRegistrarForm] = useState(false)
@@ -19,7 +19,8 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
     dni: '',
     email: '',
     password: '',
-    role: 'student' as 'student' | 'teacher'
+    role: 'student' as 'student' | 'teacher',
+    course_id: ''
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,15 +31,20 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
 
     setLoading(true)
     const res = await createInstitutionUser({
-      ...formData,
-      institution_id: institutionId
+      full_name: formData.full_name,
+      dni: formData.dni,
+      email: formData.email,
+      password: formData.password,
+      role: formData.role,
+      institution_id: institutionId,
+      ...(formData.role === 'student' && formData.course_id ? { course_id: formData.course_id } : {})
     })
 
     if (res.error) {
       toast.error(res.error)
     } else {
-      toast.success(formData.role === 'student' ? 'Estudiante creado exitosamente' : 'Docente creado exitosamente')
-      setFormData({ full_name: '', dni: '', email: '', password: '', role: 'student' })
+      toast.success(formData.role === 'student' ? `Estudiante creado${formData.course_id ? ' y matriculado' : ''} exitosamente` : 'Docente creado exitosamente')
+      setFormData({ full_name: '', dni: '', email: '', password: '', role: 'student', course_id: '' })
       setShowRegistrarForm(false) // Close form on success
       // Next JS router refresh is handled by the server action's revalidatePath
     }
@@ -97,6 +103,16 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
               <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Contraseña Maestra Inicial</label>
               <input type="text" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="Define una clave secreta..." className="input-base" />
             </div>
+            {formData.role === 'student' && courses.length > 0 && (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Curso a Matricular</label>
+                <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="input-base">
+                  <option value="">Sin asignar (matricular después)</option>
+                  {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name} {c.parallel}</option>)}
+                </select>
+                <p className="text-[10px] text-ink4">Se matriculará automáticamente al guardar.</p>
+              </div>
+            )}
             <div className="md:col-span-2 mt-4 pt-4 border-t border-[rgba(0,0,0,0.05)]">
                <button type="submit" disabled={loading} className="w-full btn-primary py-3.5 flex items-center justify-center gap-2">
                  {loading ? 'Sincronizando Base de Datos...' : <><Plus size={18}/> Validar y Empadronar Cuenta</>}

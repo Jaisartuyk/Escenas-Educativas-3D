@@ -10,6 +10,7 @@ export async function createInstitutionUser(data: {
   dni: string
   role: 'student' | 'teacher' | 'secretary'
   institution_id: string
+  course_id?: string  // Optional: auto-enroll student to this course
 }) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -53,9 +54,15 @@ export async function createInstitutionUser(data: {
     }, { onConflict: 'id' })
 
   if (profileError) {
-    // Si falla el perfil, idealmente deberíamos borrar la cuenta Auth, pero por simplicidad solo retornamos el error
     console.error("Error al crear perfil:", profileError)
     return { error: 'Se creó la cuenta pero hubo un error vinculando el perfil. Notifique a soporte.' }
+  }
+
+  // 3. Auto-matricular al estudiante si se proporcionó un curso
+  if (data.role === 'student' && data.course_id) {
+    await supabaseAdmin
+      .from('enrollments')
+      .upsert({ student_id: newUserId, course_id: data.course_id }, { onConflict: 'student_id,course_id' })
   }
 
   revalidatePath('/dashboard/academico')
