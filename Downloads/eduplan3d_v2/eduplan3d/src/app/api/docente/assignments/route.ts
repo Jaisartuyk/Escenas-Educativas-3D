@@ -21,6 +21,7 @@ export async function POST(req: Request) {
     due_date:    body.due_date || null,
     trimestre:   body.trimestre ?? 1,
     parcial:     body.parcial ?? 1,
+    category_id: body.category_id || null,
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

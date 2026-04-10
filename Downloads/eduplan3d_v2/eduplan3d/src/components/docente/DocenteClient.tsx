@@ -5,7 +5,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight,
   Plus, Users, ClipboardList, BarChart2,
   CheckCircle2, XCircle, Clock3, ThumbsUp, ThumbsDown,
-  Star, Trash2, BookOpen, CalendarDays,
+  Star, Trash2, BookOpen, CalendarDays, Settings, X,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
@@ -60,10 +60,12 @@ function fmtWeekRange(mon: Date) {
   return `${mon.getDate()} - ${fri.getDate()} ${MONTHS_ES[fri.getMonth()]} ${fri.getFullYear()}`
 }
 
+const CAT_COLORS = ['#4F46E5','#10B981','#EF4444','#8B5CF6','#F59E0B','#3B82F6','#EC4899','#06B6D4']
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 export function DocenteClient({
   profile, mySubjects,
-  initialAssignments, initialGrades, teacherId,
+  initialAssignments, initialGrades, initialCategories, teacherId,
 }: any) {
   // ── Enrollments + student profiles — cargados via API (server components no pueden consultar profiles) ──
   const [enrollments, setEnrollments] = useState<any[]>([])
@@ -111,7 +113,16 @@ export function DocenteClient({
   const [newAsgTitle,  setNewAsgTitle]  = useState('')
   const [newAsgDesc,   setNewAsgDesc]   = useState('')
   const [newAsgDate,   setNewAsgDate]   = useState('')
+  const [newAsgCatId,  setNewAsgCatId]  = useState<string>('')
   const [editingGrades,setEditingGrades]= useState<Record<string, string>>({})
+
+  // ── Categorías de calificación ─────────────────────────────────────────────
+  const [categories,    setCategories]    = useState<any[]>(initialCategories || [])
+  const [showCatModal,  setShowCatModal]  = useState(false)
+  const [editCat,       setEditCat]       = useState<any>(null)
+  const [catName,       setCatName]       = useState('')
+  const [catWeight,     setCatWeight]     = useState('20')
+  const [catColor,      setCatColor]      = useState(CAT_COLORS[0])
 
   const selectedSubject = mySubjects.find((s: any) => s.id === selectedSubjectId)
   const instId   = (profile?.institutions as any)?.id || profile?.institution_id
@@ -221,13 +232,14 @@ export function DocenteClient({
     const newAsg = {
       id, subject_id: selectedSubjectId,
       title: newAsgTitle, description: newAsgDesc,
-      due_date:  newAsgDate || null,
+      due_date:    newAsgDate || null,
       trimestre, parcial,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      category_id: newAsgCatId || null,
+      created_at:  new Date().toISOString(),
+      updated_at:  new Date().toISOString(),
     }
     setAssignments(prev => [newAsg, ...prev])
-    setNewAsgTitle(''); setNewAsgDesc(''); setNewAsgDate('')
+    setNewAsgTitle(''); setNewAsgDesc(''); setNewAsgDate(''); setNewAsgCatId('')
 
     const res = await fetch('/api/docente/assignments', {
       method: 'POST',
@@ -237,6 +249,82 @@ export function DocenteClient({
     const data = await res.json()
     if (data.error) toast.error('Error al crear tarea: ' + data.error)
     else toast.success('✓ Tarea publicada')
+  }
+
+  // ── Categorías CRUD ──────────────────────────────────────────────────────
+  function openNewCat() {
+    setEditCat(null)
+    setCatName('')
+    setCatWeight('20')
+    setCatColor(CAT_COLORS[categories.length % CAT_COLORS.length])
+    setShowCatModal(true)
+  }
+  function openEditCat(c: any) {
+    setEditCat(c)
+    setCatName(c.name)
+    setCatWeight(String(c.weight_percent))
+    setCatColor(c.color)
+    setShowCatModal(true)
+  }
+  async function saveCat() {
+    if (!catName.trim()) return
+    const payload = {
+      ...(editCat ? { id: editCat.id } : {}),
+      name: catName,
+      color: catColor,
+      weight_percent: parseFloat(catWeight) || 20,
+      sort_order: editCat ? editCat.sort_order : categories.length,
+    }
+    const res = await fetch('/api/docente/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const { data, error } = await res.json()
+    if (error) toast.error(error)
+    else { setCategories(data || []); toast.success(editCat ? 'Categoría actualizada' : 'Categoría creada') }
+    setShowCatModal(false)
+  }
+  async function deleteCat(id: string) {
+    await fetch(`/api/docente/categories?id=${id}`, { method: 'DELETE' })
+    setCategories(prev => prev.filter((c: any) => c.id !== id))
+    toast.success('Categoría eliminada')
+  }
+
+  // ── Cálculo promedio ponderado ────────────────────────────────────────────
+  function getWeightedAvg(studentId: string, filteredAssignments: any[]): number | null {
+    if (categories.length === 0) {
+      // Sin categorías → promedio simple
+      const scores = filteredAssignments.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
+      return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+    }
+    let totalWeight = 0
+    let weightedSum = 0
+    let hasAnyGrade = false
+    categories.forEach(cat => {
+      const catAsgs = filteredAssignments.filter(a => a.category_id === cat.id)
+      const scores  = catAsgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
+      if (scores.length > 0) {
+        hasAnyGrade = true
+        const catAvg = scores.reduce((a, b) => a + b, 0) / scores.length
+        weightedSum += catAvg * (cat.weight_percent / 100)
+        totalWeight += cat.weight_percent / 100
+      }
+    })
+    // Also include uncategorized
+    const uncatAsgs = filteredAssignments.filter(a => !a.category_id)
+    const uncatScores = uncatAsgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
+    if (uncatScores.length > 0) {
+      hasAnyGrade = true
+      const uncatAvg = uncatScores.reduce((a, b) => a + b, 0) / uncatScores.length
+      const remainingWeight = Math.max(0, 1 - categories.reduce((s, c) => s + c.weight_percent / 100, 0))
+      if (remainingWeight > 0) {
+        weightedSum += uncatAvg * remainingWeight
+        totalWeight += remainingWeight
+      }
+    }
+    if (!hasAnyGrade) return null
+    return totalWeight > 0 ? weightedSum / totalWeight * 10 : null
   }
 
   function handleGradeChange(assignmentId: string, studentId: string, value: string) {
@@ -579,9 +667,26 @@ export function DocenteClient({
             && a.parcial   === parcial
         )
 
+        const totalWeight = categories.reduce((s: number, c: any) => s + Number(c.weight_percent), 0)
+        const getCatColor = (catId: string | null) => {
+          const cat = categories.find((c: any) => c.id === catId)
+          return cat?.color || '#94A3B8'
+        }
+        const getCatName = (catId: string | null) => {
+          const cat = categories.find((c: any) => c.id === catId)
+          return cat?.name || 'Sin categoría'
+        }
+
+        // Sort assignments by category order
+        const sortedAssignments = [...filteredAssignments].sort((a, b) => {
+          const catA = categories.findIndex((c: any) => c.id === a.category_id)
+          const catB = categories.findIndex((c: any) => c.id === b.category_id)
+          return (catA === -1 ? 999 : catA) - (catB === -1 ? 999 : catB)
+        })
+
         return (
           <div className="space-y-5">
-            {/* Selector Trimestre / Parcial */}
+            {/* Selector Trimestre / Parcial + Config */}
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex gap-1 bg-surface rounded-xl p-1 border border-surface2">
                 {[1, 2, 3].map(t => (
@@ -604,20 +709,54 @@ export function DocenteClient({
               <span className="text-xs text-ink3">
                 Trimestre {trimestre} · Parcial {parcial}
               </span>
+              <div className="ml-auto">
+                <button onClick={openNewCat}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-surface2 text-xs font-semibold text-ink3 hover:text-ink hover:bg-surface2 transition-all">
+                  <Settings size={13} /> Categorías
+                </button>
+              </div>
             </div>
+
+            {/* Leyenda de categorías */}
+            {categories.length > 0 && (
+              <div className="flex items-center gap-3 flex-wrap text-xs">
+                {categories.map((c: any) => (
+                  <button key={c.id} onClick={() => openEditCat(c)}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-surface2 transition-colors cursor-pointer">
+                    <span className="w-3 h-3 rounded" style={{ backgroundColor: c.color }} />
+                    <span className="text-ink3">{c.name}: ({Number(c.weight_percent).toFixed(0)}%)</span>
+                  </button>
+                ))}
+                {totalWeight !== 100 && (
+                  <span className="text-rose-500 font-semibold">
+                    ⚠ Total: {totalWeight.toFixed(0)}% (debe ser 100%)
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Formulario nueva tarea */}
             <div className="bg-surface rounded-2xl border border-surface2 p-4">
               <h3 className="font-bold text-sm text-ink mb-3">
-                + Nueva tarea · T{trimestre} P{parcial}
+                + Nueva actividad · T{trimestre} P{parcial}
               </h3>
-              <form onSubmit={handleCreateAssignment} className="flex flex-wrap gap-3">
+              <form onSubmit={handleCreateAssignment} className="flex flex-wrap gap-3 items-end">
+                {categories.length > 0 && (
+                  <select value={newAsgCatId} onChange={e => setNewAsgCatId(e.target.value)}
+                    className="bg-bg border border-surface2 rounded-xl px-3 py-2 text-sm text-ink outline-none focus:border-violet min-w-[180px]"
+                    style={newAsgCatId ? { borderLeftColor: getCatColor(newAsgCatId), borderLeftWidth: 3 } : {}}>
+                    <option value="">Tipo de actividad...</option>
+                    {categories.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                )}
                 <input required value={newAsgTitle} onChange={e => setNewAsgTitle(e.target.value)}
-                  placeholder="Título de la tarea"
-                  className="flex-1 min-w-[200px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                  placeholder="Nombre de la actividad"
+                  className="flex-1 min-w-[180px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
                 <input value={newAsgDesc} onChange={e => setNewAsgDesc(e.target.value)}
                   placeholder="Descripción (opcional)"
-                  className="flex-1 min-w-[160px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                  className="flex-1 min-w-[140px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
                 <input type="date" value={newAsgDate} onChange={e => setNewAsgDate(e.target.value)}
                   className="bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet w-36" />
                 <button type="submit"
@@ -628,28 +767,37 @@ export function DocenteClient({
             </div>
 
             {/* Tabla de notas */}
-            {filteredAssignments.length === 0 || students.length === 0 ? (
+            {sortedAssignments.length === 0 || students.length === 0 ? (
               <div className="p-10 text-center text-ink4 border border-dashed border-surface2 rounded-2xl">
-                {filteredAssignments.length === 0
-                  ? `No hay tareas en T${trimestre} P${parcial}. Crea la primera arriba.`
+                {sortedAssignments.length === 0
+                  ? `No hay actividades en T${trimestre} P${parcial}. Crea la primera arriba.`
                   : 'No hay alumnos matriculados en este curso.'}
               </div>
             ) : (
               <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto">
                 <table className="w-full text-sm whitespace-nowrap min-w-max">
-                  <thead className="bg-bg3 text-xs uppercase tracking-wider border-b border-surface2">
+                  <thead>
+                    {/* Fila de color de categoría */}
                     <tr>
+                      <th className="sticky left-0 bg-bg3 z-10" />
+                      {sortedAssignments.map((a: any) => (
+                        <th key={a.id} className="px-0 py-0 h-1.5"
+                          style={{ backgroundColor: getCatColor(a.category_id) }} />
+                      ))}
+                      <th className="bg-bg3" />
+                    </tr>
+                    {/* Fila de títulos */}
+                    <tr className="bg-bg3 text-xs uppercase tracking-wider border-b border-surface2">
                       <th className="px-4 py-3 text-left font-bold sticky left-0 bg-bg3 z-10 w-48 shadow-[2px_0_4px_rgba(0,0,0,0.06)]">
                         Estudiante
                       </th>
-                      {filteredAssignments.map((a: any) => (
-                        <th key={a.id} className="px-3 py-3 text-center font-medium min-w-[110px] text-ink3">
-                          <div className="text-violet truncate w-24 mx-auto font-semibold" title={a.title}>{a.title}</div>
-                          {a.due_date && (
-                            <div className="text-[9px] text-ink5 font-normal mt-0.5">
-                              {new Date(a.due_date).toLocaleDateString('es', { day: '2-digit', month: 'short' })}
-                            </div>
-                          )}
+                      {sortedAssignments.map((a: any) => (
+                        <th key={a.id} className="px-3 py-3 text-center font-medium min-w-[100px]"
+                          style={{ borderTop: `3px solid ${getCatColor(a.category_id)}` }}>
+                          <div className="truncate w-20 mx-auto font-semibold text-ink2" title={a.title}>{a.title}</div>
+                          <div className="text-[9px] font-normal mt-0.5 normal-case tracking-normal" style={{ color: getCatColor(a.category_id) }}>
+                            {getCatName(a.category_id)}
+                          </div>
                         </th>
                       ))}
                       <th className="px-3 py-3 text-center font-bold text-ink3 border-l border-surface2 min-w-[70px]">
@@ -659,14 +807,13 @@ export function DocenteClient({
                   </thead>
                   <tbody className="divide-y divide-surface">
                     {students.map((st: any) => {
-                      const scores = filteredAssignments.map((a: any) => getGrade(a.id, st.id)).filter((g): g is number => g !== null)
-                      const avg    = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
+                      const avg = getWeightedAvg(st.id, sortedAssignments)
                       return (
                         <tr key={st.id} className="hover:bg-bg/40 transition-colors group">
                           <td className="px-4 py-2.5 sticky left-0 bg-surface group-hover:bg-bg/40 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)] border-r border-surface/50 transition-colors">
                             <span className="font-medium text-xs text-ink truncate block w-40" title={st.full_name}>{st.full_name}</span>
                           </td>
-                          {filteredAssignments.map((a: any) => {
+                          {sortedAssignments.map((a: any) => {
                             const key    = `${a.id}_${st.id}`
                             const isEdit = editingGrades[key] !== undefined
                             const cur    = isEdit ? editingGrades[key] : (getGrade(a.id, st.id) ?? '')
@@ -697,7 +844,7 @@ export function DocenteClient({
                       <td className="px-4 py-2 sticky left-0 bg-bg3 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)] border-r border-surface/50">
                         <span className="text-xs font-bold text-ink3 uppercase tracking-wide">Promedio clase</span>
                       </td>
-                      {filteredAssignments.map((a: any) => {
+                      {sortedAssignments.map((a: any) => {
                         const sc  = students.map((st: any) => getGrade(a.id, st.id)).filter((g): g is number => g !== null)
                         const avg = sc.length > 0 ? sc.reduce((x: number, y: number) => x + y, 0) / sc.length : null
                         return (
@@ -715,6 +862,85 @@ export function DocenteClient({
           </div>
         )
       })()}
+
+      {/* ── MODAL: CATEGORÍAS DE ACTIVIDADES ─────────────────────────────── */}
+      {showCatModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setShowCatModal(false)}>
+          <div className="bg-surface rounded-2xl border border-surface2 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-surface2">
+              <div>
+                <h2 className="font-bold text-lg text-ink">Categorías de Actividades</h2>
+                <p className="text-xs text-ink3 mt-0.5">Configuración de porcentajes</p>
+              </div>
+              <button onClick={() => setShowCatModal(false)} className="text-ink4 hover:text-ink transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Lista de categorías existentes */}
+            <div className="p-5 space-y-2 max-h-[300px] overflow-y-auto">
+              {categories.length === 0 ? (
+                <p className="text-sm text-ink4 text-center py-4">No hay categorías. Crea la primera abajo.</p>
+              ) : categories.map((c: any, i: number) => (
+                <div key={c.id} className="flex items-center gap-3 p-3 bg-bg rounded-xl border border-surface2">
+                  <span className="text-xs text-ink4 w-5 text-right">{i + 1}.</span>
+                  <span className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: c.color }} />
+                  <span className="flex-1 text-sm font-medium text-ink truncate">{c.name}</span>
+                  <span className="text-sm font-semibold text-ink3">{Number(c.weight_percent).toFixed(0)}%</span>
+                  <button onClick={() => openEditCat(c)} className="text-ink4 hover:text-violet transition-colors">
+                    <Settings size={13} />
+                  </button>
+                  <button onClick={() => deleteCat(c.id)} className="text-ink4 hover:text-rose-500 transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+              {categories.length > 0 && (
+                <div className={`text-xs font-semibold text-right pr-2 ${Math.abs(categories.reduce((s: number, c: any) => s + Number(c.weight_percent), 0) - 100) < 0.01 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  Total: {categories.reduce((s: number, c: any) => s + Number(c.weight_percent), 0).toFixed(0)}%
+                </div>
+              )}
+            </div>
+
+            {/* Formulario añadir/editar */}
+            <div className="p-5 border-t border-surface2 space-y-3">
+              <h3 className="text-sm font-bold text-ink">{editCat ? 'Editar categoría' : 'Nueva categoría'}</h3>
+              <div className="flex flex-wrap gap-3">
+                <input value={catName} onChange={e => setCatName(e.target.value)}
+                  placeholder="Ej: Formativa: Tarea"
+                  className="flex-1 min-w-[180px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                <div className="flex items-center gap-2">
+                  <input type="number" min="0" max="100" step="1" value={catWeight}
+                    onChange={e => setCatWeight(e.target.value)}
+                    className="w-20 bg-bg border border-surface2 rounded-xl px-3 py-2 text-sm text-ink outline-none focus:border-violet text-center" />
+                  <span className="text-sm text-ink3">%</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-ink3">Color:</span>
+                {CAT_COLORS.map(c => (
+                  <button key={c} onClick={() => setCatColor(c)}
+                    className={`w-6 h-6 rounded-full transition-all ${catColor === c ? 'ring-2 ring-offset-2 ring-violet scale-110' : 'hover:scale-110'}`}
+                    style={{ backgroundColor: c }} />
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <button onClick={saveCat}
+                  className="bg-violet hover:bg-violet2 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2">
+                  <Plus size={14} /> {editCat ? 'Guardar' : 'Añadir'}
+                </button>
+                {editCat && (
+                  <button onClick={openNewCat}
+                    className="text-sm text-ink3 hover:text-ink transition-colors">
+                    Cancelar edición
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── TAB: COMPORTAMIENTO ──────────────────────────────────────────── */}
       {activeTab === 'comportamiento' && (() => {

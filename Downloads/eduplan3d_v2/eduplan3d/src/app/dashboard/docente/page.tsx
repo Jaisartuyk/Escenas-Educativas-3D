@@ -40,7 +40,7 @@ export default async function DocentePage() {
   if (subjectIds.length > 0) {
     const { data } = await admin
       .from('assignments')
-      .select('id, subject_id, title, description, due_date, trimestre, parcial, created_at, updated_at')
+      .select('id, subject_id, title, description, due_date, trimestre, parcial, category_id, created_at, updated_at')
       .in('subject_id', subjectIds)
       .order('created_at', { ascending: false })
     assignments = data || []
@@ -55,6 +55,17 @@ export default async function DocentePage() {
       .select('*')
       .in('assignment_id', assignmentIds)
     grades = data || []
+  }
+
+  // ── Categorías de calificación ────────────────────────────────────────────
+  let categories: any[] = []
+  if (instId) {
+    const { data } = await admin
+      .from('grade_categories' as any)
+      .select('*')
+      .eq('institution_id', instId)
+      .order('sort_order', { ascending: true })
+    categories = data || []
   }
 
   // ── Config de horario (períodos, recesos) ────────────────────────────────
@@ -74,6 +85,7 @@ export default async function DocentePage() {
       mySubjects={mySubjects || []}
       initialAssignments={assignments}
       initialGrades={grades}
+      initialCategories={categories}
       teacherId={user.id}
     />
   )
