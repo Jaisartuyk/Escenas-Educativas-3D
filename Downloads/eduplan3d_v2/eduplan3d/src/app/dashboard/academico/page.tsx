@@ -22,52 +22,47 @@ export default async function AcademicoPage() {
   if (!profile || !profile.institution_id) redirect('/dashboard')
 
   const admin = createAdminClient()
+  const instId = profile.institution_id
 
-  // Cargar datos en paralelo
-  const [coursesRes, studentsRes, subjectsRes, enrollmentsRes, teachersRes, scheduleRes] =
+  // ── Paso 1: queries que no dependen de otras ────────────────────────────────
+  const [coursesRes, studentsRes, subjectsRes, teachersRes, scheduleRes] =
     await Promise.all([
       admin.from('courses' as any)
         .select('*')
-        .eq('institution_id', profile.institution_id)
+        .eq('institution_id', instId)
         .order('name', { ascending: true }),
 
       admin.from('profiles' as any)
         .select('id, full_name, email, avatar_url, role')
-        .eq('institution_id', profile.institution_id)
+        .eq('institution_id', instId)
         .eq('role', 'student')
         .order('full_name', { ascending: true }),
 
-      // Subjects filtrados por institución con teacher y course embebidos
       admin.from('subjects' as any)
         .select('id, name, weekly_hours, course_id, teacher_id, teacher:profiles(full_name), course:courses(name)')
-        .eq('institution_id', profile.institution_id)
+        .eq('institution_id', instId)
         .order('name', { ascending: true }),
-
-      admin.from('enrollments' as any)
-        .select('course_id, student_id')
-        .in('course_id',
-          // sub-select de cursos de esta institución se hace filtrando en el cliente
-          // (Supabase no soporta sub-selects en .in() via JS client)
-          [] // se rellena abajo
-        ),
 
       admin.from('profiles' as any)
         .select('id, full_name, email, avatar_url')
-        .eq('institution_id', profile.institution_id)
+        .eq('institution_id', instId)
         .eq('role', 'teacher')
         .order('full_name', { ascending: true }),
 
-      // Config de horarios: tiene los tutores por curso
+      // schedule_configs puede no existir aún → usamos maybeSingle para no lanzar error
       admin.from('schedule_configs' as any)
-        .select('tutores, jornada, nivel, anio')
-        .eq('institution_id', profile.institution_id)
-        .single(),
+        .select('tutores')
+        .eq('institution_id', instId)
+        .maybeSingle(),
     ])
 
-  // Enrollments: re-query con los IDs de cursos reales
+  // ── Paso 2: enrollments necesita los IDs de cursos del paso 1 ───────────────
   const courseIds: string[] = (coursesRes.data || []).map((c: any) => c.id)
   const { data: enrollments } = courseIds.length > 0
-    ? await admin.from('enrollments' as any).select('course_id, student_id').in('course_id', courseIds)
+    ? await admin
+        .from('enrollments' as any)
+        .select('course_id, student_id')
+        .in('course_id', courseIds)
     : { data: [] }
 
   const directoryMetadata = profile.institutions?.settings?.directory || {}
@@ -81,13 +76,13 @@ export default async function AcademicoPage() {
       </div>
 
       <AcademicoClient
-        initialCourses={coursesRes.data || []}
-        initialStudents={studentsRes.data || []}
-        initialSubjects={subjectsRes.data || []}
-        initialEnrollments={enrollments || []}
-        teachers={teachersRes.data || []}
+        initialCourses={coursesRes.data   || []}
+        initialStudents={studentsRes.data  || []}
+        initialSubjects={subjectsRes.data  || []}
+        initialEnrollments={enrollments    || []}
+        teachers={teachersRes.data         || []}
         horariosDocentes={profile.institutions?.settings?.horarios?.docentes || []}
-        institutionId={profile.institution_id}
+        institutionId={instId}
         directoryMetadata={directoryMetadata}
         tutores={tutores}
       />
