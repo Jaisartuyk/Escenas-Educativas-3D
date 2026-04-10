@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   const studentIds = Array.from(new Set(enrollments.map((e: any) => e.student_id as string)))
   const { data: profiles } = await admin
     .from('profiles')
-    .select('id, full_name, email, avatar_url')
+    .select('id, full_name, email')
     .in('id', studentIds)
 
   // Merge: return array of { course_id, student_id, student: {...} }
