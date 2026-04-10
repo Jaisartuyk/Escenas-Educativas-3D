@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
-import { createClient } from '@/lib/supabase/client'
+// Removed direct Supabase client — all writes go through admin-proxied API routes
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AttendanceStatus = 'present' | 'absent' | 'late'
@@ -91,7 +91,6 @@ export function DocenteClient({
   // ── Assignments / Grades (existentes) ───────────────────────────────────
   const [assignments, setAssignments] = useState<any[]>(initialAssignments)
   const [grades,      setGrades]      = useState<any[]>(initialGrades)
-  const supabase = createClient()
 
   // ── Asistencia ───────────────────────────────────────────────────────────
   const [weekStart,   setWeekStart]   = useState<Date>(() => getMondayOfWeek())
@@ -217,9 +216,13 @@ export function DocenteClient({
     setAssignments(prev => [newAsg, ...prev])
     setNewAsgTitle(''); setNewAsgDesc(''); setNewAsgDate('')
 
-    // @ts-ignore
-    const { error } = await supabase.from('assignments').insert(newAsg)
-    if (error) toast.error('Error al crear tarea')
+    const res = await fetch('/api/docente/assignments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:   JSON.stringify(newAsg),
+    })
+    const data = await res.json()
+    if (data.error) toast.error('Error al crear tarea: ' + data.error)
     else toast.success('✓ Tarea publicada')
   }
 
@@ -239,15 +242,21 @@ export function DocenteClient({
     )
     if (existing) {
       setGrades(grades.map((g: any) => g.id === existing.id ? { ...g, score } : g))
-      // @ts-ignore
-      await supabase.from('grades').update({ score }).eq('id', existing.id)
+      await fetch('/api/docente/grades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:   JSON.stringify({ existingId: existing.id, score }),
+      })
     } else {
       const id = uuidv4()
       const newGrade = { id, assignment_id: assignmentId, student_id: studentId, score,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
       setGrades(prev => [...prev, newGrade])
-      // @ts-ignore
-      await supabase.from('grades').insert(newGrade)
+      await fetch('/api/docente/grades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:   JSON.stringify({ id, assignment_id: assignmentId, student_id: studentId, score }),
+      })
     }
     const updated = { ...editingGrades }
     delete updated[key]
