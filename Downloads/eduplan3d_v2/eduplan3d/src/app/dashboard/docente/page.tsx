@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { DocenteClient } from '@/components/docente/DocenteClient'
 
@@ -9,75 +10,84 @@ export const revalidate = 0
 export default async function DocentePage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await (supabase as any)
+  const admin = createAdminClient()
+
+  const { data: profile } = await admin
     .from('profiles')
-    .select('*, institutions(name)')
+    .select('*, institutions(name, settings)')
     .eq('id', user.id)
     .single()
 
   if (!profile || !['admin', 'teacher'].includes(profile.role)) {
-    redirect('/dashboard') // Redirigir si no es profe o admin
+    redirect('/dashboard')
   }
 
-  // Pre-cargar materias que dicta este profe
-  const { data: mySubjects } = await (supabase as any)
-    .from('subjects')
-    .select('*, course:courses(id, name, parallel)')
+  const instId = profile.institution_id
+
+  // ── Materias asignadas a este docente ────────────────────────────────────
+  const { data: mySubjects } = await admin
+    .from('subjects' as any)
+    .select('*, course:courses(id, name, parallel, level, shift)')
     .eq('teacher_id', user.id)
     .order('name', { ascending: true })
 
-  // Extraer course_ids para buscar los alumnos enlazados
-  const courseIds = (mySubjects || []).map((s: any) => s.course.id)
-  
-  let studentsInCourses: any[] = []
+  const courseIds  = (mySubjects  || []).map((s: any) => s.course?.id).filter(Boolean)
+  const subjectIds = (mySubjects  || []).map((s: any) => s.id)
+
+  // ── Alumnos matriculados en esos cursos ──────────────────────────────────
+  let enrollments: any[] = []
   if (courseIds.length > 0) {
-    const { data: enrolls } = await (supabase as any)
+    const { data } = await admin
       .from('enrollments')
-      .select('course_id, student:profiles(id, full_name, email)')
+      .select('course_id, student:profiles(id, full_name, email, avatar_url)')
       .in('course_id', courseIds)
-      
-    studentsInCourses = enrolls || []
+    enrollments = data || []
   }
 
-  // Todas las tareas de mis materias
-  const subjectIds = (mySubjects || []).map((s: any) => s.id)
+  // ── Tareas de las materias del docente ───────────────────────────────────
   let assignments: any[] = []
-  let grades: any[] = []
   if (subjectIds.length > 0) {
-    const { data: asgs } = await (supabase as any)
+    const { data } = await admin
       .from('assignments')
       .select('*')
       .in('subject_id', subjectIds)
       .order('created_at', { ascending: false })
-    assignments = asgs || []
+    assignments = data || []
+  }
 
-    const asgsIds = assignments.map(a => a.id)
-    if (asgsIds.length > 0) {
-      const { data: grs } = await (supabase as any)
-        .from('grades')
-        .select('*')
-        .in('assignment_id', asgsIds)
-      grades = grs || []
-    }
+  // ── Calificaciones de esas tareas ────────────────────────────────────────
+  let grades: any[] = []
+  const assignmentIds = assignments.map((a: any) => a.id)
+  if (assignmentIds.length > 0) {
+    const { data } = await admin
+      .from('grades')
+      .select('*')
+      .in('assignment_id', assignmentIds)
+    grades = data || []
+  }
+
+  // ── Config de horario (períodos, recesos) ────────────────────────────────
+  let scheduleConfig: any = null
+  if (instId) {
+    const { data } = await admin
+      .from('schedule_configs' as any)
+      .select('*')
+      .eq('institution_id', instId)
+      .maybeSingle()
+    scheduleConfig = data
   }
 
   return (
-    <div className="animate-fade-in max-w-6xl mx-auto space-y-8">
-      <div>
-        <h1 className="font-display text-3xl font-bold tracking-tight">Panel Docente</h1>
-        <p className="text-ink3 text-sm mt-1">Sube tareas a tus cursos y califica las entregas de los estudiantes.</p>
-      </div>
-      
-      <DocenteClient 
-        initialSubjects={mySubjects || []}
-        enrollments={studentsInCourses}
-        initialAssignments={assignments}
-        initialGrades={grades}
-        teacherId={user.id}
-      />
-    </div>
+    <DocenteClient
+      profile={profile}
+      mySubjects={mySubjects || []}
+      enrollments={enrollments}
+      initialAssignments={assignments}
+      initialGrades={grades}
+      scheduleConfig={scheduleConfig}
+      teacherId={user.id}
+    />
   )
 }
