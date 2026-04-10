@@ -36,30 +36,26 @@ export default async function DocentePage() {
   const courseIds  = (mySubjects  || []).map((s: any) => s.course?.id).filter(Boolean)
   const subjectIds = (mySubjects  || []).map((s: any) => s.id)
 
-  // ── Alumnos matriculados en esos cursos ─────────────────────────────────
-  // Dos queries separadas (más fiable que el join de Supabase con admin client)
-  let enrollments: any[] = []
+  // ── Matrículas: course_id → student_id ──────────────────────────────────
+  let enrollments: any[] = []      // [{ course_id, student_id }]
+  let studentProfiles: any[] = []  // [{ id, full_name, email, avatar_url }]
+
   if (courseIds.length > 0) {
-    const { data: rawEnrollments } = await admin
+    const { data: rawEnr } = await admin
       .from('enrollments')
       .select('course_id, student_id')
       .in('course_id', courseIds)
 
-    const studentIds = Array.from(new Set((rawEnrollments || []).map((e: any) => e.student_id as string)))
+    enrollments = rawEnr || []
 
-    let studentsMap: Record<string, any> = {}
+    const studentIds = Array.from(new Set(enrollments.map((e: any) => e.student_id as string)))
     if (studentIds.length > 0) {
-      const { data: studentProfiles } = await admin
+      const { data: profs } = await admin
         .from('profiles')
         .select('id, full_name, email, avatar_url')
         .in('id', studentIds)
-      ;(studentProfiles || []).forEach((p: any) => { studentsMap[p.id] = p })
+      studentProfiles = profs || []
     }
-
-    enrollments = (rawEnrollments || []).map((e: any) => ({
-      course_id: e.course_id,
-      student:   studentsMap[e.student_id] || null,
-    })).filter((e: any) => e.student !== null)
   }
 
   // ── Tareas de las materias del docente (con parcial/trimestre) ───────────
@@ -100,9 +96,9 @@ export default async function DocentePage() {
       profile={profile}
       mySubjects={mySubjects || []}
       enrollments={enrollments}
+      studentProfiles={studentProfiles}
       initialAssignments={assignments}
       initialGrades={grades}
-      scheduleConfig={scheduleConfig}
       teacherId={user.id}
     />
   )

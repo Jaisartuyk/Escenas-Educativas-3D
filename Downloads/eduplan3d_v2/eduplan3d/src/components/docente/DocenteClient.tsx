@@ -62,10 +62,18 @@ function fmtWeekRange(mon: Date) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export function DocenteClient({
-  profile, mySubjects, enrollments,
-  initialAssignments, initialGrades,
-  teacherId,
+  profile, mySubjects,
+  enrollments: rawEnrollments, studentProfiles,
+  initialAssignments, initialGrades, teacherId,
 }: any) {
+  // ── Unir matrículas con perfiles en el cliente ───────────────────────────
+  const profilesById: Record<string, any> = {}
+  ;(studentProfiles || []).forEach((p: any) => { profilesById[p.id] = p })
+  const enrollments: any[] = (rawEnrollments || []).map((e: any) => ({
+    course_id: e.course_id,
+    student:   profilesById[e.student_id] ?? { id: e.student_id, full_name: 'Estudiante', email: '' },
+  }))
+
   // ── Vista activa ─────────────────────────────────────────────────────────
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [activeTab,         setActiveTab]         = useState<DetailTab>('asistencia')
