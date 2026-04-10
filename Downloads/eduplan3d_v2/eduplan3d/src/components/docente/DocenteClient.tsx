@@ -29,7 +29,7 @@ const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 // Asigna colores por orden a nombres únicos — garantiza colores distintos por materia
 function buildColorMap(subjects: any[]): Record<string, string> {
-  const uniqueNames = [...new Set(subjects.map((s: any) => s.name as string))]
+  const uniqueNames = Array.from(new Set(subjects.map((s: any) => s.name as string)))
   const map: Record<string, string> = {}
   uniqueNames.forEach((name, i) => { map[name] = CARD_COLORS[i % CARD_COLORS.length] })
   return map
