@@ -31,6 +31,7 @@ export function AcademicoClient({
   const [enrollments, setEnrollments] = useState(initialEnrollments)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [promoCourseId, setPromoCourseId] = useState<string>(initialCourses[0]?.id || '')
+  const [nominaCourseId, setNominaCourseId] = useState<string>(initialCourses[0]?.id || '')
   const supabase = createClient()
 
   function toggleExpand(id: string) {
@@ -219,7 +220,7 @@ export function AcademicoClient({
         </button>
         <button onClick={() => setActiveTab('matriculas')}
           className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'matriculas' ? 'border-teal text-teal font-bold' : 'border-transparent text-ink3 hover:text-ink2 hover:border-surface2'}`}>
-          Nómina (Vincular)
+          Nómina
         </button>
         <button onClick={() => setActiveTab('personal')}
           className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'personal' ? 'border-[#F8D25A] text-[#F8D25A] font-bold' : 'border-transparent text-ink3 hover:text-ink2 hover:border-surface2'}`}>
@@ -234,68 +235,81 @@ export function AcademicoClient({
       <div className="mt-8">
         {activeTab === 'cursos' && <CursosTab />}
 
-        {activeTab === 'matriculas' && (
-          <div className="bg-surface rounded-2xl border border-[rgba(0,0,0,0.02)] overflow-hidden">
-            <div className="p-4 border-b border-surface2 flex justify-between items-center">
-              <h3 className="font-bold text-ink flex items-center gap-2">
-                <Users size={18} className="text-teal" /> Nómina Estudiantil
-              </h3>
-              <p className="text-xs text-ink3">Selecciona los cursos a los que pertenece cada estudiante.</p>
-            </div>
-            {initialStudents.length === 0 ? (
-              <div className="p-8 text-center text-ink4 text-sm">
-                No hay estudiantes unidos a la institución. Entrégales el código de invitación.
+        {activeTab === 'matriculas' && (() => {
+          const filteredStudents = enrollments
+            .filter((e: any) => e.course_id === nominaCourseId)
+            .map((e: any) => initialStudents.find((s: any) => s.id === e.student_id))
+            .filter(Boolean)
+            .sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || ''))
+          const courseSubjects = subjects.filter((s: any) => s.course_id === nominaCourseId)
+          const selectedCourse = courses.find((c: any) => c.id === nominaCourseId)
+
+          return (
+            <div className="space-y-5">
+              {/* Course filter */}
+              <div className="p-5 bg-surface rounded-2xl border border-surface2 flex flex-wrap gap-4 items-end">
+                <div className="flex-1 min-w-[200px] space-y-1">
+                  <label className="text-xs text-ink4 font-medium px-1">Filtrar por Curso</label>
+                  <select value={nominaCourseId} onChange={e => setNominaCourseId(e.target.value)}
+                    className="w-full bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet">
+                    {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name} {c.parallel}</option>)}
+                  </select>
+                </div>
+                <div className="text-xs text-ink3 space-x-4">
+                  <span><b>{filteredStudents.length}</b> estudiantes</span>
+                  <span><b>{courseSubjects.length}</b> materias</span>
+                </div>
               </div>
-            ) : (
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-bg text-ink3 text-xs uppercase tracking-wider">
-                  <tr>
-                    <th className="px-6 py-4 font-medium">Estudiante</th>
-                    <th className="px-6 py-4 font-medium">Cursos Matriculados</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-surface">
-                  {initialStudents.map((student: any) => {
-                    const studentCourseIds = enrollments
-                      .filter((e: any) => e.student_id === student.id)
-                      .map((e: any) => e.course_id)
-                    return (
-                      <tr key={student.id} className="hover:bg-bg/50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-ink">{student.full_name}</div>
-                          <div className="text-xs text-ink4">{student.email}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-2">
-                            {courses.map((course: any) => {
-                              const isEnrolled = studentCourseIds.includes(course.id)
-                              return (
-                                <button
-                                  key={course.id}
-                                  onClick={() => handleEnrollmentChange(student.id, course.id)}
-                                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
-                                    isEnrolled
-                                      ? 'bg-teal/10 text-teal border-teal/20 shadow-[0_0_8px_rgba(38,215,180,0.15)]'
-                                      : 'bg-bg text-ink4 border-surface hover:border-surface2'
-                                  }`}
-                                >
-                                  {course.name}
-                                </button>
-                              )
-                            })}
-                            {courses.length === 0 && (
-                              <span className="text-xs text-ink4 italic">Debes crear cursos primero</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
+
+              {/* Student roster */}
+              {filteredStudents.length === 0 ? (
+                <div className="p-10 text-center text-ink3 bg-surface rounded-2xl border border-surface2">
+                  <Users size={36} className="mx-auto mb-3 text-ink4 opacity-40" />
+                  <p className="font-semibold text-sm">No hay estudiantes matriculados en {selectedCourse?.name || 'este curso'}</p>
+                  <p className="text-xs text-ink4 mt-1">Matricula estudiantes desde la pestaña "Gestión de Cuentas"</p>
+                </div>
+              ) : (
+                <div className="bg-surface rounded-2xl border border-surface2 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-bg text-ink3 text-xs uppercase tracking-wider border-b border-surface2">
+                        <tr>
+                          <th className="px-5 py-3 font-medium w-10">#</th>
+                          <th className="px-5 py-3 font-medium">Estudiante</th>
+                          <th className="px-5 py-3 font-medium">Email</th>
+                          <th className="px-5 py-3 font-medium">Materias del Curso</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-surface">
+                        {filteredStudents.map((student: any, idx: number) => (
+                          <tr key={student.id} className="hover:bg-bg/50 transition-colors">
+                            <td className="px-5 py-3 text-ink4 text-xs">{idx + 1}</td>
+                            <td className="px-5 py-3">
+                              <div className="font-medium text-ink">{student.full_name}</div>
+                            </td>
+                            <td className="px-5 py-3 text-ink3 text-xs">{student.email}</td>
+                            <td className="px-5 py-3">
+                              <div className="flex flex-wrap gap-1.5">
+                                {courseSubjects.map((s: any) => (
+                                  <span key={s.id} className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-violet/8 text-violet2 border border-violet/15">
+                                    {s.name}
+                                  </span>
+                                ))}
+                                {courseSubjects.length === 0 && (
+                                  <span className="text-xs text-ink4 italic">Sin materias asignadas</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {activeTab === 'personal' && (
           <PersonalClient
