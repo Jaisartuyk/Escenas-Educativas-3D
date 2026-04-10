@@ -12,16 +12,17 @@ import type { HorariosState } from '@/types/horarios'
 import { getEmptyConfig, DEFAULT_HORAS } from '@/types/horarios'
 import toast from 'react-hot-toast'
 
-const STEPS = [
-  { n: 1, label: 'Institución' },
-  { n: 2, label: 'Docentes' },
-  { n: 3, label: 'Horas' },
-  { n: 4, label: 'Generar' },
-  { n: 5, label: 'Editar y exportar' },
+const TABS = [
+  { label: 'Institución',      icon: '🏫' },
+  { label: 'Docentes',         icon: '👨‍🏫' },
+  { label: 'Horas',            icon: '⏱' },
+  { label: 'Generar',          icon: '⚡' },
+  { label: 'Editar / Exportar', icon: '📋' },
 ]
 
 export function HorariosClient() {
   const [loadingInitial, setLoadingInitial] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [state, setState] = useState<HorariosState>({
     config:        getEmptyConfig('Cargando...'),
     docentes:      [],
@@ -35,59 +36,59 @@ export function HorariosClient() {
       .then(res => res.json())
       .then(data => {
         if (!data.error) {
-          // Safeguard: Merge backend config with empty config to ensure all arrays/objects exist
           const safeConfig = { ...getEmptyConfig(data.config?.nombre || ''), ...data.config }
-          safeConfig.cursos = safeConfig.cursos || []
+          safeConfig.cursos   = safeConfig.cursos   || []
           safeConfig.horarios = safeConfig.horarios || []
-          safeConfig.tutores = safeConfig.tutores || {}
-          
-          // Safeguard: Normalize teachers if english keys were used by accident in the DB
+          safeConfig.tutores  = safeConfig.tutores  || {}
+
           const safeDocentes = (data.docentes || []).map((d: any) => ({
-            id: d.id,
-            titulo: d.titulo || '',
-            nombre: d.nombre || d.name || 'Profesor',
+            id:       d.id,
+            titulo:   d.titulo  || '',
+            nombre:   d.nombre  || d.name || 'Profesor',
             materias: d.materias || d.subjects || [],
-            jornada: d.jornada || 'AMBAS',
-            nivel: d.nivel || 'AMBOS'
+            jornada:  d.jornada  || 'AMBAS',
+            nivel:    d.nivel    || 'AMBOS',
           }))
 
           setState({
             ...data,
-            config: safeConfig,
-            docentes: safeDocentes,
+            config:        safeConfig,
+            docentes:      safeDocentes,
             horasPorCurso: data.horasPorCurso || {},
-            horario: data.horario || {},
-            step: 0
+            horario:       data.horario       || {},
+            // ✅ Restaurar el último tab activo, no siempre arrancar en 0
+            step: typeof data.step === 'number' ? data.step : 0,
           })
         }
         setLoadingInitial(false)
       })
-      .catch((e) => {
+      .catch(() => {
         toast.error('Error al cargar datos del horario')
         setLoadingInitial(false)
       })
   }, [])
 
+  // ── Guardado automático ────────────────────────────────────────────────────
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  // Ref actualizado sincrónicamente en saveStateToDB (no via useEffect),
-  // garantiza que el unmount handler siempre tenga el estado más reciente.
   const pendingSaveRef = useRef<HorariosState | null>(null)
 
-  // Guarda automáticamente en el backend (Debounced 800ms para evitar overwrites)
   const saveStateToDB = (newState: HorariosState, forceNow = false) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    pendingSaveRef.current = newState // captura sincrónica del estado más reciente
+    pendingSaveRef.current = newState
 
     const doSave = async () => {
-      pendingSaveRef.current = null // ya no hay guardado pendiente
+      pendingSaveRef.current = null
+      setSaving(true)
       try {
         await fetch('/api/horarios', {
-          method: 'POST',
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newState),
+          body:    JSON.stringify(newState),
         })
       } catch (e) {
         console.error('Error auto-saving', e)
+      } finally {
+        setSaving(false)
       }
     }
 
@@ -98,47 +99,51 @@ export function HorariosClient() {
     }
   }
 
-  // Al desmontar: cancelar el debounce y guardar inmediatamente con el estado correcto
+  // Guardar al abandonar la vista con el estado más reciente
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
       const pending = pendingSaveRef.current
       if (pending) {
         fetch('/api/horarios', {
-          method: 'POST',
+          method:    'POST',
           keepalive: true,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pending),
+          headers:   { 'Content-Type': 'application/json' },
+          body:      JSON.stringify(pending),
         }).catch(() => {})
       }
     }
   }, [])
 
-  function updateState(updater: Partial<HorariosState> | ((s: HorariosState) => HorariosState), forceSave = false) {
-    setState((s) => {
+  function updateState(
+    updater: Partial<HorariosState> | ((s: HorariosState) => HorariosState),
+    forceSave = false
+  ) {
+    setState(s => {
       const newState = typeof updater === 'function' ? updater(s) : { ...s, ...updater }
       saveStateToDB(newState, forceSave)
       return newState
     })
   }
 
-  function setStep(n: number) { 
-    updateState(s => ({ ...s, step: n }), true) // FORZAR GUARDADO INMEDIATO
+  // ✅ setTab: siempre accesible, sin restricciones de orden
+  function setTab(n: number) {
+    updateState(s => ({ ...s, step: n }), true)
   }
 
   const handleGenerar = useCallback(() => {
     const horario = generarHorario(state.config, state.docentes, state.horasPorCurso)
-    updateState(s => ({ ...s, horario, step: 4 }))
-    toast.success('Horario generado sin conflictos ✓')
+    updateState(s => ({ ...s, horario, step: 4 }), true)
+    toast.success('Horario generado ✓')
   }, [state.config, state.docentes, state.horasPorCurso])
 
   async function handleExport() {
     const t = toast.loading('Generando Excel...')
     try {
       const res = await fetch('/api/horarios/export', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body:    JSON.stringify({
           config:        state.config,
           docentes:      state.docentes,
           horasPorCurso: state.horasPorCurso,
@@ -159,46 +164,71 @@ export function HorariosClient() {
     }
   }
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div>
-      {/* ── STEPS INDICATOR ── */}
-      <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-1">
-        {STEPS.map((s, i) => (
-          <div key={s.n} className="flex items-center gap-2 flex-shrink-0">
+      {/* ── BARRA DE TABS ── */}
+      <div className="flex items-center gap-1 mb-8 bg-surface border border-[rgba(120,100,255,0.1)] rounded-2xl p-1.5 overflow-x-auto">
+        {TABS.map((tab, i) => {
+          const isActive    = state.step === i
+          const isCompleted = !loadingInitial && i < state.step
+
+          return (
             <button
-              onClick={() => i <= state.step || i === state.step + 1 ? setStep(i) : undefined}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${
-                state.step === i
-                  ? 'bg-[rgba(124,109,250,0.15)] border-[rgba(124,109,250,0.4)] text-violet2'
-                  : i < state.step
-                  ? 'bg-[rgba(38,215,180,0.1)] border-[rgba(38,215,180,0.3)] text-teal cursor-pointer'
-                  : 'border-[rgba(120,100,255,0.14)] text-ink3 cursor-not-allowed'
-              }`}
+              key={i}
+              onClick={() => !loadingInitial && setTab(i)}
+              disabled={loadingInitial}
+              className={`
+                flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+                transition-all flex-shrink-0 relative
+                ${isActive
+                  ? 'bg-[rgba(124,109,250,0.18)] text-violet2 shadow-[0_0_0_1px_rgba(124,109,250,0.35)]'
+                  : isCompleted
+                  ? 'text-teal hover:bg-[rgba(38,215,180,0.08)] hover:text-teal'
+                  : 'text-ink3 hover:bg-[rgba(0,0,0,0.04)] hover:text-ink2'
+                }
+                disabled:opacity-40 disabled:cursor-not-allowed
+              `}
             >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                i < state.step ? 'bg-teal text-[#04342C]' : state.step === i ? 'bg-violet text-white' : 'bg-surface2 text-ink3'
-              }`}>
-                {i < state.step ? '✓' : s.n}
+              <span className={`
+                w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0
+                ${isActive    ? 'bg-violet text-white'
+                : isCompleted ? 'bg-teal text-[#04342C]'
+                : 'bg-surface2 text-ink3'}
+              `}>
+                {isCompleted ? '✓' : i + 1}
               </span>
-              {s.label}
+              <span>{tab.label}</span>
+
+              {/* Indicador de guardado en el tab activo */}
+              {isActive && saving && (
+                <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-violet animate-pulse" />
+              )}
             </button>
-            {i < STEPS.length - 1 && (
-              <div className={`w-6 h-px flex-shrink-0 ${i < state.step ? 'bg-teal' : 'bg-[rgba(120,100,255,0.2)]'}`} />
-            )}
-          </div>
-        ))}
+          )
+        })}
+
+        {/* Indicador de guardado global */}
+        <div className="ml-auto pr-2 flex-shrink-0">
+          {saving
+            ? <span className="text-[11px] text-ink4 animate-pulse">Guardando...</span>
+            : !loadingInitial && <span className="text-[11px] text-teal">✓ Guardado</span>
+          }
+        </div>
       </div>
 
-      {/* ── STEP CONTENT ── */}
+      {/* ── CONTENIDO DEL TAB ACTIVO ── */}
       {loadingInitial ? (
-        <div className="flex justify-center items-center py-20 text-ink3">Cargando datos de institución...</div>
+        <div className="flex justify-center items-center py-20 text-ink3">
+          Cargando datos de institución...
+        </div>
       ) : (
         <>
           {state.step === 0 && (
             <StepInstitucion
               config={state.config}
               onChange={config => updateState(s => ({ ...s, config }))}
-              onNext={() => setStep(1)}
+              onNext={() => setTab(1)}
             />
           )}
           {state.step === 1 && (
@@ -208,8 +238,8 @@ export function HorariosClient() {
               nivelInstitucional={state.config.nivel}
               directoryMetadata={(state as any).directory || {}}
               onChange={docentes => updateState(s => ({ ...s, docentes }))}
-              onBack={() => setStep(0)}
-              onNext={() => setStep(2)}
+              onBack={() => setTab(0)}
+              onNext={() => setTab(2)}
             />
           )}
           {state.step === 2 && (
@@ -220,14 +250,14 @@ export function HorariosClient() {
               horasPorCurso={state.horasPorCurso}
               jornada={state.config.jornada}
               onChange={horasPorCurso => updateState(s => ({ ...s, horasPorCurso }))}
-              onBack={() => setStep(1)}
-              onNext={() => setStep(3)}
+              onBack={() => setTab(1)}
+              onNext={() => setTab(3)}
             />
           )}
           {state.step === 3 && (
             <StepGenerar
               state={state}
-              onBack={() => setStep(2)}
+              onBack={() => setTab(2)}
               onGenerar={handleGenerar}
             />
           )}
@@ -235,7 +265,7 @@ export function HorariosClient() {
             <StepEditar
               state={state}
               onChange={horario => updateState(s => ({ ...s, horario }))}
-              onBack={() => setStep(3)}
+              onBack={() => setTab(3)}
               onExport={handleExport}
             />
           )}
