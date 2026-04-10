@@ -102,3 +102,18 @@
 .dot-bounce span  { display: inline-block; animation: dotBounce 1s infinite; }
 .dot-bounce span:nth-child(2) { animation-delay: .15s; }
 .dot-bounce span:nth-child(3) { animation-delay: .30s; }
+
+/* ── Print Styles ── */
+@media print {
+  body { background: white !important; }
+  aside, header, .print\:hidden, nav { display: none !important; }
+  main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+  .print\:shadow-none { box-shadow: none !important; }
+  .print\:border-none { border: none !important; }
+  .print\:rounded-none { border-radius: 0 !important; }
+  .print\:p-0 { padding: 0 !important; }
+  .print\:p-4 { padding: 1rem !important; }
+  .print\:px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .print\:pb-4 { padding-bottom: 1rem !important; }
+  .print\:mt-24 { margin-top: 6rem !important; }
+}

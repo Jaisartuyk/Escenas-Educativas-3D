@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { LibretasClient } from '@/components/libretas/LibretasClient'
 
@@ -9,10 +10,11 @@ export const revalidate = 0
 export default async function LibretasPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await (supabase as any)
+  const admin = createAdminClient()
+
+  const { data: profile } = await admin
     .from('profiles')
     .select('*, institutions(id, name)')
     .eq('id', user.id)
@@ -20,75 +22,73 @@ export default async function LibretasPage() {
 
   if (!profile?.institution_id) redirect('/dashboard')
 
-  // Obtener toda la data institucional
-  let coursesData: any[] = []
-  let studentsData: any[] = []
-  let enrollsData: any[] = []
-  let subjectsData: any[] = []
-  let gradesData: any[] = []
-  let assignmentsData: any[] = []
+  const instId = profile.institution_id
 
-  if (profile.role === 'admin' || profile.role === 'teacher') {
-    // Para roles administrativos se obtiene la vista global de la institución
-    const [courses, students, enrollments, subjects] = await Promise.all([
-      (supabase as any).from('courses').select('*').eq('institution_id', profile.institution_id),
-      (supabase as any).from('profiles').select('id, full_name, email').eq('institution_id', profile.institution_id).eq('role', 'student'),
-      (supabase as any).from('enrollments').select('*'),
-      (supabase as any).from('subjects').select('*')
-    ])
-    coursesData = courses.data || []
-    studentsData = students.data || []
-    enrollsData = enrollments.data || []
-    subjectsData = subjects.data || []
+  // ── Fetch all institutional data ───────────────────────────────────────
+  const [
+    { data: courses },
+    { data: enrollments },
+    { data: subjects },
+    { data: categories },
+  ] = await Promise.all([
+    admin.from('courses').select('*').eq('institution_id', instId),
+    admin.from('enrollments').select('*, student:profiles(id, full_name, email)'),
+    admin.from('subjects').select('*, course:courses(id, name, parallel)'),
+    admin.from('grade_categories').select('*').eq('institution_id', instId).order('sort_order'),
+  ])
 
-    const { data: globalAssignments } = await (supabase as any).from('assignments').select('*')
-    assignmentsData = globalAssignments || []
-    
-    if (assignmentsData.length > 0) {
-      const { data: globalGrades } = await (supabase as any).from('grades').select('*').in('assignment_id', assignmentsData.map((a:any) => a.id))
-      gradesData = globalGrades || []
-    }
-  } else if (profile.role === 'student') {
-    // Para estudiantes se obtiene solo su propia data
-    coursesData = []
-    studentsData = [profile] // Solo a sí mismo
-    const { data: myEnrolls } = await (supabase as any).from('enrollments').select('course_id').eq('student_id', user.id)
-    
-    const courseIds = (myEnrolls || []).map((e:any) => e.course_id)
-    if (courseIds.length > 0) {
-      const { data: crs } = await (supabase as any).from('courses').select('*').in('id', courseIds)
-      coursesData = crs || []
-      
-      const { data: sbs } = await (supabase as any).from('subjects').select('*').in('course_id', courseIds)
-      subjectsData = sbs || []
-      
-      if (subjectsData.length > 0) {
-         const { data: asgs } = await (supabase as any).from('assignments').select('*').in('subject_id', subjectsData.map((s:any) => s.id))
-         assignmentsData = asgs || []
-         
-         if (assignmentsData.length > 0) {
-           const { data: grs } = await (supabase as any).from('grades').select('*').in('assignment_id', assignmentsData.map((a:any)=>a.id)).eq('student_id', user.id)
-           gradesData = grs || []
-         }
-      }
+  // Filter subjects by institution courses
+  const courseIds = (courses || []).map((c: any) => c.id)
+  const instSubjects = (subjects || []).filter((s: any) => courseIds.includes(s.course_id))
+  const subjectIds = instSubjects.map((s: any) => s.id)
+
+  // Assignments and grades
+  let assignments: any[] = []
+  let grades: any[] = []
+
+  if (subjectIds.length > 0) {
+    const { data: aData } = await admin
+      .from('assignments')
+      .select('id, subject_id, title, trimestre, parcial, category_id, created_at')
+      .in('subject_id', subjectIds)
+    assignments = aData || []
+
+    if (assignments.length > 0) {
+      const { data: gData } = await admin
+        .from('grades')
+        .select('assignment_id, student_id, score')
+        .in('assignment_id', assignments.map((a: any) => a.id))
+      grades = gData || []
     }
   }
 
+  // For students, filter to their own data
+  const isStudent = profile.role === 'student'
+  const filteredEnrollments = isStudent
+    ? (enrollments || []).filter((e: any) => e.student_id === user.id)
+    : (enrollments || []).filter((e: any) => courseIds.includes(e.course_id))
+
+  const filteredGrades = isStudent
+    ? grades.filter((g: any) => g.student_id === user.id)
+    : grades
+
   return (
-    <div className="animate-fade-in max-w-5xl mx-auto space-y-6">
+    <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
       <div className="print:hidden">
-        <h1 className="font-display text-3xl font-bold tracking-tight">Libretas de Calificaciones</h1>
+        <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">Libretas de Calificaciones</h1>
         <p className="text-ink3 text-sm mt-1">Generación e impresión de récord académico automatizado.</p>
       </div>
 
-      <LibretasClient 
+      <LibretasClient
         role={profile.role}
         institutionName={profile.institutions?.name}
-        courses={coursesData}
-        students={studentsData}
-        subjects={subjectsData}
-        assignments={assignmentsData}
-        grades={gradesData}
+        courses={courses || []}
+        enrollments={filteredEnrollments}
+        subjects={instSubjects}
+        assignments={assignments}
+        grades={filteredGrades}
+        categories={categories || []}
+        currentUserId={user.id}
       />
     </div>
   )
