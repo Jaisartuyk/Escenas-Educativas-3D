@@ -32,7 +32,7 @@ export async function GET() {
   log.enrollmentsCount = enrollments?.length ?? 0
   log.enrollmentsError = enrErr?.message ?? null
 
-  const studentIds = [...new Set((enrollments || []).map((e: any) => e.student_id as string))]
+  const studentIds = Array.from(new Set((enrollments || []).map((e: any) => e.student_id as string)))
   log.studentIds = studentIds
 
   // 4. Perfiles de esos estudiantes con admin client
