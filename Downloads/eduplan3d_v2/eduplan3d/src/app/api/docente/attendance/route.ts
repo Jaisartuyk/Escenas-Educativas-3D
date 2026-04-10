@@ -41,16 +41,19 @@ export async function POST(req: Request) {
   const body = await req.json()
   const { subject_id, student_id, date, status, institution_id } = body
 
+  console.log('[attendance POST]', { subject_id, student_id, date, status, institution_id })
+
   const admin = createAdminClient()
 
   if (status === 'present') {
     // present = sin registro (borramos si existe)
-    await admin
+    const { error: delErr } = await admin
       .from('attendance' as any)
       .delete()
       .eq('subject_id', subject_id)
       .eq('student_id', student_id)
       .eq('date', date)
+    if (delErr) console.error('[attendance DELETE error]', delErr)
     return NextResponse.json({ success: true })
   }
 
@@ -61,6 +64,9 @@ export async function POST(req: Request) {
       { onConflict: 'subject_id,student_id,date' }
     )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[attendance UPSERT error]', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   return NextResponse.json({ success: true })
 }

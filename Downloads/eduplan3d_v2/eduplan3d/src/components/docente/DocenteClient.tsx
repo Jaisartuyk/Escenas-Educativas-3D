@@ -184,17 +184,30 @@ export function DocenteClient({
 
     setAttendance(prev => ({ ...prev, [key]: next }))
 
-    await fetch('/api/docente/attendance', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        subject_id:     selectedSubjectId,
-        student_id:     studentId,
-        date,
-        status:         next,
-        institution_id: instId,
-      }),
-    })
+    try {
+      const res = await fetch('/api/docente/attendance', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          subject_id:     selectedSubjectId,
+          student_id:     studentId,
+          date,
+          status:         next,
+          institution_id: instId,
+        }),
+      })
+      const data = await res.json()
+      if (data.error) {
+        console.error('[attendance] Error:', data.error)
+        toast.error('Error al guardar asistencia: ' + data.error)
+        // Revertir cambio optimista
+        setAttendance(prev => ({ ...prev, [key]: current }))
+      }
+    } catch (e) {
+      console.error('[attendance] Fetch failed:', e)
+      toast.error('Error de conexión al guardar asistencia')
+      setAttendance(prev => ({ ...prev, [key]: current }))
+    }
   }
 
   // ════════════════════════════════════════════════════════════════════════
