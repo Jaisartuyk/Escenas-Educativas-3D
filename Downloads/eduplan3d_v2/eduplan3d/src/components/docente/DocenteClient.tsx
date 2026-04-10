@@ -27,9 +27,12 @@ const DAYS_ES   = ['Lun','Mar','Mié','Jue','Vie']
 const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function subjectColor(name: string): string {
-  const h = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  return CARD_COLORS[h % CARD_COLORS.length]
+// Asigna colores por orden a nombres únicos — garantiza colores distintos por materia
+function buildColorMap(subjects: any[]): Record<string, string> {
+  const uniqueNames = [...new Set(subjects.map((s: any) => s.name as string))]
+  const map: Record<string, string> = {}
+  uniqueNames.forEach((name, i) => { map[name] = CARD_COLORS[i % CARD_COLORS.length] })
+  return map
 }
 
 function getMondayOfWeek(date = new Date()) {
@@ -94,7 +97,8 @@ export function DocenteClient({
   const [editingGrades,setEditingGrades]= useState<Record<string, string>>({})
 
   const selectedSubject = mySubjects.find((s: any) => s.id === selectedSubjectId)
-  const instId = (profile?.institutions as any)?.id || profile?.institution_id
+  const instId   = (profile?.institutions as any)?.id || profile?.institution_id
+  const colorMap = buildColorMap(mySubjects)
 
   // ── Alumnos del curso seleccionado ───────────────────────────────────────
   const students: any[] = selectedSubject
@@ -305,7 +309,7 @@ export function DocenteClient({
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {mySubjects.map((s: any) => {
-              const color    = subjectColor(s.name)
+              const color    = colorMap[s.name] || CARD_COLORS[0]
               const studs    = enrollments.filter((e: any) => e.course_id === s.course?.id)
               const asgCount = assignments.filter((a: any) => a.subject_id === s.id).length
               const initial  = s.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -358,7 +362,7 @@ export function DocenteClient({
   // ════════════════════════════════════════════════════════════════════════
   //  RENDER: DETALLE DE CLASE
   // ════════════════════════════════════════════════════════════════════════
-  const color = subjectColor(selectedSubject?.name || '')
+  const color = colorMap[selectedSubject?.name || ''] || CARD_COLORS[0]
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto space-y-5">
