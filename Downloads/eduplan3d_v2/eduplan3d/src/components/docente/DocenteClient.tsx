@@ -496,7 +496,7 @@ export function DocenteClient({
     return (
       <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Panel Docente</h1>
+          <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">Panel Docente</h1>
           <p className="text-ink3 text-sm mt-1">Selecciona una clase para gestionar asistencia, calificaciones y comportamiento.</p>
         </div>
 
@@ -579,7 +579,7 @@ export function DocenteClient({
           {selectedSubject?.name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
         </div>
         <div className="min-w-0">
-          <h1 className="font-display text-2xl font-bold tracking-tight leading-tight">
+          <h1 className="font-display text-xl lg:text-2xl font-bold tracking-tight leading-tight">
             {selectedSubject?.name}
           </h1>
           <p className="text-sm text-ink3">
@@ -590,7 +590,7 @@ export function DocenteClient({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface rounded-2xl p-1 border border-surface2 w-fit">
+      <div className="flex gap-1 bg-surface rounded-2xl p-1 border border-surface2 overflow-x-auto">
         {([
           { id: 'asistencia',      label: 'Asistencia',      icon: CalendarDays  },
           { id: 'calificaciones',  label: 'Calificaciones',  icon: BarChart2     },

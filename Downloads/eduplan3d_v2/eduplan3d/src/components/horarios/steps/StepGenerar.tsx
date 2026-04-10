@@ -32,7 +32,7 @@ export function StepGenerar({ state, onBack, onGenerar }: Props) {
   return (
     <div>
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {stats.map(s => (
           <div key={s.label} className="card p-5 text-center">
             <div className={`font-display text-3xl font-extrabold tracking-tight mb-1 ${s.color}`}>{s.value}</div>

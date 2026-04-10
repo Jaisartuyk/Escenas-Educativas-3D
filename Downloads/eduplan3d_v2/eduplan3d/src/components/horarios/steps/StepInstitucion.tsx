@@ -74,7 +74,7 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
     <div>
       <div className="card p-6 mb-4">
         <h2 className="font-display text-base font-bold tracking-tight mb-5">Datos institucionales</h2>
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div className="col-span-3">
             <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nombre de la institución</label>
             <input value={config.nombre} onChange={e => set('nombre', e.target.value)} className="input-base" />

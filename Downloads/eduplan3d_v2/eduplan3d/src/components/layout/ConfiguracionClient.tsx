@@ -88,7 +88,7 @@ export function ConfiguracionClient({ profile }: Props) {
               <h2 className="font-display text-lg font-bold tracking-tight mb-0.5">Suscripción</h2>
               <p className="text-ink3 text-sm">Gestiona tu plan actual</p>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {PLANS.map(p => (
                 <div key={p.id} className={`card p-5 border-2 ${p.color} ${profile?.plan === p.id ? '' : 'opacity-70'} relative`}>
                   {profile?.plan === p.id && (

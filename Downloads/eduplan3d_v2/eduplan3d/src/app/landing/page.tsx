@@ -47,11 +47,11 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* ── NAV ── */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between px-12 h-16 bg-bg/70 backdrop-blur-xl border-b border-[rgba(120,100,255,0.14)]">
+      <nav className="sticky top-0 z-50 flex items-center justify-between px-4 lg:px-12 h-16 bg-bg/70 backdrop-blur-xl border-b border-[rgba(120,100,255,0.14)]">
         <Logo />
         <div className="flex items-center gap-2">
-          <Link href="#features" className="btn-ghost">Características</Link>
-          <Link href="#planes"   className="btn-ghost">Planes</Link>
+          <Link href="#features" className="btn-ghost hidden sm:inline-flex">Características</Link>
+          <Link href="#planes"   className="btn-ghost hidden sm:inline-flex">Planes</Link>
           <Link href="/auth/login"    className="btn-ghost">Iniciar sesión</Link>
           <Link href="/auth/register" className="btn-primary text-sm px-5 py-2">
             Empezar gratis →
@@ -87,7 +87,7 @@ export default function LandingPage() {
           </Link>
         </div>
 
-        <div className="animate-fade-up [animation-delay:500ms] flex gap-12 mt-20">
+        <div className="animate-fade-up [animation-delay:500ms] flex flex-wrap gap-8 lg:gap-12 mt-20 justify-center">
           {[['2.4k+','Docentes activos'],['18k+','Planificaciones generadas'],['94%','Satisfacción'],['6','Escenas 3D']].map(([n, l]) => (
             <div key={l} className="text-center">
               <div className="font-display text-[32px] font-extrabold tracking-[-1px] gradient-text">{n}</div>
@@ -98,29 +98,29 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ── */}
-      <section id="features" className="py-28 px-12 max-w-6xl mx-auto w-full">
+      <section id="features" className="py-16 lg:py-28 px-4 lg:px-12 max-w-6xl mx-auto w-full">
         <p className="text-center text-[11px] font-bold uppercase tracking-[2px] text-violet2 mb-4">Funcionalidades</p>
         <h2 className="font-display text-[clamp(28px,4vw,44px)] font-extrabold text-center tracking-[-1.5px] leading-[1.1] mb-16">
           Todo lo que un docente<br />necesita en un solo lugar
         </h2>
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {FEATURES.map(f => <FeatureCard key={f.title} {...f} />)}
         </div>
       </section>
 
       {/* ── PLANS ── */}
-      <section id="planes" className="py-24 px-12 max-w-5xl mx-auto w-full">
+      <section id="planes" className="py-16 lg:py-24 px-4 lg:px-12 max-w-5xl mx-auto w-full">
         <p className="text-center text-[11px] font-bold uppercase tracking-[2px] text-violet2 mb-4">Precios</p>
         <h2 className="font-display text-[clamp(28px,4vw,44px)] font-extrabold text-center tracking-[-1.5px] leading-[1.1] mb-16">
           Un plan para cada docente
         </h2>
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {PLANS.map(p => <PlanCard key={p.name} {...p} />)}
         </div>
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-[rgba(120,100,255,0.14)] px-12 py-8 flex items-center justify-between text-ink3 text-sm">
+      <footer className="border-t border-[rgba(120,100,255,0.14)] px-4 lg:px-12 py-6 lg:py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-ink3 text-sm">
         <Logo size="sm" />
         <span>© 2025 EduPlan 3D — Hecho para docentes ecuatorianos 🇪🇨</span>
         <div className="flex gap-6">

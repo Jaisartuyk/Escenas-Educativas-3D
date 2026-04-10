@@ -142,7 +142,7 @@ export default async function DashboardPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-[1fr_320px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
           {/* Últimas tareas creadas */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -274,7 +274,7 @@ export default async function DashboardPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-[1fr_300px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
           <div>
             <h2 className="font-display text-lg font-bold tracking-tight mb-4">Próximas entregas</h2>
             {recentAssignments.length === 0 ? (
@@ -358,7 +358,7 @@ export default async function DashboardPage() {
       )}
 
       <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold tracking-tight">{greeting}, {firstName} 👋</h1>
+        <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">{greeting}, {firstName} 👋</h1>
         <p className="text-ink3 text-sm mt-1">
           {new Intl.DateTimeFormat('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}
         </p>
@@ -375,7 +375,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           { label: 'Total planificaciones', value: totalPlans ?? 0,  color: 'text-violet2' },
           { label: 'Este mes',              value: thisMonth ?? 0,   color: 'text-teal'   },
@@ -389,7 +389,7 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-[1fr_340px] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display text-lg font-bold tracking-tight">Planificaciones recientes</h2>
