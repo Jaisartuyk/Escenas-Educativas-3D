@@ -124,9 +124,30 @@ export function DocenteClient({
   const [catWeight,     setCatWeight]     = useState('20')
   const [catColor,      setCatColor]      = useState(CAT_COLORS[0])
 
+  // ── Modal detalle de actividad ──────────────────────────────────────────────
+  const [editActivity,     setEditActivity]     = useState<any>(null)
+  const [actTab,           setActTab]           = useState<'general'|'descripcion'|'adjuntos'|'estudiantes'>('general')
+  const [actTitle,         setActTitle]         = useState('')
+  const [actDesc,          setActDesc]          = useState('')
+  const [actStartDate,     setActStartDate]     = useState('')
+  const [actDueDate,       setActDueDate]       = useState('')
+  const [actDueTime,       setActDueTime]       = useState('23:59')
+  const [actCatId,         setActCatId]         = useState('')
+  const [savingAct,        setSavingAct]        = useState(false)
+
   const selectedSubject = mySubjects.find((s: any) => s.id === selectedSubjectId)
   const instId   = (profile?.institutions as any)?.id || profile?.institution_id
   const colorMap = buildColorMap(mySubjects)
+
+  // ── Helpers para categorías (scope componente para uso en modales) ────────
+  const getCatColor = (catId: string | null) => {
+    const cat = categories.find((c: any) => c.id === catId)
+    return cat?.color || '#94A3B8'
+  }
+  const getCatName = (catId: string | null) => {
+    const cat = categories.find((c: any) => c.id === catId)
+    return cat?.name || 'Sin categoría'
+  }
 
   // ── Alumnos del curso seleccionado ───────────────────────────────────────
   const students: any[] = selectedSubject
@@ -289,6 +310,57 @@ export function DocenteClient({
     await fetch(`/api/docente/categories?id=${id}`, { method: 'DELETE' })
     setCategories(prev => prev.filter((c: any) => c.id !== id))
     toast.success('Categoría eliminada')
+  }
+
+  // ── Modal actividad: abrir / guardar / eliminar ────────────────────────────
+  function openActivityModal(a: any) {
+    setEditActivity(a)
+    setActTab('general')
+    setActTitle(a.title || '')
+    setActDesc(a.description || '')
+    setActStartDate(a.start_date || '')
+    setActDueDate(a.due_date || '')
+    setActDueTime(a.due_time || '23:59')
+    setActCatId(a.category_id || '')
+  }
+  async function saveActivity() {
+    if (!editActivity || !actTitle.trim()) return
+    setSavingAct(true)
+    const payload = {
+      id:          editActivity.id,
+      title:       actTitle,
+      description: actDesc,
+      start_date:  actStartDate || null,
+      due_date:    actDueDate || null,
+      due_time:    actDueTime || '23:59',
+      category_id: actCatId || null,
+    }
+    const res = await fetch('/api/docente/assignments', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json()
+    if (data.error) { toast.error(data.error); setSavingAct(false); return }
+    setAssignments(prev => prev.map(a => a.id === editActivity.id ? { ...a, ...payload } : a))
+    setEditActivity(null)
+    setSavingAct(false)
+    toast.success('Actividad actualizada')
+  }
+  async function deleteActivity() {
+    if (!editActivity) return
+    if (!confirm('¿Eliminar esta actividad y todas sus calificaciones?')) return
+    await fetch(`/api/docente/assignments?id=${editActivity.id}`, { method: 'DELETE' })
+    setAssignments(prev => prev.filter(a => a.id !== editActivity.id))
+    setGrades(prev => prev.filter((g: any) => g.assignment_id !== editActivity.id))
+    setEditActivity(null)
+    toast.success('Actividad eliminada')
+  }
+
+  function getDaysRemaining(dueDate: string | null): number | null {
+    if (!dueDate) return null
+    const diff = new Date(dueDate).getTime() - new Date().getTime()
+    return Math.ceil(diff / (1000 * 60 * 60 * 24))
   }
 
   // ── Cálculo promedio ponderado ────────────────────────────────────────────
@@ -668,14 +740,6 @@ export function DocenteClient({
         )
 
         const totalWeight = categories.reduce((s: number, c: any) => s + Number(c.weight_percent), 0)
-        const getCatColor = (catId: string | null) => {
-          const cat = categories.find((c: any) => c.id === catId)
-          return cat?.color || '#94A3B8'
-        }
-        const getCatName = (catId: string | null) => {
-          const cat = categories.find((c: any) => c.id === catId)
-          return cat?.name || 'Sin categoría'
-        }
 
         // Sort assignments by category order
         const sortedAssignments = [...filteredAssignments].sort((a, b) => {
@@ -830,8 +894,9 @@ export function DocenteClient({
                             )
                           }
                           cols.push(
-                            <th key={a.id} className="px-3 py-3 text-center font-medium min-w-[100px]"
-                              style={{ borderTop: `3px solid ${getCatColor(a.category_id)}` }}>
+                            <th key={a.id} className="px-3 py-3 text-center font-medium min-w-[100px] cursor-pointer hover:bg-bg/60 transition-colors"
+                              style={{ borderTop: `3px solid ${getCatColor(a.category_id)}` }}
+                              onClick={() => openActivityModal(a)}>
                               <div className="truncate w-20 mx-auto font-semibold text-ink2" title={a.title}>{a.title}</div>
                               <div className="text-[9px] font-normal mt-0.5 normal-case tracking-normal" style={{ color: getCatColor(a.category_id) }}>
                                 {getCatName(a.category_id)}
@@ -1067,6 +1132,180 @@ export function DocenteClient({
                     Cancelar edición
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── MODAL: DETALLE / EDITAR ACTIVIDAD ────────────────────────── */}
+      {editActivity && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditActivity(null)}>
+          <div className="bg-surface rounded-2xl border border-surface2 w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-surface2 flex-shrink-0">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: getCatColor(actCatId) }} />
+                  <h2 className="font-bold text-lg text-ink truncate">{getCatName(actCatId)}</h2>
+                </div>
+                <p className="text-xs text-ink3 mt-0.5">
+                  Creada el {new Date(editActivity.created_at).toLocaleDateString('es', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  {' · '}T{editActivity.trimestre} P{editActivity.parcial}
+                </p>
+              </div>
+              <button onClick={() => setEditActivity(null)} className="text-ink4 hover:text-ink transition-colors flex-shrink-0 ml-3">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-surface2 px-5 flex-shrink-0">
+              {(['general', 'descripcion', 'adjuntos', 'estudiantes'] as const).map(tab => (
+                <button key={tab} onClick={() => setActTab(tab)}
+                  className={`px-4 py-3 text-sm font-medium border-b-2 transition-all capitalize
+                    ${actTab === tab ? 'border-violet text-violet' : 'border-transparent text-ink3 hover:text-ink'}`}>
+                  {tab === 'descripcion' ? 'Descripción' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div className="p-5 overflow-y-auto flex-1">
+              {/* ── Tab General ── */}
+              {actTab === 'general' && (
+                <div className="space-y-4">
+                  <div className="flex gap-5">
+                    {/* Left - form fields */}
+                    <div className="flex-1 space-y-3">
+                      {categories.length > 0 && (
+                        <div className="flex items-center gap-3">
+                          <label className="text-sm text-ink3 w-32 text-right flex-shrink-0">Tipo de actividad</label>
+                          <select value={actCatId} onChange={e => setActCatId(e.target.value)}
+                            className="flex-1 bg-bg border border-surface2 rounded-xl px-3 py-2 text-sm text-ink outline-none focus:border-violet"
+                            style={actCatId ? { borderLeftColor: getCatColor(actCatId), borderLeftWidth: 3 } : {}}>
+                            <option value="">Sin categoría</option>
+                            {categories.map((c: any) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-ink3 w-32 text-right flex-shrink-0">Nombre</label>
+                        <input value={actTitle} onChange={e => setActTitle(e.target.value)}
+                          className="flex-1 bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-ink3 w-32 text-right flex-shrink-0">Fecha Inicio</label>
+                        <input type="date" value={actStartDate} onChange={e => setActStartDate(e.target.value)}
+                          className="flex-1 bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-ink3 w-32 text-right flex-shrink-0">Fecha Entrega</label>
+                        <input type="date" value={actDueDate} onChange={e => setActDueDate(e.target.value)}
+                          className="flex-1 bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-ink3 w-32 text-right flex-shrink-0">Hora Entrega</label>
+                        <input type="time" value={actDueTime} onChange={e => setActDueTime(e.target.value)}
+                          className="w-32 bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                      </div>
+                    </div>
+                    {/* Right - days remaining badge */}
+                    {actDueDate && (
+                      <div className="flex flex-col items-center justify-start pt-6 flex-shrink-0">
+                        {(() => {
+                          const days = getDaysRemaining(actDueDate)
+                          if (days === null) return null
+                          return (
+                            <div className={`flex flex-col items-center p-4 rounded-2xl border-2 ${days > 0 ? 'border-teal/30 bg-teal/5' : days === 0 ? 'border-amber-400/30 bg-amber-50' : 'border-rose-400/30 bg-rose-50'}`}>
+                              <span className={`text-3xl font-black ${days > 0 ? 'text-teal' : days === 0 ? 'text-amber-500' : 'text-rose-500'}`}>
+                                {Math.abs(days)}
+                              </span>
+                              <span className="text-[10px] text-ink3 mt-1 font-medium">
+                                {days > 0 ? 'Días disponibles' : days === 0 ? 'Vence hoy' : 'Días vencido'}
+                              </span>
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Tab Descripción ── */}
+              {actTab === 'descripcion' && (
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-ink">Descripción de la actividad</label>
+                  <textarea value={actDesc} onChange={e => setActDesc(e.target.value)}
+                    rows={8}
+                    placeholder="Escribe las instrucciones, objetivos y detalles de la actividad..."
+                    className="w-full bg-bg border border-surface2 rounded-xl px-4 py-3 text-sm text-ink outline-none focus:border-violet resize-none leading-relaxed" />
+                </div>
+              )}
+
+              {/* ── Tab Adjuntos ── */}
+              {actTab === 'adjuntos' && (
+                <div className="space-y-4">
+                  <div className="border-2 border-dashed border-surface2 rounded-2xl p-10 text-center">
+                    <div className="text-ink4 mb-3">
+                      <BookOpen size={32} className="mx-auto opacity-40" />
+                    </div>
+                    <p className="text-sm text-ink3 mb-2">Arrastra archivos aquí o haz clic para seleccionar</p>
+                    <p className="text-xs text-ink4">PDF, imágenes, documentos — máx 10 MB</p>
+                    <button className="mt-4 bg-violet/10 text-violet px-4 py-2 rounded-xl text-sm font-semibold hover:bg-violet/20 transition-colors">
+                      Seleccionar archivos
+                    </button>
+                  </div>
+                  <p className="text-xs text-ink4 text-center">La funcionalidad de adjuntos estará disponible próximamente.</p>
+                </div>
+              )}
+
+              {/* ── Tab Estudiantes ── */}
+              {actTab === 'estudiantes' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-ink">Estudiantes asignados a la actividad</h3>
+                    <span className="text-xs text-ink3">{students.length} estudiantes</span>
+                  </div>
+                  <div className="border border-surface2 rounded-xl divide-y divide-surface overflow-hidden">
+                    {students.length === 0 ? (
+                      <p className="text-sm text-ink4 text-center py-6">No hay alumnos matriculados.</p>
+                    ) : students.map((st: any, idx: number) => {
+                      const grade = getGrade(editActivity.id, st.id)
+                      return (
+                        <div key={st.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-bg/40 transition-colors">
+                          <CheckCircle2 size={16} className="text-violet flex-shrink-0" />
+                          <span className="flex-1 text-sm text-ink font-medium truncate">{st.full_name}</span>
+                          {grade !== null ? (
+                            <span className={`text-sm font-bold ${gradeColor(grade)}`}>{grade.toFixed(1)}</span>
+                          ) : (
+                            <span className="text-xs text-ink4">Sin nota</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between p-5 border-t border-surface2 flex-shrink-0">
+              <button onClick={deleteActivity}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors">
+                <Trash2 size={14} /> Eliminar
+              </button>
+              <div className="flex gap-3">
+                <button onClick={() => setEditActivity(null)}
+                  className="px-5 py-2 rounded-xl text-sm font-semibold text-ink3 border border-surface2 hover:bg-surface2 transition-colors">
+                  Descartar
+                </button>
+                <button onClick={saveActivity} disabled={savingAct}
+                  className="bg-violet hover:bg-violet2 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all shadow-glow disabled:opacity-60">
+                  {savingAct ? 'Guardando...' : 'Guardar'}
+                </button>
               </div>
             </div>
           </div>
