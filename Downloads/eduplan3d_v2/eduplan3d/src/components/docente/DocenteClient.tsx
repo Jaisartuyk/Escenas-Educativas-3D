@@ -63,15 +63,14 @@ function fmtWeekRange(mon: Date) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export function DocenteClient({
   profile, mySubjects,
-  enrollments: rawEnrollments, studentProfiles,
+  enrollments: rawEnrollments,
   initialAssignments, initialGrades, teacherId,
 }: any) {
-  // ── Unir matrículas con perfiles en el cliente ───────────────────────────
-  const profilesById: Record<string, any> = {}
-  ;(studentProfiles || []).forEach((p: any) => { profilesById[p.id] = p })
+  // Enrollments already have student profiles merged server-side
   const enrollments: any[] = (rawEnrollments || []).map((e: any) => ({
     course_id: e.course_id,
-    student:   profilesById[e.student_id] ?? { id: e.student_id, full_name: 'Estudiante', email: '' },
+    student_id: e.student_id,
+    student:   e.student ?? { id: e.student_id, full_name: 'Sin perfil', email: '' },
   }))
 
   // ── Vista activa ─────────────────────────────────────────────────────────

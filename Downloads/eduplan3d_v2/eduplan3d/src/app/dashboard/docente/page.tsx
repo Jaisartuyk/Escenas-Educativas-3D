@@ -49,14 +49,26 @@ export default async function DocentePage() {
     enrollments = rawEnr || []
 
     const studentIds = Array.from(new Set(enrollments.map((e: any) => e.student_id as string)))
+    console.log('[docente/page] enrollment count:', enrollments.length, 'studentIds:', studentIds)
+
     if (studentIds.length > 0) {
-      const { data: profs } = await admin
+      const { data: profs, error: profsError } = await admin
         .from('profiles')
         .select('id, full_name, email, avatar_url')
         .in('id', studentIds)
+      console.log('[docente/page] profiles fetched:', profs?.length, 'error:', profsError?.message)
       studentProfiles = profs || []
     }
   }
+
+  // Merge profiles into enrollments server-side to avoid client join issues
+  const profilesById: Record<string, any> = {}
+  studentProfiles.forEach((p: any) => { profilesById[p.id] = p })
+  const mergedEnrollments = enrollments.map((e: any) => ({
+    course_id:  e.course_id,
+    student_id: e.student_id,
+    student:    profilesById[e.student_id] ?? null,
+  }))
 
   // ── Tareas de las materias del docente (con parcial/trimestre) ───────────
   let assignments: any[] = []
@@ -95,8 +107,7 @@ export default async function DocentePage() {
     <DocenteClient
       profile={profile}
       mySubjects={mySubjects || []}
-      enrollments={enrollments}
-      studentProfiles={studentProfiles}
+      enrollments={mergedEnrollments}
       initialAssignments={assignments}
       initialGrades={grades}
       teacherId={user.id}
