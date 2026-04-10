@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getEmptyConfig, DEFAULT_HORAS } from '@/types/horarios'
 
@@ -13,13 +13,16 @@ function isValidUUID(str: string): boolean {
 }
 
 export async function GET() {
+  // Solo usamos el cliente anon para verificar la sesión del usuario
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  const { data: profile } = await (supabase as any)
-    .from('profiles')
+  // Todo lo demás con adminClient para bypassear RLS
+  const admin = createAdminClient()
+
+  const { data: profile } = await admin
+    .from('profiles' as any)
     .select('institution_id')
     .eq('id', user.id)
     .single()
@@ -27,47 +30,51 @@ export async function GET() {
   if (!profile?.institution_id)
     return NextResponse.json({ error: 'No tienes una institución asignada' }, { status: 400 })
 
-  const { data: inst } = await (supabase as any)
-    .from('institutions')
+  const instId = (profile as any).institution_id
+
+  const { data: inst } = await admin
+    .from('institutions' as any)
     .select('name, settings')
-    .eq('id', profile.institution_id)
+    .eq('id', instId)
     .single()
 
   if (!inst) return NextResponse.json({ error: 'Institución no encontrada' }, { status: 404 })
 
+  const instData = inst as any
+
   // Estado base: JSON blob del wizard (fuente de verdad de la UI)
-  const horariosConfig = inst.settings?.horarios || {
-    config: getEmptyConfig(inst.name),
-    docentes: [],
+  const horariosConfig = instData.settings?.horarios || {
+    config:        getEmptyConfig(instData.name),
+    docentes:      [],
     horasPorCurso: DEFAULT_HORAS,
-    horario: {},
-    step: 0,
+    horario:       {},
+    step:          0,
   }
 
   // Auto-inyección: docentes con rol 'teacher' en la DB se fusionan al wizard
-  // De esta forma los docentes creados en Gestión Académica aparecen automáticamente
-  const { data: dbTeachers } = await (supabase as any)
-    .from('profiles')
+  // Sus IDs reales permiten vincular teacher_id en subjects
+  const { data: dbTeachers } = await admin
+    .from('profiles' as any)
     .select('id, full_name')
-    .eq('institution_id', profile.institution_id)
+    .eq('institution_id', instId)
     .eq('role', 'teacher')
 
   if (dbTeachers) {
     const existingIds = horariosConfig.docentes.map((d: any) => d.id)
 
-    dbTeachers.forEach((dbT: any) => {
+    ;(dbTeachers as any[]).forEach((dbT: any) => {
       if (!existingIds.includes(dbT.id)) {
-        // Docente real aún no aparece en el wizard → inyectar con ID real
+        // Docente real que aún no está en el wizard → inyectar con ID real y materias vacías
         horariosConfig.docentes.push({
-          id: dbT.id,
-          titulo: '',
-          nombre: dbT.full_name,
+          id:       dbT.id,
+          titulo:   '',
+          nombre:   dbT.full_name,
           materias: [],
-          jornada: 'AMBAS',
-          nivel: 'AMBOS',
+          jornada:  'AMBAS',
+          nivel:    'AMBOS',
         })
       } else {
-        // Sincronizar nombre por si cambió en su perfil
+        // Ya existe → solo actualizar nombre si cambió en su perfil
         const idx = horariosConfig.docentes.findIndex((d: any) => d.id === dbT.id)
         if (idx !== -1) horariosConfig.docentes[idx].nombre = dbT.full_name
       }
@@ -75,55 +82,61 @@ export async function GET() {
   }
 
   return NextResponse.json(
-    { ...horariosConfig, directory: inst?.settings?.directory || {} },
+    { ...horariosConfig, directory: instData.settings?.directory || {} },
     { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' } }
   )
 }
 
 export async function POST(req: Request) {
+  // Solo usamos el cliente anon para verificar la sesión del usuario
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const body = await req.json()
 
-  const { data: profile } = await (supabase as any)
-    .from('profiles')
+  // Todo lo demás con adminClient
+  const admin = createAdminClient()
+
+  const { data: profile } = await admin
+    .from('profiles' as any)
     .select('institution_id')
     .eq('id', user.id)
     .single()
 
-  if (!profile?.institution_id) return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
+  if (!(profile as any)?.institution_id)
+    return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
 
-  // ── 1. Guardar JSON blob (fuente de verdad del wizard) ─────────────────────
-  const { data: inst } = await (supabase as any)
-    .from('institutions')
+  const instId = (profile as any).institution_id
+
+  // ── 1. Guardar JSON blob (fuente de verdad del wizard) ──────────────────────
+  const { data: inst } = await admin
+    .from('institutions' as any)
     .select('settings')
-    .eq('id', profile.institution_id)
+    .eq('id', instId)
     .single()
 
+  const currentSettings = (inst as any)?.settings || {}
   const newSettings = {
-    ...(inst?.settings || {}),
-    horarios: body,
+    ...currentSettings,
+    horarios: body,  // reemplaza solo la llave 'horarios', preserva el resto
   }
 
-  const { error: settingsError } = await (supabase as any)
-    .from('institutions')
+  const { error: settingsError } = await admin
+    .from('institutions' as any)
     .update({ settings: newSettings })
-    .eq('id', profile.institution_id)
+    .eq('id', instId)
 
-  if (settingsError) return NextResponse.json({ error: settingsError.message }, { status: 500 })
+  if (settingsError)
+    return NextResponse.json({ error: settingsError.message }, { status: 500 })
 
-  // ── 2. Sincronizar tablas relacionales (usa adminClient para bypassear RLS) ─
-  const admin = createAdminClient()
-
+  // ── 2. Sincronizar tablas relacionales ──────────────────────────────────────
   try {
-    // ── 2a. Upsert schedule_configs ──────────────────────────────────────────
+    // ── 2a. schedule_configs: recesos, períodos, tutores ────────────────────
     if (body.config) {
       await admin.from('schedule_configs' as any).upsert(
         {
-          institution_id: profile.institution_id,
+          institution_id: instId,
           nombre:     body.config.nombre    || '',
           anio:       body.config.anio      || '',
           jornada:    body.config.jornada   || 'MATUTINA',
@@ -137,73 +150,57 @@ export async function POST(req: Request) {
       )
     }
 
-    // ── 2b. Sincronizar cursos ───────────────────────────────────────────────
+    // ── 2b. Cursos ──────────────────────────────────────────────────────────
     const { data: existingCourses } = await admin
       .from('courses' as any)
       .select('id, name')
-      .eq('institution_id', profile.institution_id)
+      .eq('institution_id', instId)
 
-    const currentCourseDbMap: Record<string, string> = {}
-    ;(existingCourses as any[] || []).forEach((c: any) => {
-      currentCourseDbMap[c.name] = c.id
-    })
+    const courseMap: Record<string, string> = {}
+    ;(existingCourses as any[] || []).forEach((c: any) => { courseMap[c.name] = c.id })
 
-    const cursosConfig: string[] = body.config?.cursos || []
-    const currentCourseNames = Object.keys(currentCourseDbMap)
-    const newCourseNames = cursosConfig.filter((c) => !currentCourseNames.includes(c))
-
+    const newCourseNames = (body.config?.cursos || []).filter(
+      (c: string) => !courseMap[c]
+    )
     if (newCourseNames.length > 0) {
       const { randomUUID } = require('crypto')
-      const coursesToInsert = newCourseNames.map((c: string) => {
+      const toInsert = newCourseNames.map((c: string) => {
         const nid = randomUUID()
-        currentCourseDbMap[c] = nid
-        return {
-          id: nid,
-          institution_id: profile.institution_id,
-          name: c,
-        }
+        courseMap[c] = nid
+        return { id: nid, institution_id: instId, name: c }
       })
-      await admin.from('courses' as any).insert(coursesToInsert)
+      await admin.from('courses' as any).insert(toInsert)
     }
 
-    // ── 2c. Sincronizar subjects desde horasPorCurso ─────────────────────────
-    // horasPorCurso = { "8VO": { "MATEMATICA": 5, "LENGUA": 4, ... }, ... }
-    // Esta es la fuente correcta: vincula materia + curso + horas en un solo lugar.
-    // docentes.materias indica qué docente enseña cada materia (para el teacher_id).
-
-    // Mapa: nombre de materia → profile.id del docente (solo UUIDs reales)
-    const materiaToTeacherId: Record<string, string> = {}
+    // ── 2c. Subjects desde horasPorCurso ─────────────────────────────────────
+    // Mapa materia → teacher_id (solo UUIDs reales de profiles)
+    const materiaTeacher: Record<string, string> = {}
     ;(body.docentes || []).forEach((d: any) => {
       if (isValidUUID(d.id)) {
-        ;(d.materias || []).forEach((m: string) => {
-          materiaToTeacherId[m] = d.id
-        })
+        ;(d.materias || []).forEach((m: string) => { materiaTeacher[m] = d.id })
       }
     })
 
-    // Construir lista de subjects a upsert
     const subjectsToUpsert: any[] = []
     Object.entries(body.horasPorCurso || {}).forEach(([cursName, materias]) => {
-      const course_id = currentCourseDbMap[cursName]
-      if (!course_id) return // curso aún no creado en DB, ignorar
+      const course_id = courseMap[cursName]
+      if (!course_id) return
 
       Object.entries(materias as Record<string, number>).forEach(([matName, hours]) => {
-        if (!hours || hours <= 0) return // materia sin horas asignadas
-
+        if (!hours || hours <= 0) return
         subjectsToUpsert.push({
           course_id,
-          institution_id: profile.institution_id,
+          institution_id: instId,
           name:           matName,
           weekly_hours:   Number(hours),
-          teacher_id:     materiaToTeacherId[matName] || null,
+          teacher_id:     materiaTeacher[matName] || null,
         })
       })
     })
 
     if (subjectsToUpsert.length > 0) {
-      // onConflict: 'course_id,name' requiere el unique index creado en la migración 0005
       await admin.from('subjects' as any).upsert(subjectsToUpsert, {
-        onConflict: 'course_id,name',
+        onConflict:       'course_id,name',
         ignoreDuplicates: false,
       })
     }
