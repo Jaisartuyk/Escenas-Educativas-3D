@@ -15,27 +15,34 @@ export default async function AcademicoPage() {
 
   const { data: profile } = await (supabase as any)
     .from('profiles')
-    .select('*, institutions(name, settings)')
+    .select('institution_id, role')
     .eq('id', user.id)
     .single()
 
   if (!profile || !profile.institution_id) redirect('/dashboard')
 
   const admin = createAdminClient()
-  const instId = profile.institution_id
+  const instId: string = profile.institution_id
 
-  // ── Paso 1: queries que no dependen de otras ────────────────────────────────
-  const [coursesRes, studentsRes, subjectsRes, teachersRes, scheduleRes] =
+  // ── Paso 1: todas las queries independientes en paralelo ────────────────────
+  const [coursesRes, studentsRes, teachersRes, subjectsRes, instRes, scheduleRes] =
     await Promise.all([
       admin.from('courses' as any)
         .select('*')
         .eq('institution_id', instId)
         .order('name', { ascending: true }),
 
+      // select('*') igual que el original — PersonalClient necesita todos los campos
       admin.from('profiles' as any)
-        .select('id, full_name, email, avatar_url, role')
+        .select('*')
         .eq('institution_id', instId)
         .eq('role', 'student')
+        .order('full_name', { ascending: true }),
+
+      admin.from('profiles' as any)
+        .select('*')
+        .eq('institution_id', instId)
+        .eq('role', 'teacher')
         .order('full_name', { ascending: true }),
 
       admin.from('subjects' as any)
@@ -43,20 +50,19 @@ export default async function AcademicoPage() {
         .eq('institution_id', instId)
         .order('name', { ascending: true }),
 
-      admin.from('profiles' as any)
-        .select('id, full_name, email, avatar_url')
-        .eq('institution_id', instId)
-        .eq('role', 'teacher')
-        .order('full_name', { ascending: true }),
+      // Leer settings de la institución con adminClient (evita bloqueo de RLS)
+      admin.from('institutions' as any)
+        .select('settings')
+        .eq('id', instId)
+        .single(),
 
-      // schedule_configs puede no existir aún → usamos maybeSingle para no lanzar error
       admin.from('schedule_configs' as any)
         .select('tutores')
         .eq('institution_id', instId)
         .maybeSingle(),
     ])
 
-  // ── Paso 2: enrollments necesita los IDs de cursos del paso 1 ───────────────
+  // ── Paso 2: enrollments filtrados por los cursos reales de esta institución ─
   const courseIds: string[] = (coursesRes.data || []).map((c: any) => c.id)
   const { data: enrollments } = courseIds.length > 0
     ? await admin
@@ -65,7 +71,9 @@ export default async function AcademicoPage() {
         .in('course_id', courseIds)
     : { data: [] }
 
-  const directoryMetadata = profile.institutions?.settings?.directory || {}
+  const instSettings     = (instRes.data as any)?.settings || {}
+  const directoryMetadata = instSettings.directory || {}
+  const horariosDocentes  = instSettings.horarios?.docentes || []
   const tutores: Record<string, string> = (scheduleRes.data as any)?.tutores || {}
 
   return (
@@ -76,12 +84,12 @@ export default async function AcademicoPage() {
       </div>
 
       <AcademicoClient
-        initialCourses={coursesRes.data   || []}
-        initialStudents={studentsRes.data  || []}
-        initialSubjects={subjectsRes.data  || []}
-        initialEnrollments={enrollments    || []}
-        teachers={teachersRes.data         || []}
-        horariosDocentes={profile.institutions?.settings?.horarios?.docentes || []}
+        initialCourses={coursesRes.data    || []}
+        initialStudents={studentsRes.data   || []}
+        initialSubjects={subjectsRes.data   || []}
+        initialEnrollments={enrollments     || []}
+        teachers={teachersRes.data          || []}
+        horariosDocentes={horariosDocentes}
         institutionId={instId}
         directoryMetadata={directoryMetadata}
         tutores={tutores}
