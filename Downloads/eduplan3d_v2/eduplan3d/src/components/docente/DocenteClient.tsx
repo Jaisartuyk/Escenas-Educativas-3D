@@ -684,6 +684,14 @@ export function DocenteClient({
           return (catA === -1 ? 999 : catA) - (catB === -1 ? 999 : catB)
         })
 
+        // Count assignments per category — subtotal column only if 2+
+        const catCount: Record<string, number> = {}
+        sortedAssignments.forEach(a => {
+          const cid = a.category_id || '__none__'
+          catCount[cid] = (catCount[cid] || 0) + 1
+        })
+        const showSubtotal = (catId: string | null) => (catCount[catId || '__none__'] || 0) >= 2
+
         return (
           <div className="space-y-5">
             {/* Selector Trimestre / Parcial + Config */}
@@ -784,15 +792,13 @@ export function DocenteClient({
                         const cols: React.ReactNode[] = []
                         let lastCatId: string | null | undefined = undefined
                         sortedAssignments.forEach((a: any, i: number) => {
-                          // If category changed and previous category had assignments, add subtotal color bar
-                          if (lastCatId !== undefined && a.category_id !== lastCatId) {
+                          if (lastCatId !== undefined && a.category_id !== lastCatId && showSubtotal(lastCatId)) {
                             cols.push(<th key={`sub-bar-${i}`} className="px-0 py-0 h-1.5" style={{ backgroundColor: getCatColor(lastCatId) }} />)
                           }
                           cols.push(<th key={a.id} className="px-0 py-0 h-1.5" style={{ backgroundColor: getCatColor(a.category_id) }} />)
                           lastCatId = a.category_id
                         })
-                        // Last category subtotal bar
-                        if (lastCatId !== undefined) {
+                        if (lastCatId !== undefined && showSubtotal(lastCatId)) {
                           cols.push(<th key="sub-bar-last" className="px-0 py-0 h-1.5" style={{ backgroundColor: getCatColor(lastCatId) }} />)
                         }
                         return cols
@@ -808,7 +814,7 @@ export function DocenteClient({
                         const cols: React.ReactNode[] = []
                         let lastCatId: string | null | undefined = undefined
                         sortedAssignments.forEach((a: any, i: number) => {
-                          if (lastCatId !== undefined && a.category_id !== lastCatId) {
+                          if (lastCatId !== undefined && a.category_id !== lastCatId && showSubtotal(lastCatId)) {
                             // Insert subtotal header for previous category
                             const prevCat = categories.find((c: any) => c.id === lastCatId)
                             cols.push(
@@ -835,7 +841,7 @@ export function DocenteClient({
                           lastCatId = a.category_id
                         })
                         // Last category subtotal header
-                        if (lastCatId !== undefined) {
+                        if (lastCatId !== undefined && showSubtotal(lastCatId)) {
                           const lastCat = categories.find((c: any) => c.id === lastCatId)
                           cols.push(
                             <th key="sub-hdr-last" className="px-2 py-3 text-center min-w-[70px] border-l-2 border-r-2"
@@ -868,7 +874,7 @@ export function DocenteClient({
                             const cells: React.ReactNode[] = []
                             let lastCatId: string | null | undefined = undefined
                             sortedAssignments.forEach((a: any, i: number) => {
-                              if (lastCatId !== undefined && a.category_id !== lastCatId) {
+                              if (lastCatId !== undefined && a.category_id !== lastCatId && showSubtotal(lastCatId)) {
                                 // Insert subtotal cell for previous category
                                 const prevCatAsgs = sortedAssignments.filter((x: any) => x.category_id === lastCatId)
                                 const scores = prevCatAsgs.map((x: any) => getGrade(x.id, st.id)).filter((g: any): g is number => g !== null)
@@ -903,7 +909,7 @@ export function DocenteClient({
                               lastCatId = a.category_id
                             })
                             // Last category subtotal
-                            if (lastCatId !== undefined) {
+                            if (lastCatId !== undefined && showSubtotal(lastCatId)) {
                               const lastCatAsgs = sortedAssignments.filter((x: any) => x.category_id === lastCatId)
                               const scores = lastCatAsgs.map((x: any) => getGrade(x.id, st.id)).filter((g: any): g is number => g !== null)
                               const catAvg = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
@@ -933,7 +939,7 @@ export function DocenteClient({
                         const cells: React.ReactNode[] = []
                         let lastCatId: string | null | undefined = undefined
                         sortedAssignments.forEach((a: any, i: number) => {
-                          if (lastCatId !== undefined && a.category_id !== lastCatId) {
+                          if (lastCatId !== undefined && a.category_id !== lastCatId && showSubtotal(lastCatId)) {
                             // Subtotal promedio clase para categoría
                             const prevCatAsgs = sortedAssignments.filter((x: any) => x.category_id === lastCatId)
                             const allScores = students.flatMap((st: any) => {
@@ -960,7 +966,7 @@ export function DocenteClient({
                           lastCatId = a.category_id
                         })
                         // Last category class subtotal
-                        if (lastCatId !== undefined) {
+                        if (lastCatId !== undefined && showSubtotal(lastCatId)) {
                           const lastCatAsgs = sortedAssignments.filter((x: any) => x.category_id === lastCatId)
                           const allScores = students.flatMap((st: any) => {
                             const sc = lastCatAsgs.map((x: any) => getGrade(x.id, st.id)).filter((g: any): g is number => g !== null)
