@@ -79,6 +79,25 @@ export function Sidebar({ role = 'admin' }: { role?: string }) {
     return () => window.removeEventListener('keydown', fn)
   }, [])
 
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+
+  // Capture PWA install prompt
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  async function handleInstall() {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') setDeferredPrompt(null)
+  }
+
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === href : pathname.startsWith(href)
 
@@ -112,8 +131,20 @@ export function Sidebar({ role = 'admin' }: { role?: string }) {
         ))}
       </nav>
 
-      {/* Bottom: plan chip */}
-      <div className="p-4 border-t border-[rgba(120,100,255,0.14)]">
+      {/* Bottom section */}
+      <div className="p-4 border-t border-[rgba(120,100,255,0.14)] space-y-2">
+        {/* PWA Install button */}
+        {deferredPrompt && (
+          <button onClick={handleInstall}
+            className="flex items-center gap-2 w-full p-3 rounded-xl bg-gradient-to-r from-violet/10 to-teal/10 border border-violet/20 hover:border-violet/40 transition-all">
+            <span className="text-sm">📲</span>
+            <div>
+              <p className="text-xs font-bold text-violet2">Instalar App</p>
+              <p className="text-[10px] text-ink3">Usar sin navegador</p>
+            </div>
+          </button>
+        )}
+        {/* Plan chip */}
         <Link
           href="/dashboard/configuracion?tab=plan"
           className="flex items-center gap-2 p-3 rounded-xl bg-[rgba(124,109,250,0.08)] border border-[rgba(124,109,250,0.18)] hover:border-[rgba(124,109,250,0.35)] transition-colors"
