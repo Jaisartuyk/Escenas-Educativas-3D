@@ -36,14 +36,30 @@ export default async function DocentePage() {
   const courseIds  = (mySubjects  || []).map((s: any) => s.course?.id).filter(Boolean)
   const subjectIds = (mySubjects  || []).map((s: any) => s.id)
 
-  // ── Alumnos matriculados en esos cursos ──────────────────────────────────
+  // ── Alumnos matriculados en esos cursos ─────────────────────────────────
+  // Dos queries separadas (más fiable que el join de Supabase con admin client)
   let enrollments: any[] = []
   if (courseIds.length > 0) {
-    const { data } = await admin
+    const { data: rawEnrollments } = await admin
       .from('enrollments')
-      .select('course_id, student:profiles(id, full_name, email, avatar_url)')
+      .select('course_id, student_id')
       .in('course_id', courseIds)
-    enrollments = data || []
+
+    const studentIds = [...new Set((rawEnrollments || []).map((e: any) => e.student_id))]
+
+    let studentsMap: Record<string, any> = {}
+    if (studentIds.length > 0) {
+      const { data: studentProfiles } = await admin
+        .from('profiles')
+        .select('id, full_name, email, avatar_url')
+        .in('id', studentIds)
+      ;(studentProfiles || []).forEach((p: any) => { studentsMap[p.id] = p })
+    }
+
+    enrollments = (rawEnrollments || []).map((e: any) => ({
+      course_id: e.course_id,
+      student:   studentsMap[e.student_id] || null,
+    })).filter((e: any) => e.student !== null)
   }
 
   // ── Tareas de las materias del docente (con parcial/trimestre) ───────────
