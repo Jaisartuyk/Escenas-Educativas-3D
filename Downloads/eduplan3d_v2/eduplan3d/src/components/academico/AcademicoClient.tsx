@@ -36,11 +36,14 @@ export function AcademicoClient({
     const isEnrolled = enrollments.some((e: any) => e.student_id === student_id && e.course_id === course_id)
     if (isEnrolled) {
       setEnrollments(prev => prev.filter((e: any) => !(e.student_id === student_id && e.course_id === course_id)))
-      await supabase.from('enrollments').delete().match({ student_id, course_id })
+      await fetch(`/api/enrollments?student_id=${student_id}&course_id=${course_id}`, { method: 'DELETE' })
     } else {
       setEnrollments(prev => [...prev, { student_id, course_id }])
-      // @ts-ignore
-      await supabase.from('enrollments').insert({ student_id, course_id })
+      await fetch('/api/enrollments', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ student_id, course_id }),
+      })
     }
   }
 
