@@ -5,33 +5,66 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
 
-const NAV_FULL = [
-  { href: '/dashboard',                 icon: '⊞',  label: 'Dashboard',    roles: ['admin', 'teacher', 'student'] },
-  { href: '/dashboard/planificador',    icon: '📋', label: 'Planificador', roles: ['admin', 'teacher'] },
-  { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios',     roles: ['admin', 'teacher'] },
-  { href: '/dashboard/academico',       icon: '🎓', label: 'Académico',    roles: ['admin'] },
-  { href: '/dashboard/secretaria',      icon: '💼', label: 'Secretaría',   roles: ['admin', 'secretary'] },
-  { href: '/dashboard/docente',         icon: '📝', label: 'Docencia',     roles: ['admin', 'teacher'] },
-  { href: '/dashboard/alumno',          icon: '🎒', label: 'Mis Tareas',   roles: ['student'] },
-  { href: '/dashboard/libretas',        icon: '📊', label: 'Libretas',     roles: ['admin', 'teacher', 'student'] },
-  { href: '/dashboard/institucion',     icon: '🏢', label: 'Institución',  roles: ['admin'] },
-  { href: '/dashboard/biblioteca',      icon: '📚', label: 'Biblioteca',   roles: ['admin', 'teacher', 'student'] },
-  { href: '/dashboard/escenas',         icon: '🔬', label: 'Escenas 3D',   roles: ['admin', 'teacher', 'student'] },
-  { href: '/dashboard/historial',       icon: '📂', label: 'Historial',    roles: ['admin', 'teacher'] },
-  { href: '/dashboard/configuracion',   icon: '⚙️', label: 'Configuración', roles: ['admin', 'teacher', 'student'] },
+// ─── Nav completo (admin ve todo) ────────────────────────────────────────────
+const NAV_ADMIN = [
+  { href: '/dashboard',              icon: '⊞',  label: 'Dashboard'    },
+  { href: '/dashboard/planificador', icon: '📋', label: 'Planificador' },
+  { href: '/dashboard/horarios',     icon: '📅', label: 'Horarios'     },
+  { href: '/dashboard/academico',    icon: '🎓', label: 'Académico'    },
+  { href: '/dashboard/secretaria',   icon: '💼', label: 'Secretaría'   },
+  { href: '/dashboard/docente',      icon: '📝', label: 'Docencia'     },
+  { href: '/dashboard/libretas',     icon: '📊', label: 'Libretas'     },
+  { href: '/dashboard/institucion',  icon: '🏢', label: 'Institución'  },
+  { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca'   },
+  { href: '/dashboard/escenas',      icon: '🔬', label: 'Escenas 3D'   },
+  { href: '/dashboard/historial',    icon: '📂', label: 'Historial'    },
+  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
+
+// ─── Nav docente ─────────────────────────────────────────────────────────────
+const NAV_TEACHER = [
+  { href: '/dashboard/docente',      icon: '📝', label: 'Panel Docente' },
+  { href: '/dashboard/planificador', icon: '📋', label: 'Planificador'  },
+  { href: '/dashboard/libretas',     icon: '📊', label: 'Libretas'      },
+  { href: '/dashboard/escenas',      icon: '🔬', label: 'Escenas 3D'    },
+  { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca'    },
+  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración' },
+]
+
+// ─── Nav estudiante ───────────────────────────────────────────────────────────
+const NAV_STUDENT = [
+  { href: '/dashboard/alumno',       icon: '🎒', label: 'Mis Tareas'   },
+  { href: '/dashboard/libretas',     icon: '📊', label: 'Mis Notas'    },
+  { href: '/dashboard/escenas',      icon: '🔬', label: 'Escenas 3D'   },
+  { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca'   },
+  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
+]
+
+// ─── Nav secretaria ──────────────────────────────────────────────────────────
+const NAV_SECRETARY = [
+  { href: '/dashboard/secretaria',   icon: '💼', label: 'Secretaría'   },
+  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
+]
+
+// ─── Nav horarios_only ───────────────────────────────────────────────────────
+const NAV_HORARIOS = [
+  { href: '/dashboard/horarios',     icon: '📅', label: 'Horarios'     },
+  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
+]
+
+function getNav(role: string) {
+  switch (role) {
+    case 'teacher':       return NAV_TEACHER
+    case 'student':       return NAV_STUDENT
+    case 'secretary':     return NAV_SECRETARY
+    case 'horarios_only': return NAV_HORARIOS
+    default:              return NAV_ADMIN
+  }
+}
 
 export function Sidebar({ role = 'admin' }: { role?: string }) {
   const pathname = usePathname()
-  
-  // horarios_only special case
-  let NAV = NAV_FULL.filter(i => i.roles.includes(role))
-  if (role === 'horarios_only') {
-    NAV = [
-      { href: '/dashboard/horarios',        icon: '📅', label: 'Horarios', roles: []},
-      { href: '/dashboard/configuracion',   icon: '⚙️', label: 'Configuración', roles: []},
-    ]
-  }
+  const NAV      = getNav(role)
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === href : pathname.startsWith(href)

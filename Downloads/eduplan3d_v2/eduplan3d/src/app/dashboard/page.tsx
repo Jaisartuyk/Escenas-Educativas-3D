@@ -31,9 +31,13 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  const role      = profile?.role ?? 'teacher'
+  const role      = profile?.role ?? 'admin'
   const instId    = profile?.institution_id
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Usuario'
+
+  // ── Redirigir docentes y estudiantes a su página principal ───────────────
+  if (role === 'teacher') redirect('/dashboard/docente')
+  if (role === 'student') redirect('/dashboard/alumno')
 
   const hour     = new Date().getUTCHours() - 5
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
