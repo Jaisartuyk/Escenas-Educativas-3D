@@ -33,8 +33,9 @@ export default async function DocentePage() {
     .eq('teacher_id', user.id)
     .order('name', { ascending: true })
 
-  const courseIds  = (mySubjects  || []).map((s: any) => s.course?.id).filter(Boolean)
-  const subjectIds = (mySubjects  || []).map((s: any) => s.id)
+  // Usar course_id directo (FK) en vez de s.course?.id — el join puede devolver null silenciosamente
+  const courseIds  = Array.from(new Set((mySubjects || []).map((s: any) => s.course_id).filter(Boolean)))
+  const subjectIds = (mySubjects || []).map((s: any) => s.id)
 
   // ── Matrículas: course_id → student_id ──────────────────────────────────
   let enrollments: any[] = []      // [{ course_id, student_id }]
