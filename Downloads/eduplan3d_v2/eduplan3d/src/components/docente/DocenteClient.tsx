@@ -63,21 +63,26 @@ function fmtWeekRange(mon: Date) {
 // ─── Componente principal ─────────────────────────────────────────────────────
 export function DocenteClient({
   profile, mySubjects,
-  enrollments: rawEnrollments,
   initialAssignments, initialGrades, teacherId,
-  _debug,
 }: any) {
-  // DEBUG: mostrar datos del servidor en consola
-  if (typeof window !== 'undefined' && _debug) {
-    console.log('[DocenteClient _debug]', JSON.stringify(_debug, null, 2))
-  }
+  // ── Enrollments + student profiles — cargados via API (server components no pueden consultar profiles) ──
+  const [enrollments, setEnrollments] = useState<any[]>([])
+  const [enrollmentsLoaded, setEnrollmentsLoaded] = useState(false)
 
-  // Enrollments already have student profiles merged server-side
-  const enrollments: any[] = (rawEnrollments || []).map((e: any) => ({
-    course_id: e.course_id,
-    student_id: e.student_id,
-    student:   e.student ?? { id: e.student_id, full_name: 'Sin perfil', email: '' },
-  }))
+  useEffect(() => {
+    fetch('/api/docente/students')
+      .then(r => r.json())
+      .then(({ data }) => {
+        const mapped = (data || []).map((e: any) => ({
+          course_id:  e.course_id,
+          student_id: e.student_id,
+          student:    e.student ?? { id: e.student_id, full_name: 'Sin perfil', email: '' },
+        }))
+        setEnrollments(mapped)
+        setEnrollmentsLoaded(true)
+      })
+      .catch(() => setEnrollmentsLoaded(true))
+  }, [])
 
   // ── Vista activa ─────────────────────────────────────────────────────────
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)

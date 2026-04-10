@@ -33,43 +33,7 @@ export default async function DocentePage() {
     .eq('teacher_id', user.id)
     .order('name', { ascending: true })
 
-  // Usar course_id directo (FK) en vez de s.course?.id — el join puede devolver null silenciosamente
-  const courseIds  = Array.from(new Set((mySubjects || []).map((s: any) => s.course_id).filter(Boolean)))
   const subjectIds = (mySubjects || []).map((s: any) => s.id)
-
-  // ── Matrículas: course_id → student_id ──────────────────────────────────
-  let enrollments: any[] = []      // [{ course_id, student_id }]
-  let studentProfiles: any[] = []  // [{ id, full_name, email, avatar_url }]
-
-  if (courseIds.length > 0) {
-    const { data: rawEnr } = await admin
-      .from('enrollments')
-      .select('course_id, student_id')
-      .in('course_id', courseIds)
-
-    enrollments = rawEnr || []
-
-    // Fetch all students of this institution — avoid .in('id',...) which can fail silently
-    if (enrollments.length > 0) {
-      const { data: allStudents } = await admin
-        .from('profiles')
-        .select('id, full_name, email, avatar_url')
-        .eq('institution_id', instId)
-        .eq('role', 'student')
-
-      const enrolledIds = new Set(enrollments.map((e: any) => e.student_id as string))
-      studentProfiles = (allStudents || []).filter((p: any) => enrolledIds.has(p.id))
-    }
-  }
-
-  // Merge profiles into enrollments server-side to avoid client join issues
-  const profilesById: Record<string, any> = {}
-  studentProfiles.forEach((p: any) => { profilesById[p.id] = p })
-  const mergedEnrollments = enrollments.map((e: any) => ({
-    course_id:  e.course_id,
-    student_id: e.student_id,
-    student:    profilesById[e.student_id] ?? null,
-  }))
 
   // ── Tareas de las materias del docente (con parcial/trimestre) ───────────
   let assignments: any[] = []
@@ -108,18 +72,9 @@ export default async function DocentePage() {
     <DocenteClient
       profile={profile}
       mySubjects={mySubjects || []}
-      enrollments={mergedEnrollments}
       initialAssignments={assignments}
       initialGrades={grades}
       teacherId={user.id}
-      _debug={{
-        courseIds,
-        enrollmentsRaw: enrollments.length,
-        studentProfilesCount: studentProfiles.length,
-        studentProfilesData: studentProfiles,
-        mergedSample: mergedEnrollments.slice(0, 3),
-        instId,
-      }}
     />
   )
 }
