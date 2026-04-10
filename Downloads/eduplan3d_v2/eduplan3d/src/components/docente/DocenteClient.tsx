@@ -475,7 +475,7 @@ export function DocenteClient({
                       .map((a: any) => getGrade(a.id, student.id))
                       .filter((g: any): g is number => g !== null)
                     const avg = studentScores.length > 0
-                      ? studentScores.reduce((acc, g) => acc + Number(g), 0) / studentScores.length
+                      ? studentScores.reduce((acc: number, g: number) => acc + g, 0) / studentScores.length
                       : null
 
                     return (
@@ -531,7 +531,7 @@ export function DocenteClient({
                         .map((s: any) => getGrade(a.id, s.id))
                         .filter((g: any): g is number => g !== null)
                       const asgAvg = asgGrades.length > 0
-                        ? asgGrades.reduce((acc, g) => acc + Number(g), 0) / asgGrades.length
+                        ? asgGrades.reduce((acc: number, g: number) => acc + g, 0) / asgGrades.length
                         : null
                       return (
                         <td key={a.id} className={`px-3 py-2 text-center font-bold text-sm border-l border-surface/30 ${asgAvg !== null ? gradeColor(asgAvg) : 'text-ink4'}`}>
