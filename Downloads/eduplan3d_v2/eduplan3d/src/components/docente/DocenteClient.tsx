@@ -780,10 +780,23 @@ export function DocenteClient({
                     {/* Fila de color de categoría */}
                     <tr>
                       <th className="sticky left-0 bg-bg3 z-10" />
-                      {sortedAssignments.map((a: any) => (
-                        <th key={a.id} className="px-0 py-0 h-1.5"
-                          style={{ backgroundColor: getCatColor(a.category_id) }} />
-                      ))}
+                      {(() => {
+                        const cols: React.ReactNode[] = []
+                        let lastCatId: string | null | undefined = undefined
+                        sortedAssignments.forEach((a: any, i: number) => {
+                          // If category changed and previous category had assignments, add subtotal color bar
+                          if (lastCatId !== undefined && a.category_id !== lastCatId) {
+                            cols.push(<th key={`sub-bar-${i}`} className="px-0 py-0 h-1.5" style={{ backgroundColor: getCatColor(lastCatId) }} />)
+                          }
+                          cols.push(<th key={a.id} className="px-0 py-0 h-1.5" style={{ backgroundColor: getCatColor(a.category_id) }} />)
+                          lastCatId = a.category_id
+                        })
+                        // Last category subtotal bar
+                        if (lastCatId !== undefined) {
+                          cols.push(<th key="sub-bar-last" className="px-0 py-0 h-1.5" style={{ backgroundColor: getCatColor(lastCatId) }} />)
+                        }
+                        return cols
+                      })()}
                       <th className="bg-bg3" />
                     </tr>
                     {/* Fila de títulos */}
@@ -791,16 +804,54 @@ export function DocenteClient({
                       <th className="px-4 py-3 text-left font-bold sticky left-0 bg-bg3 z-10 w-48 shadow-[2px_0_4px_rgba(0,0,0,0.06)]">
                         Estudiante
                       </th>
-                      {sortedAssignments.map((a: any) => (
-                        <th key={a.id} className="px-3 py-3 text-center font-medium min-w-[100px]"
-                          style={{ borderTop: `3px solid ${getCatColor(a.category_id)}` }}>
-                          <div className="truncate w-20 mx-auto font-semibold text-ink2" title={a.title}>{a.title}</div>
-                          <div className="text-[9px] font-normal mt-0.5 normal-case tracking-normal" style={{ color: getCatColor(a.category_id) }}>
-                            {getCatName(a.category_id)}
-                          </div>
-                        </th>
-                      ))}
-                      <th className="px-3 py-3 text-center font-bold text-ink3 border-l border-surface2 min-w-[70px]">
+                      {(() => {
+                        const cols: React.ReactNode[] = []
+                        let lastCatId: string | null | undefined = undefined
+                        sortedAssignments.forEach((a: any, i: number) => {
+                          if (lastCatId !== undefined && a.category_id !== lastCatId) {
+                            // Insert subtotal header for previous category
+                            const prevCat = categories.find((c: any) => c.id === lastCatId)
+                            cols.push(
+                              <th key={`sub-hdr-${i}`} className="px-2 py-3 text-center min-w-[70px] border-l-2 border-r-2" 
+                                style={{ borderColor: getCatColor(lastCatId), backgroundColor: `${getCatColor(lastCatId)}10` }}>
+                                <div className="text-[9px] font-bold" style={{ color: getCatColor(lastCatId) }}>
+                                  {prevCat ? prevCat.name.split(':').pop()?.trim() : 'Prom.'}
+                                </div>
+                                <div className="text-[8px] font-normal text-ink4 normal-case tracking-normal">
+                                  {prevCat ? `${Number(prevCat.weight_percent).toFixed(0)}%` : ''}
+                                </div>
+                              </th>
+                            )
+                          }
+                          cols.push(
+                            <th key={a.id} className="px-3 py-3 text-center font-medium min-w-[100px]"
+                              style={{ borderTop: `3px solid ${getCatColor(a.category_id)}` }}>
+                              <div className="truncate w-20 mx-auto font-semibold text-ink2" title={a.title}>{a.title}</div>
+                              <div className="text-[9px] font-normal mt-0.5 normal-case tracking-normal" style={{ color: getCatColor(a.category_id) }}>
+                                {getCatName(a.category_id)}
+                              </div>
+                            </th>
+                          )
+                          lastCatId = a.category_id
+                        })
+                        // Last category subtotal header
+                        if (lastCatId !== undefined) {
+                          const lastCat = categories.find((c: any) => c.id === lastCatId)
+                          cols.push(
+                            <th key="sub-hdr-last" className="px-2 py-3 text-center min-w-[70px] border-l-2 border-r-2"
+                              style={{ borderColor: getCatColor(lastCatId), backgroundColor: `${getCatColor(lastCatId)}10` }}>
+                              <div className="text-[9px] font-bold" style={{ color: getCatColor(lastCatId) }}>
+                                {lastCat ? lastCat.name.split(':').pop()?.trim() : 'Prom.'}
+                              </div>
+                              <div className="text-[8px] font-normal text-ink4 normal-case tracking-normal">
+                                {lastCat ? `${Number(lastCat.weight_percent).toFixed(0)}%` : ''}
+                              </div>
+                            </th>
+                          )
+                        }
+                        return cols
+                      })()}
+                      <th className="px-3 py-3 text-center font-bold text-ink3 border-l-2 border-surface2 min-w-[70px] bg-bg3">
                         Prom.
                       </th>
                     </tr>
@@ -813,27 +864,61 @@ export function DocenteClient({
                           <td className="px-4 py-2.5 sticky left-0 bg-surface group-hover:bg-bg/40 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)] border-r border-surface/50 transition-colors">
                             <span className="font-medium text-xs text-ink truncate block w-40" title={st.full_name}>{st.full_name}</span>
                           </td>
-                          {sortedAssignments.map((a: any) => {
-                            const key    = `${a.id}_${st.id}`
-                            const isEdit = editingGrades[key] !== undefined
-                            const cur    = isEdit ? editingGrades[key] : (getGrade(a.id, st.id) ?? '')
-                            const score  = cur !== '' ? Number(cur) : null
-                            return (
-                              <td key={a.id} className={`px-3 py-2 text-center border-l border-surface/30 ${!isEdit && score !== null ? gradeBg(score) : ''}`}>
-                                <input
-                                  type="number" min="0" max="10" step="0.01"
-                                  value={cur}
-                                  onChange={e => handleGradeChange(a.id, st.id, e.target.value)}
-                                  onBlur={() => handleSaveGrade(a.id, st.id)}
-                                  onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
-                                  placeholder="—"
-                                  className={`w-16 h-8 text-center text-sm font-bold bg-transparent border-b-2 rounded-none outline-none transition-all
-                                    ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
-                                />
-                              </td>
-                            )
-                          })}
-                          <td className={`px-3 py-2 text-center font-bold text-sm border-l border-surface2 ${avg !== null ? gradeColor(avg) : 'text-ink4'}`}>
+                          {(() => {
+                            const cells: React.ReactNode[] = []
+                            let lastCatId: string | null | undefined = undefined
+                            sortedAssignments.forEach((a: any, i: number) => {
+                              if (lastCatId !== undefined && a.category_id !== lastCatId) {
+                                // Insert subtotal cell for previous category
+                                const prevCatAsgs = sortedAssignments.filter((x: any) => x.category_id === lastCatId)
+                                const scores = prevCatAsgs.map((x: any) => getGrade(x.id, st.id)).filter((g: any): g is number => g !== null)
+                                const catAvg = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
+                                cells.push(
+                                  <td key={`sub-${i}`} className="px-2 py-2 text-center border-l-2 border-r-2"
+                                    style={{ borderColor: getCatColor(lastCatId), backgroundColor: `${getCatColor(lastCatId)}08` }}>
+                                    <span className={`text-sm font-bold ${catAvg !== null ? gradeColor(catAvg) : 'text-ink4'}`}>
+                                      {catAvg !== null ? catAvg.toFixed(1) : '—'}
+                                    </span>
+                                  </td>
+                                )
+                              }
+                              const key    = `${a.id}_${st.id}`
+                              const isEdit = editingGrades[key] !== undefined
+                              const cur    = isEdit ? editingGrades[key] : (getGrade(a.id, st.id) ?? '')
+                              const score  = cur !== '' ? Number(cur) : null
+                              cells.push(
+                                <td key={a.id} className={`px-3 py-2 text-center border-l border-surface/30 ${!isEdit && score !== null ? gradeBg(score) : ''}`}>
+                                  <input
+                                    type="number" min="0" max="10" step="0.01"
+                                    value={cur}
+                                    onChange={e => handleGradeChange(a.id, st.id, e.target.value)}
+                                    onBlur={() => handleSaveGrade(a.id, st.id)}
+                                    onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                                    placeholder="—"
+                                    className={`w-16 h-8 text-center text-sm font-bold bg-transparent border-b-2 rounded-none outline-none transition-all
+                                      ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
+                                  />
+                                </td>
+                              )
+                              lastCatId = a.category_id
+                            })
+                            // Last category subtotal
+                            if (lastCatId !== undefined) {
+                              const lastCatAsgs = sortedAssignments.filter((x: any) => x.category_id === lastCatId)
+                              const scores = lastCatAsgs.map((x: any) => getGrade(x.id, st.id)).filter((g: any): g is number => g !== null)
+                              const catAvg = scores.length > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
+                              cells.push(
+                                <td key="sub-last" className="px-2 py-2 text-center border-l-2 border-r-2"
+                                  style={{ borderColor: getCatColor(lastCatId), backgroundColor: `${getCatColor(lastCatId)}08` }}>
+                                  <span className={`text-sm font-bold ${catAvg !== null ? gradeColor(catAvg) : 'text-ink4'}`}>
+                                    {catAvg !== null ? catAvg.toFixed(1) : '—'}
+                                  </span>
+                                </td>
+                              )
+                            }
+                            return cells
+                          })()}
+                          <td className={`px-3 py-2 text-center font-bold text-sm border-l-2 border-surface2 ${avg !== null ? gradeColor(avg) : 'text-ink4'}`}>
                             {avg !== null ? avg.toFixed(1) : '—'}
                           </td>
                         </tr>
@@ -844,16 +929,56 @@ export function DocenteClient({
                       <td className="px-4 py-2 sticky left-0 bg-bg3 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)] border-r border-surface/50">
                         <span className="text-xs font-bold text-ink3 uppercase tracking-wide">Promedio clase</span>
                       </td>
-                      {sortedAssignments.map((a: any) => {
-                        const sc  = students.map((st: any) => getGrade(a.id, st.id)).filter((g): g is number => g !== null)
-                        const avg = sc.length > 0 ? sc.reduce((x: number, y: number) => x + y, 0) / sc.length : null
-                        return (
-                          <td key={a.id} className={`px-3 py-2 text-center font-bold text-sm border-l border-surface/30 ${avg !== null ? gradeColor(avg) : 'text-ink4'}`}>
-                            {avg !== null ? avg.toFixed(1) : '—'}
-                          </td>
-                        )
-                      })}
-                      <td className="px-3 py-2 border-l border-surface2" />
+                      {(() => {
+                        const cells: React.ReactNode[] = []
+                        let lastCatId: string | null | undefined = undefined
+                        sortedAssignments.forEach((a: any, i: number) => {
+                          if (lastCatId !== undefined && a.category_id !== lastCatId) {
+                            // Subtotal promedio clase para categoría
+                            const prevCatAsgs = sortedAssignments.filter((x: any) => x.category_id === lastCatId)
+                            const allScores = students.flatMap((st: any) => {
+                              const sc = prevCatAsgs.map((x: any) => getGrade(x.id, st.id)).filter((g: any): g is number => g !== null)
+                              return sc.length > 0 ? [sc.reduce((a: number, b: number) => a + b, 0) / sc.length] : []
+                            })
+                            const classAvg = allScores.length > 0 ? allScores.reduce((a, b) => a + b, 0) / allScores.length : null
+                            cells.push(
+                              <td key={`sub-class-${i}`} className="px-2 py-2 text-center border-l-2 border-r-2"
+                                style={{ borderColor: getCatColor(lastCatId), backgroundColor: `${getCatColor(lastCatId)}08` }}>
+                                <span className={`text-sm font-bold ${classAvg !== null ? gradeColor(classAvg) : 'text-ink4'}`}>
+                                  {classAvg !== null ? classAvg.toFixed(1) : '—'}
+                                </span>
+                              </td>
+                            )
+                          }
+                          const sc  = students.map((st: any) => getGrade(a.id, st.id)).filter((g): g is number => g !== null)
+                          const avg = sc.length > 0 ? sc.reduce((x: number, y: number) => x + y, 0) / sc.length : null
+                          cells.push(
+                            <td key={a.id} className={`px-3 py-2 text-center font-bold text-sm border-l border-surface/30 ${avg !== null ? gradeColor(avg) : 'text-ink4'}`}>
+                              {avg !== null ? avg.toFixed(1) : '—'}
+                            </td>
+                          )
+                          lastCatId = a.category_id
+                        })
+                        // Last category class subtotal
+                        if (lastCatId !== undefined) {
+                          const lastCatAsgs = sortedAssignments.filter((x: any) => x.category_id === lastCatId)
+                          const allScores = students.flatMap((st: any) => {
+                            const sc = lastCatAsgs.map((x: any) => getGrade(x.id, st.id)).filter((g: any): g is number => g !== null)
+                            return sc.length > 0 ? [sc.reduce((a: number, b: number) => a + b, 0) / sc.length] : []
+                          })
+                          const classAvg = allScores.length > 0 ? allScores.reduce((a, b) => a + b, 0) / allScores.length : null
+                          cells.push(
+                            <td key="sub-class-last" className="px-2 py-2 text-center border-l-2 border-r-2"
+                              style={{ borderColor: getCatColor(lastCatId), backgroundColor: `${getCatColor(lastCatId)}08` }}>
+                              <span className={`text-sm font-bold ${classAvg !== null ? gradeColor(classAvg) : 'text-ink4'}`}>
+                                {classAvg !== null ? classAvg.toFixed(1) : '—'}
+                              </span>
+                            </td>
+                          )
+                        }
+                        return cells
+                      })()}
+                      <td className="px-3 py-2 border-l-2 border-surface2" />
                     </tr>
                   </tbody>
                 </table>
