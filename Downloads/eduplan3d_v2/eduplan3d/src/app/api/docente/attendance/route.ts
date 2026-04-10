@@ -39,14 +39,13 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { subject_id, student_id, date, status, institution_id } = body
+  const { subject_id, student_id, date, status } = body
 
-  console.log('[attendance POST]', { subject_id, student_id, date, status, institution_id })
+  console.log('[attendance POST]', { subject_id, student_id, date, status })
 
   const admin = createAdminClient()
 
   if (status === 'present') {
-    // present = sin registro (borramos si existe)
     const { error: delErr } = await admin
       .from('attendance' as any)
       .delete()
@@ -60,7 +59,7 @@ export async function POST(req: Request) {
   const { error } = await admin
     .from('attendance' as any)
     .upsert(
-      { subject_id, student_id, date, status, institution_id },
+      { subject_id, student_id, date, status },
       { onConflict: 'subject_id,student_id,date' }
     )
 

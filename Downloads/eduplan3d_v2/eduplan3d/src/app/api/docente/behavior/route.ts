@@ -30,12 +30,12 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { subject_id, student_id, type, description, date, institution_id } = body
+  const { subject_id, student_id, type, description, date } = body
 
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('behavior_records' as any)
-    .insert({ subject_id, student_id, type, description, date, institution_id })
+    .insert({ subject_id, student_id, type, description, date })
     .select('id, student_id, type, description, date')
     .single()
 
