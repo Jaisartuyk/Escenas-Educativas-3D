@@ -24,17 +24,19 @@ export function Topbar({ profile }: Props) {
     ?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() ?? '?'
 
   return (
-    <header className="h-16 flex items-center justify-between px-8 border-b border-[rgba(120,100,255,0.14)] bg-bg2 sticky top-0 z-40">
+    <header className="h-14 lg:h-16 flex items-center justify-between px-4 lg:px-8 border-b border-[rgba(120,100,255,0.14)] bg-bg2 sticky top-0 z-30 ml-0 lg:ml-0">
       {/* Search (decorativo por ahora) */}
-      <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[rgba(0,0,0,0.04)] border border-[rgba(120,100,255,0.12)] w-64">
+      <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl bg-[rgba(0,0,0,0.04)] border border-[rgba(120,100,255,0.12)] w-64">
         <span className="text-ink3 text-sm">🔍</span>
         <span className="text-ink3 text-sm">Buscar planificación...</span>
         <kbd className="ml-auto text-[10px] text-ink3 border border-[rgba(120,100,255,0.2)] rounded px-1.5 py-0.5">⌘K</kbd>
       </div>
+      {/* Mobile: spacer for hamburger */}
+      <div className="md:hidden w-10" />
 
       <div className="flex items-center gap-3">
         {/* Plan badge */}
-        <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${
+        <span className={`hidden sm:inline text-[11px] font-bold px-3 py-1 rounded-full ${
           profile?.plan === 'pro'
             ? 'bg-[rgba(124,109,250,0.15)] text-violet2 border border-[rgba(124,109,250,0.3)]'
             : profile?.plan === 'institucion'
