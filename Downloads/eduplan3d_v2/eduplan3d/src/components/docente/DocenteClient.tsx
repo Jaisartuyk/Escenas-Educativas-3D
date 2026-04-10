@@ -324,7 +324,7 @@ export function DocenteClient({
       }
     }
     if (!hasAnyGrade) return null
-    return totalWeight > 0 ? weightedSum / totalWeight * 10 : null
+    return totalWeight > 0 ? weightedSum / totalWeight : null
   }
 
   function handleGradeChange(assignmentId: string, studentId: string, value: string) {
