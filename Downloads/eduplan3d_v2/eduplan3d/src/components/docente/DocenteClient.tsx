@@ -17,16 +17,17 @@ type BehaviorType     = 'positive' | 'negative' | 'recommendation'
 type DetailTab        = 'asistencia' | 'calificaciones' | 'comportamiento'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+// Inline hex colors — Tailwind purges dynamic class names in production
 const CARD_COLORS = [
-  'bg-violet-600','bg-blue-600','bg-teal-600',
-  'bg-amber-600','bg-rose-600','bg-indigo-600',
-  'bg-emerald-600','bg-orange-600','bg-pink-600','bg-cyan-600',
+  '#7C6DFA', '#3B82F6', '#14B8A6',
+  '#F59E0B', '#F43F5E', '#6366F1',
+  '#10B981', '#F97316', '#EC4899', '#06B6D4',
 ]
 const DAYS_ES   = ['Lun','Mar','Mié','Jue','Vie']
 const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function subjectColor(name: string) {
+function subjectColor(name: string): string {
   const h = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
   return CARD_COLORS[h % CARD_COLORS.length]
 }
@@ -316,7 +317,7 @@ export function DocenteClient({
                   className="bg-surface rounded-2xl border border-surface2 overflow-hidden text-left hover:border-violet/40 hover:shadow-lg transition-all group"
                 >
                   {/* Header colorido */}
-                  <div className={`${color} p-4 flex items-start gap-3`}>
+                  <div style={{ backgroundColor: color }} className="p-4 flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                       {initial}
                     </div>
@@ -370,7 +371,7 @@ export function DocenteClient({
         >
           <ArrowLeft size={16} />
         </button>
-        <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+        <div style={{ backgroundColor: color }} className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
           {selectedSubject?.name?.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()}
         </div>
         <div className="min-w-0">
