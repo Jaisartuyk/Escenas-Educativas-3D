@@ -2,100 +2,134 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
-import type { PlanificacionFormData } from '@/types/supabase'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-function buildPrompt(data: PlanificacionFormData, contextoExtra: string = ''): string {
-  const { subject, grade, topic, duration, type, methodologies, extra } = data
-  const met = methodologies.join(', ')
+// ── System prompt: MINEDUC Specialist ────────────────────────────────────────
+const SYSTEM_PROMPT = `Eres un Especialista en Curriculo y Gestion Pedagogica con 20 anios de experiencia en el sistema educativo ecuatoriano. Tu mision es generar planificaciones diarias operativas que cumplan estrictamente con el formato oficial del Ministerio de Educacion (MINEDUC), basandote en el PUD y los Cuadernillos de Trabajo.
 
-  if (type === 'clase') return `
-Actúa como un experto planificador curricular y pedagogo de Ecuador. Tu tarea es generar una Planificación Microcurricular Diaria por Destreza con Criterio de Desempeño (DCD) automatizada, cumpliendo estrictamente con los lineamientos del Ministerio de Educación del Ecuador y el enfoque pedagógico de la editorial EDINUN (Serie Experiencias / Competencia Lingüística).
+ESTRUCTURA DE CALENDARIO que manejas:
+- 3 Trimestres por anio lectivo
+- 2 Unidades (Parciales) por trimestre
+- 6 Semanas por unidad/parcial
+- Semana 6: Evaluacion de Aporte (parcial)
+- Semanas finales de T1 y T2: Examenes Trimestrales
 
-Para generar la planificación, te proporcionaré el Grado, la Asignatura y el Tema. A partir de ahí, debes crear un documento estructurado con las siguientes directrices y secciones obligatorias, presentadas en tablas de Markdown limpias.
+REGLAS DE ORO:
+1. TRABAJO EN AULA: Las actividades deben ser disenadas para completarse al 100% en el salon usando el tiempo calculado.
+2. PRIORIDAD CUADERNILLO: La fase de "Aplicacion" debe basarse obligatoriamente en los ejercicios del Cuadernillo de Trabajo cuando se proporcione referencia.
+3. ADAPTACIONES (NEE): Al final de cada tabla, anade siempre una seccion breve para adaptaciones curriculares.
+4. Usa EXCLUSIVAMENTE tablas de Markdown limpias y profesionales.
+5. Los tiempos de cada fase ERCA deben sumar exactamente la duracion total de la clase.`
 
-Asignatura: ${subject}
-Nivel/Grado: ${grade}
-Tema: ${topic}
-Duración: ${duration}
-Metodologías/Estrategias base: ${met}
-${extra ? `Observaciones adicionales: ${extra}` : ''}
+// ── Build prompt for each type ───────────────────────────────────────────────
+function buildPrompt(data: any, contextoExtra: string = ''): string {
+  const {
+    type, subject, grade, topic, duration, extra,
+    trimestre, parcial, semana, eje, cuadernillo,
+    periodMinutes, weeklyHours, teacherName, institutionName,
+  } = data
 
-${contextoExtra ? `CONTEXTO BIBLIOGRÁFICO OBLIGATORIO:
-Basa la materia, actividades y contenido estrictamente en el siguiente texto extraído de la biblioteca del docente:
----
-${contextoExtra}
----` : ''}
+  const ejeTransversal = eje || 'Justicia'
+  const cuadernilloRef = cuadernillo ? `\nREFERENCIA CUADERNILLO DE TRABAJO: ${cuadernillo}. OBLIGATORIO: usa estos ejercicios en la fase de Aplicacion.` : ''
+  const extraNotes = extra ? `\nNOTAS DEL DOCENTE: ${extra}` : ''
+  const ragContext = contextoExtra ? `\nCONTEXTO BIBLIOGRAFICO (biblioteca del docente):\n---\n${contextoExtra}\n---\nBasa el contenido en este material cuando sea relevante.` : ''
 
-1. DATOS INFORMATIVOS (Formato de tabla)
-Campos: Institución, Asignatura, Grado/Curso, Docente, Fecha, Número de estudiantes (22 por defecto), Tiempo (períodos de 40 minutos).
-Añade Unidad Didáctica (6 semanas o 7 para Unidad 1 y 4). Considera la malla curricular: BGU (40 períódos) y BT (45 períodos).
+  const commonHeader = `
+DATOS DEL CONTEXTO:
+- Institucion: ${institutionName || 'Institucion Educativa'}
+- Docente: ${teacherName || 'Docente'}
+- Asignatura: ${subject}
+- Curso/Grado: ${grade}
+- Trimestre ${trimestre}, Parcial ${parcial}${semana ? `, Semana ${semana}` : ''}
+- Duracion hora pedagogica: ${periodMinutes} minutos
+- Carga horaria semanal: ${weeklyHours} horas
+- Duracion de esta clase: ${duration}
+- Eje Transversal: ${ejeTransversal}
+${cuadernilloRef}${extraNotes}${ragContext}`
 
-2. COMPONENTES CURRICULARES (Formato de tabla)
-- Objetivo de la clase.
-- Destreza con Criterio de Desempeño (DCD): Incluyendo el código oficial exacto y descripción.
-- Criterio e Indicador de Evaluación: Incluyendo sus códigos oficiales correspondientes.
+  if (type === 'clase') {
+    const isAporte = semana === 6
+    return `Genera una PLANIFICACION MICROCURRICULAR DIARIA con el siguiente formato ESTRICTO MINEDUC:
+${commonHeader}
+- Tema: ${topic}
+${isAporte ? '- NOTA: Es Semana 6 (APORTE). La evaluacion debe ser tipo "Prueba de base estructurada" con instrumento "Cuestionario" como evaluacion sumativa del parcial.' : ''}
 
-3. MATRIZ DE DESARROLLO METODOLÓGICO (Formato tabla)
-Momentos de la clase: Inicio, Desarrollo y Cierre.
-Columnas: Actividades, Estrategias Metodológicas, Recursos, y Evaluación.
-- Enfoque DUA: Explícito en Múltiples formas de Implicación (Inicio), Representación (Desarrollo) y Acción/Expresión (Cierre).
-- Enfoque EDINUN: Interdisciplinario y neuroeducativo. Incorpora obligatoriamente el uso de plataformas digitales de EDINUN (como Digiaula o entorno Edihub) y recursos multimedia para potenciar habilidades.
+FORMATO DE SALIDA (tabla Markdown estricta):
 
-4. TÉCNICAS E INSTRUMENTOS DE EVALUACIÓN
-Detalla la Técnica (ej. Observación) y el Instrumento (ej. Lista de cotejo). Regla obligatoria: Si es final de unidad (sem 6 o 7), la técnica debe ser explícitamente 'Prueba de base estructurada' y el instrumento 'Cuestionario' como evaluación sumativa.
+### 1. ENCABEZADO
+Tabla con: Institucion, Asignatura, Curso, Docente, Fecha, No. Estudiantes (22), Tiempo, Trimestre, Parcial, Semana.
+- Objetivo de Aprendizaje (extraido del PUD)
+- Eje Transversal: ${ejeTransversal}
 
-5. ADAPTACIONES CURRICULARES Y EJE TRANSVERSAL
-- Especificaciones de la necesidad educativa y adaptaciones a ser aplicadas (inclusivo y DUA).
-- Eje Transversal: "Buen Vivir" (por defecto, enfocado en valores democráticos, socioemocionales y convivencia armónica).
+### 2. TABLA PRINCIPAL DE LA CLASE
+Columnas EXACTAS:
 
-6. OBSERVACIONES Y FIRMAS
-Muestra un formato limpio y en blanco para: Observaciones Pedagógicas, Docente, Revisado por, Aprobado por.
+| DESTREZA CON CRITERIO DE DESEMPENO (DCD) | INDICADOR DE EVALUACION | ESTRATEGIAS METODOLOGICAS (CICLO ERCA) | RECURSOS | EVALUACION |
+|---|---|---|---|---|
 
-Por favor, preséntame el resultado final usando EXCLUSIVAMENTE formato de matriz (tablas de Markdown) limpio, profesional y listo para ser copiado en un documento oficial.`.trim()
+Para la columna ESTRATEGIAS METODOLOGICAS, detalla las 4 fases del ciclo ERCA con tiempos EXACTOS que sumen ${duration}:
+- **EXPERIENCIA** (X min): Actividad de enganche/motivacion
+- **REFLEXION** (X min): Preguntas guia, analisis
+- **CONCEPTUALIZACION** (X min): Desarrollo del contenido, explicacion
+- **APLICACION** (X min): Ejercicios practicos${cuadernillo ? ' (usar Cuadernillo pag. indicada)' : ''}
 
-  if (type === 'unidad') return `
-Eres un experto en diseño curricular para educación secundaria y bachillerato del Ecuador.
-Crea una UNIDAD DIDÁCTICA COMPLETA:
+Para DCD e INDICADOR: incluye el codigo oficial exacto y descripcion completa.
 
-Asignatura: ${subject} | Nivel: ${grade} | Duración: ${duration}
-Tema central: ${topic}
-Metodologías activas: ${met}
-${extra ? `Notas del docente: ${extra}` : ''}
+### 3. RECURSOS
+Lista detallada: Cuadernillo (pag. XX), pizarra, diapositivas, videos, material concreto.
+
+### 4. EVALUACION
+- Tecnica: (Observacion / Prueba escrita / etc.)
+- Instrumento: (Lista de cotejo / Cuestionario / Rubrica)
+${isAporte ? '- OBLIGATORIO semana 6: Tecnica = Prueba de base estructurada, Instrumento = Cuestionario' : ''}
+
+### 5. ADAPTACIONES CURRICULARES (NEE)
+Breve seccion con especificaciones de necesidad educativa y adaptaciones a aplicar (enfoque inclusivo y DUA).
+
+### 6. OBSERVACIONES Y FIRMAS
+Formato en blanco: Docente | Revisado por | Aprobado por`.trim()
+  }
+
+  if (type === 'unidad') {
+    return `Genera una UNIDAD DIDACTICA COMPLETA (6 semanas) con formato MINEDUC:
+${commonHeader}
+- Tema central: ${topic || 'A determinar segun curriculo'}
+
+Estructura obligatoria:
+1. DATOS INFORMATIVOS (tabla)
+2. OBJETIVOS: General y Especificos (minimo 4)
+3. DESTREZAS CON CRITERIO DE DESEMPENO: Lista con codigos oficiales
+4. PLANIFICACION SEMANAL (tabla):
+   | Semana | Tema | DCD | Actividades principales | Evaluacion |
+   Semanas 1-5: Desarrollo de contenidos
+   Semana 6: Evaluacion de Aporte (prueba de base estructurada)
+5. RECURSOS por semana
+6. EVALUACION: Formativa (semanas 1-5) y Sumativa (semana 6)
+7. ADAPTACIONES CURRICULARES (NEE)
+8. BIBLIOGRAFIA
+
+Usa tablas Markdown limpias y profesionales.`.trim()
+  }
+
+  // Rubrica
+  return `Genera una RUBRICA DE EVALUACION con formato MINEDUC:
+${commonHeader}
+- Tema/Actividad: ${topic}
 
 Estructura:
-1. TÍTULO Y DESCRIPCIÓN DE LA UNIDAD
-2. OBJETIVOS GENERALES Y ESPECÍFICOS (mínimo 4)
-3. CONTENIDOS (conceptuales, procedimentales, actitudinales)
-4. SECUENCIA DE ACTIVIDADES (organizada por sesiones o semanas)
-5. RECURSOS DIGITALES Y FÍSICOS
-6. EVALUACIÓN (formativa y sumativa con instrumentos)
-7. ATENCIÓN A LA DIVERSIDAD
-8. CONEXIONES INTERDISCIPLINARES
-9. BIBLIOGRAFÍA Y REFERENCIAS
-
-Sé detallado y práctico.`.trim()
-
-  return `
-Eres un experto en evaluación educativa para el Ecuador.
-Crea una RÚBRICA DE EVALUACIÓN completa:
-
-Asignatura: ${subject} | Nivel: ${grade}
-Tema/Actividad: ${topic}
-${extra ? `Criterios especiales: ${extra}` : ''}
-
-Incluye:
-1. TÍTULO Y PROPÓSITO DE LA EVALUACIÓN
+1. TITULO Y PROPOSITO DE LA EVALUACION
 2. INSTRUCCIONES PARA EL DOCENTE
-3. TABLA DE RÚBRICA (formato texto claro):
-   5 criterios × 4 niveles de desempeño:
+3. TABLA DE RUBRICA:
    | Criterio | Excelente (10) | Satisfactorio (8) | En proceso (6) | Inicial (4) |
-4. ESCALA DE CALIFICACIÓN FINAL
-5. RETROALIMENTACIÓN SUGERIDA POR NIVEL
-6. AUTOEVALUACIÓN DEL ESTUDIANTE (3 preguntas)
+   Minimo 5 criterios con descriptores claros, observables y medibles.
+   Los criterios deben alinearse a las DCD del curriculo ecuatoriano.
+4. ESCALA DE CALIFICACION FINAL
+5. RETROALIMENTACION SUGERIDA POR NIVEL
+6. AUTOEVALUACION DEL ESTUDIANTE (3 preguntas)
+7. ADAPTACIONES PARA NEE
 
-Usa descriptores claros, observables y medibles.`.trim()
+Usa tablas Markdown limpias.`.trim()
 }
 
 export async function POST(request: NextRequest) {
@@ -107,7 +141,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }
 
-    // Verificar límite del plan free
+    // Verificar limite del plan free
     const { data: profile } = await (supabase as any)
       .from('profiles').select('plan').eq('id', user.id).single() as { data: { plan: string } | null }
 
@@ -120,15 +154,15 @@ export async function POST(request: NextRequest) {
 
       if ((count ?? 0) >= 10) {
         return NextResponse.json(
-          { error: 'Límite del plan Starter alcanzado (10/mes). Actualiza a Pro para planificaciones ilimitadas.' },
+          { error: 'Limite del plan Starter alcanzado (10/mes). Actualiza a Pro para planificaciones ilimitadas.' },
           { status: 403 }
         )
       }
     }
 
-    const body: PlanificacionFormData = await request.json()
+    const body = await request.json()
 
-    // ─── LÓGICA RAG: EXTRAER PDFs DE LA BIBLIOTECA ───
+    // ── RAG: extract PDFs from teacher library ──
     let contextoExtra = ''
     try {
       const { data: docs } = await (supabase as any)
@@ -150,7 +184,6 @@ export async function POST(request: NextRequest) {
           if (fileData && !downloadError) {
             const buffer = Buffer.from(await fileData.arrayBuffer())
             const parsed = await pdfParse(buffer)
-            // Limit text to avoid overwhelming context bounds if book is gigantic
             contextoExtra += `\nDocumento adjunto:\n${parsed.text.slice(0, 150000)}\n`
           }
         }
@@ -159,33 +192,44 @@ export async function POST(request: NextRequest) {
       console.error('[RAG Biblioteca Error]', err)
     }
 
-    // Llamar a Anthropic
+    // Call Claude with system prompt + user prompt
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: buildPrompt(body, contextoExtra) }],
     })
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
 
-    // Generar título automático
-    const titleLine = content.split('\n').find(l => l.trim().length > 5) ?? body.topic
-    const title = `${body.subject} — ${body.topic}`.slice(0, 80)
+    // Auto-generate title
+    const trimLabel = `T${body.trimestre || 1}-P${body.parcial || 1}`
+    const semLabel = body.semana ? `-S${body.semana}` : ''
+    const title = `${body.subject} — ${body.topic || 'Planificacion'} (${trimLabel}${semLabel})`.slice(0, 100)
 
-    // Guardar en Supabase
+    // Save to Supabase
     const { data: saved, error } = await (supabase as any)
       .from('planificaciones')
       .insert({
         user_id:       user.id,
         title,
-        type:          body.type,
+        type:          body.type === 'parcial' ? 'clase' : body.type,
         subject:       body.subject,
         grade:         body.grade,
         topic:         body.topic,
         duration:      body.duration,
-        methodologies: body.methodologies,
+        methodologies: body.methodologies || [],
         content,
-        metadata:      { titleLine, generatedAt: new Date().toISOString() },
+        metadata: {
+          trimestre: body.trimestre,
+          parcial:   body.parcial,
+          semana:    body.semana,
+          eje:       body.eje,
+          cuadernillo: body.cuadernillo,
+          periodMinutes: body.periodMinutes,
+          weeklyHours: body.weeklyHours,
+          generatedAt: new Date().toISOString(),
+        },
       })
       .select()
       .single()
