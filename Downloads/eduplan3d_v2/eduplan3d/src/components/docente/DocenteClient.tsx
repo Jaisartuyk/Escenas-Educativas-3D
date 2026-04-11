@@ -111,6 +111,7 @@ export function DocenteClient({
   // ── Calificaciones ───────────────────────────────────────────────────────
   const [trimestre,    setTrimestre]    = useState(1)
   const [parcial,      setParcial]      = useState(1)
+  const [calView,      setCalView]      = useState<'parcial' | 'resumen'>('parcial')
   const [newAsgTitle,  setNewAsgTitle]  = useState('')
   const [newAsgDesc,   setNewAsgDesc]   = useState('')
   const [newAsgDate,   setNewAsgDate]   = useState('')
@@ -759,28 +760,42 @@ export function DocenteClient({
 
         return (
           <div className="space-y-5">
-            {/* Selector Trimestre / Parcial + Config */}
+            {/* Vista toggle: Parcial / Resumen Trimestral */}
             <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex gap-1 bg-surface rounded-xl p-1 border border-surface2">
+                <button onClick={() => setCalView('parcial')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                    ${calView === 'parcial' ? 'bg-violet text-white' : 'text-ink3 hover:text-ink hover:bg-bg'}`}>
+                  Por Parcial
+                </button>
+                <button onClick={() => setCalView('resumen')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                    ${calView === 'resumen' ? 'bg-violet text-white' : 'text-ink3 hover:text-ink hover:bg-bg'}`}>
+                  Resumen Trimestral
+                </button>
+              </div>
               <div className="flex gap-1 bg-surface rounded-xl p-1 border border-surface2">
                 {[1, 2, 3].map(t => (
                   <button key={t} onClick={() => setTrimestre(t)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                      ${trimestre === t ? 'bg-violet text-white' : 'text-ink3 hover:text-ink hover:bg-bg'}`}>
+                      ${trimestre === t ? 'bg-teal text-white' : 'text-ink3 hover:text-ink hover:bg-bg'}`}>
                     T{t}
                   </button>
                 ))}
               </div>
-              <div className="flex gap-1 bg-surface rounded-xl p-1 border border-surface2">
-                {Array.from({ length: parcialesCount }, (_, i) => i + 1).map(p => (
-                  <button key={p} onClick={() => setParcial(p)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-                      ${parcial === p ? 'bg-teal text-white' : 'text-ink3 hover:text-ink hover:bg-bg'}`}>
-                    P{p}
-                  </button>
-                ))}
-              </div>
+              {calView === 'parcial' && (
+                <div className="flex gap-1 bg-surface rounded-xl p-1 border border-surface2">
+                  {Array.from({ length: parcialesCount }, (_, i) => i + 1).map(p => (
+                    <button key={p} onClick={() => setParcial(p)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                        ${parcial === p ? 'bg-amber-500 text-white' : 'text-ink3 hover:text-ink hover:bg-bg'}`}>
+                      P{p}
+                    </button>
+                  ))}
+                </div>
+              )}
               <span className="text-xs text-ink3">
-                Trimestre {trimestre} · Parcial {parcial}
+                {calView === 'parcial' ? `Trimestre ${trimestre} · Parcial ${parcial}` : `Resumen Trimestre ${trimestre}`}
               </span>
               <div className="ml-auto">
                 <button onClick={openNewCat}
@@ -789,6 +804,216 @@ export function DocenteClient({
                 </button>
               </div>
             </div>
+
+            {/* ═══ VISTA RESUMEN TRIMESTRAL ═══ */}
+            {calView === 'resumen' && (() => {
+              // Calcular promedios por parcial y examen para cada estudiante
+              const getParcialAvg = (studentId: string, p: number): number | null => {
+                const pAsgs = assignments.filter((a: any) =>
+                  a.subject_id === selectedSubjectId && a.trimestre === trimestre && a.parcial === p
+                )
+                return getWeightedAvg(studentId, pAsgs)
+              }
+
+              const getExamScore = (studentId: string): number | null => {
+                const examAsgs = assignments.filter((a: any) =>
+                  a.subject_id === selectedSubjectId && a.trimestre === trimestre && a.parcial === 0
+                )
+                if (examAsgs.length === 0) return null
+                const scores = examAsgs.map((a: any) => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
+                return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+              }
+
+              const getTrimestreAvg = (studentId: string): number | null => {
+                const parcialAvgs: number[] = []
+                for (let p = 1; p <= parcialesCount; p++) {
+                  const avg = getParcialAvg(studentId, p)
+                  if (avg !== null) parcialAvgs.push(avg)
+                }
+                const exam = getExamScore(studentId)
+
+                if (parcialAvgs.length === 0 && exam === null) return null
+
+                // 80% parciales + 20% examen (si hay examen)
+                const parcialMean = parcialAvgs.length > 0
+                  ? parcialAvgs.reduce((a, b) => a + b, 0) / parcialAvgs.length
+                  : null
+
+                if (exam !== null && parcialMean !== null) {
+                  return parcialMean * 0.8 + exam * 0.2
+                }
+                return parcialMean
+              }
+
+              const examAssignments = assignments.filter((a: any) =>
+                a.subject_id === selectedSubjectId && a.trimestre === trimestre && a.parcial === 0
+              )
+
+              return (
+                <div className="space-y-4">
+                  {/* Tabla resumen */}
+                  <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto">
+                    <table className="w-full text-sm whitespace-nowrap">
+                      <thead>
+                        <tr className="bg-bg3 text-xs uppercase tracking-wider border-b border-surface2">
+                          <th className="px-4 py-3 text-left font-bold w-48">Estudiante</th>
+                          {Array.from({ length: parcialesCount }, (_, i) => (
+                            <th key={i} className="px-3 py-3 text-center font-bold min-w-[80px]">
+                              P{i + 1}
+                            </th>
+                          ))}
+                          <th className="px-3 py-3 text-center font-bold min-w-[100px] border-l-2 border-amber-300"
+                            style={{ backgroundColor: 'rgba(245,158,11,0.08)' }}>
+                            Examen
+                          </th>
+                          <th className="px-3 py-3 text-center font-bold min-w-[110px] border-l-2 border-surface2"
+                            style={{ backgroundColor: 'rgba(124,109,250,0.08)' }}>
+                            Prom. T{trimestre}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-surface">
+                        {students.map((st: any) => {
+                          const examScore = getExamScore(st.id)
+                          const triAvg = getTrimestreAvg(st.id)
+                          return (
+                            <tr key={st.id} className="hover:bg-bg/40 transition-colors">
+                              <td className="px-4 py-2.5">
+                                <span className="font-medium text-xs text-ink truncate block w-40" title={st.full_name}>
+                                  {st.full_name}
+                                </span>
+                              </td>
+                              {Array.from({ length: parcialesCount }, (_, i) => {
+                                const avg = getParcialAvg(st.id, i + 1)
+                                return (
+                                  <td key={i} className={`px-3 py-2.5 text-center font-semibold ${avg !== null ? gradeColor(avg) : 'text-ink4'}`}>
+                                    {avg !== null ? avg.toFixed(2) : '—'}
+                                  </td>
+                                )
+                              })}
+                              <td className={`px-3 py-2.5 text-center font-semibold border-l-2 border-amber-300 ${examScore !== null ? gradeColor(examScore) : 'text-ink4'}`}
+                                style={{ backgroundColor: 'rgba(245,158,11,0.04)' }}>
+                                {examScore !== null ? examScore.toFixed(2) : '—'}
+                              </td>
+                              <td className={`px-3 py-2.5 text-center font-bold text-base border-l-2 border-surface2 ${triAvg !== null ? gradeColor(triAvg) : 'text-ink4'}`}
+                                style={{ backgroundColor: 'rgba(124,109,250,0.04)' }}>
+                                {triAvg !== null ? triAvg.toFixed(2) : '—'}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Crear examen trimestral */}
+                  <div className="bg-surface rounded-2xl border border-surface2 p-4">
+                    <h3 className="font-bold text-sm text-ink mb-3">
+                      + Examen Trimestral · T{trimestre}
+                    </h3>
+                    <form onSubmit={(e) => {
+                      e.preventDefault()
+                      const title = (e.currentTarget.elements.namedItem('examTitle') as HTMLInputElement).value
+                      if (!title.trim()) return
+                      const id = uuidv4()
+                      const newAsg = {
+                        id, subject_id: selectedSubjectId,
+                        title, description: 'Examen Trimestral',
+                        due_date: null, trimestre, parcial: 0,
+                        category_id: null,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                      }
+                      setAssignments((prev: any[]) => [newAsg, ...prev])
+                      fetch('/api/docente/assignments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newAsg),
+                      })
+                      toast.success('Examen trimestral creado')
+                      ;(e.target as HTMLFormElement).reset()
+                    }} className="flex gap-3 items-end">
+                      <input name="examTitle" required
+                        placeholder={`Ej. Examen T${trimestre}`}
+                        defaultValue={`Examen Trimestral T${trimestre}`}
+                        className="flex-1 min-w-[200px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                      <button type="submit"
+                        className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 flex-shrink-0">
+                        <Plus size={14} /> Crear Examen
+                      </button>
+                    </form>
+                    {examAssignments.length > 0 && (
+                      <div className="mt-3 text-xs text-ink3">
+                        Examenes creados: {examAssignments.map((a: any) => a.title).join(', ')}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Notas del examen */}
+                  {examAssignments.length > 0 && (
+                    <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto">
+                      <div className="px-4 py-3 border-b border-surface2">
+                        <h3 className="font-bold text-sm text-ink">Notas del Examen Trimestral</h3>
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-bg3 text-xs uppercase tracking-wider border-b border-surface2">
+                            <th className="px-4 py-2 text-left font-bold w-48">Estudiante</th>
+                            {examAssignments.map((a: any) => (
+                              <th key={a.id} className="px-3 py-2 text-center font-medium min-w-[100px]">
+                                {a.title}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-surface">
+                          {students.map((st: any) => (
+                            <tr key={st.id} className="hover:bg-bg/40 transition-colors">
+                              <td className="px-4 py-2">
+                                <span className="font-medium text-xs text-ink">{st.full_name}</span>
+                              </td>
+                              {examAssignments.map((a: any) => {
+                                const key = `${a.id}_${st.id}`
+                                const isEdit = editingGrades[key] !== undefined
+                                const cur = isEdit ? editingGrades[key] : (getGrade(a.id, st.id) ?? '')
+                                const score = cur !== '' ? Number(cur) : null
+                                return (
+                                  <td key={a.id} className={`px-3 py-2 text-center ${!isEdit && score !== null ? gradeBg(score) : ''}`}>
+                                    <input
+                                      type="number" min="0" max="10" step="0.01"
+                                      value={cur}
+                                      onChange={e => handleGradeChange(a.id, st.id, e.target.value)}
+                                      onBlur={() => handleSaveGrade(a.id, st.id)}
+                                      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                                      placeholder="—"
+                                      className={`w-16 h-8 text-center text-sm font-bold bg-transparent border-b-2 rounded-none outline-none transition-all
+                                        ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
+                                    />
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Info */}
+                  <div className="rounded-lg p-3 text-xs flex items-start gap-2"
+                    style={{ background: 'rgba(124,109,250,0.08)', color: 'rgba(124,109,250,0.9)' }}>
+                    <BarChart2 className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>
+                      <b>Promedio Trimestral</b> = 80% promedio de parciales + 20% examen trimestral.
+                      Si no hay examen registrado, el promedio se calcula solo con los parciales.
+                    </span>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* ═══ VISTA POR PARCIAL ═══ */}
+            {calView === 'parcial' && (<>
 
             {/* Leyenda de categorías */}
             {categories.length > 0 && (
@@ -1056,6 +1281,8 @@ export function DocenteClient({
                 </table>
               </div>
             )}
+
+            </>)}
           </div>
         )
       })()}
