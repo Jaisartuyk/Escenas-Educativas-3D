@@ -6,7 +6,8 @@ import { v4 as uuidv4 } from 'uuid'
 import {
   Plus, Check, Clock, AlertTriangle, X, Search,
   DollarSign, Users, TrendingUp, CalendarDays,
-  ChevronDown, Filter, Trash2, CreditCard,
+  ChevronDown, Filter, Trash2, CreditCard, GraduationCap,
+  Pencil, Save,
 } from 'lucide-react'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,15 +47,22 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const [filterStatus, setFilterStatus] = useState<string>('todos')
   const [filterShift, setFilterShift]   = useState<string>('todos')
   const [filterCourse, setFilterCourse] = useState<string>('todos')
+  const [filterType, setFilterType]     = useState<string>('todos')
   const [searchTerm, setSearchTerm]   = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   // Form state
   const [selectedStudent, setSelectedStudent] = useState('')
+  const [newType, setNewType]         = useState<'matricula' | 'pension' | 'otro'>('pension')
   const [newAmount, setNewAmount]     = useState('')
   const [newDesc, setNewDesc]         = useState('')
   const [newDueDate, setNewDueDate]   = useState('')
   const [saving, setSaving]           = useState(false)
+
+  // Inline editing
+  const [editingId, setEditingId]     = useState<string | null>(null)
+  const [editAmount, setEditAmount]   = useState('')
+  const [editDueDate, setEditDueDate] = useState('')
 
   // ── Mappings: student → courses, course → shift ─────────────────────────
   const coursesById = useMemo(() => {
@@ -118,6 +126,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     if (allowedStudentIds !== null) {
       list = list.filter((p: any) => allowedStudentIds.has(p.student_id))
     }
+    if (filterType !== 'todos') {
+      list = list.filter((p: any) => p.type === filterType)
+    }
     if (filterStatus !== 'todos') {
       list = list.filter((p: any) => p.computedStatus === filterStatus)
     }
@@ -130,7 +141,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       })
     }
     return list
-  }, [enrichedPayments, filterStatus, searchTerm, students, allowedStudentIds])
+  }, [enrichedPayments, filterStatus, filterType, searchTerm, students, allowedStudentIds])
 
   const stats = useMemo(() => {
     const all = enrichedPayments
@@ -148,15 +159,30 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   // ── Actions ──────────────────────────────────────────────────────────────
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    if (!selectedStudent || !newAmount || !newDesc) return toast.error('Completa los campos obligatorios')
-    setSaving(true)
+    if (!selectedStudent || !newAmount) return toast.error('Completa los campos obligatorios')
 
+    const student = students.find((s: any) => s.id === selectedStudent)
+    const stuCIds = studentCourses[selectedStudent] || []
+    const stuCourse = stuCIds.length > 0 ? coursesById[stuCIds[0]] : null
+    const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
+
+    // Auto-generate description if empty
+    const desc = newDesc.trim() || (
+      newType === 'matricula'
+        ? `Matricula ${new Date().getFullYear()}${courseLabel ? ` — ${courseLabel}` : ''}`
+        : newType === 'pension'
+        ? `Pension${courseLabel ? ` — ${courseLabel}` : ''}`
+        : 'Cobro adicional'
+    )
+
+    setSaving(true)
     const payload = {
       id: uuidv4(),
       institution_id: institutionId,
       student_id: selectedStudent,
       amount: parseFloat(newAmount),
-      description: newDesc,
+      description: desc,
+      type: newType,
       status: 'pendiente',
       due_date: newDueDate || null,
       created_at: new Date().toISOString(),
@@ -165,7 +191,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
     setPayments(prev => [payload, ...prev])
     setShowForm(false)
-    setSelectedStudent(''); setNewAmount(''); setNewDesc(''); setNewDueDate('')
+    setSelectedStudent(''); setNewAmount(''); setNewDesc(''); setNewDueDate(''); setNewType('pension')
 
     const res = await fetch('/api/secretaria/payments', {
       method: 'POST',
@@ -179,6 +205,32 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     } else {
       toast.success('Cobro registrado')
     }
+  }
+
+  // ── Inline edit amount/due_date ───────────────────────────────────────
+  function startEdit(p: any) {
+    setEditingId(p.id)
+    setEditAmount(String(p.amount || ''))
+    setEditDueDate(p.due_date || '')
+  }
+
+  async function saveEdit(id: string) {
+    const amount = parseFloat(editAmount)
+    if (isNaN(amount) || amount < 0) return toast.error('Monto invalido')
+
+    setPayments(prev => prev.map(p => p.id === id ? { ...p, amount, due_date: editDueDate || p.due_date } : p))
+    setEditingId(null)
+
+    const updates: any = { id, amount }
+    if (editDueDate) updates.due_date = editDueDate
+
+    const res = await fetch('/api/secretaria/payments', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+    if (!res.ok) toast.error('Error al actualizar')
+    else toast.success('Actualizado')
   }
 
   async function markAsPaid(id: string) {
@@ -199,6 +251,26 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     setConfirmDelete(null)
     const res = await fetch(`/api/secretaria/payments?id=${id}`, { method: 'DELETE' })
     if (!res.ok) toast.error('Error al eliminar')
+  }
+
+  // ── Generate missing payments for existing students ──────────────────
+  const [generating, setGenerating] = useState(false)
+  async function generateMissing() {
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/secretaria/generate-payments', { method: 'POST' })
+      const { generated } = await res.json()
+      if (generated > 0) {
+        toast.success(`${generated} cobros generados`)
+        // Reload payments
+        const r2 = await fetch('/api/secretaria/payments')
+        const { data } = await r2.json()
+        if (data) setPayments(data)
+      } else {
+        toast.success('Todos los estudiantes ya tienen cobros')
+      }
+    } catch { toast.error('Error al generar') }
+    finally { setGenerating(false) }
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -295,14 +367,24 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 className="w-full bg-bg border border-surface2 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-violet/50 transition-colors"
               />
             </div>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg flex-shrink-0"
-              style={{ backgroundColor: '#7C6DFA' }}
-            >
-              {showForm ? <X size={16} /> : <Plus size={16} />}
-              {showForm ? 'Cancelar' : 'Emitir Cobro'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={generateMissing}
+                disabled={generating}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-surface2 text-ink3 hover:bg-surface2 transition-colors disabled:opacity-50 flex-shrink-0"
+              >
+                <CalendarDays size={14} />
+                {generating ? 'Generando...' : 'Generar cobros pendientes'}
+              </button>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg flex-shrink-0"
+                style={{ backgroundColor: '#7C6DFA' }}
+              >
+                {showForm ? <X size={16} /> : <Plus size={16} />}
+                {showForm ? 'Cancelar' : 'Emitir Cobro'}
+              </button>
+            </div>
           </div>
 
           {/* Row 2: Filters — Turno, Curso, Estado */}
@@ -344,6 +426,21 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
             </div>
 
+            {/* Type filter */}
+            <div className="relative">
+              <select
+                value={filterType}
+                onChange={e => setFilterType(e.target.value)}
+                className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:border-violet/50 cursor-pointer"
+              >
+                <option value="todos">Todos los tipos</option>
+                <option value="matricula">Matricula</option>
+                <option value="pension">Pension</option>
+                <option value="otro">Otro</option>
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
+            </div>
+
             {/* Status filter */}
             <div className="relative">
               <select
@@ -361,9 +458,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
             </div>
 
             {/* Clear filters */}
-            {(filterShift !== 'todos' || filterCourse !== 'todos' || filterStatus !== 'todos') && (
+            {(filterShift !== 'todos' || filterCourse !== 'todos' || filterStatus !== 'todos' || filterType !== 'todos') && (
               <button
-                onClick={() => { setFilterShift('todos'); setFilterCourse('todos'); setFilterStatus('todos') }}
+                onClick={() => { setFilterShift('todos'); setFilterCourse('todos'); setFilterStatus('todos'); setFilterType('todos') }}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-ink3 hover:text-ink hover:bg-surface2 transition-colors"
               >
                 <X size={12} /> Limpiar
@@ -375,8 +472,31 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         {/* ── Create form ─────────────────────────────────────────────────── */}
         {showForm && (
           <form onSubmit={handleCreate} className="p-5 border-b border-surface2" style={{ backgroundColor: 'rgba(124,109,250,0.03)' }}>
+            {/* Type selector */}
+            <div className="flex gap-2 mb-4">
+              {([
+                { value: 'matricula', label: 'Matricula', icon: GraduationCap, color: '#6366f1' },
+                { value: 'pension',   label: 'Pension',   icon: CalendarDays,   color: '#f59e0b' },
+                { value: 'otro',      label: 'Otro',      icon: CreditCard,     color: '#64748b' },
+              ] as const).map(({ value, label, icon: Ic, color }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setNewType(value)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                    newType === value
+                      ? 'text-white shadow-md'
+                      : 'bg-bg border-surface2 text-ink3 hover:border-ink4'
+                  }`}
+                  style={newType === value ? { backgroundColor: color, borderColor: color } : {}}
+                >
+                  <Ic size={14} /> {label}
+                </button>
+              ))}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="lg:col-span-2">
+              <div>
                 <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Estudiante</label>
                 <select
                   required
@@ -391,10 +511,11 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Concepto</label>
+                <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">
+                  Concepto <span className="text-ink4 font-normal">(auto si vacio)</span>
+                </label>
                 <input
-                  required
-                  placeholder="Ej: Pensi&oacute;n Abril"
+                  placeholder={newType === 'matricula' ? 'Matricula 2026' : newType === 'pension' ? 'Pension Mayo' : 'Descripcion'}
                   value={newDesc}
                   onChange={e => setNewDesc(e.target.value)}
                   className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50"
@@ -414,7 +535,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Fecha de vencimiento</label>
+                <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Vencimiento</label>
                 <input
                   type="date"
                   value={newDueDate}
@@ -422,17 +543,17 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                   className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50"
                 />
               </div>
-              <div className="lg:col-span-3 flex justify-end items-end">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg disabled:opacity-50"
-                  style={{ backgroundColor: '#7C6DFA' }}
-                >
-                  <CreditCard size={16} />
-                  {saving ? 'Guardando...' : 'Registrar Cobro'}
-                </button>
-              </div>
+            </div>
+            <div className="flex justify-end mt-4">
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg disabled:opacity-50"
+                style={{ backgroundColor: '#7C6DFA' }}
+              >
+                <CreditCard size={16} />
+                {saving ? 'Guardando...' : 'Registrar Cobro'}
+              </button>
             </div>
           </form>
         )}
@@ -464,7 +585,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                   {/* Semaforo dot */}
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: sc.dot }} />
 
-                  {/* Student + course + concept */}
+                  {/* Student + type + concept */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-sm truncate">{student?.full_name || 'Estudiante'}</p>
@@ -473,23 +594,59 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                           {stuCourse.name} {stuCourse.parallel || ''}
                         </span>
                       )}
+                      {/* Type badge */}
+                      {p.type === 'matricula' && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
+                          MATRICULA
+                        </span>
+                      )}
+                      {p.type === 'pension' && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#d97706' }}>
+                          PENSION
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-ink3 truncate">{p.description}</p>
                   </div>
 
-                  {/* Due date */}
+                  {/* Due date — editable inline */}
                   <div className="hidden sm:block text-right min-w-[100px]">
-                    <p className={`text-xs font-medium ${isOverdue ? 'text-rose-600' : isNear ? 'text-amber-600' : 'text-ink4'}`}>
-                      {p.due_date ? formatDate(p.due_date) : 'Sin fecha'}
-                    </p>
-                    {p.paid_date && (
-                      <p className="text-[10px] text-emerald-600">Pagado: {formatDate(p.paid_date)}</p>
+                    {editingId === p.id ? (
+                      <input
+                        type="date"
+                        value={editDueDate}
+                        onChange={e => setEditDueDate(e.target.value)}
+                        className="bg-bg border border-violet/30 rounded-lg px-2 py-1 text-xs w-[120px]"
+                      />
+                    ) : (
+                      <>
+                        <p className={`text-xs font-medium ${isOverdue ? 'text-rose-600' : isNear ? 'text-amber-600' : 'text-ink4'}`}>
+                          {p.due_date ? formatDate(p.due_date) : 'Sin fecha'}
+                        </p>
+                        {p.paid_date && (
+                          <p className="text-[10px] text-emerald-600">Pagado: {formatDate(p.paid_date)}</p>
+                        )}
+                      </>
                     )}
                   </div>
 
-                  {/* Amount */}
+                  {/* Amount — editable inline */}
                   <div className="text-right min-w-[90px]">
-                    <p className="font-display font-bold text-sm">{formatMoney(p.amount)}</p>
+                    {editingId === p.id ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editAmount}
+                        onChange={e => setEditAmount(e.target.value)}
+                        className="bg-bg border border-violet/30 rounded-lg px-2 py-1 text-xs font-bold w-[80px] text-right"
+                        autoFocus
+                      />
+                    ) : (
+                      <p className={`font-display font-bold text-sm ${Number(p.amount) === 0 ? 'text-amber-500' : ''}`}>
+                        {Number(p.amount) === 0 ? 'Por definir' : formatMoney(p.amount)}
+                      </p>
+                    )}
                   </div>
 
                   {/* Status badge */}
@@ -500,7 +657,27 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
                   {/* Actions */}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {p.computedStatus !== 'pagado' && (
+                    {/* Edit / Save */}
+                    {editingId === p.id ? (
+                      <button
+                        onClick={() => saveEdit(p.id)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-violet/10"
+                        title="Guardar"
+                      >
+                        <Save size={14} style={{ color: '#7C6DFA' }} />
+                      </button>
+                    ) : p.computedStatus !== 'pagado' ? (
+                      <button
+                        onClick={() => startEdit(p)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-surface2"
+                        title="Editar monto/fecha"
+                      >
+                        <Pencil size={14} className="text-ink4" />
+                      </button>
+                    ) : null}
+
+                    {/* Mark as paid */}
+                    {p.computedStatus !== 'pagado' && editingId !== p.id && (
                       <button
                         onClick={() => markAsPaid(p.id)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-emerald-50"
@@ -509,30 +686,34 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                         <Check size={16} style={{ color: '#10b981' }} />
                       </button>
                     )}
-                    {confirmDelete === p.id ? (
-                      <div className="flex items-center gap-1">
+
+                    {/* Delete */}
+                    {editingId !== p.id && (
+                      confirmDelete === p.id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDelete(p.id)}
+                            className="px-2 py-1 rounded-lg text-[11px] font-bold text-white"
+                            style={{ backgroundColor: '#ef4444' }}
+                          >
+                            Si
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(null)}
+                            className="px-2 py-1 rounded-lg text-[11px] font-bold text-ink3 bg-surface2"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
                         <button
-                          onClick={() => handleDelete(p.id)}
-                          className="px-2 py-1 rounded-lg text-[11px] font-bold text-white"
-                          style={{ backgroundColor: '#ef4444' }}
+                          onClick={() => setConfirmDelete(p.id)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-rose-50"
+                          title="Eliminar"
                         >
-                          Eliminar
+                          <Trash2 size={14} className="text-ink4 hover:text-rose-500" />
                         </button>
-                        <button
-                          onClick={() => setConfirmDelete(null)}
-                          className="px-2 py-1 rounded-lg text-[11px] font-bold text-ink3 bg-surface2"
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setConfirmDelete(p.id)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-rose-50"
-                        title="Eliminar"
-                      >
-                        <Trash2 size={14} className="text-ink4 hover:text-rose-500" />
-                      </button>
+                      )
                     )}
                   </div>
                 </div>
