@@ -6,9 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { DeletePlanButton } from '@/components/planner/DeletePlanButton'
-import { CopyButton } from '@/components/planner/CopyButton'
-import { PrintButton } from '@/components/planner/PrintButton'
-import { MarkdownRenderer } from '@/components/planner/MarkdownRenderer'
+import { PlanContent } from '@/components/planner/PlanContent'
 
 interface Props { params: { id: string } }
 
@@ -49,12 +47,11 @@ export default async function PlanificacionDetailPage({ params }: Props) {
     ? plan.content
     : JSON.stringify(plan.content, null, 2)
 
-  // Metadata
   const meta = plan.metadata || {}
 
   return (
     <div className="animate-fade-in max-w-4xl mx-auto">
-      {/* Breadcrumb — hidden on print */}
+      {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-ink3 mb-6 print:hidden">
         <Link href="/dashboard" className="hover:text-ink transition-colors">Dashboard</Link>
         <span>/</span>
@@ -63,7 +60,7 @@ export default async function PlanificacionDetailPage({ params }: Props) {
         <span className="text-ink truncate max-w-[200px]">{plan.title}</span>
       </div>
 
-      {/* Header — hidden on print */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-6 mb-6 print:hidden">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight mb-2">{plan.title}</h1>
@@ -77,8 +74,6 @@ export default async function PlanificacionDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <PrintButton />
-          <CopyButton text={contentText} />
           <Link href={`/dashboard/planificador?clone=${plan.id}`} className="btn-secondary text-sm px-4 py-2">
             Clonar
           </Link>
@@ -86,12 +81,8 @@ export default async function PlanificacionDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Content Card */}
-      <div className="bg-white text-black rounded-xl shadow-lg border print:shadow-none print:border-none print:rounded-none">
-        <div className="p-8 print:p-4">
-          <MarkdownRenderer content={contentText} />
-        </div>
-      </div>
+      {/* Content editable */}
+      <PlanContent planId={plan.id} initialContent={contentText} />
     </div>
   )
 }

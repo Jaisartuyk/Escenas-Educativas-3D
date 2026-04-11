@@ -76,19 +76,33 @@ Para la columna ESTRATEGIAS METODOLOGICAS, detalla las 4 fases del ciclo ERCA co
 
 Para DCD e INDICADOR: incluye el codigo oficial exacto y descripcion completa.
 
+IMPORTANTE: Las secciones 3, 4, 5 y 6 DEBEN estar en formato TABLA Markdown. NO repitas informacion que ya este en la tabla principal. Cada seccion es UNA SOLA tabla.
+
 ### 3. RECURSOS
-Lista detallada: Cuadernillo (pag. XX), pizarra, diapositivas, videos, material concreto.
+| **RECURSO** | **DESCRIPCION** |
+|---|---|
+(Lista: Cuadernillo pag. XX, pizarra, diapositivas, etc.)
 
 ### 4. EVALUACION
-- Tecnica: (Observacion / Prueba escrita / etc.)
-- Instrumento: (Lista de cotejo / Cuestionario / Rubrica)
+| **ASPECTO** | **DETALLE** |
+|---|---|
+| Tecnica | (Observacion / Prueba escrita / etc.) |
+| Instrumento | (Lista de cotejo / Cuestionario / Rubrica) |
+| Criterios | (Lista de criterios de evaluacion) |
 ${isAporte ? '- OBLIGATORIO semana 6: Tecnica = Prueba de base estructurada, Instrumento = Cuestionario' : ''}
 
 ### 5. ADAPTACIONES CURRICULARES (NEE)
-Breve seccion con especificaciones de necesidad educativa y adaptaciones a aplicar (enfoque inclusivo y DUA).
+| **TIPO DE NEE** | **ADAPTACION** |
+|---|---|
+| Dificultades de aprendizaje | (adaptaciones concretas) |
+| Altas capacidades | (actividades de extension) |
+| Principios DUA | (multiples formas de representacion, expresion, motivacion) |
 
 ### 6. OBSERVACIONES Y FIRMAS
-Formato en blanco: Docente | Revisado por | Aprobado por`.trim()
+| **DOCENTE** | **REVISADO POR** | **APROBADO POR** |
+|---|---|---|
+| ${data.teacherName || 'Docente'} | | |
+| Firma: _________ | Firma: _________ | Firma: _________ |`.trim()
   }
 
   if (type === 'unidad') {
