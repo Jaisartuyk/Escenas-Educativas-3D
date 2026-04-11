@@ -139,12 +139,17 @@ export function LibretasClient({
   }
 
   // Attendance counts for a student
+  // status: 'present' | 'absent' | 'late'
+  // absent = faltas, late = atrasos, present = no se cuenta
   function getAttendanceCounts(studentId: string) {
     const studentAtt = attendance.filter((a: any) => a.student_id === studentId)
+    const faltas = studentAtt.filter((a: any) => a.status === 'absent').length
+    const atrasos = studentAtt.filter((a: any) => a.status === 'late').length
     return {
-      justified: studentAtt.filter((a: any) => a.status === 'absent').length,
-      unjustified: 0, // Could separate if you have a justified/unjustified field
-      late: studentAtt.filter((a: any) => a.status === 'late').length,
+      faltas,
+      atrasos,
+      total: studentAtt.length,
+      presentes: studentAtt.filter((a: any) => a.status === 'present').length,
     }
   }
 
@@ -575,16 +580,16 @@ export function LibretasClient({
                       <table className="border-collapse">
                         <tbody>
                           <tr>
-                            <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">FALTAS JUSTIFICADAS</td>
-                            <td className="border border-gray-400 px-3 py-1 text-center font-bold">{att.justified}</td>
-                          </tr>
-                          <tr>
-                            <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">FALTAS INJUSTIFICADAS</td>
-                            <td className="border border-gray-400 px-3 py-1 text-center font-bold">{att.unjustified}</td>
+                            <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">FALTAS</td>
+                            <td className="border border-gray-400 px-3 py-1 text-center font-bold">{att.faltas}</td>
                           </tr>
                           <tr>
                             <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">ATRASOS</td>
-                            <td className="border border-gray-400 px-3 py-1 text-center font-bold">{att.late}</td>
+                            <td className="border border-gray-400 px-3 py-1 text-center font-bold">{att.atrasos}</td>
+                          </tr>
+                          <tr>
+                            <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">ASISTENCIAS</td>
+                            <td className="border border-gray-400 px-3 py-1 text-center font-bold">{att.presentes}</td>
                           </tr>
                         </tbody>
                       </table>
