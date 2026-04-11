@@ -49,6 +49,22 @@ export function InstitucionClient({ institution, members, courses, currentUserId
   const [courseLevel, setCourseLevel] = useState('Colegio')
   const [courseShift, setCourseShift] = useState('MATUTINA')
   const [savingCourse, setSavingCourse] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  async function deleteCourse(id: string, name: string) {
+    if (!confirm(`¿Eliminar el curso "${name}"? Esto también eliminará sus materias y datos asociados.`)) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/institucion/courses?id=${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Error al eliminar')
+      toast.success('Curso eliminado')
+      window.location.reload()
+    } catch {
+      toast.error('No se pudo eliminar el curso')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   function copyCode() {
     navigator.clipboard.writeText(institution.join_code)
@@ -206,13 +222,23 @@ export function InstitucionClient({ institution, members, courses, currentUserId
                 <p className="text-xs mt-1">Añade tu primer curso con el botón de arriba</p>
               </div>
             ) : courses.map(c => (
-              <div key={c.id} className="card p-4">
+              <div key={c.id} className="card p-4 group">
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-bold text-sm">{c.name} {c.parallel && `— ${c.parallel}`}</h3>
                     <p className="text-xs text-ink3 mt-1">{c.level} · {c.shift}</p>
                   </div>
-                  <span className="text-xl">📖</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📖</span>
+                    <button
+                      onClick={() => deleteCourse(c.id, c.name)}
+                      disabled={deletingId === c.id}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50"
+                      title="Eliminar curso"
+                    >
+                      {deletingId === c.id ? '...' : '✕'}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}

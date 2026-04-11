@@ -150,23 +150,42 @@ export async function POST(req: Request) {
       )
     }
 
-    // ── 2b. Cursos ──────────────────────────────────────────────────────────
+    // ── 2b. Cursos (con deduplicación inteligente) ─────────────────────────
     const { data: existingCourses } = await admin
       .from('courses' as any)
       .select('id, name')
       .eq('institution_id', instId)
 
-    const courseMap: Record<string, string> = {}
-    ;(existingCourses as any[] || []).forEach((c: any) => { courseMap[c.name] = c.id })
+    // Normalize: remove accents, extra spaces, lowercase for comparison
+    const normalize = (s: string) =>
+      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
 
-    const newCourseNames = (body.config?.cursos || []).filter(
-      (c: string) => !courseMap[c]
-    )
+    const courseMap: Record<string, string> = {}        // exact name → id
+    const normalizedMap: Record<string, string> = {}    // normalized name → exact name
+    ;(existingCourses as any[] || []).forEach((c: any) => {
+      courseMap[c.name] = c.id
+      normalizedMap[normalize(c.name)] = c.name
+    })
+
+    // Only create courses that don't already exist (checking normalized names)
+    const newCourseNames = (body.config?.cursos || []).filter((c: string) => {
+      // Skip if exact match exists
+      if (courseMap[c]) return false
+      // Skip if normalized match exists (e.g. "INICIAL 1" vs "Inicial 1")
+      const norm = normalize(c)
+      if (normalizedMap[norm]) {
+        // Map this config name to the existing course id
+        courseMap[c] = courseMap[normalizedMap[norm]]
+        return false
+      }
+      return true
+    })
     if (newCourseNames.length > 0) {
       const { randomUUID } = require('crypto')
       const toInsert = newCourseNames.map((c: string) => {
         const nid = randomUUID()
         courseMap[c] = nid
+        normalizedMap[normalize(c)] = c
         return { id: nid, institution_id: instId, name: c }
       })
       await admin.from('courses' as any).insert(toInsert)
