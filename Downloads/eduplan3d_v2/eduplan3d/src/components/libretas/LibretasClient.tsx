@@ -1,8 +1,26 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Printer, FileText, ChevronDown } from 'lucide-react'
+import { Printer, FileText } from 'lucide-react'
 
+// ── Escala cualitativa MINEDUC ──────────────────────────────────────────────
+function cualitativo(score: number | null): string {
+  if (score === null) return ''
+  if (score >= 9) return 'DAR'    // Domina los aprendizajes
+  if (score >= 7) return 'AAR'    // Alcanza los aprendizajes
+  if (score >= 4.01) return 'PAR' // Proximo a alcanzar
+  return 'NAAR'                   // No alcanza los aprendizajes
+}
+
+function comportamientoLetra(positive: number, negative: number): string {
+  const ratio = positive + negative > 0 ? positive / (positive + negative) : 1
+  if (ratio >= 0.9) return 'S'  // Satisfactorio
+  if (ratio >= 0.7) return 'F'  // Favorable (en proceso)
+  if (ratio >= 0.5) return 'U'  // Poco satisfactorio
+  return 'N'                    // Necesita mejora
+}
+
+// ── Types ───────────────────────────────────────────────────────────────────
 interface Props {
   role: string
   institutionName: string
@@ -14,22 +32,28 @@ interface Props {
   categories: any[]
   currentUserId: string
   parcialesCount?: number
+  tutores?: Record<string, string>
+  attendance?: any[]
+  behaviors?: any[]
 }
 
-export function LibretasClient({ role, institutionName, courses, enrollments, subjects, assignments, grades, categories, currentUserId, parcialesCount = 2 }: Props) {
+export function LibretasClient({
+  role, institutionName, courses, enrollments, subjects, assignments, grades,
+  categories, currentUserId, parcialesCount = 2, tutores = {},
+  attendance = [], behaviors = [],
+}: Props) {
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '')
   const [selectedStudentId, setSelectedStudentId] = useState<string>(role === 'student' ? currentUserId : '')
   const [trimestre, setTrimestre] = useState(1)
+  const [view, setView] = useState<'mensual' | 'trimestral' | 'anual'>('mensual')
+  const [parcialSel, setParcialSel] = useState(1)
 
   // ── Derived data ────────────────────────────────────────────────────────
   const studentsInCourse = useMemo(() => {
-    if (role === 'student') {
-      return enrollments.map((e: any) => e.student).filter(Boolean)
-    }
+    if (role === 'student') return enrollments.map((e: any) => e.student).filter(Boolean)
     return enrollments
       .filter((e: any) => e.course_id === selectedCourseId)
-      .map((e: any) => e.student)
-      .filter(Boolean)
+      .map((e: any) => e.student).filter(Boolean)
       .sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || ''))
   }, [enrollments, selectedCourseId, role])
 
@@ -44,103 +68,109 @@ export function LibretasClient({ role, institutionName, courses, enrollments, su
   const currentCourse = courses.find((c: any) => c.id === selectedCourseId)
   const currentStudent = studentsInCourse.find((s: any) => s.id === selectedStudentId)
 
-  // ── Grade helper ────────────────────────────────────────────────────────
+  // ── Grade helpers ───────────────────────────────────────────────────────
   function getGrade(assignmentId: string, studentId: string): number | null {
     const g = grades.find((gr: any) => gr.assignment_id === assignmentId && gr.student_id === studentId)
     return g?.score != null ? Number(g.score) : null
   }
 
-  // ── Weighted average per subject per trimestre ─────────────────────────
-  function getSubjectAvg(subjectId: string, studentId: string, t: number): { weighted: number | null; parcials: (number | null)[] } {
-    const parcials: (number | null)[] = []
-    
-    for (let p = 1; p <= parcialesCount; p++) {
-      const filteredAsgs = assignments.filter((a: any) =>
-        a.subject_id === subjectId && a.trimestre === t && a.parcial === p
-      )
-      if (filteredAsgs.length === 0) { parcials.push(null); continue }
-
-      if (categories.length === 0) {
-        // Simple average
-        const scores = filteredAsgs.map((a: any) => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
-        parcials.push(scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null)
-      } else {
-        // Weighted average by category
-        let totalWeighted = 0
-        let totalWeight = 0
-        categories.forEach((cat: any) => {
-          const catAsgs = filteredAsgs.filter((a: any) => a.category_id === cat.id)
-          if (catAsgs.length === 0) return
-          const scores = catAsgs.map((a: any) => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
-          if (scores.length === 0) return
-          const catAvg = scores.reduce((a, b) => a + b, 0) / scores.length
-          totalWeighted += catAvg * Number(cat.weight_percent)
-          totalWeight += Number(cat.weight_percent)
-        })
-        parcials.push(totalWeight > 0 ? totalWeighted / totalWeight : null)
-      }
-    }
-
-    // Average of all parcials
-    const validParcials = parcials.filter((p): p is number => p !== null)
-    const weighted = validParcials.length > 0 ? validParcials.reduce((a, b) => a + b, 0) / validParcials.length : null
-    return { weighted, parcials }
+  function getCatAvg(studentId: string, subjectId: string, t: number, p: number, catId: string | null): number | null {
+    const asgs = assignments.filter((a: any) =>
+      a.subject_id === subjectId && a.trimestre === t && a.parcial === p
+      && (catId ? a.category_id === catId : !a.category_id)
+    )
+    const scores = asgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
+    return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
   }
 
-  // ── Build report data ──────────────────────────────────────────────────
-  const reportData = useMemo(() => {
-    if (!selectedStudentId) return []
-    return courseSubjects.map((sub: any) => {
-      const { weighted, parcials } = getSubjectAvg(sub.id, selectedStudentId, trimestre)
-      return {
-        subject: sub.name,
-        subjectId: sub.id,
-        parcials,
-        avg: weighted,
+  function getParcialAvg(studentId: string, subjectId: string, t: number, p: number): number | null {
+    const pAsgs = assignments.filter((a: any) =>
+      a.subject_id === subjectId && a.trimestre === t && a.parcial === p
+    )
+    if (pAsgs.length === 0) return null
+    if (categories.length === 0) {
+      const scores = pAsgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
+      return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+    }
+    let totalW = 0, sumW = 0
+    categories.forEach((cat: any) => {
+      const catAsgs = pAsgs.filter(a => a.category_id === cat.id)
+      const scores = catAsgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
+      if (scores.length > 0) {
+        const avg = scores.reduce((a, b) => a + b, 0) / scores.length
+        sumW += avg * Number(cat.weight_percent)
+        totalW += Number(cat.weight_percent)
       }
     })
-  }, [courseSubjects, selectedStudentId, trimestre, assignments, grades, categories, parcialesCount])
+    return totalW > 0 ? sumW / totalW : null
+  }
 
-  // Annual average (all 3 trimesters)
-  const annualData = useMemo(() => {
-    if (!selectedStudentId) return []
-    return courseSubjects.map((sub: any) => {
-      const trimestreAvgs: (number | null)[] = []
-      for (let t = 1; t <= 3; t++) {
-        const { weighted } = getSubjectAvg(sub.id, selectedStudentId, t)
-        trimestreAvgs.push(weighted)
-      }
-      const valid = trimestreAvgs.filter((v): v is number => v !== null)
-      const annual = valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : null
-      return {
-        subject: sub.name,
-        t1: trimestreAvgs[0],
-        t2: trimestreAvgs[1],
-        t3: trimestreAvgs[2],
-        annual,
-      }
-    })
-  }, [courseSubjects, selectedStudentId, assignments, grades, categories])
+  function getExamScore(studentId: string, subjectId: string, t: number): number | null {
+    const examAsgs = assignments.filter((a: any) =>
+      a.subject_id === subjectId && a.trimestre === t && a.parcial === 0
+    )
+    const scores = examAsgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
+    return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+  }
 
-  const globalAvg = useMemo(() => {
-    const avgs = reportData.filter(r => r.avg !== null).map(r => r.avg!)
+  function getParcialMean(studentId: string, subjectId: string, t: number): number | null {
+    const avgs: number[] = []
+    for (let p = 1; p <= parcialesCount; p++) {
+      const a = getParcialAvg(studentId, subjectId, t, p)
+      if (a !== null) avgs.push(a)
+    }
     return avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null
-  }, [reportData])
+  }
 
-  const annualGlobalAvg = useMemo(() => {
-    const avgs = annualData.filter(r => r.annual !== null).map(r => r.annual!)
+  function getTrimestreAvg(studentId: string, subjectId: string, t: number): number | null {
+    const pm = getParcialMean(studentId, subjectId, t)
+    const exam = getExamScore(studentId, subjectId, t)
+    if (pm !== null && exam !== null) return pm * 0.7 + exam * 0.3
+    return pm
+  }
+
+  function getAnnualAvg(studentId: string, subjectId: string): number | null {
+    const avgs: number[] = []
+    for (let t = 1; t <= 3; t++) {
+      const a = getTrimestreAvg(studentId, subjectId, t)
+      if (a !== null) avgs.push(a)
+    }
     return avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null
-  }, [annualData])
+  }
+
+  // Attendance counts for a student
+  function getAttendanceCounts(studentId: string) {
+    const studentAtt = attendance.filter((a: any) => a.student_id === studentId)
+    return {
+      justified: studentAtt.filter((a: any) => a.status === 'absent').length,
+      unjustified: 0, // Could separate if you have a justified/unjustified field
+      late: studentAtt.filter((a: any) => a.status === 'late').length,
+    }
+  }
+
+  // Behavior for a student
+  function getBehavior(studentId: string) {
+    const studentBeh = behaviors.filter((b: any) => b.student_id === studentId)
+    const pos = studentBeh.filter((b: any) => b.type === 'positive').length
+    const neg = studentBeh.filter((b: any) => b.type === 'negative').length
+    return comportamientoLetra(pos, neg)
+  }
 
   const gradeClass = (val: number | null) => {
     if (val === null) return ''
-    if (val >= 9) return 'text-emerald-600'
+    if (val >= 9) return 'text-emerald-700'
     if (val >= 7) return 'text-black'
     return 'text-red-600 font-bold'
   }
 
-  const [view, setView] = useState<'trimestre' | 'anual'>('trimestre')
+  const fmt = (val: number | null) => val !== null ? val.toFixed(2) : ''
+  const yearLabel = `${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`
+  const tutorName = currentCourse ? (tutores[`${currentCourse.name} ${currentCourse.parallel || ''}`.trim()] || '') : ''
+  const docenteName = courseSubjects[0]?.teacher?.full_name || ''
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════
   return (
     <div className="space-y-6">
       {/* ── Controls (hidden on print) ─────────────────────────────────── */}
@@ -167,26 +197,40 @@ export function LibretasClient({ role, institutionName, courses, enrollments, su
             </div>
           )}
           <div className="space-y-1">
-            <label className="text-xs text-ink4 font-medium px-1">Vista</label>
+            <label className="text-xs text-ink4 font-medium px-1">Tipo de Libreta</label>
             <div className="flex gap-1 bg-bg rounded-xl p-1 border border-surface2">
-              <button onClick={() => setView('trimestre')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'trimestre' ? 'bg-violet text-white' : 'text-ink3 hover:text-ink'}`}>
-                Trimestre
-              </button>
-              <button onClick={() => setView('anual')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'anual' ? 'bg-teal text-white' : 'text-ink3 hover:text-ink'}`}>
-                Anual
-              </button>
+              {(['mensual', 'trimestral', 'anual'] as const).map(v => (
+                <button key={v} onClick={() => setView(v)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize
+                    ${view === v ? 'bg-violet text-white' : 'text-ink3 hover:text-ink'}`}>
+                  {v}
+                </button>
+              ))}
             </div>
           </div>
-          {view === 'trimestre' && (
+          {view !== 'anual' && (
             <div className="space-y-1">
               <label className="text-xs text-ink4 font-medium px-1">Trimestre</label>
               <div className="flex gap-1 bg-bg rounded-xl p-1 border border-surface2">
                 {[1, 2, 3].map(t => (
                   <button key={t} onClick={() => setTrimestre(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${trimestre === t ? 'bg-violet text-white' : 'text-ink3 hover:text-ink'}`}>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                      ${trimestre === t ? 'bg-teal text-white' : 'text-ink3 hover:text-ink'}`}>
                     T{t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {view === 'mensual' && (
+            <div className="space-y-1">
+              <label className="text-xs text-ink4 font-medium px-1">Parcial</label>
+              <div className="flex gap-1 bg-bg rounded-xl p-1 border border-surface2">
+                {Array.from({ length: parcialesCount }, (_, i) => i + 1).map(p => (
+                  <button key={p} onClick={() => setParcialSel(p)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
+                      ${parcialSel === p ? 'bg-amber-500 text-white' : 'text-ink3 hover:text-ink'}`}>
+                    P{p}
                   </button>
                 ))}
               </div>
@@ -199,146 +243,386 @@ export function LibretasClient({ role, institutionName, courses, enrollments, su
         </div>
       </div>
 
-      {/* ── Report Card ────────────────────────────────────────────────── */}
+      {/* ── Report ────────────────────────────────────────────────────── */}
       {selectedStudentId && (role === 'student' || currentCourse) ? (
-        <div className="bg-white text-black rounded-xl shadow-lg border print:shadow-none print:border-none print:rounded-none">
-          {/* Header */}
-          <div className="p-8 pb-0 print:p-4">
-            <div className="text-center border-b-2 border-black pb-4 mb-6">
-              <h2 className="text-xl lg:text-2xl font-bold uppercase tracking-wider">{institutionName || 'Unidad Educativa'}</h2>
-              <p className="text-sm font-semibold tracking-widest text-gray-500 mt-1">
-                {view === 'anual' ? 'RÉCORD ACADÉMICO ANUAL' : `BOLETÍN DE CALIFICACIONES — TRIMESTRE ${trimestre}`}
-              </p>
+        <div className="bg-white text-black rounded-xl shadow-lg border print:shadow-none print:border-none print:rounded-none text-[11px]">
+
+          {/* ═══ HEADER COMUN ═══ */}
+          <div className="p-6 pb-2 print:p-3">
+            <div className="flex items-center gap-4 border-b-2 border-black pb-3 mb-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-institucion.png" alt="Logo" className="w-16 h-16 object-contain print:w-14 print:h-14" />
+              <div className="flex-1 text-center">
+                <h2 className="text-sm font-bold uppercase tracking-wider">{institutionName || 'Unidad Educativa'}</h2>
+                <p className="text-[10px] font-semibold tracking-widest text-gray-600 mt-0.5 uppercase">
+                  {view === 'mensual' && `Notas del Parcial ${parcialSel}`}
+                  {view === 'trimestral' && `Acta General de Calificacion del ${trimestre === 1 ? 'Primer' : trimestre === 2 ? 'Segundo' : 'Tercer'} Trimestre`}
+                  {view === 'anual' && 'Libreta de Calificacion Anual'}
+                </p>
+              </div>
+              <div className="w-16" /> {/* spacer */}
             </div>
 
-            <div className="flex flex-wrap justify-between items-end mb-6 text-sm gap-2">
-              <div>
-                <p><span className="font-bold">Estudiante:</span> {currentStudent?.full_name}</p>
-                {role !== 'student' && currentCourse && (
-                  <p><span className="font-bold">Curso:</span> {currentCourse.name} {currentCourse.parallel}</p>
-                )}
-              </div>
-              <div className="text-right">
-                <p><span className="font-bold">Fecha:</span> {new Date().toLocaleDateString('es-EC', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                <p><span className="font-bold">Año Lectivo:</span> {new Date().getFullYear()} - {new Date().getFullYear() + 1}</p>
-              </div>
+            {/* Info del estudiante */}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[10px] mb-3">
+              <p><b>AÑO LECTIVO:</b> {yearLabel}</p>
+              <p><b>TRIMESTRE:</b> {view === 'anual' ? 'ANUAL' : `${trimestre === 1 ? 'PRIMERO' : trimestre === 2 ? 'SEGUNDO' : 'TERCERO'}`}</p>
+              <p><b>ESTUDIANTE:</b> {currentStudent?.full_name}</p>
+              <p><b>JORNADA:</b> {currentCourse?.shift === 'vespertino' ? 'VESPERTINA' : 'MATUTINA'}</p>
+              <p><b>CURSO:</b> {currentCourse?.name} {currentCourse?.parallel}</p>
+              <p><b>DOCENTE:</b> {docenteName}</p>
             </div>
           </div>
 
-          {/* Table */}
-          <div className="px-8 pb-8 print:px-4 print:pb-4">
-            {view === 'trimestre' ? (
-              /* ── Trimestre view ── */
-              <table className="w-full text-left text-sm border-collapse">
+          {/* ═══ LIBRETA MENSUAL (POR PARCIAL) ═══ */}
+          {view === 'mensual' && (
+            <div className="px-6 pb-6 print:px-3 print:pb-3">
+              <table className="w-full border-collapse text-[10px]">
                 <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-300 px-4 py-2.5 font-bold">Asignatura</th>
-                    {Array.from({ length: parcialesCount }, (_, i) => (
-                      <th key={i} className="border border-gray-300 px-3 py-2.5 font-bold text-center w-24">P{i + 1}</th>
+                  <tr className="bg-gray-200">
+                    <th className="border border-gray-400 px-2 py-1.5 font-bold text-left" rowSpan={2}>N°</th>
+                    <th className="border border-gray-400 px-2 py-1.5 font-bold text-left" rowSpan={2}>MATERIAS</th>
+                    {categories.map((cat: any) => (
+                      <th key={cat.id} className="border border-gray-400 px-1 py-1 font-bold text-center text-[8px] uppercase" colSpan={2}>
+                        {cat.name}
+                      </th>
                     ))}
-                    <th className="border border-gray-300 px-3 py-2.5 font-bold text-center w-28 bg-gray-200">Promedio T{trimestre}</th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center bg-cyan-100" rowSpan={2}>P. 70%</th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center bg-pink-100" rowSpan={2}>P. PARCIAL</th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center bg-green-100" rowSpan={2}>CUALIT.</th>
                   </tr>
-                </thead>
-                <tbody>
-                  {reportData.map((row, i) => (
-                    <tr key={i} className={i % 2 === 0 ? '' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 px-4 py-2 font-medium">{row.subject}</td>
-                      {row.parcials.map((pVal: number | null, pi: number) => (
-                        <td key={pi} className={`border border-gray-300 px-3 py-2 text-center font-semibold ${gradeClass(pVal)}`}>
-                          {pVal !== null ? pVal.toFixed(2) : '—'}
-                        </td>
-                      ))}
-                      <td className={`border border-gray-300 px-3 py-2 text-center font-bold text-base bg-gray-50 ${gradeClass(row.avg)}`}>
-                        {row.avg !== null ? row.avg.toFixed(2) : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gray-200">
-                    <td className="border border-gray-300 px-4 py-3 font-bold text-right uppercase text-xs" colSpan={parcialesCount + 1}>
-                      Promedio General Trimestre {trimestre}
-                    </td>
-                    <td className={`border border-gray-300 px-3 py-3 text-center font-bold text-lg ${gradeClass(globalAvg)}`}>
-                      {globalAvg !== null ? globalAvg.toFixed(2) : '—'}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            ) : (
-              /* ── Annual view ── */
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
                   <tr className="bg-gray-100">
-                    <th className="border border-gray-300 px-4 py-2.5 font-bold">Asignatura</th>
-                    <th className="border border-gray-300 px-3 py-2.5 font-bold text-center w-20">T1</th>
-                    <th className="border border-gray-300 px-3 py-2.5 font-bold text-center w-20">T2</th>
-                    <th className="border border-gray-300 px-3 py-2.5 font-bold text-center w-20">T3</th>
-                    <th className="border border-gray-300 px-3 py-2.5 font-bold text-center w-28 bg-gray-200">Promedio Anual</th>
+                    {categories.map((cat: any) => (
+                      <>
+                        <th key={`${cat.id}-n`} className="border border-gray-400 px-1 py-1 text-center text-[8px]">Nota</th>
+                        <th key={`${cat.id}-p`} className="border border-gray-400 px-1 py-1 text-center text-[8px] bg-cyan-50">PROM</th>
+                      </>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {annualData.map((row, i) => (
-                    <tr key={i} className={i % 2 === 0 ? '' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 px-4 py-2 font-medium">{row.subject}</td>
-                      <td className={`border border-gray-300 px-3 py-2 text-center font-semibold ${gradeClass(row.t1)}`}>
-                        {row.t1 !== null ? row.t1.toFixed(2) : '—'}
-                      </td>
-                      <td className={`border border-gray-300 px-3 py-2 text-center font-semibold ${gradeClass(row.t2)}`}>
-                        {row.t2 !== null ? row.t2.toFixed(2) : '—'}
-                      </td>
-                      <td className={`border border-gray-300 px-3 py-2 text-center font-semibold ${gradeClass(row.t3)}`}>
-                        {row.t3 !== null ? row.t3.toFixed(2) : '—'}
-                      </td>
-                      <td className={`border border-gray-300 px-3 py-2 text-center font-bold text-base bg-gray-50 ${gradeClass(row.annual)}`}>
-                        {row.annual !== null ? row.annual.toFixed(2) : '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {courseSubjects.map((sub: any, idx: number) => {
+                    const parcAvg = getParcialAvg(selectedStudentId, sub.id, trimestre, parcialSel)
+                    return (
+                      <tr key={sub.id} className={idx % 2 === 0 ? '' : 'bg-gray-50'}>
+                        <td className="border border-gray-400 px-2 py-1 text-center font-semibold">{idx + 1}</td>
+                        <td className="border border-gray-400 px-2 py-1 font-medium uppercase">{sub.name}</td>
+                        {categories.map((cat: any) => {
+                          const catAvg = getCatAvg(selectedStudentId, sub.id, trimestre, parcialSel, cat.id)
+                          return (
+                            <>
+                              <td key={`${cat.id}-n`} className={`border border-gray-400 px-1 py-1 text-center ${gradeClass(catAvg)}`}>
+                                {fmt(catAvg)}
+                              </td>
+                              <td key={`${cat.id}-p`} className={`border border-gray-400 px-1 py-1 text-center font-semibold bg-cyan-50 ${gradeClass(catAvg)}`}>
+                                {fmt(catAvg)}
+                              </td>
+                            </>
+                          )
+                        })}
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-cyan-100 ${gradeClass(parcAvg)}`}>
+                          {fmt(parcAvg)}
+                        </td>
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-pink-100 ${gradeClass(parcAvg)}`}>
+                          {fmt(parcAvg)}
+                        </td>
+                        <td className="border border-gray-400 px-1 py-1 text-center font-bold bg-green-100">
+                          {cualitativo(parcAvg)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+
+              {/* Comportamiento + Firma */}
+              <div className="mt-6 flex justify-between items-start text-[10px]">
+                <div>
+                  <table className="border-collapse">
+                    <tbody>
+                      <tr>
+                        <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">COMPORT.</td>
+                        <td className="border border-gray-400 px-3 py-1 font-bold text-center">{getBehavior(selectedStudentId)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="text-center">
+                  <div className="w-48 border-t border-gray-400 pt-1 mt-8 font-bold text-[9px]">FIRMA DEL TUTOR</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ ACTA TRIMESTRAL ═══ */}
+          {view === 'trimestral' && (
+            <div className="px-6 pb-6 print:px-3 print:pb-3">
+              <table className="w-full border-collapse text-[10px]">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="border border-gray-400 px-1 py-1.5 font-bold text-center w-6" rowSpan={2}>N°</th>
+                    <th className="border border-gray-400 px-2 py-1.5 font-bold text-left" rowSpan={2}>ASIGNATURAS</th>
+                    {Array.from({ length: parcialesCount }, (_, i) => (
+                      <th key={i} className="border border-gray-400 px-1 py-1 font-bold text-center text-[9px]" colSpan={2}>
+                        PARCIAL {i + 1}
+                      </th>
+                    ))}
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center bg-orange-100 text-[9px]" rowSpan={2}>
+                      PROM.<br/>PARCIALES<br/><span className="text-[8px] font-normal">70%</span>
+                    </th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center bg-amber-100 text-[9px]" rowSpan={2}>
+                      EXAMEN<br/>TRIMESTRAL<br/><span className="text-[8px] font-normal">30%</span>
+                    </th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center bg-cyan-100 text-[9px]" rowSpan={2}>
+                      PROMEDIO<br/>TRIMESTRAL
+                    </th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center bg-green-100 text-[9px]" rowSpan={2}>
+                      CUALIT.
+                    </th>
+                  </tr>
+                  <tr className="bg-gray-100">
+                    {Array.from({ length: parcialesCount }, (_, i) => (
+                      <>
+                        <th key={`n-${i}`} className="border border-gray-400 px-1 py-1 text-center text-[8px]">Nota</th>
+                        <th key={`p-${i}`} className="border border-gray-400 px-1 py-1 text-center text-[8px] bg-cyan-50">PROM</th>
+                      </>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {courseSubjects.map((sub: any, idx: number) => {
+                    const pm = getParcialMean(selectedStudentId, sub.id, trimestre)
+                    const exam = getExamScore(selectedStudentId, sub.id, trimestre)
+                    const triAvg = getTrimestreAvg(selectedStudentId, sub.id, trimestre)
+                    return (
+                      <tr key={sub.id} className={idx % 2 === 0 ? '' : 'bg-gray-50'}>
+                        <td className="border border-gray-400 px-1 py-1 text-center font-semibold">{idx + 1}</td>
+                        <td className="border border-gray-400 px-2 py-1 font-medium uppercase text-[9px]">{sub.name}</td>
+                        {Array.from({ length: parcialesCount }, (_, i) => {
+                          const pAvg = getParcialAvg(selectedStudentId, sub.id, trimestre, i + 1)
+                          return (
+                            <>
+                              <td key={`n-${i}`} className={`border border-gray-400 px-1 py-1 text-center ${gradeClass(pAvg)}`}>
+                                {fmt(pAvg)}
+                              </td>
+                              <td key={`p-${i}`} className={`border border-gray-400 px-1 py-1 text-center font-semibold bg-cyan-50 ${gradeClass(pAvg)}`}>
+                                {fmt(pAvg)}
+                              </td>
+                            </>
+                          )
+                        })}
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-orange-100 ${gradeClass(pm)}`}>
+                          {fmt(pm)}
+                        </td>
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-amber-100 ${gradeClass(exam)}`}>
+                          {fmt(exam)}
+                        </td>
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-cyan-100 ${gradeClass(triAvg)}`}>
+                          {fmt(triAvg)}
+                        </td>
+                        <td className="border border-gray-400 px-1 py-1 text-center font-bold bg-green-100">
+                          {cualitativo(triAvg)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+
+              {/* Firmas */}
+              <div className="mt-12 flex justify-around text-[9px] font-bold uppercase text-gray-500 gap-8 print:mt-16">
+                <div className="text-center">
+                  <div className="w-44 border-t border-gray-400 pt-1">Firma del Rector/a</div>
+                </div>
+                <div className="text-center">
+                  <div className="w-44 border-t border-gray-400 pt-1">Tutor/a de Curso</div>
+                </div>
+                <div className="text-center">
+                  <div className="w-44 border-t border-gray-400 pt-1">Representante Legal</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══ LIBRETA ANUAL ═══ */}
+          {view === 'anual' && (
+            <div className="px-6 pb-6 print:px-3 print:pb-3">
+              <table className="w-full border-collapse text-[10px]">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="border border-gray-400 px-1 py-1.5 font-bold text-left" rowSpan={2}>MATERIAS</th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center text-[9px]" colSpan={2}>
+                      PRIMER TRIMESTRE
+                    </th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center text-[9px]" colSpan={2}>
+                      SEGUNDO TRIMESTRE
+                    </th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center text-[9px] bg-cyan-100" colSpan={parcialesCount + 2}>
+                      TERCER TRIMESTRE
+                    </th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center bg-orange-100 text-[9px]" rowSpan={2}>
+                      PROM.<br/>ANUAL
+                    </th>
+                    <th className="border border-gray-400 px-1 py-1 font-bold text-center bg-green-100 text-[9px]" rowSpan={2}>
+                      CUALIT.
+                    </th>
+                  </tr>
+                  <tr className="bg-gray-100 text-[8px]">
+                    <th className="border border-gray-400 px-1 py-1 text-center">Prom T1</th>
+                    <th className="border border-gray-400 px-1 py-1 text-center">Cual.</th>
+                    <th className="border border-gray-400 px-1 py-1 text-center">Prom T2</th>
+                    <th className="border border-gray-400 px-1 py-1 text-center">Cual.</th>
+                    {Array.from({ length: parcialesCount }, (_, i) => (
+                      <th key={i} className="border border-gray-400 px-1 py-1 text-center bg-cyan-50">P{i + 1}</th>
+                    ))}
+                    <th className="border border-gray-400 px-1 py-1 text-center bg-amber-50">Examen</th>
+                    <th className="border border-gray-400 px-1 py-1 text-center bg-cyan-100">Prom T3</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {courseSubjects.map((sub: any, idx: number) => {
+                    const t1 = getTrimestreAvg(selectedStudentId, sub.id, 1)
+                    const t2 = getTrimestreAvg(selectedStudentId, sub.id, 2)
+                    const t3 = getTrimestreAvg(selectedStudentId, sub.id, 3)
+                    const exam3 = getExamScore(selectedStudentId, sub.id, 3)
+                    const annual = getAnnualAvg(selectedStudentId, sub.id)
+                    return (
+                      <tr key={sub.id} className={idx % 2 === 0 ? '' : 'bg-gray-50'}>
+                        <td className="border border-gray-400 px-2 py-1 font-medium uppercase text-[9px]">{sub.name}</td>
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-semibold ${gradeClass(t1)}`}>{fmt(t1)}</td>
+                        <td className="border border-gray-400 px-1 py-1 text-center">{cualitativo(t1)}</td>
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-semibold ${gradeClass(t2)}`}>{fmt(t2)}</td>
+                        <td className="border border-gray-400 px-1 py-1 text-center">{cualitativo(t2)}</td>
+                        {Array.from({ length: parcialesCount }, (_, i) => {
+                          const pAvg = getParcialAvg(selectedStudentId, sub.id, 3, i + 1)
+                          return (
+                            <td key={i} className={`border border-gray-400 px-1 py-1 text-center bg-cyan-50 ${gradeClass(pAvg)}`}>
+                              {fmt(pAvg)}
+                            </td>
+                          )
+                        })}
+                        <td className={`border border-gray-400 px-1 py-1 text-center bg-amber-50 font-semibold ${gradeClass(exam3)}`}>
+                          {fmt(exam3)}
+                        </td>
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-cyan-100 ${gradeClass(t3)}`}>
+                          {fmt(t3)}
+                        </td>
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-orange-100 ${gradeClass(annual)}`}>
+                          {fmt(annual)}
+                        </td>
+                        <td className="border border-gray-400 px-1 py-1 text-center font-bold bg-green-100">
+                          {cualitativo(annual)}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-gray-200">
-                    <td className="border border-gray-300 px-4 py-3 font-bold text-right uppercase text-xs" colSpan={4}>
-                      Promedio General Anual
+                  <tr className="bg-gray-200 font-bold">
+                    <td className="border border-gray-400 px-2 py-1.5 text-right uppercase" colSpan={parcialesCount + 6}>
+                      Promedio General
                     </td>
-                    <td className={`border border-gray-300 px-3 py-3 text-center font-bold text-lg ${gradeClass(annualGlobalAvg)}`}>
-                      {annualGlobalAvg !== null ? annualGlobalAvg.toFixed(2) : '—'}
-                    </td>
+                    {(() => {
+                      const avgs = courseSubjects.map((s: any) => getAnnualAvg(selectedStudentId, s.id)).filter((v): v is number => v !== null)
+                      const globalAvg = avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null
+                      return (
+                        <>
+                          <td className={`border border-gray-400 px-1 py-1.5 text-center bg-orange-100 ${gradeClass(globalAvg)}`}>
+                            {fmt(globalAvg)}
+                          </td>
+                          <td className="border border-gray-400 px-1 py-1.5 text-center bg-green-100">
+                            {cualitativo(globalAvg)}
+                          </td>
+                        </>
+                      )
+                    })()}
                   </tr>
                 </tfoot>
               </table>
-            )}
 
-            {/* Escala de calificaciones */}
-            <div className="mt-6 text-xs text-gray-500 border-t border-gray-200 pt-4">
-              <p className="font-bold mb-1">Escala de Calificaciones (sobre 10):</p>
-              <div className="flex flex-wrap gap-4">
-                <span>🟢 <b>9.00 – 10.00</b> Domina</span>
-                <span>🔵 <b>7.00 – 8.99</b> Alcanza</span>
-                <span>🟡 <b>4.01 – 6.99</b> Próximo a alcanzar</span>
-                <span>🔴 <b>≤ 4.00</b> No alcanza</span>
+              {/* Comportamiento + Asistencia */}
+              <div className="mt-6 grid grid-cols-2 gap-6 text-[10px]">
+                {/* Comportamiento */}
+                <div>
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-200">
+                        <th className="border border-gray-400 px-2 py-1 text-left" colSpan={2}>COMPORTAMIENTO</th>
+                        <th className="border border-gray-400 px-2 py-1 text-center font-bold">{getBehavior(selectedStudentId)}</th>
+                      </tr>
+                    </thead>
+                  </table>
+                  <table className="w-full border-collapse mt-2">
+                    <thead>
+                      <tr className="bg-cyan-100">
+                        <th className="border border-gray-400 px-2 py-1 text-center font-bold" colSpan={3}>ESCALA DE COMPORTAMIENTO</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-[9px]">
+                      <tr><td className="border border-gray-400 px-2 py-0.5 font-bold text-center w-8">S</td><td className="border border-gray-400 px-2 py-0.5" colSpan={2}>Transforma los desacuerdos en oportunidades de crecimiento y cooperacion.</td></tr>
+                      <tr><td className="border border-gray-400 px-2 py-0.5 font-bold text-center">F</td><td className="border border-gray-400 px-2 py-0.5" colSpan={2}>Se involucra y participa en iniciativas que favorecen la convivencia pacifica.</td></tr>
+                      <tr><td className="border border-gray-400 px-2 py-0.5 font-bold text-center">U</td><td className="border border-gray-400 px-2 py-0.5" colSpan={2}>Demuestra habilidades para llegar a acuerdos y asumir compromisos.</td></tr>
+                      <tr><td className="border border-gray-400 px-2 py-0.5 font-bold text-center">N</td><td className="border border-gray-400 px-2 py-0.5" colSpan={2}>Requiere acompanamiento comportamental.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Asistencia */}
+                <div>
+                  {(() => {
+                    const att = getAttendanceCounts(selectedStudentId)
+                    return (
+                      <table className="border-collapse">
+                        <tbody>
+                          <tr>
+                            <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">FALTAS JUSTIFICADAS</td>
+                            <td className="border border-gray-400 px-3 py-1 text-center font-bold">{att.justified}</td>
+                          </tr>
+                          <tr>
+                            <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">FALTAS INJUSTIFICADAS</td>
+                            <td className="border border-gray-400 px-3 py-1 text-center font-bold">{att.unjustified}</td>
+                          </tr>
+                          <tr>
+                            <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">ATRASOS</td>
+                            <td className="border border-gray-400 px-3 py-1 text-center font-bold">{att.late}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    )
+                  })()}
+                </div>
+              </div>
+
+              {/* Escala cualitativa */}
+              <div className="mt-4 text-[9px] border border-gray-300 rounded p-2">
+                <p className="font-bold mb-1">ESCALA CUALITATIVA:</p>
+                <div className="flex flex-wrap gap-4">
+                  <span><b>DAR</b> (9.00-10.00) Domina los aprendizajes</span>
+                  <span><b>AAR</b> (7.00-8.99) Alcanza los aprendizajes</span>
+                  <span><b>PAR</b> (4.01-6.99) Proximo a alcanzar</span>
+                  <span><b>NAAR</b> (0-4.00) No alcanza</span>
+                </div>
+              </div>
+
+              {/* Firmas */}
+              <div className="mt-12 flex justify-around text-[9px] font-bold uppercase text-gray-500 gap-8 print:mt-16">
+                <div className="text-center">
+                  <div className="w-44 border-t border-gray-400 pt-1">{tutorName || 'TUTORA'}</div>
+                  <div className="text-[8px] font-normal">TUTOR/A</div>
+                </div>
+                <div className="text-center">
+                  <div className="w-44 border-t border-gray-400 pt-1">RECTOR/A</div>
+                  <div className="text-[8px] font-normal">RECTOR</div>
+                </div>
               </div>
             </div>
-
-            {/* Firmas */}
-            <div className="mt-16 flex flex-wrap justify-around text-xs font-bold uppercase text-gray-500 gap-8 print:mt-24">
-              <div className="text-center">
-                <div className="w-48 border-t border-gray-400 pt-2">Firma del Rector/a</div>
-              </div>
-              <div className="text-center">
-                <div className="w-48 border-t border-gray-400 pt-2">Tutor/a de Curso</div>
-              </div>
-              <div className="text-center">
-                <div className="w-48 border-t border-gray-400 pt-2">Representante Legal</div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       ) : (
         <div className="p-12 text-center text-ink3 bg-surface rounded-2xl border border-surface2">
           <FileText size={40} className="mx-auto mb-4 text-ink4 opacity-40" />
           <p className="font-semibold text-sm mb-1">Selecciona un curso y estudiante</p>
-          <p className="text-xs text-ink4">Para generar e imprimir el boletín de calificaciones.</p>
+          <p className="text-xs text-ink4">Para generar e imprimir la libreta de calificaciones.</p>
         </div>
       )}
     </div>

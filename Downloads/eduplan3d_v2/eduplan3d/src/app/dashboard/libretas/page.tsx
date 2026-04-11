@@ -34,9 +34,9 @@ export default async function LibretasPage() {
   ] = await Promise.all([
     admin.from('courses').select('*').eq('institution_id', instId),
     admin.from('enrollments').select('*, student:profiles(id, full_name, email)'),
-    admin.from('subjects').select('*, course:courses(id, name, parallel)'),
+    admin.from('subjects').select('*, course:courses(id, name, parallel), teacher:profiles!subjects_teacher_id_fkey(id, full_name)'),
     admin.from('grade_categories').select('*').eq('institution_id', instId).order('sort_order'),
-    admin.from('schedule_configs' as any).select('parciales_count').eq('institution_id', instId).maybeSingle(),
+    admin.from('schedule_configs' as any).select('parciales_count, tutores').eq('institution_id', instId).maybeSingle(),
   ])
 
   // Filter subjects by institution courses
@@ -64,6 +64,26 @@ export default async function LibretasPage() {
     }
   }
 
+  // Attendance data for annual report
+  let attendance: any[] = []
+  if (subjectIds.length > 0) {
+    const { data: attData } = await admin
+      .from('attendance')
+      .select('student_id, subject_id, status, date')
+      .in('subject_id', subjectIds)
+    attendance = attData || []
+  }
+
+  // Behavior data for annual report
+  let behaviors: any[] = []
+  if (subjectIds.length > 0) {
+    const { data: behData } = await admin
+      .from('behaviors')
+      .select('student_id, subject_id, type, description, created_at')
+      .in('subject_id', subjectIds)
+    behaviors = behData || []
+  }
+
   // For students, filter to their own data
   const isStudent = profile.role === 'student'
   const filteredEnrollments = isStudent
@@ -74,11 +94,19 @@ export default async function LibretasPage() {
     ? grades.filter((g: any) => g.student_id === user.id)
     : grades
 
+  const filteredAttendance = isStudent
+    ? attendance.filter((a: any) => a.student_id === user.id)
+    : attendance
+
+  const filteredBehaviors = isStudent
+    ? behaviors.filter((b: any) => b.student_id === user.id)
+    : behaviors
+
   return (
     <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
       <div className="print:hidden">
         <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">Libretas de Calificaciones</h1>
-        <p className="text-ink3 text-sm mt-1">Generación e impresión de récord académico automatizado.</p>
+        <p className="text-ink3 text-sm mt-1">Generacion e impresion de record academico automatizado.</p>
       </div>
 
       <LibretasClient
@@ -92,6 +120,9 @@ export default async function LibretasPage() {
         categories={categories || []}
         currentUserId={user.id}
         parcialesCount={(scheduleConfig as any)?.parciales_count || 2}
+        tutores={(scheduleConfig as any)?.tutores || {}}
+        attendance={filteredAttendance}
+        behaviors={filteredBehaviors}
       />
     </div>
   )
