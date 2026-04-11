@@ -51,8 +51,7 @@ export async function GET() {
     step:          0,
   }
 
-  // Auto-inyección: docentes con rol 'teacher' en la DB se fusionan al wizard
-  // Sus IDs reales permiten vincular teacher_id en subjects
+  // ── Auto-inyección de DOCENTES reales ──────────────────────────────────────
   const { data: dbTeachers } = await admin
     .from('profiles' as any)
     .select('id, full_name')
@@ -64,7 +63,6 @@ export async function GET() {
 
     ;(dbTeachers as any[]).forEach((dbT: any) => {
       if (!existingIds.includes(dbT.id)) {
-        // Docente real que aún no está en el wizard → inyectar con ID real y materias vacías
         horariosConfig.docentes.push({
           id:       dbT.id,
           titulo:   '',
@@ -74,11 +72,80 @@ export async function GET() {
           nivel:    'AMBOS',
         })
       } else {
-        // Ya existe → solo actualizar nombre si cambió en su perfil
         const idx = horariosConfig.docentes.findIndex((d: any) => d.id === dbT.id)
         if (idx !== -1) horariosConfig.docentes[idx].nombre = dbT.full_name
       }
     })
+  }
+
+  // ── Auto-inyección de CURSOS reales ──────────────────────────────────────
+  const { data: dbCourses } = await admin
+    .from('courses' as any)
+    .select('id, name, parallel')
+    .eq('institution_id', instId)
+    .order('name', { ascending: true })
+
+  if (dbCourses && (dbCourses as any[]).length > 0) {
+    const dbCourseNames = (dbCourses as any[]).map((c: any) => {
+      const label = c.parallel ? `${c.name} ${c.parallel}`.trim() : c.name
+      return label
+    })
+    // Merge: keep existing wizard cursos, add any new DB courses not in list
+    const currentCursos: string[] = horariosConfig.config?.cursos || []
+    const normalize = (s: string) =>
+      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+    const normalizedCurrent = currentCursos.map(normalize)
+
+    dbCourseNames.forEach((name: string) => {
+      if (!normalizedCurrent.includes(normalize(name))) {
+        currentCursos.push(name)
+      }
+    })
+    horariosConfig.config.cursos = currentCursos
+  }
+
+  // ── Auto-inyección de MATERIAS reales al horasPorCurso ──────────────────
+  const { data: dbSubjects } = await admin
+    .from('subjects' as any)
+    .select('name, weekly_hours, course_id, teacher_id')
+    .eq('institution_id', instId)
+
+  if (dbSubjects && (dbSubjects as any[]).length > 0) {
+    // Build a map: course DB name → subject list
+    const courseIdToName: Record<string, string> = {}
+    if (dbCourses) {
+      ;(dbCourses as any[]).forEach((c: any) => {
+        courseIdToName[c.id] = c.parallel ? `${c.name} ${c.parallel}`.trim() : c.name
+      })
+    }
+
+    const horasPorCurso = horariosConfig.horasPorCurso || {}
+
+    ;(dbSubjects as any[]).forEach((sub: any) => {
+      const courseName = courseIdToName[sub.course_id]
+      if (!courseName) return
+
+      if (!horasPorCurso[courseName]) horasPorCurso[courseName] = {}
+
+      // Only set from DB if the wizard doesn't already have a value for this subject
+      if (horasPorCurso[courseName][sub.name] === undefined || horasPorCurso[courseName][sub.name] === 0) {
+        horasPorCurso[courseName][sub.name] = sub.weekly_hours || 1
+      }
+
+      // Also inject this materia into the docente's list if teacher_id is set
+      if (sub.teacher_id) {
+        const docIdx = horariosConfig.docentes.findIndex((d: any) => d.id === sub.teacher_id)
+        if (docIdx !== -1) {
+          const materias: string[] = horariosConfig.docentes[docIdx].materias || []
+          if (!materias.includes(sub.name)) {
+            materias.push(sub.name)
+            horariosConfig.docentes[docIdx].materias = materias
+          }
+        }
+      }
+    })
+
+    horariosConfig.horasPorCurso = horasPorCurso
   }
 
   return NextResponse.json(
