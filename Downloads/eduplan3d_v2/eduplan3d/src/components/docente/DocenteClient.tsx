@@ -834,15 +834,26 @@ export function DocenteClient({
 
                 if (parcialAvgs.length === 0 && exam === null) return null
 
-                // 80% parciales + 20% examen (si hay examen)
+                // 70% parciales + 30% examen
                 const parcialMean = parcialAvgs.length > 0
                   ? parcialAvgs.reduce((a, b) => a + b, 0) / parcialAvgs.length
                   : null
 
                 if (exam !== null && parcialMean !== null) {
-                  return parcialMean * 0.8 + exam * 0.2
+                  return parcialMean * 0.7 + exam * 0.3
                 }
                 return parcialMean
+              }
+
+              const getParcialMean = (studentId: string): number | null => {
+                const parcialAvgs: number[] = []
+                for (let p = 1; p <= parcialesCount; p++) {
+                  const avg = getParcialAvg(studentId, p)
+                  if (avg !== null) parcialAvgs.push(avg)
+                }
+                return parcialAvgs.length > 0
+                  ? parcialAvgs.reduce((a, b) => a + b, 0) / parcialAvgs.length
+                  : null
               }
 
               const examAssignments = assignments.filter((a: any) =>
@@ -862,9 +873,15 @@ export function DocenteClient({
                               P{i + 1}
                             </th>
                           ))}
+                          <th className="px-3 py-3 text-center font-bold min-w-[110px] border-l-2 border-emerald-400"
+                            style={{ backgroundColor: 'rgba(16,185,129,0.08)' }}>
+                            Prom. Parciales
+                            <div className="text-[9px] font-normal text-ink4 normal-case tracking-normal">70%</div>
+                          </th>
                           <th className="px-3 py-3 text-center font-bold min-w-[100px] border-l-2 border-amber-300"
                             style={{ backgroundColor: 'rgba(245,158,11,0.08)' }}>
                             Examen
+                            <div className="text-[9px] font-normal text-ink4 normal-case tracking-normal">30%</div>
                           </th>
                           <th className="px-3 py-3 text-center font-bold min-w-[110px] border-l-2 border-surface2"
                             style={{ backgroundColor: 'rgba(124,109,250,0.08)' }}>
@@ -891,6 +908,15 @@ export function DocenteClient({
                                   </td>
                                 )
                               })}
+                              {(() => {
+                                const pmean = getParcialMean(st.id)
+                                return (
+                                  <td className={`px-3 py-2.5 text-center font-bold border-l-2 border-emerald-400 ${pmean !== null ? gradeColor(pmean) : 'text-ink4'}`}
+                                    style={{ backgroundColor: 'rgba(16,185,129,0.04)' }}>
+                                    {pmean !== null ? pmean.toFixed(2) : '—'}
+                                  </td>
+                                )
+                              })()}
                               <td className={`px-3 py-2.5 text-center font-semibold border-l-2 border-amber-300 ${examScore !== null ? gradeColor(examScore) : 'text-ink4'}`}
                                 style={{ backgroundColor: 'rgba(245,158,11,0.04)' }}>
                                 {examScore !== null ? examScore.toFixed(2) : '—'}
@@ -1004,7 +1030,7 @@ export function DocenteClient({
                     style={{ background: 'rgba(124,109,250,0.08)', color: 'rgba(124,109,250,0.9)' }}>
                     <BarChart2 className="w-4 h-4 mt-0.5 shrink-0" />
                     <span>
-                      <b>Promedio Trimestral</b> = 80% promedio de parciales + 20% examen trimestral.
+                      <b>Promedio Trimestral</b> = 70% promedio de parciales + 30% examen trimestral.
                       Si no hay examen registrado, el promedio se calcula solo con los parciales.
                     </span>
                   </div>
