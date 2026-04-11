@@ -77,7 +77,7 @@ export function HistorialClient({ initialData }: Props) {
                 <span>{p.duration}</span>
               </div>
               <p className="text-xs text-ink3 line-clamp-2 leading-relaxed">
-                {p.content.slice(0, 120)}...
+                {(typeof p.content === 'string' ? p.content : JSON.stringify(p.content)).slice(0, 120)}...
               </p>
               <p className="text-[10px] text-ink3 mt-3">
                 {format(new Date(p.created_at), "d MMM yyyy 'a las' HH:mm", { locale: es })}
