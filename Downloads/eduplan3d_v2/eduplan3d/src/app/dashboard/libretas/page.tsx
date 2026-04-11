@@ -30,11 +30,13 @@ export default async function LibretasPage() {
     { data: enrollments },
     { data: subjects },
     { data: categories },
+    { data: scheduleConfig },
   ] = await Promise.all([
     admin.from('courses').select('*').eq('institution_id', instId),
     admin.from('enrollments').select('*, student:profiles(id, full_name, email)'),
     admin.from('subjects').select('*, course:courses(id, name, parallel)'),
     admin.from('grade_categories').select('*').eq('institution_id', instId).order('sort_order'),
+    admin.from('schedule_configs' as any).select('parciales_count').eq('institution_id', instId).maybeSingle(),
   ])
 
   // Filter subjects by institution courses
@@ -89,6 +91,7 @@ export default async function LibretasPage() {
         grades={filteredGrades}
         categories={categories || []}
         currentUserId={user.id}
+        parcialesCount={(scheduleConfig as any)?.parciales_count || 2}
       />
     </div>
   )

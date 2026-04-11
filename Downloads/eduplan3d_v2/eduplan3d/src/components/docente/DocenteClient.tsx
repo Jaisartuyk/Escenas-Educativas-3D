@@ -66,6 +66,7 @@ const CAT_COLORS = ['#4F46E5','#10B981','#EF4444','#8B5CF6','#F59E0B','#3B82F6',
 export function DocenteClient({
   profile, mySubjects,
   initialAssignments, initialGrades, initialCategories, teacherId,
+  parcialesCount = 2,
 }: any) {
   // ── Enrollments + student profiles — cargados via API (server components no pueden consultar profiles) ──
   const [enrollments, setEnrollments] = useState<any[]>([])
@@ -770,7 +771,7 @@ export function DocenteClient({
                 ))}
               </div>
               <div className="flex gap-1 bg-surface rounded-xl p-1 border border-surface2">
-                {[1, 2].map(p => (
+                {Array.from({ length: parcialesCount }, (_, i) => i + 1).map(p => (
                   <button key={p} onClick={() => setParcial(p)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
                       ${parcial === p ? 'bg-teal text-white' : 'text-ink3 hover:text-ink hover:bg-bg'}`}>

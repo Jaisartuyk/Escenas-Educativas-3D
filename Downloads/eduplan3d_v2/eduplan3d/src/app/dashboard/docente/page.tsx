@@ -87,6 +87,7 @@ export default async function DocentePage() {
       initialGrades={grades}
       initialCategories={categories}
       teacherId={user.id}
+      parcialesCount={scheduleConfig?.parciales_count || 2}
     />
   )
 }

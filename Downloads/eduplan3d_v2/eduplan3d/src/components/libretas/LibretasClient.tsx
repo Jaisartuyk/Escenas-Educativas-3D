@@ -13,9 +13,10 @@ interface Props {
   grades: any[]
   categories: any[]
   currentUserId: string
+  parcialesCount?: number
 }
 
-export function LibretasClient({ role, institutionName, courses, enrollments, subjects, assignments, grades, categories, currentUserId }: Props) {
+export function LibretasClient({ role, institutionName, courses, enrollments, subjects, assignments, grades, categories, currentUserId, parcialesCount = 2 }: Props) {
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '')
   const [selectedStudentId, setSelectedStudentId] = useState<string>(role === 'student' ? currentUserId : '')
   const [trimestre, setTrimestre] = useState(1)
@@ -53,7 +54,7 @@ export function LibretasClient({ role, institutionName, courses, enrollments, su
   function getSubjectAvg(subjectId: string, studentId: string, t: number): { weighted: number | null; parcials: (number | null)[] } {
     const parcials: (number | null)[] = []
     
-    for (let p = 1; p <= 2; p++) {
+    for (let p = 1; p <= parcialesCount; p++) {
       const filteredAsgs = assignments.filter((a: any) =>
         a.subject_id === subjectId && a.trimestre === t && a.parcial === p
       )
@@ -80,7 +81,7 @@ export function LibretasClient({ role, institutionName, courses, enrollments, su
       }
     }
 
-    // Average of both parcials
+    // Average of all parcials
     const validParcials = parcials.filter((p): p is number => p !== null)
     const weighted = validParcials.length > 0 ? validParcials.reduce((a, b) => a + b, 0) / validParcials.length : null
     return { weighted, parcials }
@@ -94,12 +95,11 @@ export function LibretasClient({ role, institutionName, courses, enrollments, su
       return {
         subject: sub.name,
         subjectId: sub.id,
-        p1: parcials[0],
-        p2: parcials[1],
+        parcials,
         avg: weighted,
       }
     })
-  }, [courseSubjects, selectedStudentId, trimestre, assignments, grades, categories])
+  }, [courseSubjects, selectedStudentId, trimestre, assignments, grades, categories, parcialesCount])
 
   // Annual average (all 3 trimesters)
   const annualData = useMemo(() => {
@@ -233,8 +233,9 @@ export function LibretasClient({ role, institutionName, courses, enrollments, su
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border border-gray-300 px-4 py-2.5 font-bold">Asignatura</th>
-                    <th className="border border-gray-300 px-3 py-2.5 font-bold text-center w-24">P1</th>
-                    <th className="border border-gray-300 px-3 py-2.5 font-bold text-center w-24">P2</th>
+                    {Array.from({ length: parcialesCount }, (_, i) => (
+                      <th key={i} className="border border-gray-300 px-3 py-2.5 font-bold text-center w-24">P{i + 1}</th>
+                    ))}
                     <th className="border border-gray-300 px-3 py-2.5 font-bold text-center w-28 bg-gray-200">Promedio T{trimestre}</th>
                   </tr>
                 </thead>
@@ -242,12 +243,11 @@ export function LibretasClient({ role, institutionName, courses, enrollments, su
                   {reportData.map((row, i) => (
                     <tr key={i} className={i % 2 === 0 ? '' : 'bg-gray-50'}>
                       <td className="border border-gray-300 px-4 py-2 font-medium">{row.subject}</td>
-                      <td className={`border border-gray-300 px-3 py-2 text-center font-semibold ${gradeClass(row.p1)}`}>
-                        {row.p1 !== null ? row.p1.toFixed(2) : '—'}
-                      </td>
-                      <td className={`border border-gray-300 px-3 py-2 text-center font-semibold ${gradeClass(row.p2)}`}>
-                        {row.p2 !== null ? row.p2.toFixed(2) : '—'}
-                      </td>
+                      {row.parcials.map((pVal: number | null, pi: number) => (
+                        <td key={pi} className={`border border-gray-300 px-3 py-2 text-center font-semibold ${gradeClass(pVal)}`}>
+                          {pVal !== null ? pVal.toFixed(2) : '—'}
+                        </td>
+                      ))}
                       <td className={`border border-gray-300 px-3 py-2 text-center font-bold text-base bg-gray-50 ${gradeClass(row.avg)}`}>
                         {row.avg !== null ? row.avg.toFixed(2) : '—'}
                       </td>
@@ -256,7 +256,7 @@ export function LibretasClient({ role, institutionName, courses, enrollments, su
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-200">
-                    <td className="border border-gray-300 px-4 py-3 font-bold text-right uppercase text-xs" colSpan={3}>
+                    <td className="border border-gray-300 px-4 py-3 font-bold text-right uppercase text-xs" colSpan={parcialesCount + 1}>
                       Promedio General Trimestre {trimestre}
                     </td>
                     <td className={`border border-gray-300 px-3 py-3 text-center font-bold text-lg ${gradeClass(globalAvg)}`}>

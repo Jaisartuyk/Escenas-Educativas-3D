@@ -34,7 +34,7 @@ export default async function PlanificadorPage() {
   if (instId) {
     const { data } = await admin
       .from('schedule_configs' as any)
-      .select('period_minutes')
+      .select('period_minutes, parciales_count')
       .eq('institution_id', instId)
       .maybeSingle()
     scheduleConfig = data
@@ -63,6 +63,7 @@ export default async function PlanificadorPage() {
         institutionName={institutionName}
         subjects={subjects || []}
         periodMinutes={scheduleConfig?.period_minutes || 40}
+        parcialesCount={scheduleConfig?.parciales_count || 2}
       />
     </div>
   )

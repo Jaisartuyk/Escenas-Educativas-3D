@@ -17,10 +17,7 @@ const TRIMESTRES = [
   { value: 3, label: 'Trimestre 3' },
 ]
 
-const PARCIALES = [
-  { value: 1, label: 'Parcial 1 (Unidad)' },
-  { value: 2, label: 'Parcial 2 (Unidad)' },
-]
+// PARCIALES se genera dinámicamente según parcialesCount
 
 const SEMANAS = [
   { value: 1, label: 'Semana 1' },
@@ -43,13 +40,14 @@ const GENERATION_MODES = [
 // ── Component ────────────────────────────────────────────────────────────────
 export function PlannerClient({
   teacherName, teacherPlan, institutionName,
-  subjects, periodMinutes,
+  subjects, periodMinutes, parcialesCount = 2,
 }: {
   teacherName: string
   teacherPlan: string
   institutionName: string
   subjects: any[]
   periodMinutes: number
+  parcialesCount?: number
 }) {
   const router = useRouter()
 
@@ -243,7 +241,9 @@ export function PlannerClient({
               onChange={e => setParcial(Number(e.target.value))}
               className="w-full bg-bg border border-surface2 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-violet/50"
             >
-              {PARCIALES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              {Array.from({ length: parcialesCount }, (_, i) => (
+                <option key={i + 1} value={i + 1}>Parcial {i + 1} (Unidad)</option>
+              ))}
             </select>
           </div>
           {showSemana && (
