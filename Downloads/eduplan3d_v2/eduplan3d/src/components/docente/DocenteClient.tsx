@@ -614,6 +614,8 @@ export function DocenteClient({
         const weekDates = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i))
 
         // Conteo de ausencias por alumno
+        const presentCount = (studentId: string) =>
+          weekDates.filter(d => attendance[`${toISO(d)}_${studentId}`] === 'present').length
         const absentCount = (studentId: string) =>
           weekDates.filter(d => attendance[`${toISO(d)}_${studentId}`] === 'absent').length
         const lateCount = (studentId: string) =>
@@ -663,7 +665,8 @@ export function DocenteClient({
                           {fmtDayHeader(d)}
                         </th>
                       ))}
-                      <th className="px-3 py-3 text-center font-bold text-ink3 border-l border-surface2">F</th>
+                      <th className="px-3 py-3 text-center font-bold text-ink3 border-l border-surface2">P</th>
+                      <th className="px-3 py-3 text-center font-bold text-ink3 border-l border-surface2/50">F</th>
                       <th className="px-3 py-3 text-center font-bold text-ink3 border-l border-surface2/50">A</th>
                     </tr>
                   </thead>
@@ -707,6 +710,11 @@ export function DocenteClient({
                         })}
                         {/* Conteos */}
                         <td className="px-3 py-2 text-center border-l border-surface2">
+                          <span className={`text-xs font-bold ${presentCount(st.id) > 0 ? 'text-emerald-500' : 'text-ink4'}`}>
+                            {presentCount(st.id)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-center border-l border-surface2/50">
                           <span className={`text-xs font-bold ${absentCount(st.id) > 0 ? 'text-rose-500' : 'text-ink4'}`}>
                             {absentCount(st.id)}
                           </span>
