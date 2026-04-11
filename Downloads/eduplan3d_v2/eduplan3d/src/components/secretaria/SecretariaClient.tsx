@@ -44,6 +44,8 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const [payments, setPayments]       = useState<any[]>(initialPayments || [])
   const [showForm, setShowForm]       = useState(false)
   const [filterStatus, setFilterStatus] = useState<string>('todos')
+  const [filterShift, setFilterShift]   = useState<string>('todos')
+  const [filterCourse, setFilterCourse] = useState<string>('todos')
   const [searchTerm, setSearchTerm]   = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
@@ -54,6 +56,56 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const [newDueDate, setNewDueDate]   = useState('')
   const [saving, setSaving]           = useState(false)
 
+  // ── Mappings: student → courses, course → shift ─────────────────────────
+  const coursesById = useMemo(() => {
+    const map: Record<string, any> = {}
+    ;(courses || []).forEach((c: any) => { map[c.id] = c })
+    return map
+  }, [courses])
+
+  // student_id → [course_id, ...]
+  const studentCourses = useMemo(() => {
+    const map: Record<string, string[]> = {}
+    ;(enrollments || []).forEach((e: any) => {
+      if (!map[e.student_id]) map[e.student_id] = []
+      map[e.student_id].push(e.course_id)
+    })
+    return map
+  }, [enrollments])
+
+  // Available shifts from courses
+  const availableShifts: string[] = useMemo(() =>
+    Array.from(new Set((courses || []).map((c: any) => c.shift as string).filter(Boolean))),
+    [courses]
+  )
+
+  // Courses filtered by selected shift
+  const filteredCourses = useMemo(() => {
+    if (filterShift === 'todos') return courses || []
+    return (courses || []).filter((c: any) => c.shift === filterShift)
+  }, [courses, filterShift])
+
+  // Set of student IDs that match shift+course filters
+  const allowedStudentIds = useMemo(() => {
+    if (filterShift === 'todos' && filterCourse === 'todos') return null // no filter
+    const allowedCourseIds = new Set(
+      filterCourse !== 'todos'
+        ? [filterCourse]
+        : filteredCourses.map((c: any) => c.id)
+    )
+    const ids = new Set<string>()
+    ;(enrollments || []).forEach((e: any) => {
+      if (allowedCourseIds.has(e.course_id)) ids.add(e.student_id)
+    })
+    return ids
+  }, [filterShift, filterCourse, filteredCourses, enrollments])
+
+  // Reset course filter when shift changes
+  const handleShiftChange = (shift: string) => {
+    setFilterShift(shift)
+    setFilterCourse('todos')
+  }
+
   // ── Computed ─────────────────────────────────────────────────────────────
   const enrichedPayments = useMemo(() =>
     payments.map((p: any) => ({ ...p, computedStatus: getPaymentStatus(p) })),
@@ -62,6 +114,10 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
   const filtered = useMemo(() => {
     let list = enrichedPayments
+    // Filter by shift / course
+    if (allowedStudentIds !== null) {
+      list = list.filter((p: any) => allowedStudentIds.has(p.student_id))
+    }
     if (filterStatus !== 'todos') {
       list = list.filter((p: any) => p.computedStatus === filterStatus)
     }
@@ -74,7 +130,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       })
     }
     return list
-  }, [enrichedPayments, filterStatus, searchTerm, students])
+  }, [enrichedPayments, filterStatus, searchTerm, students, allowedStudentIds])
 
   const stats = useMemo(() => {
     const all = enrichedPayments
@@ -226,9 +282,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
       {/* ── Toolbar ───────────────────────────────────────────────────────── */}
       <div className="bg-surface rounded-2xl border border-surface2 overflow-hidden">
-        <div className="p-4 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between border-b border-surface2">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* Search */}
+        <div className="p-4 space-y-3 border-b border-surface2">
+          {/* Row 1: Search + Emitir Cobro */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
             <div className="relative flex-1 max-w-sm">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink4" />
               <input
@@ -239,32 +295,81 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 className="w-full bg-bg border border-surface2 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-violet/50 transition-colors"
               />
             </div>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg flex-shrink-0"
+              style={{ backgroundColor: '#7C6DFA' }}
+            >
+              {showForm ? <X size={16} /> : <Plus size={16} />}
+              {showForm ? 'Cancelar' : 'Emitir Cobro'}
+            </button>
+          </div>
+
+          {/* Row 2: Filters — Turno, Curso, Estado */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Filter size={14} className="text-ink4" />
+            <span className="text-xs font-semibold text-ink4 uppercase tracking-wider mr-1">Filtros:</span>
+
+            {/* Shift filter */}
+            {availableShifts.length > 0 && (
+              <div className="relative">
+                <select
+                  value={filterShift}
+                  onChange={e => handleShiftChange(e.target.value)}
+                  className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:border-violet/50 cursor-pointer"
+                >
+                  <option value="todos">Todos los turnos</option>
+                  {availableShifts.map((s: string) => (
+                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
+                </select>
+                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
+              </div>
+            )}
+
+            {/* Course filter */}
+            <div className="relative">
+              <select
+                value={filterCourse}
+                onChange={e => setFilterCourse(e.target.value)}
+                className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:border-violet/50 cursor-pointer"
+              >
+                <option value="todos">Todos los cursos</option>
+                {filteredCourses.map((c: any) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.parallel || ''} {c.shift ? `(${c.shift})` : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
+            </div>
 
             {/* Status filter */}
             <div className="relative">
               <select
                 value={filterStatus}
                 onChange={e => setFilterStatus(e.target.value)}
-                className="appearance-none bg-bg border border-surface2 rounded-xl pl-3 pr-8 py-2 text-sm focus:outline-none focus:border-violet/50 cursor-pointer"
+                className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:border-violet/50 cursor-pointer"
               >
-                <option value="todos">Todos</option>
+                <option value="todos">Todos los estados</option>
                 <option value="pagado">Pagados</option>
                 <option value="pendiente">Pendientes</option>
                 <option value="proximo">Por vencer</option>
                 <option value="atrasado">Atrasados</option>
               </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
             </div>
-          </div>
 
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg flex-shrink-0"
-            style={{ backgroundColor: '#7C6DFA' }}
-          >
-            {showForm ? <X size={16} /> : <Plus size={16} />}
-            {showForm ? 'Cancelar' : 'Emitir Cobro'}
-          </button>
+            {/* Clear filters */}
+            {(filterShift !== 'todos' || filterCourse !== 'todos' || filterStatus !== 'todos') && (
+              <button
+                onClick={() => { setFilterShift('todos'); setFilterCourse('todos'); setFilterStatus('todos') }}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-ink3 hover:text-ink hover:bg-surface2 transition-colors"
+              >
+                <X size={12} /> Limpiar
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── Create form ─────────────────────────────────────────────────── */}
@@ -350,14 +455,25 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               const isOverdue = p.computedStatus === 'atrasado'
               const isNear = p.computedStatus === 'proximo'
 
+              // Course info from enrollment
+              const stuCourseIds = studentCourses[p.student_id] || []
+              const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
+
               return (
                 <div key={p.id} className="flex items-center gap-4 px-5 py-4 hover:bg-bg/50 transition-colors group">
                   {/* Semaforo dot */}
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: sc.dot }} />
 
-                  {/* Student + concept */}
+                  {/* Student + course + concept */}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{student?.full_name || 'Estudiante'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm truncate">{student?.full_name || 'Estudiante'}</p>
+                      {stuCourse && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface2 text-ink3 flex-shrink-0">
+                          {stuCourse.name} {stuCourse.parallel || ''}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-ink3 truncate">{p.description}</p>
                   </div>
 
