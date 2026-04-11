@@ -45,17 +45,7 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient()
 
-  if (status === 'present') {
-    const { error: delErr } = await admin
-      .from('attendance' as any)
-      .delete()
-      .eq('subject_id', subject_id)
-      .eq('student_id', student_id)
-      .eq('date', date)
-    if (delErr) console.error('[attendance DELETE error]', delErr)
-    return NextResponse.json({ success: true })
-  }
-
+  // Guardar todos los estados incluyendo 'present'
   const { error } = await admin
     .from('attendance' as any)
     .upsert(

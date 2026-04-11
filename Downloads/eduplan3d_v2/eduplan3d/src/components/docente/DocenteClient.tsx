@@ -690,20 +690,15 @@ export function DocenteClient({
                             <td key={dateStr} className={`px-2 py-2 text-center border-l border-surface/30 ${isToday ? 'bg-violet/5' : ''}`}>
                               <button
                                 onClick={() => toggleAttendance(dateStr, st.id)}
-                                title={status}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all
+                                title={status === 'present' ? 'Presente' : status === 'absent' ? 'Falta' : 'Atraso'}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all font-bold text-xs
                                   ${status === 'present'
-                                    ? 'text-ink4 hover:bg-emerald-500/10 hover:text-emerald-500'
+                                    ? 'bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30'
                                     : status === 'absent'
-                                      ? 'bg-rose-500/15 text-rose-500 hover:bg-rose-500/25'
-                                      : 'bg-amber-500/15 text-amber-500 hover:bg-amber-500/25'}`}
+                                      ? 'bg-rose-500/20 text-rose-600 hover:bg-rose-500/30'
+                                      : 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30'}`}
                               >
-                                {status === 'present'
-                                  ? <CheckCircle2 size={16} className="opacity-30 hover:opacity-100" />
-                                  : status === 'absent'
-                                    ? <XCircle size={16} />
-                                    : <Clock3 size={16} />
-                                }
+                                {status === 'present' ? 'P' : status === 'absent' ? 'F' : 'A'}
                               </button>
                             </td>
                           )
