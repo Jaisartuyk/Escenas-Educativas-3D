@@ -39,16 +39,30 @@ export default async function InstitucionPage() {
     .eq('institution_id', profile.institution_id)
     .order('created_at', { ascending: true })
 
+  // Materias de esta institución (con curso y docente)
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+  const { data: subjects } = await admin
+    .from('subjects' as any)
+    .select('id, name, weekly_hours, course_id, teacher_id')
+    .eq('institution_id', profile.institution_id)
+    .order('name', { ascending: true })
+
+  // Docentes para asignar a materias
+  const teachers = (members ?? []).filter((m: any) => m.role === 'teacher' || m.role === 'admin')
+
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="font-display text-3xl font-bold tracking-tight">Mi Institución</h1>
-        <p className="text-ink3 text-sm mt-1">Gestiona tu Unidad Educativa, miembros y cursos</p>
+        <p className="text-ink3 text-sm mt-1">Gestiona tu Unidad Educativa, miembros, cursos y materias</p>
       </div>
       <InstitucionClient
         institution={institution}
         members={members ?? []}
         courses={courses ?? []}
+        subjects={subjects ?? []}
+        teachers={teachers}
         currentUserId={user!.id}
       />
     </div>
