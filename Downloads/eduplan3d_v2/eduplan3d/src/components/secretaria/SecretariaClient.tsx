@@ -7,7 +7,7 @@ import {
   Plus, Check, Clock, AlertTriangle, X, Search,
   DollarSign, Users, TrendingUp, CalendarDays,
   ChevronDown, Filter, Trash2, CreditCard, GraduationCap,
-  Pencil, Save,
+  Pencil, Save, Table as TableIcon, LayoutList,
 } from 'lucide-react'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -33,22 +33,33 @@ function formatMoney(n: number) {
   return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(n)
 }
 
+const MESES = ['May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr']
+const MESES_FULL = ['mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre', 'enero', 'febrero', 'marzo', 'abril']
+
 const STATUS_CONFIG = {
-  pagado:    { label: 'PAGADO',    icon: Check,          bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-200', dot: '#10b981' },
+  pagado:    { label: 'PAGADO',     icon: Check,          bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-200', dot: '#10b981' },
   proximo:   { label: 'POR VENCER', icon: Clock,          bg: 'bg-amber-50',    text: 'text-amber-700',   border: 'border-amber-200',   dot: '#f59e0b' },
-  atrasado:  { label: 'ATRASADO',  icon: AlertTriangle,  bg: 'bg-rose-50',     text: 'text-rose-700',    border: 'border-rose-200',    dot: '#ef4444' },
-  pendiente: { label: 'PENDIENTE', icon: CalendarDays,   bg: 'bg-slate-50',    text: 'text-slate-600',   border: 'border-slate-200',   dot: '#94a3b8' },
+  atrasado:  { label: 'ATRASADO',   icon: AlertTriangle,  bg: 'bg-rose-50',     text: 'text-rose-700',    border: 'border-rose-200',    dot: '#ef4444' },
+  pendiente: { label: 'PENDIENTE',  icon: CalendarDays,   bg: 'bg-slate-50',    text: 'text-slate-600',   border: 'border-slate-200',   dot: '#94a3b8' },
+}
+
+const STATUS_CELL: Record<string, string> = {
+  pagado:    'bg-emerald-100 text-emerald-800 border-emerald-300',
+  proximo:   'bg-amber-100 text-amber-800 border-amber-300',
+  atrasado:  'bg-rose-100 text-rose-800 border-rose-300',
+  pendiente: 'bg-slate-100 text-slate-600 border-slate-200',
 }
 
 // ─── Componente principal ────────────────────────────────────────────────────
 export function SecretariaClient({ institutionId, students, courses, enrollments, initialPayments }: any) {
-  const [payments, setPayments]       = useState<any[]>(initialPayments || [])
-  const [showForm, setShowForm]       = useState(false)
+  const [payments, setPayments]        = useState<any[]>(initialPayments || [])
+  const [showForm, setShowForm]        = useState(false)
+  const [viewMode, setViewMode]        = useState<'tabla' | 'lista'>('tabla')
   const [filterStatus, setFilterStatus] = useState<string>('todos')
   const [filterShift, setFilterShift]   = useState<string>('todos')
   const [filterCourse, setFilterCourse] = useState<string>('todos')
   const [filterType, setFilterType]     = useState<string>('todos')
-  const [searchTerm, setSearchTerm]   = useState('')
+  const [searchTerm, setSearchTerm]    = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   // Form state
@@ -64,14 +75,13 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const [editAmount, setEditAmount]   = useState('')
   const [editDueDate, setEditDueDate] = useState('')
 
-  // ── Mappings: student → courses, course → shift ─────────────────────────
+  // ── Mappings ────────────────────────────────────────────────────────────
   const coursesById = useMemo(() => {
     const map: Record<string, any> = {}
     ;(courses || []).forEach((c: any) => { map[c.id] = c })
     return map
   }, [courses])
 
-  // student_id → [course_id, ...]
   const studentCourses = useMemo(() => {
     const map: Record<string, string[]> = {}
     ;(enrollments || []).forEach((e: any) => {
@@ -81,21 +91,18 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     return map
   }, [enrollments])
 
-  // Available shifts from courses
   const availableShifts: string[] = useMemo(() =>
     Array.from(new Set((courses || []).map((c: any) => c.shift as string).filter(Boolean))),
     [courses]
   )
 
-  // Courses filtered by selected shift
   const filteredCourses = useMemo(() => {
     if (filterShift === 'todos') return courses || []
     return (courses || []).filter((c: any) => c.shift === filterShift)
   }, [courses, filterShift])
 
-  // Set of student IDs that match shift+course filters
   const allowedStudentIds = useMemo(() => {
-    if (filterShift === 'todos' && filterCourse === 'todos') return null // no filter
+    if (filterShift === 'todos' && filterCourse === 'todos') return null
     const allowedCourseIds = new Set(
       filterCourse !== 'todos'
         ? [filterCourse]
@@ -108,7 +115,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     return ids
   }, [filterShift, filterCourse, filteredCourses, enrollments])
 
-  // Reset course filter when shift changes
   const handleShiftChange = (shift: string) => {
     setFilterShift(shift)
     setFilterCourse('todos')
@@ -122,7 +128,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
   const filtered = useMemo(() => {
     let list = enrichedPayments
-    // Filter by shift / course
     if (allowedStudentIds !== null) {
       list = list.filter((p: any) => allowedStudentIds.has(p.student_id))
     }
@@ -145,9 +150,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
   const stats = useMemo(() => {
     const all = enrichedPayments
-    const pagados  = all.filter((p: any) => p.computedStatus === 'pagado')
+    const pagados   = all.filter((p: any) => p.computedStatus === 'pagado')
     const atrasados = all.filter((p: any) => p.computedStatus === 'atrasado')
-    const proximos = all.filter((p: any) => p.computedStatus === 'proximo')
+    const proximos  = all.filter((p: any) => p.computedStatus === 'proximo')
     const pendientes = all.filter((p: any) => p.computedStatus === 'pendiente')
 
     const totalRecaudado = pagados.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
@@ -155,6 +160,61 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
     return { pagados: pagados.length, atrasados: atrasados.length, proximos: proximos.length, pendientes: pendientes.length, totalRecaudado, totalPendiente }
   }, [enrichedPayments])
+
+  // ── Table view: build pivot data (student × month) ──────────────────────
+  const tableData = useMemo(() => {
+    // Get unique students with payments
+    const studentIds = Array.from(new Set(filtered.map((p: any) => p.student_id)))
+
+    return studentIds.map(sid => {
+      const student = students.find((s: any) => s.id === sid)
+      const stuCourseIds = studentCourses[sid] || []
+      const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
+      const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
+
+      // Student's payments mapped by month
+      const studentPayments = filtered.filter((p: any) => p.student_id === sid)
+      const matricula = studentPayments.find((p: any) => p.type === 'matricula')
+
+      // Map payments to months
+      const monthPayments: Record<string, any> = {}
+      studentPayments.filter((p: any) => p.type === 'pension').forEach((p: any) => {
+        // Try to match month from description or due_date
+        const desc = (p.description || '').toLowerCase()
+        let matchedMonth = ''
+
+        for (let i = 0; i < MESES_FULL.length; i++) {
+          if (desc.includes(MESES_FULL[i])) {
+            matchedMonth = MESES[i]
+            break
+          }
+        }
+
+        // Fallback: use due_date month
+        if (!matchedMonth && p.due_date) {
+          const d = new Date(p.due_date + 'T00:00:00')
+          const monthIdx = d.getMonth() // 0-11
+          // Map calendar month to academic month
+          const calToAcademic: Record<number, number> = {
+            4: 0, 5: 1, 6: 2, 7: 3, 8: 4, 9: 5, 10: 6, 11: 7, 0: 8, 1: 9, 2: 10, 3: 11
+          }
+          matchedMonth = MESES[calToAcademic[monthIdx] ?? 0]
+        }
+
+        if (matchedMonth) {
+          monthPayments[matchedMonth] = p
+        }
+      })
+
+      return {
+        studentId: sid,
+        name: student?.full_name || 'Estudiante',
+        course: courseLabel,
+        matricula,
+        monthPayments,
+      }
+    }).sort((a, b) => a.name.localeCompare(b.name))
+  }, [filtered, students, studentCourses, coursesById])
 
   // ── Actions ──────────────────────────────────────────────────────────────
   async function handleCreate(e: React.FormEvent) {
@@ -166,7 +226,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     const stuCourse = stuCIds.length > 0 ? coursesById[stuCIds[0]] : null
     const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
 
-    // Auto-generate description if empty
     const desc = newDesc.trim() || (
       newType === 'matricula'
         ? `Matricula ${new Date().getFullYear()}${courseLabel ? ` — ${courseLabel}` : ''}`
@@ -207,7 +266,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     }
   }
 
-  // ── Inline edit amount/due_date ───────────────────────────────────────
   function startEdit(p: any) {
     setEditingId(p.id)
     setEditAmount(String(p.amount || ''))
@@ -253,7 +311,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     if (!res.ok) toast.error('Error al eliminar')
   }
 
-  // ── Generate missing payments for existing students ──────────────────
   const [generating, setGenerating] = useState(false)
   async function generateMissing() {
     setGenerating(true)
@@ -262,7 +319,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       const { generated } = await res.json()
       if (generated > 0) {
         toast.success(`${generated} cobros generados`)
-        // Reload payments
         const r2 = await fetch('/api/secretaria/payments')
         const { data } = await r2.json()
         if (data) setPayments(data)
@@ -279,7 +335,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
       {/* ── KPI Cards ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Recaudado */}
         <div className="bg-surface rounded-2xl border border-surface2 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(16,185,129,0.1)' }}>
@@ -291,7 +346,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
           <p className="text-xs text-emerald-600 font-medium">{stats.pagados} cobros pagados</p>
         </div>
 
-        {/* Pendiente */}
         <div className="bg-surface rounded-2xl border border-surface2 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(245,158,11,0.1)' }}>
@@ -303,7 +357,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
           <p className="text-xs text-amber-600 font-medium">{stats.pendientes + stats.proximos} pendientes</p>
         </div>
 
-        {/* Atrasados */}
         <div className="bg-surface rounded-2xl border border-surface2 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(239,68,68,0.1)' }}>
@@ -315,7 +368,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
           <p className="text-xs text-rose-500 font-medium">Requieren atenci&oacute;n</p>
         </div>
 
-        {/* Estudiantes */}
         <div className="bg-surface rounded-2xl border border-surface2 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'rgba(99,102,241,0.1)' }}>
@@ -328,7 +380,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         </div>
       </div>
 
-      {/* ── Alertas semaforizadas ──────────────────────────────────────────── */}
+      {/* ── Alertas ─────────────────────────────────────────────────────── */}
       {(stats.atrasados > 0 || stats.proximos > 0) && (
         <div className="space-y-2">
           {stats.atrasados > 0 && (
@@ -336,7 +388,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#ef4444' }} />
               <AlertTriangle size={16} style={{ color: '#ef4444' }} />
               <span className="text-sm font-medium" style={{ color: '#dc2626' }}>
-                {stats.atrasados} pago{stats.atrasados > 1 ? 's' : ''} atrasado{stats.atrasados > 1 ? 's' : ''} — fecha de vencimiento superada
+                {stats.atrasados} pago{stats.atrasados > 1 ? 's' : ''} atrasado{stats.atrasados > 1 ? 's' : ''}
               </span>
             </div>
           )}
@@ -345,7 +397,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#f59e0b' }} />
               <Clock size={16} style={{ color: '#f59e0b' }} />
               <span className="text-sm font-medium" style={{ color: '#d97706' }}>
-                {stats.proximos} pago{stats.proximos > 1 ? 's' : ''} pr&oacute;ximo{stats.proximos > 1 ? 's' : ''} a vencer (menos de 5 d&iacute;as)
+                {stats.proximos} pago{stats.proximos > 1 ? 's' : ''} pr&oacute;ximo{stats.proximos > 1 ? 's' : ''} a vencer
               </span>
             </div>
           )}
@@ -355,17 +407,38 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       {/* ── Toolbar ───────────────────────────────────────────────────────── */}
       <div className="bg-surface rounded-2xl border border-surface2 overflow-hidden">
         <div className="p-4 space-y-3 border-b border-surface2">
-          {/* Row 1: Search + Emitir Cobro */}
+          {/* Row 1: Search + View toggle + Actions */}
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-            <div className="relative flex-1 max-w-sm">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink4" />
-              <input
-                type="text"
-                placeholder="Buscar alumno o concepto..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-bg border border-surface2 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-violet/50 transition-colors"
-              />
+            <div className="flex items-center gap-3 flex-1">
+              <div className="relative flex-1 max-w-sm">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink4" />
+                <input
+                  type="text"
+                  placeholder="Buscar alumno o concepto..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-bg border border-surface2 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-violet/50 transition-colors"
+                />
+              </div>
+              {/* View toggle */}
+              <div className="flex items-center bg-bg border border-surface2 rounded-xl p-0.5">
+                <button
+                  onClick={() => setViewMode('tabla')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === 'tabla' ? 'bg-violet-100 text-violet-700 shadow-sm' : 'text-ink3 hover:text-ink'
+                  }`}
+                >
+                  <TableIcon size={13} /> Tabla
+                </button>
+                <button
+                  onClick={() => setViewMode('lista')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    viewMode === 'lista' ? 'bg-violet-100 text-violet-700 shadow-sm' : 'text-ink3 hover:text-ink'
+                  }`}
+                >
+                  <LayoutList size={13} /> Lista
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -387,52 +460,36 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
             </div>
           </div>
 
-          {/* Row 2: Filters — Turno, Curso, Estado */}
+          {/* Row 2: Filters */}
           <div className="flex flex-wrap items-center gap-2">
             <Filter size={14} className="text-ink4" />
             <span className="text-xs font-semibold text-ink4 uppercase tracking-wider mr-1">Filtros:</span>
 
-            {/* Shift filter */}
             {availableShifts.length > 0 && (
               <div className="relative">
-                <select
-                  value={filterShift}
-                  onChange={e => handleShiftChange(e.target.value)}
-                  className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:border-violet/50 cursor-pointer"
-                >
+                <select value={filterShift} onChange={e => handleShiftChange(e.target.value)}
+                  className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none cursor-pointer">
                   <option value="todos">Todos los turnos</option>
-                  {availableShifts.map((s: string) => (
-                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                  ))}
+                  {availableShifts.map((s: string) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
               </div>
             )}
 
-            {/* Course filter */}
             <div className="relative">
-              <select
-                value={filterCourse}
-                onChange={e => setFilterCourse(e.target.value)}
-                className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:border-violet/50 cursor-pointer"
-              >
+              <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)}
+                className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none cursor-pointer">
                 <option value="todos">Todos los cursos</option>
                 {filteredCourses.map((c: any) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.parallel || ''} {c.shift ? `(${c.shift})` : ''}
-                  </option>
+                  <option key={c.id} value={c.id}>{c.name} {c.parallel || ''}</option>
                 ))}
               </select>
               <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
             </div>
 
-            {/* Type filter */}
             <div className="relative">
-              <select
-                value={filterType}
-                onChange={e => setFilterType(e.target.value)}
-                className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:border-violet/50 cursor-pointer"
-              >
+              <select value={filterType} onChange={e => setFilterType(e.target.value)}
+                className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none cursor-pointer">
                 <option value="todos">Todos los tipos</option>
                 <option value="matricula">Matricula</option>
                 <option value="pension">Pension</option>
@@ -441,13 +498,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
             </div>
 
-            {/* Status filter */}
             <div className="relative">
-              <select
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value)}
-                className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none focus:border-violet/50 cursor-pointer"
-              >
+              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none cursor-pointer">
                 <option value="todos">Todos los estados</option>
                 <option value="pagado">Pagados</option>
                 <option value="pendiente">Pendientes</option>
@@ -457,7 +510,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
             </div>
 
-            {/* Clear filters */}
             {(filterShift !== 'todos' || filterCourse !== 'todos' || filterStatus !== 'todos' || filterType !== 'todos') && (
               <button
                 onClick={() => { setFilterShift('todos'); setFilterCourse('todos'); setFilterStatus('todos'); setFilterType('todos') }}
@@ -472,260 +524,278 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         {/* ── Create form ─────────────────────────────────────────────────── */}
         {showForm && (
           <form onSubmit={handleCreate} className="p-5 border-b border-surface2" style={{ backgroundColor: 'rgba(124,109,250,0.03)' }}>
-            {/* Type selector */}
             <div className="flex gap-2 mb-4">
               {([
                 { value: 'matricula', label: 'Matricula', icon: GraduationCap, color: '#6366f1' },
                 { value: 'pension',   label: 'Pension',   icon: CalendarDays,   color: '#f59e0b' },
                 { value: 'otro',      label: 'Otro',      icon: CreditCard,     color: '#64748b' },
               ] as const).map(({ value, label, icon: Ic, color }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setNewType(value)}
+                <button key={value} type="button" onClick={() => setNewType(value)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                    newType === value
-                      ? 'text-white shadow-md'
-                      : 'bg-bg border-surface2 text-ink3 hover:border-ink4'
+                    newType === value ? 'text-white shadow-md' : 'bg-bg border-surface2 text-ink3 hover:border-ink4'
                   }`}
-                  style={newType === value ? { backgroundColor: color, borderColor: color } : {}}
-                >
+                  style={newType === value ? { backgroundColor: color, borderColor: color } : {}}>
                   <Ic size={14} /> {label}
                 </button>
               ))}
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Estudiante</label>
-                <select
-                  required
-                  value={selectedStudent}
-                  onChange={e => setSelectedStudent(e.target.value)}
-                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50"
-                >
+                <select required value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}
+                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50">
                   <option value="">Seleccione un alumno...</option>
-                  {students.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.full_name}</option>
-                  ))}
+                  {students.map((s: any) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">
-                  Concepto <span className="text-ink4 font-normal">(auto si vacio)</span>
-                </label>
-                <input
-                  placeholder={newType === 'matricula' ? 'Matricula 2026' : newType === 'pension' ? 'Pension Mayo' : 'Descripcion'}
-                  value={newDesc}
+                <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Concepto</label>
+                <input placeholder={newType === 'matricula' ? 'Matricula 2026' : 'Pension Mayo'} value={newDesc}
                   onChange={e => setNewDesc(e.target.value)}
-                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50"
-                />
+                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Monto ($)</label>
-                <input
-                  required
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={newAmount}
+                <input required type="number" step="0.01" min="0" placeholder="0.00" value={newAmount}
                   onChange={e => setNewAmount(e.target.value)}
-                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50"
-                />
+                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Vencimiento</label>
-                <input
-                  type="date"
-                  value={newDueDate}
-                  onChange={e => setNewDueDate(e.target.value)}
-                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50"
-                />
+                <input type="date" value={newDueDate} onChange={e => setNewDueDate(e.target.value)}
+                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50" />
               </div>
             </div>
             <div className="flex justify-end mt-4">
-              <button
-                type="submit"
-                disabled={saving}
+              <button type="submit" disabled={saving}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg disabled:opacity-50"
-                style={{ backgroundColor: '#7C6DFA' }}
-              >
-                <CreditCard size={16} />
-                {saving ? 'Guardando...' : 'Registrar Cobro'}
+                style={{ backgroundColor: '#7C6DFA' }}>
+                <CreditCard size={16} /> {saving ? 'Guardando...' : 'Registrar Cobro'}
               </button>
             </div>
           </form>
         )}
 
-        {/* ── Payments list ───────────────────────────────────────────────── */}
-        {filtered.length === 0 ? (
-          <div className="px-5 py-16 text-center">
-            <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: 'rgba(124,109,250,0.08)' }}>
-              <CreditCard size={28} style={{ color: '#7C6DFA' }} />
+        {/* ══════════════════════════════════════════════════════════════════
+           TABLE VIEW — Pivot: students × months
+           ══════════════════════════════════════════════════════════════════ */}
+        {viewMode === 'tabla' && (
+          filtered.length === 0 ? (
+            <div className="px-5 py-16 text-center">
+              <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: 'rgba(124,109,250,0.08)' }}>
+                <CreditCard size={28} style={{ color: '#7C6DFA' }} />
+              </div>
+              <p className="text-ink3 font-medium">No hay registros financieros</p>
+              <p className="text-ink4 text-sm mt-1">Emite un cobro para comenzar</p>
             </div>
-            <p className="text-ink3 font-medium">No hay registros financieros</p>
-            <p className="text-ink4 text-sm mt-1">Emite un cobro para comenzar el seguimiento</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-surface2">
-            {filtered.map((p: any) => {
-              const student = students.find((s: any) => s.id === p.student_id)
-              const sc = STATUS_CONFIG[p.computedStatus as keyof typeof STATUS_CONFIG]
-              const Icon = sc.icon
-              const isOverdue = p.computedStatus === 'atrasado'
-              const isNear = p.computedStatus === 'proximo'
-
-              // Course info from enrollment
-              const stuCourseIds = studentCourses[p.student_id] || []
-              const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
-
-              return (
-                <div key={p.id} className="flex items-center gap-4 px-5 py-4 hover:bg-bg/50 transition-colors group">
-                  {/* Semaforo dot */}
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: sc.dot }} />
-
-                  {/* Student + type + concept */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm truncate">{student?.full_name || 'Estudiante'}</p>
-                      {stuCourse && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface2 text-ink3 flex-shrink-0">
-                          {stuCourse.name} {stuCourse.parallel || ''}
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-surface2">
+                    <th className="text-left px-4 py-3 font-bold text-ink3 uppercase tracking-wider sticky left-0 bg-surface z-10 min-w-[180px]">
+                      Estudiante
+                    </th>
+                    <th className="text-center px-2 py-3 font-bold text-ink3 uppercase tracking-wider min-w-[70px]">
+                      Curso
+                    </th>
+                    <th className="text-center px-2 py-3 font-bold text-indigo-600 uppercase tracking-wider min-w-[70px] bg-indigo-50/50">
+                      Matr.
+                    </th>
+                    {MESES.map(m => (
+                      <th key={m} className="text-center px-2 py-3 font-bold text-ink3 uppercase tracking-wider min-w-[70px]">
+                        {m}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.map((row, ri) => (
+                    <tr key={row.studentId} className={`border-b border-surface2 hover:bg-bg/50 ${ri % 2 === 0 ? '' : 'bg-[rgba(0,0,0,0.015)]'}`}>
+                      {/* Student name */}
+                      <td className="px-4 py-2.5 font-semibold text-sm sticky left-0 bg-surface z-10 whitespace-nowrap">
+                        {row.name}
+                      </td>
+                      {/* Course */}
+                      <td className="px-2 py-2.5 text-center">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface2 text-ink3">
+                          {row.course || '—'}
                         </span>
-                      )}
-                      {/* Type badge */}
-                      {p.type === 'matricula' && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
-                          MATRICULA
-                        </span>
-                      )}
-                      {p.type === 'pension' && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#d97706' }}>
-                          PENSION
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-ink3 truncate">{p.description}</p>
-                  </div>
-
-                  {/* Due date — editable inline */}
-                  <div className="hidden sm:block text-right min-w-[100px]">
-                    {editingId === p.id ? (
-                      <input
-                        type="date"
-                        value={editDueDate}
-                        onChange={e => setEditDueDate(e.target.value)}
-                        className="bg-bg border border-violet/30 rounded-lg px-2 py-1 text-xs w-[120px]"
-                      />
-                    ) : (
-                      <>
-                        <p className={`text-xs font-medium ${isOverdue ? 'text-rose-600' : isNear ? 'text-amber-600' : 'text-ink4'}`}>
-                          {p.due_date ? formatDate(p.due_date) : 'Sin fecha'}
-                        </p>
-                        {p.paid_date && (
-                          <p className="text-[10px] text-emerald-600">Pagado: {formatDate(p.paid_date)}</p>
+                      </td>
+                      {/* Matricula */}
+                      <td className="px-2 py-2.5 text-center bg-indigo-50/30">
+                        {row.matricula ? (
+                          <button
+                            onClick={() => row.matricula.computedStatus !== 'pagado' ? markAsPaid(row.matricula.id) : null}
+                            className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                              STATUS_CELL[getPaymentStatus(row.matricula)]
+                            } ${row.matricula.computedStatus !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                            title={row.matricula.computedStatus !== 'pagado' ? 'Clic para marcar como pagado' : `Pagado: ${formatDate(row.matricula.paid_date)}`}
+                          >
+                            {getPaymentStatus(row.matricula) === 'pagado' ? '✓' :
+                             Number(row.matricula.amount) === 0 ? '?' :
+                             formatMoney(row.matricula.amount).replace('$', '').trim()}
+                          </button>
+                        ) : (
+                          <span className="text-ink4">—</span>
                         )}
-                      </>
-                    )}
-                  </div>
+                      </td>
+                      {/* Month cells */}
+                      {MESES.map(m => {
+                        const payment = row.monthPayments[m]
+                        if (!payment) {
+                          return <td key={m} className="px-2 py-2.5 text-center text-ink4">—</td>
+                        }
+                        const status = getPaymentStatus(payment)
+                        return (
+                          <td key={m} className="px-1 py-2 text-center">
+                            <button
+                              onClick={() => status !== 'pagado' ? markAsPaid(payment.id) : null}
+                              className={`inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                STATUS_CELL[status]
+                              } ${status !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                              title={
+                                status === 'pagado' ? `Pagado: ${formatDate(payment.paid_date)}` :
+                                status === 'atrasado' ? `Atrasado — Clic para pagar` :
+                                `Pendiente ${formatMoney(payment.amount)} — Clic para pagar`
+                              }
+                            >
+                              {status === 'pagado' ? '✓' :
+                               Number(payment.amount) === 0 ? '?' :
+                               formatMoney(payment.amount).replace('$', '').trim()}
+                            </button>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
-                  {/* Amount — editable inline */}
-                  <div className="text-right min-w-[90px]">
-                    {editingId === p.id ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={editAmount}
-                        onChange={e => setEditAmount(e.target.value)}
-                        className="bg-bg border border-violet/30 rounded-lg px-2 py-1 text-xs font-bold w-[80px] text-right"
-                        autoFocus
-                      />
-                    ) : (
-                      <p className={`font-display font-bold text-sm ${Number(p.amount) === 0 ? 'text-amber-500' : ''}`}>
-                        {Number(p.amount) === 0 ? 'Por definir' : formatMoney(p.amount)}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Status badge */}
-                  <div className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wider border ${sc.bg} ${sc.text} ${sc.border}`}>
-                    <Icon size={12} />
-                    {sc.label}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* Edit / Save */}
-                    {editingId === p.id ? (
-                      <button
-                        onClick={() => saveEdit(p.id)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-violet/10"
-                        title="Guardar"
-                      >
-                        <Save size={14} style={{ color: '#7C6DFA' }} />
-                      </button>
-                    ) : p.computedStatus !== 'pagado' ? (
-                      <button
-                        onClick={() => startEdit(p)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-surface2"
-                        title="Editar monto/fecha"
-                      >
-                        <Pencil size={14} className="text-ink4" />
-                      </button>
-                    ) : null}
-
-                    {/* Mark as paid */}
-                    {p.computedStatus !== 'pagado' && editingId !== p.id && (
-                      <button
-                        onClick={() => markAsPaid(p.id)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-emerald-50"
-                        title="Marcar como pagado"
-                      >
-                        <Check size={16} style={{ color: '#10b981' }} />
-                      </button>
-                    )}
-
-                    {/* Delete */}
-                    {editingId !== p.id && (
-                      confirmDelete === p.id ? (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleDelete(p.id)}
-                            className="px-2 py-1 rounded-lg text-[11px] font-bold text-white"
-                            style={{ backgroundColor: '#ef4444' }}
-                          >
-                            Si
-                          </button>
-                          <button
-                            onClick={() => setConfirmDelete(null)}
-                            className="px-2 py-1 rounded-lg text-[11px] font-bold text-ink3 bg-surface2"
-                          >
-                            No
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmDelete(p.id)}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-rose-50"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={14} className="text-ink4 hover:text-rose-500" />
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+              {/* Legend */}
+              <div className="px-5 py-3 border-t border-surface2 flex items-center gap-4 text-[10px] text-ink3">
+                <span className="font-bold uppercase tracking-wider">Leyenda:</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" /> Pagado</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 inline-block" /> Pendiente</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-100 border border-amber-300 inline-block" /> Por vencer</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-rose-100 border border-rose-300 inline-block" /> Atrasado</span>
+                <span className="ml-auto">Clic en celda pendiente = marcar como pagado</span>
+              </div>
+            </div>
+          )
         )}
 
-        {/* Footer count */}
+        {/* ══════════════════════════════════════════════════════════════════
+           LIST VIEW — Original individual cards
+           ══════════════════════════════════════════════════════════════════ */}
+        {viewMode === 'lista' && (
+          filtered.length === 0 ? (
+            <div className="px-5 py-16 text-center">
+              <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: 'rgba(124,109,250,0.08)' }}>
+                <CreditCard size={28} style={{ color: '#7C6DFA' }} />
+              </div>
+              <p className="text-ink3 font-medium">No hay registros financieros</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-surface2">
+              {filtered.map((p: any) => {
+                const student = students.find((s: any) => s.id === p.student_id)
+                const sc = STATUS_CONFIG[p.computedStatus as keyof typeof STATUS_CONFIG]
+                const Icon = sc.icon
+                const isOverdue = p.computedStatus === 'atrasado'
+                const isNear = p.computedStatus === 'proximo'
+                const stuCourseIds = studentCourses[p.student_id] || []
+                const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
+
+                return (
+                  <div key={p.id} className="flex items-center gap-4 px-5 py-4 hover:bg-bg/50 transition-colors group">
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: sc.dot }} />
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm truncate">{student?.full_name || 'Estudiante'}</p>
+                        {stuCourse && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface2 text-ink3 flex-shrink-0">
+                            {stuCourse.name} {stuCourse.parallel || ''}
+                          </span>
+                        )}
+                        {p.type === 'matricula' && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>MATRICULA</span>}
+                        {p.type === 'pension' && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#d97706' }}>PENSION</span>}
+                      </div>
+                      <p className="text-xs text-ink3 truncate">{p.description}</p>
+                    </div>
+
+                    <div className="hidden sm:block text-right min-w-[100px]">
+                      {editingId === p.id ? (
+                        <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)}
+                          className="bg-bg border border-violet/30 rounded-lg px-2 py-1 text-xs w-[120px]" />
+                      ) : (
+                        <>
+                          <p className={`text-xs font-medium ${isOverdue ? 'text-rose-600' : isNear ? 'text-amber-600' : 'text-ink4'}`}>
+                            {p.due_date ? formatDate(p.due_date) : 'Sin fecha'}
+                          </p>
+                          {p.paid_date && <p className="text-[10px] text-emerald-600">Pagado: {formatDate(p.paid_date)}</p>}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="text-right min-w-[90px]">
+                      {editingId === p.id ? (
+                        <input type="number" step="0.01" min="0" value={editAmount}
+                          onChange={e => setEditAmount(e.target.value)}
+                          className="bg-bg border border-violet/30 rounded-lg px-2 py-1 text-xs font-bold w-[80px] text-right" autoFocus />
+                      ) : (
+                        <p className={`font-display font-bold text-sm ${Number(p.amount) === 0 ? 'text-amber-500' : ''}`}>
+                          {Number(p.amount) === 0 ? 'Por definir' : formatMoney(p.amount)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wider border ${sc.bg} ${sc.text} ${sc.border}`}>
+                      <Icon size={12} /> {sc.label}
+                    </div>
+
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {editingId === p.id ? (
+                        <button onClick={() => saveEdit(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-violet/10" title="Guardar">
+                          <Save size={14} style={{ color: '#7C6DFA' }} />
+                        </button>
+                      ) : p.computedStatus !== 'pagado' ? (
+                        <button onClick={() => startEdit(p)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface2" title="Editar">
+                          <Pencil size={14} className="text-ink4" />
+                        </button>
+                      ) : null}
+
+                      {p.computedStatus !== 'pagado' && editingId !== p.id && (
+                        <button onClick={() => markAsPaid(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-emerald-50" title="Marcar pagado">
+                          <Check size={16} style={{ color: '#10b981' }} />
+                        </button>
+                      )}
+
+                      {editingId !== p.id && (
+                        confirmDelete === p.id ? (
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => handleDelete(p.id)} className="px-2 py-1 rounded-lg text-[11px] font-bold text-white" style={{ backgroundColor: '#ef4444' }}>Si</button>
+                            <button onClick={() => setConfirmDelete(null)} className="px-2 py-1 rounded-lg text-[11px] font-bold text-ink3 bg-surface2">No</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setConfirmDelete(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-rose-50" title="Eliminar">
+                            <Trash2 size={14} className="text-ink4" />
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        )}
+
+        {/* Footer */}
         {filtered.length > 0 && (
           <div className="px-5 py-3 border-t border-surface2 text-xs text-ink4">
-            Mostrando {filtered.length} de {payments.length} registros
+            Mostrando {viewMode === 'tabla' ? tableData.length + ' estudiantes' : filtered.length + ' registros'} de {payments.length} totales
           </div>
         )}
       </div>
