@@ -27,11 +27,19 @@ const DAYS_ES   = ['Lun','Mar','Mié','Jue','Vie']
 const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// Asigna colores por orden a nombres únicos — garantiza colores distintos por materia
+// Asigna colores por curso (no por materia) — garantiza colores distintos por curso
 function buildColorMap(subjects: any[]): Record<string, string> {
-  const uniqueNames = Array.from(new Set(subjects.map((s: any) => s.name as string)))
+  const uniqueCourses = Array.from(new Set(subjects.map((s: any) => s.course?.name || 'Sin curso')))
+  const courseColorMap: Record<string, string> = {}
+  uniqueCourses.forEach((name, i) => { courseColorMap[name] = CARD_COLORS[i % CARD_COLORS.length] })
+  // Map subject name → color of its course
   const map: Record<string, string> = {}
-  uniqueNames.forEach((name, i) => { map[name] = CARD_COLORS[i % CARD_COLORS.length] })
+  subjects.forEach((s: any) => {
+    const courseName = s.course?.name || 'Sin curso'
+    map[s.name] = courseColorMap[courseName]
+    // Also store by course name for direct lookup
+    map[`__course__${courseName}`] = courseColorMap[courseName]
+  })
   return map
 }
 
