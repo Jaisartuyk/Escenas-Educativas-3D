@@ -3,8 +3,6 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { StepInstitucion }  from './steps/StepInstitucion'
-import { StepDocentes }     from './steps/StepDocentes'
-import { StepHoras }        from './steps/StepHoras'
 import { StepGenerar }      from './steps/StepGenerar'
 import { StepEditar }       from './steps/StepEditar'
 import { generarHorario }   from '@/lib/horarios/generator'
@@ -13,10 +11,8 @@ import { getEmptyConfig, DEFAULT_HORAS } from '@/types/horarios'
 import toast from 'react-hot-toast'
 
 const TABS = [
-  { label: 'Institución',      icon: '🏫' },
-  { label: 'Docentes',         icon: '👨‍🏫' },
-  { label: 'Horas',            icon: '⏱' },
-  { label: 'Generar',          icon: '⚡' },
+  { label: 'Institución',       icon: '🏫' },
+  { label: 'Generar',           icon: '⚡' },
   { label: 'Editar / Exportar', icon: '📋' },
 ]
 
@@ -92,7 +88,7 @@ export function HorariosClient() {
             docentes:      safeDocentes,
             horasPorCurso: data.horasPorCurso || {},
             horario:       data.horario       || {},
-            step: typeof data.step === 'number' ? data.step : 0,
+            step: typeof data.step === 'number' ? Math.min(data.step, 2) : 0,
           })
         }
         setLoadingInitial(false)
@@ -173,7 +169,7 @@ export function HorariosClient() {
 
   const handleGenerar = useCallback(() => {
     const horario = generarHorario(state.config, state.docentes, state.horasPorCurso)
-    updateState(s => ({ ...s, horario, step: 4 }), true)
+    updateState(s => ({ ...s, horario, step: 2 }), true)
     toast.success('Horario generado ✓')
   }, [state.config, state.docentes, state.horasPorCurso])
 
@@ -415,40 +411,17 @@ export function HorariosClient() {
             />
           )}
           {state.step === 1 && (
-            <StepDocentes
-              docentes={state.docentes}
-              jornadaInstitucional={state.config.jornada}
-              nivelInstitucional={state.config.nivel}
-              directoryMetadata={(state as any).directory || {}}
-              onChange={docentes => updateState(s => ({ ...s, docentes }))}
-              onBack={() => setTab(0)}
-              onNext={() => setTab(2)}
-            />
-          )}
-          {state.step === 2 && (
-            <StepHoras
-              config={state.config}
-              cursos={state.config.cursos}
-              docentes={state.docentes}
-              horasPorCurso={state.horasPorCurso}
-              jornada={state.config.jornada}
-              onChange={horasPorCurso => updateState(s => ({ ...s, horasPorCurso }))}
-              onBack={() => setTab(1)}
-              onNext={() => setTab(3)}
-            />
-          )}
-          {state.step === 3 && (
             <StepGenerar
               state={state}
-              onBack={() => setTab(2)}
+              onBack={() => setTab(0)}
               onGenerar={handleGenerar}
             />
           )}
-          {state.step === 4 && (
+          {state.step === 2 && (
             <StepEditar
               state={state}
               onChange={horario => updateState(s => ({ ...s, horario }))}
-              onBack={() => setTab(3)}
+              onBack={() => setTab(1)}
               onExport={handleExport}
             />
           )}
