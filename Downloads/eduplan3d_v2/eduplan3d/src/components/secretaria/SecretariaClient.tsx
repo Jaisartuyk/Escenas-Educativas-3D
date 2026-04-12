@@ -65,7 +65,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   // Form state
   const [selectedStudent, setSelectedStudent] = useState('')
   const [newType, setNewType]         = useState<'matricula' | 'pension' | 'otro'>('pension')
-  const [newAmount, setNewAmount]     = useState('')
+  const [newAmount, setNewAmount]     = useState('60')
   const [newDesc, setNewDesc]         = useState('')
   const [newDueDate, setNewDueDate]   = useState('')
   const [saving, setSaving]           = useState(false)
@@ -530,7 +530,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 { value: 'pension',   label: 'Pension',   icon: CalendarDays,   color: '#f59e0b' },
                 { value: 'otro',      label: 'Otro',      icon: CreditCard,     color: '#64748b' },
               ] as const).map(({ value, label, icon: Ic, color }) => (
-                <button key={value} type="button" onClick={() => setNewType(value)}
+                <button key={value} type="button" onClick={() => { setNewType(value); setNewAmount(value === 'matricula' ? '35' : value === 'pension' ? '60' : '') }}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
                     newType === value ? 'text-white shadow-md' : 'bg-bg border-surface2 text-ink3 hover:border-ink4'
                   }`}

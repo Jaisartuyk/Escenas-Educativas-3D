@@ -71,7 +71,7 @@ export async function POST() {
     allPayments.push({
       institution_id: instId,
       student_id: enr.student_id,
-      amount: 0,
+      amount: 35,
       description: `Matricula ${year} — ${courseName}`,
       type: 'matricula',
       status: 'pendiente',
@@ -85,7 +85,7 @@ export async function POST() {
       allPayments.push({
         institution_id: instId,
         student_id: enr.student_id,
-        amount: 0,
+        amount: 60,
         description: `Pension ${due.toLocaleString('es', { month: 'long' })} ${pensionYear} — ${courseName}`,
         type: 'pension',
         status: 'pendiente',
