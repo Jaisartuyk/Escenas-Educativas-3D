@@ -98,6 +98,7 @@ export function DocenteClient({
   // ── Vista activa ─────────────────────────────────────────────────────────
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null)
   const [activeTab,         setActiveTab]         = useState<DetailTab>('asistencia')
+  const [horarioFilter,     setHorarioFilter]     = useState<string>('TODOS') // filtro por curso en horario
 
   // ── Assignments / Grades (existentes) ───────────────────────────────────
   const [assignments, setAssignments] = useState<any[]>(initialAssignments)
@@ -638,93 +639,143 @@ export function DocenteClient({
         )}
 
         {/* ── Horario semanal del docente ─────────────────────────────────── */}
-        {hasSchedule && (
-          <div className="bg-surface rounded-2xl border border-surface2 p-5">
-            <h2 className="font-display text-base font-bold tracking-tight mb-4 flex items-center gap-2">
-              🗓 Mi Horario Semanal
-            </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
-                <thead>
-                  <tr>
-                    <th className="text-left p-2 text-ink4 font-semibold border-b border-surface2 w-16">Hora</th>
-                    {DIAS_SEMANA.map(d => (
-                      <th
-                        key={d}
-                        className={`text-center p-2 font-semibold border-b border-surface2 ${
-                          d === todayName ? 'text-violet bg-[rgba(124,109,250,0.06)]' : 'text-ink4'
+        {hasSchedule && (() => {
+          // Get unique courses from the schedule
+          const allCursos = Array.from(new Set(
+            Object.values(teacherSchedule).flatMap(entries => entries.map(e => e.curso))
+          )).sort()
+
+          // Filter schedule by selected course
+          const filteredSchedule: typeof teacherSchedule = {}
+          Object.entries(teacherSchedule).forEach(([dia, entries]) => {
+            filteredSchedule[dia] = horarioFilter === 'TODOS'
+              ? entries
+              : entries.filter(e => e.curso === horarioFilter)
+          })
+
+          return (
+            <div className="bg-surface rounded-2xl border border-surface2 p-5">
+              <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                <h2 className="font-display text-base font-bold tracking-tight flex items-center gap-2">
+                  🗓 Mi Horario Semanal
+                </h2>
+                {/* Filtro por curso */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setHorarioFilter('TODOS')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      horarioFilter === 'TODOS'
+                        ? 'bg-violet text-white shadow-glow'
+                        : 'bg-bg text-ink3 hover:bg-surface2 border border-surface2'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {allCursos.map(curso => {
+                    const color = courseColorMap[curso] || '#94A3B8'
+                    const isActive = horarioFilter === curso
+                    return (
+                      <button
+                        key={curso}
+                        onClick={() => setHorarioFilter(curso)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                          isActive
+                            ? 'text-white shadow-sm'
+                            : 'text-ink3 hover:text-ink bg-bg'
                         }`}
+                        style={isActive
+                          ? { backgroundColor: color, borderColor: color }
+                          : { borderColor: color + '40' }
+                        }
                       >
-                        {d.slice(0, 3).toUpperCase()}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    // Determine max periods across all days
-                    const maxPeriod = Math.max(
-                      ...Object.values(teacherSchedule).flatMap(entries =>
-                        entries.map(e => e.periodo)
-                      ), 0
+                        {curso}
+                      </button>
                     )
-                    return Array.from({ length: maxPeriod }, (_, idx) => {
-                      const periodNum = idx + 1
-                      const isRecess  = recesos.has(periodNum)
-                      if (isRecess) return (
-                        <tr key={idx} className="bg-[rgba(255,179,71,0.05)]">
-                          <td className="p-2 text-center text-ink4 font-medium border-b border-surface2">☕</td>
-                          {DIAS_SEMANA.map(d => (
-                            <td key={d} className="p-1 text-center border-b border-surface2 text-ink4 text-[10px]">
-                              Recreo
+                  })}
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="text-left p-2 text-ink4 font-semibold border-b border-surface2 w-16">Hora</th>
+                      {DIAS_SEMANA.map(d => (
+                        <th
+                          key={d}
+                          className={`text-center p-2 font-semibold border-b border-surface2 ${
+                            d === todayName ? 'text-violet bg-[rgba(124,109,250,0.06)]' : 'text-ink4'
+                          }`}
+                        >
+                          {d.slice(0, 3).toUpperCase()}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const maxPeriod = Math.max(
+                        ...Object.values(teacherSchedule).flatMap(entries =>
+                          entries.map(e => e.periodo)
+                        ), 0
+                      )
+                      return Array.from({ length: maxPeriod }, (_, idx) => {
+                        const periodNum = idx + 1
+                        const isRecess  = recesos.has(periodNum)
+                        if (isRecess) return (
+                          <tr key={idx} className="bg-[rgba(255,179,71,0.05)]">
+                            <td className="p-2 text-center text-ink4 font-medium border-b border-surface2">☕</td>
+                            {DIAS_SEMANA.map(d => (
+                              <td key={d} className="p-1 text-center border-b border-surface2 text-ink4 text-[10px]">
+                                Recreo
+                              </td>
+                            ))}
+                          </tr>
+                        )
+                        const timeLabel = periodos[idx]
+                          ? `${periodos[idx].inicio}`
+                          : `${periodNum}°`
+                        return (
+                          <tr key={idx} className="hover:bg-bg/50">
+                            <td className="p-2 text-ink4 font-medium border-b border-surface2 whitespace-nowrap">
+                              {timeLabel}
                             </td>
-                          ))}
-                        </tr>
-                      )
-                      const timeLabel = periodos[idx]
-                        ? `${periodos[idx].inicio}`
-                        : `${periodNum}°`
-                      return (
-                        <tr key={idx} className="hover:bg-bg/50">
-                          <td className="p-2 text-ink4 font-medium border-b border-surface2 whitespace-nowrap">
-                            {timeLabel}
-                          </td>
-                          {DIAS_SEMANA.map(d => {
-                            const entry = (teacherSchedule[d] || []).find(e => e.periodo === periodNum)
-                            if (!entry) return (
-                              <td key={d} className={`p-1 text-center border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}>
-                                <span className="text-ink4/40">—</span>
-                              </td>
-                            )
-                            const color = courseColorMap[entry.curso] || '#94A3B8'
-                            return (
-                              <td
-                                key={d}
-                                className={`p-1 border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}
-                              >
-                                <div
-                                  className="rounded-lg px-2 py-1.5 text-center"
-                                  style={{ backgroundColor: color + '18', borderLeft: `3px solid ${color}` }}
+                            {DIAS_SEMANA.map(d => {
+                              const entry = (filteredSchedule[d] || []).find(e => e.periodo === periodNum)
+                              if (!entry) return (
+                                <td key={d} className={`p-1 text-center border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}>
+                                  <span className="text-ink4/40">—</span>
+                                </td>
+                              )
+                              const color = courseColorMap[entry.curso] || '#94A3B8'
+                              return (
+                                <td
+                                  key={d}
+                                  className={`p-1 border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}
                                 >
-                                  <div className="font-semibold text-ink truncate" style={{ fontSize: '10px' }}>
-                                    {entry.materia}
+                                  <div
+                                    className="rounded-lg px-2 py-1.5 text-center"
+                                    style={{ backgroundColor: color + '18', borderLeft: `3px solid ${color}` }}
+                                  >
+                                    <div className="font-semibold text-ink truncate" style={{ fontSize: '10px' }}>
+                                      {entry.materia}
+                                    </div>
+                                    <div className="text-ink4 truncate" style={{ fontSize: '9px' }}>
+                                      {entry.curso}
+                                    </div>
                                   </div>
-                                  <div className="text-ink4 truncate" style={{ fontSize: '9px' }}>
-                                    {entry.curso}
-                                  </div>
-                                </div>
-                              </td>
-                            )
-                          })}
-                        </tr>
-                      )
-                    })
-                  })()}
-                </tbody>
-              </table>
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        )
+                      })
+                    })()}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* ── Mis Clases (cuadernillo) ────────────────────────────────────── */}
         <div>
