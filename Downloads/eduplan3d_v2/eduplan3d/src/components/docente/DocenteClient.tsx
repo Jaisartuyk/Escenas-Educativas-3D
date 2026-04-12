@@ -510,15 +510,15 @@ export function DocenteClient({
   // Extract teacher's subjects names for matching
   const mySubjectNames = new Set(mySubjects.map((s: any) => (s.name || '').toUpperCase().trim()))
 
-  // Build personal timetable: día → period[] with { materia, curso }
-  type ScheduleEntry = { materia: string; curso: string; periodo: number }
+  // Build personal timetable: día → period[] with { materia, curso, slotKey }
+  type ScheduleEntry = { materia: string; curso: string; periodo: number; slotKey: string }
   const teacherSchedule: Record<string, ScheduleEntry[]> = {}
-  let scheduleConfig: any = null
+  const slotConfigs: Record<string, any> = {} // slotKey → config
 
-  Object.values(horariosData).forEach((slot: any) => {
+  Object.entries(horariosData).forEach(([key, slot]: [string, any]) => {
     const horario = slot?.horario || {}
     const config  = slot?.config  || {}
-    if (!scheduleConfig && config.horarios) scheduleConfig = config
+    if (config.horarios) slotConfigs[key] = config
 
     Object.entries(horario).forEach(([curso, dias]: [string, any]) => {
       Object.entries(dias || {}).forEach(([dia, materias]: [string, any]) => {
@@ -526,12 +526,28 @@ export function DocenteClient({
         materias.forEach((materia: string, idx: number) => {
           if (materia && mySubjectNames.has(materia.toUpperCase().trim())) {
             if (!teacherSchedule[dia]) teacherSchedule[dia] = []
-            teacherSchedule[dia].push({ materia, curso, periodo: idx + 1 })
+            teacherSchedule[dia].push({ materia, curso, periodo: idx + 1, slotKey: key })
           }
         })
       })
     })
   })
+
+  // Helper: get period label and recesos for a slot
+  function getSlotPeriodos(slotKey: string): string[] {
+    return slotConfigs[slotKey]?.horarios || []
+  }
+  function getSlotRecesos(slotKey: string): Set<number> {
+    return new Set(slotConfigs[slotKey]?.recesos || [])
+  }
+  // Pick the "main" slot (the one with the most entries) for the table structure
+  const slotCounts: Record<string, number> = {}
+  Object.values(teacherSchedule).flat().forEach(e => {
+    slotCounts[e.slotKey] = (slotCounts[e.slotKey] || 0) + 1
+  })
+  const mainSlotKey = Object.entries(slotCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
+  const periodos    = getSlotPeriodos(mainSlotKey)
+  const recesos     = getSlotRecesos(mainSlotKey)
 
   // Today's info
   const now       = new Date()
@@ -539,10 +555,6 @@ export function DocenteClient({
   const todayName = dayIndex >= 1 && dayIndex <= 5 ? DIAS_SEMANA[dayIndex - 1] : null
   const todayClasses = todayName ? (teacherSchedule[todayName] || []) : []
   const hasSchedule  = Object.keys(teacherSchedule).length > 0
-
-  // Period time labels from config
-  const periodos = scheduleConfig?.horarios || []
-  const recesos  = new Set(scheduleConfig?.recesos || [])
 
   // Greeting based on time of day
   const hour = now.getHours()
@@ -605,8 +617,9 @@ export function DocenteClient({
                   .sort((a, b) => a.periodo - b.periodo)
                   .map((entry, i) => {
                     const color = courseColorMap[entry.curso] || CARD_COLORS[i % CARD_COLORS.length]
-                    const timeLabel = periodos[entry.periodo - 1]
-                      ? periodos[entry.periodo - 1]
+                    const entryPeriodos = getSlotPeriodos(entry.slotKey)
+                    const timeLabel = entryPeriodos[entry.periodo - 1]
+                      ? entryPeriodos[entry.periodo - 1]
                       : `Período ${entry.periodo}`
                     return (
                       <div
@@ -652,6 +665,14 @@ export function DocenteClient({
               ? entries
               : entries.filter(e => e.curso === horarioFilter)
           })
+
+          // Use the correct periodos/recesos for the active filter
+          const filteredEntries = Object.values(filteredSchedule).flat()
+          const activeSlotKey = horarioFilter !== 'TODOS' && filteredEntries.length > 0
+            ? filteredEntries[0].slotKey
+            : mainSlotKey
+          const activePeriodos = getSlotPeriodos(activeSlotKey)
+          const activeRecesos  = getSlotRecesos(activeSlotKey)
 
           return (
             <div className="bg-surface rounded-2xl border border-surface2 p-5">
@@ -713,14 +734,15 @@ export function DocenteClient({
                   </thead>
                   <tbody>
                     {(() => {
-                      const maxPeriod = Math.max(
-                        ...Object.values(teacherSchedule).flatMap(entries =>
-                          entries.map(e => e.periodo)
-                        ), 0
-                      )
+                      // Use active slot's period count or max from entries
+                      const maxPeriod = activePeriodos.length > 0
+                        ? activePeriodos.length
+                        : Math.max(...Object.values(filteredSchedule).flatMap(entries =>
+                            entries.map(e => e.periodo)
+                          ), 0)
                       return Array.from({ length: maxPeriod }, (_, idx) => {
                         const periodNum = idx + 1
-                        const isRecess  = recesos.has(periodNum)
+                        const isRecess  = activeRecesos.has(periodNum)
                         if (isRecess) return (
                           <tr key={idx} className="bg-[rgba(255,179,71,0.05)]">
                             <td className="p-2 text-center text-ink4 font-medium border-b border-surface2">☕</td>
@@ -731,8 +753,8 @@ export function DocenteClient({
                             ))}
                           </tr>
                         )
-                        const timeLabel = periodos[idx]
-                          ? periodos[idx]
+                        const timeLabel = activePeriodos[idx]
+                          ? activePeriodos[idx]
                           : `${periodNum}°`
                         return (
                           <tr key={idx} className="hover:bg-bg/50">
