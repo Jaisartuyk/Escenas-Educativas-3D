@@ -501,60 +501,82 @@ export function DocenteClient({
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  //  RENDER: MIS CLASES (cards)
+  //  RENDER: PANEL INFORMATIVO
   // ════════════════════════════════════════════════════════════════════════
-  // ── Build teacher's personal schedule from horarios data ──────────────────
+  // ── Build teacher's personal schedule from saved horarios ─────────────────
   const teacherName = profile?.full_name || ''
   const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes'] as const
 
-  // Extract teacher's subjects names for matching
+  // Extract teacher's subjects names for matching against the generated schedule
   const mySubjectNames = new Set(mySubjects.map((s: any) => (s.name || '').toUpperCase().trim()))
 
-  // Build personal timetable: día → period[] with { materia, curso, slotKey }
-  type ScheduleEntry = { materia: string; curso: string; periodo: number; slotKey: string }
-  const teacherSchedule: Record<string, ScheduleEntry[]> = {}
-  const slotConfigs: Record<string, any> = {} // slotKey → config
+  // ── Per-slot data: config + teacher's grid (dia → periodoIndex → {materia, curso}) ──
+  type ScheduleCell = { materia: string; curso: string }
+  type SlotData = {
+    key: string
+    config: any
+    // Teacher's personal grid: dia → array[nPeriodos] of cell | null
+    grid: Record<string, (ScheduleCell | null)[]>
+    cursos: string[]
+  }
+  const slotsData: SlotData[] = []
 
   Object.entries(horariosData).forEach(([key, slot]: [string, any]) => {
-    const horario = slot?.horario || {}
-    const config  = slot?.config  || {}
-    if (config.horarios) slotConfigs[key] = config
+    const horario  = slot?.horario  || {}
+    const config   = slot?.config   || {}
+    const nPeriods = config.nPeriodos || config.horarios?.length || 8
+    const recesos  = new Set<number>(config.recesos || [4])
+
+    // Build this teacher's grid for this slot
+    const grid: Record<string, (ScheduleCell | null)[]> = {}
+    DIAS_SEMANA.forEach(d => { grid[d] = Array(nPeriods).fill(null) })
+
+    const cursosInSlot = new Set<string>()
 
     Object.entries(horario).forEach(([curso, dias]: [string, any]) => {
       Object.entries(dias || {}).forEach(([dia, materias]: [string, any]) => {
-        if (!Array.isArray(materias)) return
+        if (!Array.isArray(materias) || !grid[dia]) return
         materias.forEach((materia: string, idx: number) => {
-          if (materia && mySubjectNames.has(materia.toUpperCase().trim())) {
-            if (!teacherSchedule[dia]) teacherSchedule[dia] = []
-            teacherSchedule[dia].push({ materia, curso, periodo: idx + 1, slotKey: key })
+          if (!materia || recesos.has(idx)) return
+          if (mySubjectNames.has(materia.toUpperCase().trim())) {
+            grid[dia][idx] = { materia, curso }
+            cursosInSlot.add(curso)
           }
         })
       })
     })
+
+    if (cursosInSlot.size > 0) {
+      slotsData.push({ key, config, grid, cursos: Array.from(cursosInSlot).sort() })
+    }
   })
 
-  // Helper: get period label and recesos for a slot
-  function getSlotPeriodos(slotKey: string): string[] {
-    return slotConfigs[slotKey]?.horarios || []
-  }
-  function getSlotRecesos(slotKey: string): Set<number> {
-    return new Set(slotConfigs[slotKey]?.recesos || [])
-  }
-  // Pick the "main" slot (the one with the most entries) for the table structure
-  const slotCounts: Record<string, number> = {}
-  Object.values(teacherSchedule).flat().forEach(e => {
-    slotCounts[e.slotKey] = (slotCounts[e.slotKey] || 0) + 1
-  })
-  const mainSlotKey = Object.entries(slotCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
-  const periodos    = getSlotPeriodos(mainSlotKey)
-  const recesos     = getSlotRecesos(mainSlotKey)
+  const hasSchedule = slotsData.length > 0
 
   // Today's info
   const now       = new Date()
-  const dayIndex  = now.getDay() // 0=Sun
+  const dayIndex  = now.getDay()
   const todayName = dayIndex >= 1 && dayIndex <= 5 ? DIAS_SEMANA[dayIndex - 1] : null
-  const todayClasses = todayName ? (teacherSchedule[todayName] || []) : []
-  const hasSchedule  = Object.keys(teacherSchedule).length > 0
+
+  // Today's classes across all slots
+  const todayClasses: { materia: string; curso: string; hora: string; periodoIdx: number; slotLabel: string }[] = []
+  slotsData.forEach(slot => {
+    if (!todayName) return
+    const perArr = slot.config.horarios || []
+    const rec    = new Set<number>(slot.config.recesos || [4])
+    slot.grid[todayName]?.forEach((cell, idx) => {
+      if (cell && !rec.has(idx)) {
+        todayClasses.push({
+          materia: cell.materia,
+          curso: cell.curso,
+          hora: perArr[idx] || `Período ${idx + 1}`,
+          periodoIdx: idx,
+          slotLabel: `${slot.config.nivel || ''} ${slot.config.jornada || ''}`.trim(),
+        })
+      }
+    })
+  })
+  todayClasses.sort((a, b) => a.periodoIdx - b.periodoIdx)
 
   // Greeting based on time of day
   const hour = now.getHours()
@@ -613,32 +635,26 @@ export function DocenteClient({
             </h2>
             {todayClasses.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {todayClasses
-                  .sort((a, b) => a.periodo - b.periodo)
-                  .map((entry, i) => {
-                    const color = courseColorMap[entry.curso] || CARD_COLORS[i % CARD_COLORS.length]
-                    const entryPeriodos = getSlotPeriodos(entry.slotKey)
-                    const timeLabel = entryPeriodos[entry.periodo - 1]
-                      ? entryPeriodos[entry.periodo - 1]
-                      : `Período ${entry.periodo}`
-                    return (
+                {todayClasses.map((entry, i) => {
+                  const color = courseColorMap[entry.curso] || CARD_COLORS[i % CARD_COLORS.length]
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl border border-surface2 bg-bg min-w-[200px]"
+                    >
                       <div
-                        key={i}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl border border-surface2 bg-bg min-w-[200px]"
+                        style={{ backgroundColor: color }}
+                        className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
                       >
-                        <div
-                          style={{ backgroundColor: color }}
-                          className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
-                        >
-                          {entry.periodo}°
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-semibold text-sm text-ink truncate">{entry.materia}</div>
-                          <div className="text-xs text-ink4 truncate">{entry.curso} · {timeLabel}</div>
-                        </div>
+                        {entry.hora.split('-')[0]?.trim().slice(0,5) || ''}
                       </div>
-                    )
-                  })}
+                      <div className="min-w-0">
+                        <div className="font-semibold text-sm text-ink truncate">{entry.materia}</div>
+                        <div className="text-xs text-ink4 truncate">{entry.curso} · {entry.hora}</div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <p className="text-sm text-ink4">🎉 ¡Día libre! No tienes clases programadas.</p>
@@ -652,27 +668,16 @@ export function DocenteClient({
         )}
 
         {/* ── Horario semanal del docente ─────────────────────────────────── */}
+        {/* ── Horario semanal del docente ─────────────────────────────────── */}
         {hasSchedule && (() => {
-          // Get unique courses from the schedule
-          const allCursos = Array.from(new Set(
-            Object.values(teacherSchedule).flatMap(entries => entries.map(e => e.curso))
-          )).sort()
+          // All courses across all slots
+          const allCursos = slotsData.flatMap(s => s.cursos)
+          const uniqueCursos = Array.from(new Set(allCursos)).sort()
 
-          // Filter schedule by selected course
-          const filteredSchedule: typeof teacherSchedule = {}
-          Object.entries(teacherSchedule).forEach(([dia, entries]) => {
-            filteredSchedule[dia] = horarioFilter === 'TODOS'
-              ? entries
-              : entries.filter(e => e.curso === horarioFilter)
-          })
-
-          // Use the correct periodos/recesos for the active filter
-          const filteredEntries = Object.values(filteredSchedule).flat()
-          const activeSlotKey = horarioFilter !== 'TODOS' && filteredEntries.length > 0
-            ? filteredEntries[0].slotKey
-            : mainSlotKey
-          const activePeriodos = getSlotPeriodos(activeSlotKey)
-          const activeRecesos  = getSlotRecesos(activeSlotKey)
+          // Determine which slots to show based on filter
+          const activeSlots = horarioFilter === 'TODOS'
+            ? slotsData
+            : slotsData.filter(s => s.cursos.includes(horarioFilter))
 
           return (
             <div className="bg-surface rounded-2xl border border-surface2 p-5">
@@ -680,7 +685,6 @@ export function DocenteClient({
                 <h2 className="font-display text-base font-bold tracking-tight flex items-center gap-2">
                   🗓 Mi Horario Semanal
                 </h2>
-                {/* Filtro por curso */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => setHorarioFilter('TODOS')}
@@ -692,7 +696,7 @@ export function DocenteClient({
                   >
                     Todos
                   </button>
-                  {allCursos.map(curso => {
+                  {uniqueCursos.map(curso => {
                     const color = courseColorMap[curso] || '#94A3B8'
                     const isActive = horarioFilter === curso
                     return (
@@ -700,9 +704,7 @@ export function DocenteClient({
                         key={curso}
                         onClick={() => setHorarioFilter(curso)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                          isActive
-                            ? 'text-white shadow-sm'
-                            : 'text-ink3 hover:text-ink bg-bg'
+                          isActive ? 'text-white shadow-sm' : 'text-ink3 hover:text-ink bg-bg'
                         }`}
                         style={isActive
                           ? { backgroundColor: color, borderColor: color }
@@ -715,85 +717,106 @@ export function DocenteClient({
                   })}
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs border-collapse">
-                  <thead>
-                    <tr>
-                      <th className="text-left p-2 text-ink4 font-semibold border-b border-surface2 w-16">Hora</th>
-                      {DIAS_SEMANA.map(d => (
-                        <th
-                          key={d}
-                          className={`text-center p-2 font-semibold border-b border-surface2 ${
-                            d === todayName ? 'text-violet bg-[rgba(124,109,250,0.06)]' : 'text-ink4'
-                          }`}
-                        >
-                          {d.slice(0, 3).toUpperCase()}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      // Use active slot's period count or max from entries
-                      const maxPeriod = activePeriodos.length > 0
-                        ? activePeriodos.length
-                        : Math.max(...Object.values(filteredSchedule).flatMap(entries =>
-                            entries.map(e => e.periodo)
-                          ), 0)
-                      return Array.from({ length: maxPeriod }, (_, idx) => {
-                        const periodNum = idx + 1
-                        const isRecess  = activeRecesos.has(periodNum)
-                        if (isRecess) return (
-                          <tr key={idx} className="bg-[rgba(255,179,71,0.05)]">
-                            <td className="p-2 text-center text-ink4 font-medium border-b border-surface2">☕</td>
-                            {DIAS_SEMANA.map(d => (
-                              <td key={d} className="p-1 text-center border-b border-surface2 text-ink4 text-[10px]">
-                                Recreo
-                              </td>
-                            ))}
-                          </tr>
-                        )
-                        const timeLabel = activePeriodos[idx]
-                          ? activePeriodos[idx]
-                          : `${periodNum}°`
-                        return (
-                          <tr key={idx} className="hover:bg-bg/50">
-                            <td className="p-2 text-ink4 font-medium border-b border-surface2 whitespace-nowrap">
-                              {timeLabel}
-                            </td>
-                            {DIAS_SEMANA.map(d => {
-                              const entry = (filteredSchedule[d] || []).find(e => e.periodo === periodNum)
-                              if (!entry) return (
-                                <td key={d} className={`p-1 text-center border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}>
-                                  <span className="text-ink4/40">—</span>
-                                </td>
-                              )
-                              const color = courseColorMap[entry.curso] || '#94A3B8'
-                              return (
-                                <td
+
+              {/* Render one table per slot (each slot has its own hours/recesos) */}
+              <div className="space-y-6">
+                {activeSlots.map(slot => {
+                  const cfg      = slot.config
+                  const horarios = cfg.horarios || []
+                  const rec      = new Set<number>(cfg.recesos || [4])
+                  const nPeriods = horarios.length || cfg.nPeriodos || 8
+                  const slotLabel = `${cfg.nivel === 'Escuela' ? '🏫 Escuela / Básica' : '🎓 Colegio / Bachillerato'} — ${cfg.jornada === 'MATUTINA' ? '🌅 Matutina' : '🌇 Vespertina'}`
+
+                  return (
+                    <div key={slot.key}>
+                      {/* Slot header (only if multiple slots visible) */}
+                      {activeSlots.length > 1 && (
+                        <div className="text-xs font-semibold text-ink3 mb-2 px-1">{slotLabel}</div>
+                      )}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr>
+                              <th className="text-left p-2 text-ink4 font-semibold border-b border-surface2 w-24">Hora</th>
+                              {DIAS_SEMANA.map(d => (
+                                <th
                                   key={d}
-                                  className={`p-1 border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}
+                                  className={`text-center p-2 font-semibold border-b border-surface2 ${
+                                    d === todayName ? 'text-violet bg-[rgba(124,109,250,0.06)]' : 'text-ink4'
+                                  }`}
                                 >
-                                  <div
-                                    className="rounded-lg px-2 py-1.5 text-center"
-                                    style={{ backgroundColor: color + '18', borderLeft: `3px solid ${color}` }}
-                                  >
-                                    <div className="font-semibold text-ink truncate" style={{ fontSize: '10px' }}>
-                                      {entry.materia}
-                                    </div>
-                                    <div className="text-ink4 truncate" style={{ fontSize: '9px' }}>
-                                      {entry.curso}
-                                    </div>
-                                  </div>
-                                </td>
+                                  {d.slice(0, 3).toUpperCase()}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Array.from({ length: nPeriods }, (_, idx) => {
+                              const isRecess = rec.has(idx)
+                              const timeLabel = horarios[idx] || `${idx + 1}°`
+
+                              if (isRecess) return (
+                                <tr key={idx} className="bg-[rgba(255,179,71,0.05)]">
+                                  <td className="p-2 text-ink4 font-medium border-b border-surface2 text-center whitespace-nowrap">
+                                    ☕ {timeLabel}
+                                  </td>
+                                  {DIAS_SEMANA.map(d => (
+                                    <td key={d} className="p-1 text-center border-b border-surface2 text-ink4 text-[10px]">
+                                      Recreo
+                                    </td>
+                                  ))}
+                                </tr>
+                              )
+
+                              return (
+                                <tr key={idx} className="hover:bg-bg/50">
+                                  <td className="p-2 text-ink4 font-medium border-b border-surface2 whitespace-nowrap">
+                                    {timeLabel}
+                                  </td>
+                                  {DIAS_SEMANA.map(d => {
+                                    const cell = slot.grid[d]?.[idx]
+                                    // If filtering by course, only show that course
+                                    if (cell && horarioFilter !== 'TODOS' && cell.curso !== horarioFilter) {
+                                      return (
+                                        <td key={d} className={`p-1 text-center border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}>
+                                          <span className="text-ink4/40">—</span>
+                                        </td>
+                                      )
+                                    }
+                                    if (!cell) return (
+                                      <td key={d} className={`p-1 text-center border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}>
+                                        <span className="text-ink4/40">—</span>
+                                      </td>
+                                    )
+                                    const color = courseColorMap[cell.curso] || '#94A3B8'
+                                    return (
+                                      <td
+                                        key={d}
+                                        className={`p-1 border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}
+                                      >
+                                        <div
+                                          className="rounded-lg px-2 py-1.5 text-center"
+                                          style={{ backgroundColor: color + '18', borderLeft: `3px solid ${color}` }}
+                                        >
+                                          <div className="font-semibold text-ink truncate" style={{ fontSize: '10px' }}>
+                                            {cell.materia}
+                                          </div>
+                                          <div className="text-ink4 truncate" style={{ fontSize: '9px' }}>
+                                            {cell.curso}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    )
+                                  })}
+                                </tr>
                               )
                             })}
-                          </tr>
-                        )
-                      })
-                    })()}
-                  </tbody>
-                </table>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )
