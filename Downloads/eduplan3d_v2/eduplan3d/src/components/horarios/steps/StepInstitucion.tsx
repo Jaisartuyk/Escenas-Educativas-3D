@@ -2,7 +2,6 @@
 // src/components/horarios/steps/StepInstitucion.tsx
 
 import type { InstitucionConfig } from '@/types/horarios'
-import { HORARIOS_MATUTINA, HORARIOS_VESPERTINA, DEFAULT_CURSOS_ESCUELA, DEFAULT_CURSOS_COLEGIO } from '@/types/horarios'
 
 interface Props {
   config: InstitucionConfig
@@ -13,21 +12,6 @@ interface Props {
 export function StepInstitucion({ config, onChange, onNext }: Props) {
   function set<K extends keyof InstitucionConfig>(key: K, val: InstitucionConfig[K]) {
     onChange({ ...config, [key]: val })
-  }
-
-  function handleJornada(j: 'MATUTINA' | 'VESPERTINA') {
-    onChange({ 
-      ...config, 
-      jornada: j, 
-      horarios: j === 'VESPERTINA' ? [...HORARIOS_VESPERTINA] : [...HORARIOS_MATUTINA],
-      nPeriodos: 8,
-      recesos: [4]
-    })
-  }
-
-  function handleNivel(n: 'Escuela' | 'Colegio') {
-    const cursos = n === 'Escuela' ? [...DEFAULT_CURSOS_ESCUELA] : [...DEFAULT_CURSOS_COLEGIO]
-    onChange({ ...config, nivel: n, cursos, tutores: {} })
   }
 
   function handleHorario(i: number, val: string) {
@@ -60,12 +44,6 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
     }
   }
 
-  function handleCursos(raw: string) {
-    const cursos = raw.split(',').map(s => s.trim()).filter(Boolean)
-    const tutores = { ...config.tutores }
-    onChange({ ...config, cursos, tutores })
-  }
-
   function handleTutor(curso: string, val: string) {
     onChange({ ...config, tutores: { ...config.tutores, [curso]: val } })
   }
@@ -74,37 +52,46 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
     <div>
       <div className="card p-6 mb-4">
         <h2 className="font-display text-base font-bold tracking-tight mb-5">Datos institucionales</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-          <div className="col-span-3">
+
+        {/* Info badges — nivel, jornada y cursos vienen del selector de slot y la DB */}
+        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-xl bg-[rgba(124,109,250,0.05)] border border-[rgba(120,100,255,0.12)]">
+          <span className="text-sm">
+            {config.nivel === 'Escuela' ? '🏫' : '🎓'}
+          </span>
+          <span className="text-sm font-medium text-ink2">
+            {config.nivel === 'Escuela' ? 'Escuela / Básica' : 'Colegio / Bachillerato'}
+          </span>
+          <span className="text-ink4 text-xs">•</span>
+          <span className="text-sm text-ink3">
+            {config.jornada === 'MATUTINA' ? '🌅 Matutina' : '🌇 Vespertina'}
+          </span>
+          <span className="text-ink4 text-xs">•</span>
+          <span className="text-sm text-ink3">
+            {config.cursos.length} curso{config.cursos.length !== 1 ? 's' : ''}
+          </span>
+          {config.cursos.length > 0 && (
+            <>
+              <span className="text-ink4 text-xs">→</span>
+              <div className="flex flex-wrap gap-1">
+                {config.cursos.map(c => (
+                  <span key={c} className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(124,109,250,0.1)] text-violet2 font-medium">{c}</span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <p className="text-[11px] text-ink4 mb-4">
+          El nivel, jornada y cursos se configuran en <strong>Mi Institución</strong> y se seleccionan desde el selector de horarios.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div>
             <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nombre de la institución</label>
             <input value={config.nombre} onChange={e => set('nombre', e.target.value)} className="input-base" />
           </div>
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nivel</label>
-            <select value={config.nivel ?? 'Colegio'} onChange={e => handleNivel(e.target.value as any)} className="input-base">
-              <option value="Colegio">Colegio / Bachillerato</option>
-              <option value="Escuela">Escuela / Básica</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Jornada</label>
-            <select value={config.jornada} onChange={e => handleJornada(e.target.value as any)} className="input-base">
-              <option value="VESPERTINA">VESPERTINA</option>
-              <option value="MATUTINA">MATUTINA</option>
-            </select>
-          </div>
-          <div>
             <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Año lectivo</label>
             <input value={config.anio} onChange={e => set('anio', e.target.value)} className="input-base" />
-          </div>
-          <div className="col-span-3">
-            <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Cursos (separados por coma)</label>
-            <input
-              value={config.cursos.join(', ')}
-              onChange={e => handleCursos(e.target.value)}
-              className="input-base"
-              placeholder="8VO, 9NO, 10MO, 1ERO BGU, 2DO BGU, 3ERO BGU"
-            />
           </div>
         </div>
 

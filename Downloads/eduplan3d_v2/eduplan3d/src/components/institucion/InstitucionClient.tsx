@@ -62,6 +62,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
   const [courseShift, setCourseShift] = useState('MATUTINA')
   const [savingCourse, setSavingCourse] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingCourse, setEditingCourse] = useState<Curso | null>(null)
 
   // ── Subject (materia) state ──
   const [showAddSubject, setShowAddSubject] = useState(false)
@@ -117,6 +118,32 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
       window.location.reload()
     } catch {
       toast.error('No se pudo crear el curso')
+    } finally {
+      setSavingCourse(false)
+    }
+  }
+
+  async function updateCourse() {
+    if (!editingCourse) return
+    setSavingCourse(true)
+    try {
+      const res = await fetch('/api/institucion/courses', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingCourse.id,
+          name: editingCourse.name,
+          parallel: editingCourse.parallel,
+          level: editingCourse.level,
+          shift: editingCourse.shift,
+        }),
+      })
+      if (!res.ok) throw new Error('Error al actualizar')
+      toast.success('Curso actualizado')
+      setEditingCourse(null)
+      window.location.reload()
+    } catch {
+      toast.error('No se pudo actualizar el curso')
     } finally {
       setSavingCourse(false)
     }
@@ -337,6 +364,44 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
             </div>
           )}
 
+          {/* Edit course form */}
+          {editingCourse && (
+            <div className="card p-5 mb-5 border border-amber-300 bg-amber-50/30">
+              <h3 className="font-bold text-sm mb-4">Editar Curso — {editingCourse.name}</h3>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="col-span-2">
+                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nombre</label>
+                  <input value={editingCourse.name} onChange={e => setEditingCourse({ ...editingCourse, name: e.target.value })} className="input-base w-full" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Paralelo</label>
+                  <input value={editingCourse.parallel} onChange={e => setEditingCourse({ ...editingCourse, parallel: e.target.value })} className="input-base w-full" />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nivel</label>
+                  <select value={editingCourse.level} onChange={e => setEditingCourse({ ...editingCourse, level: e.target.value })} className="input-base w-full">
+                    <option value="Colegio">Colegio / BGU</option>
+                    <option value="Escuela">Escuela / Básica</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Jornada</label>
+                  <select value={editingCourse.shift} onChange={e => setEditingCourse({ ...editingCourse, shift: e.target.value })} className="input-base w-full">
+                    <option value="MATUTINA">Matutina</option>
+                    <option value="VESPERTINA">Vespertina</option>
+                    <option value="AMBAS">Ambas jornadas</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={updateCourse} disabled={savingCourse} className="btn-primary text-sm px-6 py-2">
+                  {savingCourse ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+                <button onClick={() => setEditingCourse(null)} className="btn-secondary text-sm px-4 py-2">Cancelar</button>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
             {courses.length === 0 ? (
               <div className="col-span-2 card p-10 text-center text-ink3">
@@ -351,7 +416,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
               return (
                 <div key={c.id} className="card p-4 group">
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-sm">{c.name} {c.parallel && `— ${c.parallel}`}</h3>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[rgba(124,109,250,0.1)] text-violet2">{levelLabel}</span>
@@ -359,14 +424,23 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                         <span className="text-[10px] text-ink3">{matCount} materia{matCount !== 1 ? 's' : ''}</span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => deleteCourse(c.id, c.name)}
-                      disabled={deletingId === c.id}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50"
-                      title="Eliminar curso"
-                    >
-                      {deletingId === c.id ? '...' : '✕'}
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => { setEditingCourse(c); setShowAddCourse(false) }}
+                        className="text-xs px-2 py-1 rounded text-violet-600 hover:bg-violet-50 font-semibold"
+                        title="Editar curso"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => deleteCourse(c.id, c.name)}
+                        disabled={deletingId === c.id}
+                        className="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded hover:bg-red-50"
+                        title="Eliminar curso"
+                      >
+                        {deletingId === c.id ? '...' : '✕'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )

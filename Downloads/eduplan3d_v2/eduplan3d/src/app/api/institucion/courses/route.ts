@@ -24,6 +24,33 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(data)
 }
 
+export async function PATCH(req: NextRequest) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const body = await req.json()
+  const { id, name, parallel, level, shift } = body
+
+  if (!id) return NextResponse.json({ error: 'Falta el id del curso' }, { status: 400 })
+
+  const updates: any = {}
+  if (name !== undefined) updates.name = name
+  if (parallel !== undefined) updates.parallel = parallel
+  if (level !== undefined) updates.level = level
+  if (shift !== undefined) updates.shift = shift
+
+  const { data, error } = await (supabase as any)
+    .from('courses')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
+}
+
 export async function DELETE(req: NextRequest) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
