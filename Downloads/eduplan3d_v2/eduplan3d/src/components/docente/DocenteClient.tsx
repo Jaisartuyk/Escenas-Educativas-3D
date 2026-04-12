@@ -67,6 +67,7 @@ export function DocenteClient({
   profile, mySubjects,
   initialAssignments, initialGrades, initialCategories, teacherId,
   parcialesCount = 2,
+  horariosData = {},
 }: any) {
   // ── Enrollments + student profiles — cargados via API (server components no pueden consultar profiles) ──
   const [enrollments, setEnrollments] = useState<any[]>([])
@@ -494,69 +495,282 @@ export function DocenteClient({
   // ════════════════════════════════════════════════════════════════════════
   //  RENDER: MIS CLASES (cards)
   // ════════════════════════════════════════════════════════════════════════
+  // ── Build teacher's personal schedule from horarios data ──────────────────
+  const teacherName = profile?.full_name || ''
+  const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes'] as const
+
+  // Extract teacher's subjects names for matching
+  const mySubjectNames = new Set(mySubjects.map((s: any) => (s.name || '').toUpperCase().trim()))
+
+  // Build personal timetable: día → period[] with { materia, curso }
+  type ScheduleEntry = { materia: string; curso: string; periodo: number }
+  const teacherSchedule: Record<string, ScheduleEntry[]> = {}
+  let scheduleConfig: { horarios?: any[]; recesos?: number[] } | null = null
+
+  Object.values(horariosData).forEach((slot: any) => {
+    const horario = slot?.horario || {}
+    const config  = slot?.config  || {}
+    if (!scheduleConfig && config.horarios) scheduleConfig = config
+
+    Object.entries(horario).forEach(([curso, dias]: [string, any]) => {
+      Object.entries(dias || {}).forEach(([dia, materias]: [string, any]) => {
+        if (!Array.isArray(materias)) return
+        materias.forEach((materia: string, idx: number) => {
+          if (materia && mySubjectNames.has(materia.toUpperCase().trim())) {
+            if (!teacherSchedule[dia]) teacherSchedule[dia] = []
+            teacherSchedule[dia].push({ materia, curso, periodo: idx + 1 })
+          }
+        })
+      })
+    })
+  })
+
+  // Today's info
+  const now       = new Date()
+  const dayIndex  = now.getDay() // 0=Sun
+  const todayName = dayIndex >= 1 && dayIndex <= 5 ? DIAS_SEMANA[dayIndex - 1] : null
+  const todayClasses = todayName ? (teacherSchedule[todayName] || []) : []
+  const hasSchedule  = Object.keys(teacherSchedule).length > 0
+
+  // Period time labels from config
+  const periodos = scheduleConfig?.horarios || []
+  const recesos  = new Set(scheduleConfig?.recesos || [])
+
+  // Greeting based on time of day
+  const hour = now.getHours()
+  const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches'
+  const firstName = teacherName.split(' ')[0] || 'Docente'
+
+  // Stats
+  const totalAlumnos = new Set(enrollments.map((e: any) => e.student_id)).size
+  const totalTareas  = assignments.length
+  const totalHorasSem = mySubjects.reduce((acc: number, s: any) => acc + (s.weekly_hours || 0), 0)
+
   if (!selectedSubjectId) {
     return (
       <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
-        <div>
-          <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">Panel Docente</h1>
-          <p className="text-ink3 text-sm mt-1">Selecciona una clase para gestionar asistencia, calificaciones y comportamiento.</p>
+        {/* ── Header con saludo ───────────────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">
+              {greeting}, {firstName} 👋
+            </h1>
+            <p className="text-ink3 text-sm mt-1">
+              {todayName
+                ? `${todayName}, ${now.toLocaleDateString('es-EC', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                : `${now.toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
+              }
+            </p>
+          </div>
         </div>
 
-        {mySubjects.length === 0 ? (
-          <div className="p-14 text-center text-ink3 bg-surface rounded-3xl border border-surface2">
-            <BookOpen size={36} className="mx-auto mb-3 text-ink4" />
-            <p className="font-semibold">No tienes materias asignadas</p>
-            <p className="text-sm text-ink4 mt-1">El administrador debe asignarte en Gestión Académica.</p>
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {mySubjects.map((s: any) => {
-              const color    = colorMap[s.name] || CARD_COLORS[0]
-              const studs    = enrollments.filter((e: any) => e.course_id === s.course?.id)
-              const asgCount = assignments.filter((a: any) => a.subject_id === s.id).length
-              const initial  = s.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+        {/* ── Stats rápidos ──────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Materias',      value: mySubjects.length, icon: '📚', color: '#7C6DFA' },
+            { label: 'Alumnos',       value: totalAlumnos,      icon: '👥', color: '#14B8A6' },
+            { label: 'Tareas',        value: totalTareas,       icon: '📝', color: '#F59E0B' },
+            { label: 'Horas/semana',  value: totalHorasSem,     icon: '⏱',  color: '#3B82F6' },
+          ].map(stat => (
+            <div key={stat.label} className="bg-surface rounded-2xl border border-surface2 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">{stat.icon}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wide text-ink4">{stat.label}</span>
+              </div>
+              <div className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</div>
+            </div>
+          ))}
+        </div>
 
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => openSubject(s.id)}
-                  className="bg-surface rounded-2xl border border-surface2 overflow-hidden text-left hover:border-violet/40 hover:shadow-lg transition-all group"
-                >
-                  {/* Header colorido */}
-                  <div style={{ backgroundColor: color }} className="p-4 flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                      {initial}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-bold text-white text-sm leading-tight truncate">{s.name}</div>
-                      <div className="text-white/70 text-xs mt-0.5 truncate">
-                        {s.course?.name} {s.course?.parallel}
+        {/* ── Clases de hoy ──────────────────────────────────────────────── */}
+        {todayName && (
+          <div className="bg-surface rounded-2xl border border-surface2 p-5">
+            <h2 className="font-display text-base font-bold tracking-tight mb-3 flex items-center gap-2">
+              📅 Clases de hoy
+              <span className="text-xs font-normal text-ink4 ml-1">
+                {todayClasses.length === 0 ? 'No tienes clases hoy' : `${todayClasses.length} clase${todayClasses.length > 1 ? 's' : ''}`}
+              </span>
+            </h2>
+            {todayClasses.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {todayClasses
+                  .sort((a, b) => a.periodo - b.periodo)
+                  .map((entry, i) => {
+                    const color = colorMap[entry.materia] || CARD_COLORS[i % CARD_COLORS.length]
+                    const timeLabel = periodos[entry.periodo - 1]
+                      ? `${periodos[entry.periodo - 1].inicio} - ${periodos[entry.periodo - 1].fin}`
+                      : `Período ${entry.periodo}`
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl border border-surface2 bg-bg min-w-[200px]"
+                      >
+                        <div
+                          style={{ backgroundColor: color }}
+                          className="w-9 h-9 rounded-lg flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+                        >
+                          {entry.periodo}°
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm text-ink truncate">{entry.materia}</div>
+                          <div className="text-xs text-ink4 truncate">{entry.curso} · {timeLabel}</div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  {/* Body */}
-                  <div className="p-4 space-y-3">
-                    <div className="flex items-center justify-between text-xs text-ink3">
-                      <span className="flex items-center gap-1.5">
-                        <Users size={13} /> {studs.length} alumnos
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <ClipboardList size={13} /> {asgCount} tareas
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <CalendarDays size={13} /> {s.weekly_hours}h/sem
-                      </span>
-                    </div>
-                    <div className="text-xs text-violet group-hover:translate-x-1 transition-transform font-medium flex items-center gap-1">
-                      Abrir clase →
-                    </div>
-                  </div>
-                </button>
-              )
-            })}
+                    )
+                  })}
+              </div>
+            ) : (
+              <p className="text-sm text-ink4">🎉 ¡Día libre! No tienes clases programadas.</p>
+            )}
           </div>
         )}
+        {!todayName && (
+          <div className="bg-surface rounded-2xl border border-surface2 p-5 text-center">
+            <p className="text-sm text-ink3">🎉 ¡Es fin de semana! Disfruta tu descanso.</p>
+          </div>
+        )}
+
+        {/* ── Horario semanal del docente ─────────────────────────────────── */}
+        {hasSchedule && (
+          <div className="bg-surface rounded-2xl border border-surface2 p-5">
+            <h2 className="font-display text-base font-bold tracking-tight mb-4 flex items-center gap-2">
+              🗓 Mi Horario Semanal
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr>
+                    <th className="text-left p-2 text-ink4 font-semibold border-b border-surface2 w-16">Hora</th>
+                    {DIAS_SEMANA.map(d => (
+                      <th
+                        key={d}
+                        className={`text-center p-2 font-semibold border-b border-surface2 ${
+                          d === todayName ? 'text-violet bg-[rgba(124,109,250,0.06)]' : 'text-ink4'
+                        }`}
+                      >
+                        {d.slice(0, 3).toUpperCase()}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    // Determine max periods across all days
+                    const maxPeriod = Math.max(
+                      ...Object.values(teacherSchedule).flatMap(entries =>
+                        entries.map(e => e.periodo)
+                      ), 0
+                    )
+                    return Array.from({ length: maxPeriod }, (_, idx) => {
+                      const periodNum = idx + 1
+                      const isRecess  = recesos.has(periodNum)
+                      if (isRecess) return (
+                        <tr key={idx} className="bg-[rgba(255,179,71,0.05)]">
+                          <td className="p-2 text-center text-ink4 font-medium border-b border-surface2">☕</td>
+                          {DIAS_SEMANA.map(d => (
+                            <td key={d} className="p-1 text-center border-b border-surface2 text-ink4 text-[10px]">
+                              Recreo
+                            </td>
+                          ))}
+                        </tr>
+                      )
+                      const timeLabel = periodos[idx]
+                        ? `${periodos[idx].inicio}`
+                        : `${periodNum}°`
+                      return (
+                        <tr key={idx} className="hover:bg-bg/50">
+                          <td className="p-2 text-ink4 font-medium border-b border-surface2 whitespace-nowrap">
+                            {timeLabel}
+                          </td>
+                          {DIAS_SEMANA.map(d => {
+                            const entry = (teacherSchedule[d] || []).find(e => e.periodo === periodNum)
+                            if (!entry) return (
+                              <td key={d} className={`p-1 text-center border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}>
+                                <span className="text-ink4/40">—</span>
+                              </td>
+                            )
+                            const color = colorMap[entry.materia] || '#94A3B8'
+                            return (
+                              <td
+                                key={d}
+                                className={`p-1 border-b border-surface2 ${d === todayName ? 'bg-[rgba(124,109,250,0.04)]' : ''}`}
+                              >
+                                <div
+                                  className="rounded-lg px-2 py-1.5 text-center"
+                                  style={{ backgroundColor: color + '18', borderLeft: `3px solid ${color}` }}
+                                >
+                                  <div className="font-semibold text-ink truncate" style={{ fontSize: '10px' }}>
+                                    {entry.materia}
+                                  </div>
+                                  <div className="text-ink4 truncate" style={{ fontSize: '9px' }}>
+                                    {entry.curso}
+                                  </div>
+                                </div>
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      )
+                    })
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── Mis Clases (cuadernillo) ────────────────────────────────────── */}
+        <div>
+          <h2 className="font-display text-base font-bold tracking-tight mb-3 flex items-center gap-2">
+            📖 Mis Clases
+            <span className="text-xs font-normal text-ink4">Asistencia · Calificaciones · Comportamiento</span>
+          </h2>
+
+          {mySubjects.length === 0 ? (
+            <div className="p-14 text-center text-ink3 bg-surface rounded-3xl border border-surface2">
+              <BookOpen size={36} className="mx-auto mb-3 text-ink4" />
+              <p className="font-semibold">No tienes materias asignadas</p>
+              <p className="text-sm text-ink4 mt-1">El administrador debe asignarte en Gestión Académica.</p>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {mySubjects.map((s: any) => {
+                const color    = colorMap[s.name] || CARD_COLORS[0]
+                const studs    = enrollments.filter((e: any) => e.course_id === s.course?.id)
+                const asgCount = assignments.filter((a: any) => a.subject_id === s.id).length
+                const initial  = s.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => openSubject(s.id)}
+                    className="bg-surface rounded-2xl border border-surface2 overflow-hidden text-left hover:border-violet/40 hover:shadow-lg transition-all group"
+                  >
+                    <div style={{ backgroundColor: color }} className="px-4 py-3 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                        {initial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-white text-sm leading-tight truncate">{s.name}</div>
+                        <div className="text-white/70 text-xs truncate">
+                          {s.course?.name} {s.course?.parallel}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3 text-xs text-ink3">
+                        <span className="flex items-center gap-1"><Users size={12} /> {studs.length}</span>
+                        <span className="flex items-center gap-1"><ClipboardList size={12} /> {asgCount}</span>
+                        <span className="flex items-center gap-1"><CalendarDays size={12} /> {s.weekly_hours}h</span>
+                      </div>
+                      <span className="text-xs text-violet group-hover:translate-x-1 transition-transform font-medium">→</span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     )
   }

@@ -79,6 +79,18 @@ export default async function DocentePage() {
     scheduleConfig = data
   }
 
+  // ── Horarios guardados (para mostrar horario personal del docente) ────────
+  const instSettings = (profile as any)?.institutions?.settings || {}
+
+  // Collect all saved horario grids
+  const allHorarios: Record<string, any> = {}
+  Object.keys(instSettings).forEach(key => {
+    if (key.startsWith('horarios_') || key === 'horarios') {
+      const slot = instSettings[key]
+      if (slot?.horario) allHorarios[key] = slot
+    }
+  })
+
   return (
     <DocenteClient
       profile={profile}
@@ -88,6 +100,7 @@ export default async function DocentePage() {
       initialCategories={categories}
       teacherId={user.id}
       parcialesCount={scheduleConfig?.parciales_count || 2}
+      horariosData={allHorarios}
     />
   )
 }
