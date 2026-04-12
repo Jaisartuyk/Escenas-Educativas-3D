@@ -327,6 +327,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                   <select value={courseShift} onChange={e => setCourseShift(e.target.value)} className="input-base w-full">
                     <option value="MATUTINA">Matutina</option>
                     <option value="VESPERTINA">Vespertina</option>
+                    <option value="AMBAS">Ambas jornadas</option>
                   </select>
                 </div>
               </div>
@@ -343,18 +344,21 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 <p className="text-sm font-medium">Aún no hay cursos</p>
                 <p className="text-xs mt-1">Añade tu primer curso con el botón de arriba</p>
               </div>
-            ) : courses.map(c => (
-              <div key={c.id} className="card p-4 group">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-bold text-sm">{c.name} {c.parallel && `— ${c.parallel}`}</h3>
-                    <p className="text-xs text-ink3 mt-1">{c.level} · {c.shift}</p>
-                    <p className="text-[10px] text-ink3 mt-0.5">
-                      {subjects.filter(s => s.course_id === c.id).length} materia(s)
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">📖</span>
+            ) : courses.map(c => {
+              const levelLabel = c.level === 'Escuela' ? '🏫 Escuela' : '🎓 Colegio'
+              const shiftLabel = c.shift === 'MATUTINA' ? '🌅 Mat.' : c.shift === 'VESPERTINA' ? '🌇 Vesp.' : '🔄 Ambas'
+              const matCount = subjects.filter(s => s.course_id === c.id).length
+              return (
+                <div key={c.id} className="card p-4 group">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-bold text-sm">{c.name} {c.parallel && `— ${c.parallel}`}</h3>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[rgba(124,109,250,0.1)] text-violet2">{levelLabel}</span>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[rgba(38,215,180,0.1)] text-teal">{shiftLabel}</span>
+                        <span className="text-[10px] text-ink3">{matCount} materia{matCount !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
                     <button
                       onClick={() => deleteCourse(c.id, c.name)}
                       disabled={deletingId === c.id}
@@ -365,8 +369,8 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                     </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

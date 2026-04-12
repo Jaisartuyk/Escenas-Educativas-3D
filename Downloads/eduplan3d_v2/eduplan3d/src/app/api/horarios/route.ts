@@ -116,35 +116,96 @@ export async function GET(req: Request) {
     if (qJornada) horariosConfig.config.jornada = qJornada
   }
 
-  // ── Recopilar configuración de docentes de OTROS slots guardados ──────────
-  // Si un docente fue marcado como "Escuela" o "MATUTINA" en otro horario,
-  // heredamos esa config para que el filtro de compatibilidad funcione.
-  const otherSlotsDocentes: Record<string, { jornada: string; nivel: string; titulo: string; materias: string[] }> = {}
-  Object.entries(allSettings).forEach(([k, v]: [string, any]) => {
-    if (k === key) return // skip the current slot
-    if (!k.startsWith('horarios') || !v?.docentes) return
-    ;(v.docentes as any[]).forEach((d: any) => {
-      if (!d.id) return
-      const prev = otherSlotsDocentes[d.id]
-      // Keep the most restrictive setting (specific > AMBAS/AMBOS)
-      const pickJornada = (a: string, b: string) => {
-        if (!a || a === 'AMBAS') return b || 'AMBAS'
-        if (!b || b === 'AMBAS') return a
-        return a // both specific, keep first found
-      }
-      const pickNivel = (a: string, b: string) => {
-        if (!a || a === 'AMBOS') return b || 'AMBOS'
-        if (!b || b === 'AMBOS') return a
-        return a
-      }
-      otherSlotsDocentes[d.id] = {
-        jornada:  prev ? pickJornada(prev.jornada, d.jornada) : (d.jornada || 'AMBAS'),
-        nivel:    prev ? pickNivel(prev.nivel, d.nivel) : (d.nivel || 'AMBOS'),
-        titulo:   d.titulo || prev?.titulo || '',
-        materias: d.materias?.length > 0 ? d.materias : (prev?.materias || []),
+  // ── Auto-inyección de CURSOS filtrados por nivel+jornada ───────────────────
+  const { data: dbCourses } = await admin
+    .from('courses' as any)
+    .select('id, name, parallel, level, shift')
+    .eq('institution_id', instId)
+    .order('name', { ascending: true })
+
+  // Filter courses that match the requested nivel+jornada
+  const slotNivel   = horariosConfig.config?.nivel   || qNivel   || ''
+  const slotJornada = horariosConfig.config?.jornada  || qJornada || ''
+
+  const matchingCourses = (dbCourses as any[] || []).filter((c: any) => {
+    const levelOk = !slotNivel || !c.level || c.level === slotNivel
+    const shiftOk = !slotJornada || !c.shift || c.shift === 'AMBAS' || c.shift === slotJornada
+    return levelOk && shiftOk
+  })
+
+  const normalize = (s: string) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+
+  if (matchingCourses.length > 0) {
+    const dbCourseNames = matchingCourses.map((c: any) => {
+      return c.parallel ? `${c.name} ${c.parallel}`.trim() : c.name
+    })
+    const currentCursos: string[] = horariosConfig.config?.cursos || []
+    const normalizedCurrent = currentCursos.map(normalize)
+
+    dbCourseNames.forEach((name: string) => {
+      if (!normalizedCurrent.includes(normalize(name))) {
+        currentCursos.push(name)
       }
     })
+    horariosConfig.config.cursos = currentCursos
+  }
+
+  // Map course id → display name (only matching courses)
+  const courseIdToName: Record<string, string> = {}
+  matchingCourses.forEach((c: any) => {
+    courseIdToName[c.id] = c.parallel ? `${c.name} ${c.parallel}`.trim() : c.name
   })
+
+  // ── Auto-inyección de MATERIAS + deducción de docentes ────────────────────
+  const { data: dbSubjects } = await admin
+    .from('subjects' as any)
+    .select('name, weekly_hours, course_id, teacher_id')
+    .eq('institution_id', instId)
+
+  // Track which teachers teach in which levels/shifts (from ALL courses, not just matching)
+  const teacherLevels:  Record<string, Set<string>> = {}
+  const teacherShifts:  Record<string, Set<string>> = {}
+  const teacherMaterias: Record<string, Set<string>> = {}
+
+  if (dbSubjects && dbCourses) {
+    // Build full course map for level/shift lookup
+    const allCourseMap: Record<string, any> = {}
+    ;(dbCourses as any[]).forEach((c: any) => { allCourseMap[c.id] = c })
+
+    ;(dbSubjects as any[]).forEach((sub: any) => {
+      if (!sub.teacher_id) return
+      const course = allCourseMap[sub.course_id]
+      if (!course) return
+
+      if (!teacherLevels[sub.teacher_id])  teacherLevels[sub.teacher_id]  = new Set()
+      if (!teacherShifts[sub.teacher_id])  teacherShifts[sub.teacher_id]  = new Set()
+      if (!teacherMaterias[sub.teacher_id]) teacherMaterias[sub.teacher_id] = new Set()
+
+      if (course.level) teacherLevels[sub.teacher_id].add(course.level)
+      if (course.shift) teacherShifts[sub.teacher_id].add(course.shift)
+      teacherMaterias[sub.teacher_id].add(sub.name)
+    })
+  }
+
+  // Deduce jornada/nivel for each teacher from their course assignments
+  function deduceJornada(teacherId: string): string {
+    const shifts = teacherShifts[teacherId]
+    if (!shifts || shifts.size === 0) return 'AMBAS'
+    if (shifts.has('AMBAS')) return 'AMBAS'
+    if (shifts.has('MATUTINA') && shifts.has('VESPERTINA')) return 'AMBAS'
+    if (shifts.has('MATUTINA')) return 'MATUTINA'
+    if (shifts.has('VESPERTINA')) return 'VESPERTINA'
+    return 'AMBAS'
+  }
+  function deduceNivel(teacherId: string): string {
+    const levels = teacherLevels[teacherId]
+    if (!levels || levels.size === 0) return 'AMBOS'
+    if (levels.has('Escuela') && levels.has('Colegio')) return 'AMBOS'
+    if (levels.has('Escuela')) return 'Escuela'
+    if (levels.has('Colegio')) return 'Colegio'
+    return 'AMBOS'
+  }
 
   // ── Auto-inyección de DOCENTES reales ──────────────────────────────────────
   const { data: dbTeachers } = await admin
@@ -158,100 +219,48 @@ export async function GET(req: Request) {
 
     ;(dbTeachers as any[]).forEach((dbT: any) => {
       if (!existingIds.includes(dbT.id)) {
-        // New teacher for this slot — inherit config from other slots if available
-        const inherited = otherSlotsDocentes[dbT.id]
         horariosConfig.docentes.push({
           id:       dbT.id,
-          titulo:   inherited?.titulo || '',
+          titulo:   '',
           nombre:   dbT.full_name,
-          materias: inherited?.materias || [],
-          jornada:  inherited?.jornada || 'AMBAS',
-          nivel:    inherited?.nivel || 'AMBOS',
+          materias: Array.from(teacherMaterias[dbT.id] || []),
+          jornada:  deduceJornada(dbT.id),
+          nivel:    deduceNivel(dbT.id),
         })
       } else {
         const idx = horariosConfig.docentes.findIndex((d: any) => d.id === dbT.id)
         if (idx !== -1) {
-          horariosConfig.docentes[idx].nombre = dbT.full_name
-          // If this docente has default values, inherit from other slots
           const doc = horariosConfig.docentes[idx]
-          const inherited = otherSlotsDocentes[dbT.id]
-          if (inherited) {
-            if (!doc.jornada || doc.jornada === 'AMBAS') doc.jornada = inherited.jornada
-            if (!doc.nivel || doc.nivel === 'AMBOS') doc.nivel = inherited.nivel
-            if (!doc.titulo && inherited.titulo) doc.titulo = inherited.titulo
-            if ((!doc.materias || doc.materias.length === 0) && inherited.materias?.length > 0) {
-              doc.materias = inherited.materias
-            }
+          doc.nombre = dbT.full_name
+          // Always update jornada/nivel from DB courses (source of truth)
+          doc.jornada = deduceJornada(dbT.id)
+          doc.nivel   = deduceNivel(dbT.id)
+          // Merge materias from DB
+          const dbMats = teacherMaterias[dbT.id]
+          if (dbMats) {
+            const existing: string[] = doc.materias || []
+            dbMats.forEach((m: string) => {
+              if (!existing.includes(m)) existing.push(m)
+            })
+            doc.materias = existing
           }
         }
       }
     })
   }
 
-  // ── Auto-inyección de CURSOS reales ──────────────────────────────────────
-  const { data: dbCourses } = await admin
-    .from('courses' as any)
-    .select('id, name, parallel')
-    .eq('institution_id', instId)
-    .order('name', { ascending: true })
-
-  if (dbCourses && (dbCourses as any[]).length > 0) {
-    const dbCourseNames = (dbCourses as any[]).map((c: any) => {
-      const label = c.parallel ? `${c.name} ${c.parallel}`.trim() : c.name
-      return label
-    })
-    // Merge: keep existing wizard cursos, add any new DB courses not in list
-    const currentCursos: string[] = horariosConfig.config?.cursos || []
-    const normalize = (s: string) =>
-      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-    const normalizedCurrent = currentCursos.map(normalize)
-
-    dbCourseNames.forEach((name: string) => {
-      if (!normalizedCurrent.includes(normalize(name))) {
-        currentCursos.push(name)
-      }
-    })
-    horariosConfig.config.cursos = currentCursos
-  }
-
-  // ── Auto-inyección de MATERIAS reales al horasPorCurso ──────────────────
-  const { data: dbSubjects } = await admin
-    .from('subjects' as any)
-    .select('name, weekly_hours, course_id, teacher_id')
-    .eq('institution_id', instId)
-
+  // ── Inyectar horas por curso de materias que coincidan ───────────────────
   if (dbSubjects && (dbSubjects as any[]).length > 0) {
-    // Build a map: course DB name → subject list
-    const courseIdToName: Record<string, string> = {}
-    if (dbCourses) {
-      ;(dbCourses as any[]).forEach((c: any) => {
-        courseIdToName[c.id] = c.parallel ? `${c.name} ${c.parallel}`.trim() : c.name
-      })
-    }
-
     const horasPorCurso = horariosConfig.horasPorCurso || {}
 
     ;(dbSubjects as any[]).forEach((sub: any) => {
       const courseName = courseIdToName[sub.course_id]
-      if (!courseName) return
+      if (!courseName) return // skip subjects from non-matching courses
 
       if (!horasPorCurso[courseName]) horasPorCurso[courseName] = {}
 
-      // Only set from DB if the wizard doesn't already have a value for this subject
       if (horasPorCurso[courseName][sub.name] === undefined || horasPorCurso[courseName][sub.name] === 0) {
         horasPorCurso[courseName][sub.name] = sub.weekly_hours || 1
-      }
-
-      // Also inject this materia into the docente's list if teacher_id is set
-      if (sub.teacher_id) {
-        const docIdx = horariosConfig.docentes.findIndex((d: any) => d.id === sub.teacher_id)
-        if (docIdx !== -1) {
-          const materias: string[] = horariosConfig.docentes[docIdx].materias || []
-          if (!materias.includes(sub.name)) {
-            materias.push(sub.name)
-            horariosConfig.docentes[docIdx].materias = materias
-          }
-        }
       }
     })
 
