@@ -243,6 +243,19 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
     return t?.full_name || '—'
   }
 
+  // Get teachers associated with a specific subject name (teach it in any course)
+  const getTeachersForSubject = (subjectName: string) => {
+    const normalizedName = subjectName.trim().toUpperCase()
+    const teacherIdsWithSubject = new Set(
+      subjects
+        .filter(s => s.name.trim().toUpperCase() === normalizedName && s.teacher_id)
+        .map(s => s.teacher_id!)
+    )
+    const associated = teachers.filter(t => teacherIdsWithSubject.has(t.id))
+    const others = teachers.filter(t => !teacherIdsWithSubject.has(t.id))
+    return { associated, others }
+  }
+
   const filteredSubjects = filterCourseId === 'all'
     ? subjects
     : subjects.filter(s => s.course_id === filterCourseId)
@@ -544,16 +557,32 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 </div>
                 <div className="col-span-2">
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Docente (opcional)</label>
-                  <select
-                    value={subjectTeacherId}
-                    onChange={e => setSubjectTeacherId(e.target.value)}
-                    className="input-base w-full"
-                  >
-                    <option value="">Sin asignar</option>
-                    {teachers.map(t => (
-                      <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
-                    ))}
-                  </select>
+                  {(() => {
+                    const { associated, others } = getTeachersForSubject(subjectName)
+                    return (
+                      <select
+                        value={subjectTeacherId}
+                        onChange={e => setSubjectTeacherId(e.target.value)}
+                        className="input-base w-full"
+                      >
+                        <option value="">Sin asignar</option>
+                        {associated.length > 0 && (
+                          <optgroup label={`✓ Docentes de ${subjectName.toUpperCase() || 'esta materia'}`}>
+                            {associated.map(t => (
+                              <option key={t.id} value={t.id}>⭐ {t.full_name || t.email}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {others.length > 0 && (
+                          <optgroup label="Otros docentes">
+                            {others.map(t => (
+                              <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    )
+                  })()}
                 </div>
               </div>
               <button onClick={addSubject} disabled={savingSubject} className="btn-primary text-sm px-6 py-2">
@@ -588,16 +617,32 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Docente</label>
-                  <select
-                    value={editingSubject.teacher_id || ''}
-                    onChange={e => setEditingSubject({ ...editingSubject, teacher_id: e.target.value || null })}
-                    className="input-base w-full"
-                  >
-                    <option value="">Sin asignar</option>
-                    {teachers.map(t => (
-                      <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
-                    ))}
-                  </select>
+                  {(() => {
+                    const { associated, others } = getTeachersForSubject(editingSubject.name)
+                    return (
+                      <select
+                        value={editingSubject.teacher_id || ''}
+                        onChange={e => setEditingSubject({ ...editingSubject, teacher_id: e.target.value || null })}
+                        className="input-base w-full"
+                      >
+                        <option value="">Sin asignar</option>
+                        {associated.length > 0 && (
+                          <optgroup label={`✓ Docentes de ${editingSubject.name}`}>
+                            {associated.map(t => (
+                              <option key={t.id} value={t.id}>⭐ {t.full_name || t.email}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {others.length > 0 && (
+                          <optgroup label="Otros docentes">
+                            {others.map(t => (
+                              <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    )
+                  })()}
                 </div>
               </div>
               <div className="flex gap-2">
