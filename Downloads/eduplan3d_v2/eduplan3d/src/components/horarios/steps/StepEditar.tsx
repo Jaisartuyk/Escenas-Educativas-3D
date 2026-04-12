@@ -110,12 +110,15 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {config.horarios.map((hora, pi) => {
+                {(() => {
+                  let classNum = 0
+                  return config.horarios.map((hora, pi) => {
                   const isReceso = (config.recesos || [4]).includes(pi)
+                  if (!isReceso) classNum++
                   return (
                     <tr key={pi}>
                       <td className={`text-center text-xs font-semibold border border-[rgba(120,100,255,0.14)] ${isReceso ? 'bg-[rgba(38,215,180,0.15)] text-teal' : 'bg-surface text-ink3'}`}>
-                        {isReceso ? 'R' : pi + 1}
+                        {isReceso ? 'R' : classNum}
                       </td>
                       <td className={`text-center text-[10px] border border-[rgba(120,100,255,0.14)] px-1 ${isReceso ? 'bg-[rgba(38,215,180,0.15)] text-teal' : 'bg-surface text-ink3'}`}>
                         {hora}
@@ -166,7 +169,8 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                       })}
                     </tr>
                   )
-                })}
+                })
+                })()}
               </tbody>
             </table>
           </div>
@@ -204,11 +208,14 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {config.horarios.map((hora, pi) => {
+                    {(() => {
+                      let cn2 = 0
+                      return config.horarios.map((hora, pi) => {
                       const isR = (config.recesos || [4]).includes(pi)
+                      if (!isR) cn2++
                       return (
                       <tr key={pi}>
-                        <td className="text-center text-[11px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{isR ? 'R' : pi + 1}</td>
+                        <td className="text-center text-[11px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{isR ? 'R' : cn2}</td>
                         <td className="text-center text-[10px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{hora}</td>
                         {DIAS.map(d => {
                           const v = diasDoc[d]?.[pi] ?? ''
@@ -220,7 +227,8 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                         })}
                       </tr>
                     )
-                    })}
+                    })
+                    })()}
                   </tbody>
                 </table>
               </div>

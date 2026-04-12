@@ -111,15 +111,18 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
         {/* Horarios por período */}
         <div>
           <div className="flex items-center justify-between mb-3 border-t border-[rgba(0,0,0,0.05)] pt-4 mt-2">
-             <label className="text-[11px] font-bold uppercase tracking-[.5px] text-ink3">Bloques y Recreos de Clase ({config.nPeriodos || 8} Períodos)</label>
+             <label className="text-[11px] font-bold uppercase tracking-[.5px] text-ink3">Bloques y Recreos de Clase ({(config.nPeriodos || 8) - (config.recesos?.length || 0)} Horas + {config.recesos?.length || 0} Recreo{(config.recesos?.length || 0) !== 1 ? 's' : ''})</label>
              <div className="flex gap-2">
                <button onClick={handleRemovePeriod} className="w-6 h-6 flex items-center justify-center rounded-md bg-surface2 text-ink3 hover:bg-surface border border-transparent transition-colors font-bold text-sm">-</button>
                <button onClick={handleAddPeriod} className="w-6 h-6 flex items-center justify-center rounded-md bg-surface2 text-ink3 hover:bg-surface border border-transparent transition-colors font-bold text-sm">+</button>
              </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {(config.horarios.slice(0, config.nPeriodos || 8)).map((h, i) => {
+            {(() => {
+              let classNum = 0 // counter that skips recreos
+              return (config.horarios.slice(0, config.nPeriodos || 8)).map((h, i) => {
               const isReceso = (config.recesos || [4]).includes(i)
+              if (!isReceso) classNum++
               return (
                 <div key={i} className={`flex items-center gap-2 p-2 rounded-xl border transition-colors ${isReceso ? 'bg-[rgba(38,215,180,0.05)] border-[rgba(38,215,180,0.2)]' : 'bg-transparent border-transparent hover:bg-bg'}`}>
                   <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 cursor-pointer transition-colors ${
@@ -127,7 +130,7 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
                       ? 'bg-[rgba(38,215,180,0.15)] text-teal'
                       : 'bg-surface2 text-ink3 hover:bg-[rgba(124,109,250,0.1)] hover:text-violet2'
                   }`} onClick={() => toggleReceso(i)} title="Clic para marcar/desmarcar como Receso">
-                    {isReceso ? '☕' : i + 1}
+                    {isReceso ? '☕' : classNum}
                   </span>
                   <input
                     value={h}
@@ -138,7 +141,8 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
                   {isReceso && <span className="text-[10px] uppercase text-teal font-bold tracking-wider px-2">Receso</span>}
                 </div>
               )
-            })}
+            })
+            })()}
           </div>
         </div>
       </div>

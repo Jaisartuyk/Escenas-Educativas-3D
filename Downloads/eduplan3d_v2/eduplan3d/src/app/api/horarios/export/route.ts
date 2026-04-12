@@ -80,11 +80,13 @@ export async function POST(req: NextRequest) {
     row++
 
     const recesos = config.recesos || [4]
+    let classNum1 = 0
     horarios.forEach((hora, pi) => {
       const isReceso = recesos.includes(pi)
+      if (!isReceso) classNum1++
       const bg_p = isReceso ? 'E2EFDA' : 'EAF0FB'
-      
-      sc(ws1.getCell(row, 1), false, 9, '000000', bg_p); ws1.getCell(row, 1).value = isReceso ? '' : pi + 1
+
+      sc(ws1.getCell(row, 1), false, 9, '000000', bg_p); ws1.getCell(row, 1).value = isReceso ? 'R' : classNum1
       sc(ws1.getCell(row, 2), false, 9, '000000', bg_p); ws1.getCell(row, 2).value = hora
 
       if (isReceso) {
@@ -160,11 +162,13 @@ export async function POST(req: NextRequest) {
     ws2.getRow(row2).height = 16; row2++
 
     const recesos = config.recesos || [4]
+    let classNum2 = 0
     horarios.forEach((hora, pi) => {
       const isReceso = recesos.includes(pi)
+      if (!isReceso) classNum2++
       const bg_p = isReceso ? 'E2EFDA' : 'EAF0FB'
 
-      sc(ws2.getCell(row2, 1), false, 9, '000000', bg_p); ws2.getCell(row2, 1).value = isReceso ? '' : pi + 1
+      sc(ws2.getCell(row2, 1), false, 9, '000000', bg_p); ws2.getCell(row2, 1).value = isReceso ? 'R' : classNum2
       sc(ws2.getCell(row2, 2), false, 9, '000000', bg_p); ws2.getCell(row2, 2).value = hora
 
       if (isReceso) {
