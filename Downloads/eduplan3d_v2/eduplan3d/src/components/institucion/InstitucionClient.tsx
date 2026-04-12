@@ -153,6 +153,14 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
   async function addSubject() {
     if (!subjectName.trim()) return toast.error('Escribe el nombre de la materia')
     if (!subjectCourseId) return toast.error('Selecciona un curso')
+    // Check duplicate: same name + same course
+    const duplicate = subjects.find(
+      s => s.name.trim().toUpperCase() === subjectName.trim().toUpperCase() && s.course_id === subjectCourseId
+    )
+    if (duplicate) {
+      return toast.error(`"${subjectName.trim().toUpperCase()}" ya existe en ${getCourseName(subjectCourseId)}`)
+    }
+    if (subjectHours < 1 || subjectHours > 20) return toast.error('Las horas deben estar entre 1 y 20')
     setSavingSubject(true)
     try {
       const res = await fetch('/api/institucion/subjects', {
@@ -458,7 +466,14 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
               {/* Filter by course */}
               <select
                 value={filterCourseId}
-                onChange={e => setFilterCourseId(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value
+                  setFilterCourseId(val)
+                  // Sync course selector in add form if it's open
+                  if (showAddSubject && val !== 'all') {
+                    setSubjectCourseId(val)
+                  }
+                }}
                 className="input-base text-xs py-1.5 px-3"
               >
                 <option value="all">Todos los cursos</option>
@@ -467,7 +482,17 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 ))}
               </select>
             </div>
-            <button onClick={() => { setShowAddSubject(v => !v); setEditingSubject(null) }} className="btn-primary text-sm px-4 py-2">
+            <button onClick={() => {
+              const opening = !showAddSubject
+              setShowAddSubject(opening)
+              setEditingSubject(null)
+              // Auto-select the filtered course when opening the form
+              if (opening && filterCourseId !== 'all') {
+                setSubjectCourseId(filterCourseId)
+              } else if (opening && courses.length > 0) {
+                setSubjectCourseId(courses[0].id)
+              }
+            }} className="btn-primary text-sm px-4 py-2">
               {showAddSubject ? '✕ Cancelar' : '+ Añadir materia'}
             </button>
           </div>
@@ -488,16 +513,23 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Curso</label>
-                  <select
-                    value={subjectCourseId}
-                    onChange={e => setSubjectCourseId(e.target.value)}
-                    className="input-base w-full"
-                  >
-                    <option value="">Seleccionar curso...</option>
-                    {courses.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} {c.parallel && c.parallel}</option>
-                    ))}
-                  </select>
+                  {filterCourseId !== 'all' ? (
+                    <div className="input-base w-full bg-[rgba(124,109,250,0.05)] text-ink2 font-medium flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-violet-500" />
+                      {getCourseName(filterCourseId)}
+                    </div>
+                  ) : (
+                    <select
+                      value={subjectCourseId}
+                      onChange={e => setSubjectCourseId(e.target.value)}
+                      className="input-base w-full"
+                    >
+                      <option value="">Seleccionar curso...</option>
+                      {courses.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} {c.parallel && c.parallel}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Horas semanales</label>
@@ -575,6 +607,22 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 <button onClick={() => setEditingSubject(null)} className="btn-secondary text-sm px-4 py-2">
                   Cancelar
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Summary per course */}
+          {filterCourseId !== 'all' && filteredSubjects.length > 0 && (
+            <div className="flex items-center gap-4 mb-4 p-3 rounded-xl bg-[rgba(124,109,250,0.05)] border border-[rgba(120,100,255,0.12)]">
+              <div className="text-sm text-ink2">
+                <span className="font-semibold">{getCourseName(filterCourseId)}</span>
+                <span className="text-ink3 mx-2">→</span>
+                <span className="font-bold text-violet2">{filteredSubjects.reduce((sum, s) => sum + s.weekly_hours, 0)}</span>
+                <span className="text-ink3 text-xs ml-1">horas/semana</span>
+                <span className="text-ink4 mx-2">•</span>
+                <span className="text-ink3 text-xs">{filteredSubjects.length} materia{filteredSubjects.length !== 1 ? 's' : ''}</span>
+                <span className="text-ink4 mx-2">•</span>
+                <span className="text-ink3 text-xs">{filteredSubjects.filter(s => !s.teacher_id).length} sin docente</span>
               </div>
             </div>
           )}
