@@ -210,11 +210,33 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         studentId: sid,
         name: student?.full_name || 'Estudiante',
         course: courseLabel,
+        shift: stuCourse?.shift || '',
         matricula,
         monthPayments,
       }
     }).sort((a, b) => a.name.localeCompare(b.name))
   }, [filtered, students, studentCourses, coursesById])
+
+  // Group tableData by shift
+  const tableByShift = useMemo(() => {
+    const groups: Record<string, typeof tableData> = {}
+    tableData.forEach(row => {
+      const shift = row.shift || 'SIN JORNADA'
+      if (!groups[shift]) groups[shift] = []
+      groups[shift].push(row)
+    })
+    // Sort: MATUTINA first, then VESPERTINA, then others
+    const order = ['MATUTINA', 'VESPERTINA']
+    const sorted = Object.entries(groups).sort(([a], [b]) => {
+      const ia = order.indexOf(a)
+      const ib = order.indexOf(b)
+      if (ia === -1 && ib === -1) return a.localeCompare(b)
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    })
+    return sorted
+  }, [tableData])
 
   // ── Actions ──────────────────────────────────────────────────────────────
   async function handleCreate(e: React.FormEvent) {
@@ -590,90 +612,105 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-surface2">
-                    <th className="text-left px-4 py-3 font-bold text-ink3 uppercase tracking-wider sticky left-0 bg-surface z-10 min-w-[180px]">
-                      Estudiante
-                    </th>
-                    <th className="text-center px-2 py-3 font-bold text-ink3 uppercase tracking-wider min-w-[70px]">
-                      Curso
-                    </th>
-                    <th className="text-center px-2 py-3 font-bold text-indigo-600 uppercase tracking-wider min-w-[70px] bg-indigo-50/50">
-                      Matr.
-                    </th>
-                    {MESES.map(m => (
-                      <th key={m} className="text-center px-2 py-3 font-bold text-ink3 uppercase tracking-wider min-w-[70px]">
-                        {m}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.map((row, ri) => (
-                    <tr key={row.studentId} className={`border-b border-surface2 hover:bg-bg/50 ${ri % 2 === 0 ? '' : 'bg-[rgba(0,0,0,0.015)]'}`}>
-                      {/* Student name */}
-                      <td className="px-4 py-2.5 font-semibold text-sm sticky left-0 bg-surface z-10 whitespace-nowrap">
-                        {row.name}
-                      </td>
-                      {/* Course */}
-                      <td className="px-2 py-2.5 text-center">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface2 text-ink3">
-                          {row.course || '—'}
-                        </span>
-                      </td>
-                      {/* Matricula */}
-                      <td className="px-2 py-2.5 text-center bg-indigo-50/30">
-                        {row.matricula ? (
-                          <button
-                            onClick={() => row.matricula.computedStatus !== 'pagado' ? markAsPaid(row.matricula.id) : null}
-                            className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                              STATUS_CELL[getPaymentStatus(row.matricula)]
-                            } ${row.matricula.computedStatus !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
-                            title={row.matricula.computedStatus !== 'pagado' ? 'Clic para marcar como pagado' : `Pagado: ${formatDate(row.matricula.paid_date)}`}
-                          >
-                            {getPaymentStatus(row.matricula) === 'pagado' ? '✓' :
-                             Number(row.matricula.amount) === 0 ? '?' :
-                             formatMoney(row.matricula.amount).replace('$', '').trim()}
-                          </button>
-                        ) : (
-                          <span className="text-ink4">—</span>
-                        )}
-                      </td>
-                      {/* Month cells */}
-                      {MESES.map(m => {
-                        const payment = row.monthPayments[m]
-                        if (!payment) {
-                          return <td key={m} className="px-2 py-2.5 text-center text-ink4">—</td>
-                        }
-                        const status = getPaymentStatus(payment)
-                        return (
-                          <td key={m} className="px-1 py-2 text-center">
-                            <button
-                              onClick={() => status !== 'pagado' ? markAsPaid(payment.id) : null}
-                              className={`inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
-                                STATUS_CELL[status]
-                              } ${status !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
-                              title={
-                                status === 'pagado' ? `Pagado: ${formatDate(payment.paid_date)}` :
-                                status === 'atrasado' ? `Atrasado — Clic para pagar` :
-                                `Pendiente ${formatMoney(payment.amount)} — Clic para pagar`
-                              }
-                            >
-                              {status === 'pagado' ? '✓' :
-                               Number(payment.amount) === 0 ? '?' :
-                               formatMoney(payment.amount).replace('$', '').trim()}
-                            </button>
+              {tableByShift.map(([shift, rows]) => (
+                <div key={shift}>
+                  {/* Shift header */}
+                  <div className={`px-5 py-2.5 flex items-center gap-2 border-b border-surface2 ${
+                    shift === 'MATUTINA' ? 'bg-amber-50/50' : shift === 'VESPERTINA' ? 'bg-blue-50/50' : 'bg-gray-50/50'
+                  }`}>
+                    <span className={`text-lg ${shift === 'MATUTINA' ? '' : ''}`}>
+                      {shift === 'MATUTINA' ? '🌅' : shift === 'VESPERTINA' ? '🌇' : '📋'}
+                    </span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-ink2">
+                      Jornada {shift}
+                    </span>
+                    <span className="text-[10px] text-ink3 font-medium">
+                      ({rows.length} estudiante{rows.length !== 1 ? 's' : ''})
+                    </span>
+                  </div>
+
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-surface2">
+                        <th className="text-left px-4 py-2.5 font-bold text-ink3 uppercase tracking-wider sticky left-0 bg-surface z-10 min-w-[180px]">
+                          Estudiante
+                        </th>
+                        <th className="text-center px-2 py-2.5 font-bold text-ink3 uppercase tracking-wider min-w-[70px]">
+                          Curso
+                        </th>
+                        <th className="text-center px-2 py-2.5 font-bold text-indigo-600 uppercase tracking-wider min-w-[60px] bg-indigo-50/50">
+                          Matr.
+                        </th>
+                        {MESES.map(m => (
+                          <th key={m} className="text-center px-2 py-2.5 font-bold text-ink3 uppercase tracking-wider min-w-[65px]">
+                            {m}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row, ri) => (
+                        <tr key={row.studentId} className={`border-b border-surface2 hover:bg-bg/50 ${ri % 2 === 0 ? '' : 'bg-[rgba(0,0,0,0.015)]'}`}>
+                          <td className="px-4 py-2.5 font-semibold text-sm sticky left-0 bg-surface z-10 whitespace-nowrap">
+                            {row.name}
                           </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          <td className="px-2 py-2.5 text-center">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface2 text-ink3">
+                              {row.course || '—'}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2.5 text-center bg-indigo-50/30">
+                            {row.matricula ? (
+                              <button
+                                onClick={() => getPaymentStatus(row.matricula) !== 'pagado' ? markAsPaid(row.matricula.id) : null}
+                                className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                                  STATUS_CELL[getPaymentStatus(row.matricula)]
+                                } ${getPaymentStatus(row.matricula) !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                                title={getPaymentStatus(row.matricula) !== 'pagado' ? 'Clic para pagar' : `Pagado`}
+                              >
+                                {getPaymentStatus(row.matricula) === 'pagado' ? '✓' :
+                                 Number(row.matricula.amount) === 0 ? '?' :
+                                 formatMoney(row.matricula.amount).replace('$', '').trim()}
+                              </button>
+                            ) : (
+                              <span className="text-ink4">—</span>
+                            )}
+                          </td>
+                          {MESES.map(m => {
+                            const payment = row.monthPayments[m]
+                            if (!payment) {
+                              return <td key={m} className="px-2 py-2.5 text-center text-ink4">—</td>
+                            }
+                            const status = getPaymentStatus(payment)
+                            return (
+                              <td key={m} className="px-1 py-2 text-center">
+                                <button
+                                  onClick={() => status !== 'pagado' ? markAsPaid(payment.id) : null}
+                                  className={`inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                    STATUS_CELL[status]
+                                  } ${status !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                                  title={
+                                    status === 'pagado' ? `Pagado: ${formatDate(payment.paid_date)}` :
+                                    status === 'atrasado' ? `Atrasado — Clic para pagar` :
+                                    `Pendiente ${formatMoney(payment.amount)} — Clic para pagar`
+                                  }
+                                >
+                                  {status === 'pagado' ? '✓' :
+                                   Number(payment.amount) === 0 ? '?' :
+                                   formatMoney(payment.amount).replace('$', '').trim()}
+                                </button>
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
 
               {/* Legend */}
-              <div className="px-5 py-3 border-t border-surface2 flex items-center gap-4 text-[10px] text-ink3">
+              <div className="px-5 py-3 border-t border-surface2 flex flex-wrap items-center gap-4 text-[10px] text-ink3">
                 <span className="font-bold uppercase tracking-wider">Leyenda:</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" /> Pagado</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 inline-block" /> Pendiente</span>
