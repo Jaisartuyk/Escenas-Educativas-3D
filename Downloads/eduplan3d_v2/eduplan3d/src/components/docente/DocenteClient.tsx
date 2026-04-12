@@ -27,20 +27,19 @@ const DAYS_ES   = ['Lun','Mar','Mié','Jue','Vie']
 const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// Asigna colores por curso (no por materia) — garantiza colores distintos por curso
-function buildColorMap(subjects: any[]): Record<string, string> {
-  const uniqueCourses = Array.from(new Set(subjects.map((s: any) => s.course?.name || 'Sin curso')))
-  const courseColorMap: Record<string, string> = {}
-  uniqueCourses.forEach((name, i) => { courseColorMap[name] = CARD_COLORS[i % CARD_COLORS.length] })
-  // Map subject name → color of its course
+// Asigna colores por curso — cada curso tiene su propio color
+function buildCourseColorMap(subjects: any[]): Record<string, string> {
+  const uniqueCourses = Array.from(new Set(
+    subjects.map((s: any) => s.course?.name || 'Sin curso')
+  ))
   const map: Record<string, string> = {}
-  subjects.forEach((s: any) => {
-    const courseName = s.course?.name || 'Sin curso'
-    map[s.name] = courseColorMap[courseName]
-    // Also store by course name for direct lookup
-    map[`__course__${courseName}`] = courseColorMap[courseName]
-  })
+  uniqueCourses.forEach((name, i) => { map[name] = CARD_COLORS[i % CARD_COLORS.length] })
   return map
+}
+
+// Color por subject id (combina materia+curso para evitar colisiones)
+function getSubjectColor(s: any, courseColorMap: Record<string, string>): string {
+  return courseColorMap[s.course?.name || 'Sin curso'] || CARD_COLORS[0]
 }
 
 function getMondayOfWeek(date = new Date()) {
@@ -147,8 +146,8 @@ export function DocenteClient({
   const [savingAct,        setSavingAct]        = useState(false)
 
   const selectedSubject = mySubjects.find((s: any) => s.id === selectedSubjectId)
-  const instId   = (profile?.institutions as any)?.id || profile?.institution_id
-  const colorMap = buildColorMap(mySubjects)
+  const instId        = (profile?.institutions as any)?.id || profile?.institution_id
+  const courseColorMap = buildCourseColorMap(mySubjects)
 
   // ── Helpers para categorías (scope componente para uso en modales) ────────
   const getCatColor = (catId: string | null) => {
@@ -604,7 +603,7 @@ export function DocenteClient({
                 {todayClasses
                   .sort((a, b) => a.periodo - b.periodo)
                   .map((entry, i) => {
-                    const color = colorMap[entry.materia] || CARD_COLORS[i % CARD_COLORS.length]
+                    const color = courseColorMap[entry.curso] || CARD_COLORS[i % CARD_COLORS.length]
                     const timeLabel = periodos[entry.periodo - 1]
                       ? `${periodos[entry.periodo - 1].inicio} - ${periodos[entry.periodo - 1].fin}`
                       : `Período ${entry.periodo}`
@@ -697,7 +696,7 @@ export function DocenteClient({
                                 <span className="text-ink4/40">—</span>
                               </td>
                             )
-                            const color = colorMap[entry.materia] || '#94A3B8'
+                            const color = courseColorMap[entry.curso] || '#94A3B8'
                             return (
                               <td
                                 key={d}
@@ -743,7 +742,7 @@ export function DocenteClient({
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {mySubjects.map((s: any) => {
-                const color    = colorMap[s.name] || CARD_COLORS[0]
+                const color    = getSubjectColor(s, courseColorMap)
                 const studs    = enrollments.filter((e: any) => e.course_id === s.course?.id)
                 const asgCount = assignments.filter((a: any) => a.subject_id === s.id).length
                 const initial  = s.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -786,7 +785,7 @@ export function DocenteClient({
   // ════════════════════════════════════════════════════════════════════════
   //  RENDER: DETALLE DE CLASE
   // ════════════════════════════════════════════════════════════════════════
-  const color = colorMap[selectedSubject?.name || ''] || CARD_COLORS[0]
+  const color = selectedSubject ? getSubjectColor(selectedSubject, courseColorMap) : CARD_COLORS[0]
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto space-y-5">
