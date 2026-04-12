@@ -116,6 +116,36 @@ export async function GET(req: Request) {
     if (qJornada) horariosConfig.config.jornada = qJornada
   }
 
+  // ── Recopilar configuración de docentes de OTROS slots guardados ──────────
+  // Si un docente fue marcado como "Escuela" o "MATUTINA" en otro horario,
+  // heredamos esa config para que el filtro de compatibilidad funcione.
+  const otherSlotsDocentes: Record<string, { jornada: string; nivel: string; titulo: string; materias: string[] }> = {}
+  Object.entries(allSettings).forEach(([k, v]: [string, any]) => {
+    if (k === key) return // skip the current slot
+    if (!k.startsWith('horarios') || !v?.docentes) return
+    ;(v.docentes as any[]).forEach((d: any) => {
+      if (!d.id) return
+      const prev = otherSlotsDocentes[d.id]
+      // Keep the most restrictive setting (specific > AMBAS/AMBOS)
+      const pickJornada = (a: string, b: string) => {
+        if (!a || a === 'AMBAS') return b || 'AMBAS'
+        if (!b || b === 'AMBAS') return a
+        return a // both specific, keep first found
+      }
+      const pickNivel = (a: string, b: string) => {
+        if (!a || a === 'AMBOS') return b || 'AMBOS'
+        if (!b || b === 'AMBOS') return a
+        return a
+      }
+      otherSlotsDocentes[d.id] = {
+        jornada:  prev ? pickJornada(prev.jornada, d.jornada) : (d.jornada || 'AMBAS'),
+        nivel:    prev ? pickNivel(prev.nivel, d.nivel) : (d.nivel || 'AMBOS'),
+        titulo:   d.titulo || prev?.titulo || '',
+        materias: d.materias?.length > 0 ? d.materias : (prev?.materias || []),
+      }
+    })
+  })
+
   // ── Auto-inyección de DOCENTES reales ──────────────────────────────────────
   const { data: dbTeachers } = await admin
     .from('profiles' as any)
@@ -128,17 +158,32 @@ export async function GET(req: Request) {
 
     ;(dbTeachers as any[]).forEach((dbT: any) => {
       if (!existingIds.includes(dbT.id)) {
+        // New teacher for this slot — inherit config from other slots if available
+        const inherited = otherSlotsDocentes[dbT.id]
         horariosConfig.docentes.push({
           id:       dbT.id,
-          titulo:   '',
+          titulo:   inherited?.titulo || '',
           nombre:   dbT.full_name,
-          materias: [],
-          jornada:  'AMBAS',
-          nivel:    'AMBOS',
+          materias: inherited?.materias || [],
+          jornada:  inherited?.jornada || 'AMBAS',
+          nivel:    inherited?.nivel || 'AMBOS',
         })
       } else {
         const idx = horariosConfig.docentes.findIndex((d: any) => d.id === dbT.id)
-        if (idx !== -1) horariosConfig.docentes[idx].nombre = dbT.full_name
+        if (idx !== -1) {
+          horariosConfig.docentes[idx].nombre = dbT.full_name
+          // If this docente has default values, inherit from other slots
+          const doc = horariosConfig.docentes[idx]
+          const inherited = otherSlotsDocentes[dbT.id]
+          if (inherited) {
+            if (!doc.jornada || doc.jornada === 'AMBAS') doc.jornada = inherited.jornada
+            if (!doc.nivel || doc.nivel === 'AMBOS') doc.nivel = inherited.nivel
+            if (!doc.titulo && inherited.titulo) doc.titulo = inherited.titulo
+            if ((!doc.materias || doc.materias.length === 0) && inherited.materias?.length > 0) {
+              doc.materias = inherited.materias
+            }
+          }
+        }
       }
     })
   }
