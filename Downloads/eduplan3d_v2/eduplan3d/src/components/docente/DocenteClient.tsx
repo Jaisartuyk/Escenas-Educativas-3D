@@ -505,7 +505,7 @@ export function DocenteClient({
   // Build personal timetable: día → period[] with { materia, curso }
   type ScheduleEntry = { materia: string; curso: string; periodo: number }
   const teacherSchedule: Record<string, ScheduleEntry[]> = {}
-  let scheduleConfig: { horarios?: any[]; recesos?: number[] } | null = null
+  let scheduleConfig: any = null
 
   Object.values(horariosData).forEach((slot: any) => {
     const horario = slot?.horario || {}
