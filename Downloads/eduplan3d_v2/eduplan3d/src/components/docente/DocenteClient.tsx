@@ -606,7 +606,7 @@ export function DocenteClient({
                   .map((entry, i) => {
                     const color = courseColorMap[entry.curso] || CARD_COLORS[i % CARD_COLORS.length]
                     const timeLabel = periodos[entry.periodo - 1]
-                      ? `${periodos[entry.periodo - 1].inicio} - ${periodos[entry.periodo - 1].fin}`
+                      ? periodos[entry.periodo - 1]
                       : `Período ${entry.periodo}`
                     return (
                       <div
@@ -732,7 +732,7 @@ export function DocenteClient({
                           </tr>
                         )
                         const timeLabel = periodos[idx]
-                          ? `${periodos[idx].inicio}`
+                          ? periodos[idx]
                           : `${periodNum}°`
                         return (
                           <tr key={idx} className="hover:bg-bg/50">
