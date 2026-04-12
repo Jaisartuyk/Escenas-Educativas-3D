@@ -12,13 +12,22 @@ function isValidUUID(str: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
 }
 
-export async function GET() {
-  // Solo usamos el cliente anon para verificar la sesión del usuario
+/** Build the settings key for a given nivel+jornada slot */
+function slotKey(nivel: string, jornada: string): string {
+  const n = (nivel || 'colegio').toLowerCase().replace(/\s+/g, '_')
+  const j = (jornada || 'matutina').toLowerCase()
+  return `horarios_${n}_${j}`
+}
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url)
+  const qNivel   = searchParams.get('nivel')   || ''
+  const qJornada = searchParams.get('jornada') || ''
+
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  // Todo lo demás con adminClient para bypassear RLS
   const admin = createAdminClient()
 
   const { data: profile } = await admin
@@ -41,14 +50,70 @@ export async function GET() {
   if (!inst) return NextResponse.json({ error: 'Institución no encontrada' }, { status: 404 })
 
   const instData = inst as any
+  const allSettings = instData.settings || {}
 
-  // Estado base: JSON blob del wizard (fuente de verdad de la UI)
-  const horariosConfig = instData.settings?.horarios || {
-    config:        getEmptyConfig(instData.name),
-    docentes:      [],
-    horasPorCurso: DEFAULT_HORAS,
-    horario:       {},
-    step:          0,
+  // ── If requesting list of saved slots ──────────────────────────────────────
+  if (searchParams.get('list') === 'true') {
+    const slots: { nivel: string, jornada: string, key: string }[] = []
+    Object.keys(allSettings).forEach(k => {
+      const match = k.match(/^horarios_(.+)_(matutina|vespertina)$/)
+      if (match) {
+        slots.push({
+          nivel: match[1] === 'escuela' ? 'Escuela' : 'Colegio',
+          jornada: match[2].toUpperCase(),
+          key: k,
+        })
+      }
+    })
+    // Also check legacy 'horarios' key (always, not just when no slots)
+    if (allSettings.horarios) {
+      const legacy = allSettings.horarios
+      const legacyNivel   = legacy.config?.nivel   || 'Colegio'
+      const legacyJornada = legacy.config?.jornada  || 'MATUTINA'
+      // Only add if there's no new-style slot for the same nivel+jornada
+      const alreadyCovered = slots.some(s =>
+        s.nivel.toLowerCase() === legacyNivel.toLowerCase() &&
+        s.jornada.toUpperCase() === legacyJornada.toUpperCase()
+      )
+      if (!alreadyCovered) {
+        slots.push({
+          nivel: legacyNivel,
+          jornada: legacyJornada,
+          key: 'horarios',
+        })
+      }
+    }
+    return NextResponse.json({ slots }, {
+      headers: { 'Cache-Control': 'no-store' }
+    })
+  }
+
+  // ── Load specific slot ──────────────────────────────────────────────────────
+  const key = qNivel && qJornada ? slotKey(qNivel, qJornada) : ''
+
+  // Try: specific slot → legacy 'horarios' → empty
+  let horariosConfig = key ? allSettings[key] : null
+  if (!horariosConfig) {
+    // Fallback to legacy 'horarios' if it matches the requested nivel/jornada
+    const legacy = allSettings.horarios
+    if (legacy) {
+      const legacyMatch = !qNivel || !qJornada ||
+        (legacy.config?.nivel?.toLowerCase() === qNivel.toLowerCase() &&
+         legacy.config?.jornada?.toUpperCase() === qJornada.toUpperCase())
+      if (legacyMatch) horariosConfig = legacy
+    }
+  }
+  if (!horariosConfig) {
+    horariosConfig = {
+      config:        getEmptyConfig(instData.name),
+      docentes:      [],
+      horasPorCurso: DEFAULT_HORAS,
+      horario:       {},
+      step:          0,
+    }
+    // Apply the requested nivel/jornada to the empty config
+    if (qNivel) horariosConfig.config.nivel = qNivel
+    if (qJornada) horariosConfig.config.jornada = qJornada
   }
 
   // ── Auto-inyección de DOCENTES reales ──────────────────────────────────────
@@ -184,9 +249,15 @@ export async function POST(req: Request) {
     .single()
 
   const currentSettings = (inst as any)?.settings || {}
+
+  // Determine the slot key from the body's config nivel+jornada
+  const bodyNivel = body.config?.nivel || ''
+  const bodyJornada = body.config?.jornada || ''
+  const saveKey = bodyNivel && bodyJornada ? slotKey(bodyNivel, bodyJornada) : 'horarios'
+
   const newSettings = {
     ...currentSettings,
-    horarios: body,  // reemplaza solo la llave 'horarios', preserva el resto
+    [saveKey]: body,  // save to slot-specific key (e.g. horarios_escuela_matutina)
   }
 
   const { error: settingsError } = await admin
