@@ -12,12 +12,13 @@ interface Props {
   docentes: Docente[]
   horasPorCurso: HorasPorCurso
   jornada: string
+  docentePorCurso?: Record<string, Record<string, string>>
   onChange: (h: HorasPorCurso) => void
   onBack: () => void
   onNext: () => void
 }
 
-export function StepHoras({ config, cursos, docentes, horasPorCurso, jornada, onChange, onBack, onNext }: Props) {
+export function StepHoras({ config, cursos, docentes, horasPorCurso, jornada, docentePorCurso, onChange, onBack, onNext }: Props) {
   const [cursoActivo, setCursoActivo] = useState(cursos[0] ?? '')
   const [showAddMateria, setShowAddMateria] = useState(false)
   const [newMateriaName, setNewMateriaName] = useState('')
@@ -112,10 +113,9 @@ export function StepHoras({ config, cursos, docentes, horasPorCurso, jornada, on
               </tr>
             </thead>
             <tbody>
-              {/* Materias with hours first */}
               {materiasConHoras.map((m, idx) => {
                 const h = hm[m] ?? 0
-                const doc = getDocForMateria(m, docentes, jornada)
+                const doc = getDocForMateria(m, docentes, jornada, undefined, docentePorCurso, cursoActivo)
                 const sinDoc = doc === '—' && h > 0
                 const isCustom = !TODAS_MATERIAS.includes(m)
                 return (
@@ -167,7 +167,7 @@ export function StepHoras({ config, cursos, docentes, horasPorCurso, jornada, on
 
               {/* Materias without hours */}
               {materiasSinHoras.map((m, idx) => {
-                const doc = getDocForMateria(m, docentes, jornada)
+                const doc = getDocForMateria(m, docentes, jornada, undefined, docentePorCurso, cursoActivo)
                 return (
                   <tr key={m} className={`border-b border-[rgba(120,100,255,0.04)] opacity-50 hover:opacity-100 transition-opacity`}>
                     <td className="py-2 text-sm text-ink3">{m}</td>
