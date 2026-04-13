@@ -4,6 +4,10 @@ import { HorariosClient } from '@/components/horarios/HorariosClient'
 
 export const metadata: Metadata = { title: 'Horarios' }
 
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+export const revalidate = 0
+
 export default function HorariosPage() {
   return (
     <div className="animate-fade-in">
