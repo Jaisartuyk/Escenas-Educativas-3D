@@ -21,7 +21,7 @@ export function StepGenerar({ state, onBack, onGenerar }: Props) {
   config.cursos.forEach(c => {
     Object.entries(horasPorCurso[c] ?? {}).forEach(([m, h]) => {
       totalPeriodos += h
-      if (h > 0 && getDocForMateria(m, docentes, config.jornada, config.nivel) === '—') {
+      if (h > 0 && getDocForMateria(m, docentes, config.jornada, config.nivel, state.docentePorCurso, c) === '—') {
         sinDocente++
         materiasSinDocente.push({ materia: m, curso: c })
       }
@@ -139,7 +139,7 @@ export function StepGenerar({ state, onBack, onGenerar }: Props) {
                     {materias.length === 0 ? (
                       <span className="text-[10px] text-ink4">Sin materias asignadas</span>
                     ) : materias.map(([m, h]) => {
-                      const doc = getDocForMateria(m, docentes, config.jornada, config.nivel)
+                      const doc = getDocForMateria(m, docentes, config.jornada, config.nivel, state.docentePorCurso, c)
                       return (
                         <span
                           key={m}

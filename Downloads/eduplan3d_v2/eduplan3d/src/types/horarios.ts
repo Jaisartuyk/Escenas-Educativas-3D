@@ -35,6 +35,7 @@ export interface HorariosState {
   horasPorCurso: HorasPorCurso
   horario:       HorarioGrid
   step:          number
+  docentePorCurso?: Record<string, Record<string, string>>
 }
 
 export const DIAS: Dia[] = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']

@@ -236,19 +236,31 @@ export async function GET(req: Request) {
   // DB subjects REPLACE saved horasPorCurso — the institution page is the source of truth
   if (dbSubjects && (dbSubjects as any[]).length > 0) {
     const horasPorCurso: Record<string, Record<string, number>> = {}
+    const docentePorCurso: Record<string, Record<string, string>> = {}
+
+    // We need a map of teacher_id -> dbTeacherName to resolve it cleanly
+    const teacherIdToName: Record<string, string> = {}
+    if (dbTeachers) {
+      ;(dbTeachers as any[]).forEach(t => teacherIdToName[t.id] = t.full_name)
+    }
 
     ;(dbSubjects as any[]).forEach((sub: any) => {
       const courseName = courseIdToName[sub.course_id]
       if (!courseName) return // skip subjects from non-matching courses
 
       if (!horasPorCurso[courseName]) horasPorCurso[courseName] = {}
+      if (!docentePorCurso[courseName]) docentePorCurso[courseName] = {}
+
       horasPorCurso[courseName][sub.name] = sub.weekly_hours || 1
+      docentePorCurso[courseName][sub.name] = sub.teacher_id ? (teacherIdToName[sub.teacher_id] || '') : '—'
     })
 
     horariosConfig.horasPorCurso = horasPorCurso
+    horariosConfig.docentePorCurso = docentePorCurso
   } else {
     // No subjects in DB for matching courses → clear
     horariosConfig.horasPorCurso = {}
+    horariosConfig.docentePorCurso = {}
   }
 
   return NextResponse.json(

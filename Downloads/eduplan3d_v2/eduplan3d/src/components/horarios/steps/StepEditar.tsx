@@ -44,7 +44,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
       DIAS.forEach(d => {
         horario[c]?.[d]?.forEach((m, p) => {
           if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO') return
-          const doc = getDocForMateria(m, docentes, config.jornada, config.nivel)
+          const doc = getDocForMateria(m, docentes, config.jornada, config.nivel, state.docentePorCurso, c)
           if (doc === '—') return
           if (!result[doc]) result[doc] = {} as any
           if (!result[doc][d]) result[doc][d] = Array(config.nPeriodos).fill('')
@@ -140,7 +140,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                         const val = datos?.[d]?.[pi] ?? ''
                         const isConflict = conflictoSet.has(`${cursoActivo}|${d}|${pi}`)
                         const isAcomp = val === 'ACOMPAÑAMIENTO'
-                        const doc = val && !isAcomp ? getDocForMateria(val, docentes, config.jornada, config.nivel) : ''
+                        const doc = val && !isAcomp ? getDocForMateria(val, docentes, config.jornada, config.nivel, state.docentePorCurso, cursoActivo) : ''
 
                         return (
                           <td
