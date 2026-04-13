@@ -2,6 +2,7 @@
 // src/components/institucion/InstitucionClient.tsx
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -52,6 +53,7 @@ const ROLE_COLORS: Record<string, string> = {
 }
 
 export function InstitucionClient({ institution, members, courses, subjects, teachers, currentUserId }: Props) {
+  const router = useRouter()
   const [tab, setTab] = useState<'general' | 'miembros' | 'cursos' | 'materias'>('general')
 
   // ── Course state ──
@@ -83,7 +85,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
       const res = await fetch(`/api/institucion/courses?id=${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Error al eliminar')
       toast.success('Curso eliminado')
-      window.location.reload()
+      router.refresh()
     } catch {
       toast.error('No se pudo eliminar el curso')
     } finally {
@@ -115,7 +117,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
       toast.success('¡Curso creado!')
       setCourseName('')
       setShowAddCourse(false)
-      window.location.reload()
+      router.refresh()
     } catch {
       toast.error('No se pudo crear el curso')
     } finally {
@@ -141,7 +143,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
       if (!res.ok) throw new Error('Error al actualizar')
       toast.success('Curso actualizado')
       setEditingCourse(null)
-      window.location.reload()
+      router.refresh()
     } catch {
       toast.error('No se pudo actualizar el curso')
     } finally {
@@ -183,7 +185,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
       setSubjectHours(1)
       setSubjectTeacherId('')
       setShowAddSubject(false)
-      window.location.reload()
+      router.refresh()
     } catch (err: any) {
       toast.error(err.message || 'No se pudo crear la materia')
     } finally {
@@ -208,7 +210,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
       if (!res.ok) throw new Error('Error al actualizar')
       toast.success('Materia actualizada')
       setEditingSubject(null)
-      window.location.reload()
+      router.refresh()
     } catch {
       toast.error('No se pudo actualizar')
     } finally {
@@ -223,7 +225,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
       const res = await fetch(`/api/institucion/subjects?id=${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Error al eliminar')
       toast.success('Materia eliminada')
-      window.location.reload()
+      router.refresh()
     } catch {
       toast.error('No se pudo eliminar')
     } finally {
