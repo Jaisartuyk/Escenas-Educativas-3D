@@ -43,9 +43,8 @@ export function generarHorario(
     for (let p = 0; p < nPeriodos; p++) docOcupado[d][p] = new Set()
   })
 
-  const slots = Array.from({ length: nPeriodos }, (_, i) => i).filter(i => !recesos.includes(i) && i !== 0)
-
-  // Colocar materias con algoritmo de backtracking simple
+  // Generamos todos los slots validos que no son recesos
+  const validPeriods = Array.from({ length: nPeriodos }, (_, i) => i).filter(i => !recesos.includes(i))
   cursos.forEach(c => {
     const hm = horasPorCurso[c] ?? {}
     // Ordenar materias: más horas primero para mejorar distribución
@@ -55,13 +54,16 @@ export function generarHorario(
 
     pool.forEach(([materia, horas]) => {
       const doc = getDocForMateria(materia, docentes, config.jornada, config.nivel)
+      console.log(`Generando para ${c} -> ${materia} (${horas}h) Docente: ${doc}`)
       let colocadas = 0
       let intentos = 0
 
       // Construir lista de slots disponibles y mezclar
       const available: { d: Dia; p: number }[] = []
       DIAS.forEach(d => {
-        slots.forEach(p => {
+        validPeriods.forEach(p => {
+          // El slot 0 del Lunes está de acompañamiento
+          if (d === 'Lunes' && p === 0) return
           if (!horario[c][d][p] && (doc === '—' || !docOcupado[d][p].has(doc))) {
             available.push({ d, p })
           }

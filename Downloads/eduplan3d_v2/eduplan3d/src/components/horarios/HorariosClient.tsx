@@ -169,6 +169,7 @@ export function HorariosClient() {
 
   const handleGenerar = useCallback(() => {
     const horario = generarHorario(state.config, state.docentes, state.horasPorCurso)
+    console.log('HORARIO OBTENIDO:', horario)
     updateState(s => ({ ...s, horario, step: 2 }), true)
     toast.success('Horario generado ✓')
   }, [state.config, state.docentes, state.horasPorCurso])
