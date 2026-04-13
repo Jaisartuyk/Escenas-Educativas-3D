@@ -46,7 +46,9 @@ export async function PATCH(req: NextRequest) {
   const updates: any = {}
   if (name !== undefined) updates.name = name.trim().toUpperCase()
   if (weekly_hours !== undefined) updates.weekly_hours = weekly_hours
-  if (teacher_id !== undefined) updates.teacher_id = teacher_id || null
+  if ('teacher_id' in body) {
+    updates.teacher_id = teacher_id ? teacher_id : null
+  }
 
   const { data, error } = await admin
     .from('subjects' as any)
