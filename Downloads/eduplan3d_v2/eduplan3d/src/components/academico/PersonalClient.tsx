@@ -25,15 +25,18 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.full_name || !formData.email || !formData.password || !formData.dni) {
-      return toast.error("Todos los campos son obligatorios")
+    if (!formData.full_name || !formData.password || !formData.dni) {
+      return toast.error("Nombre, cédula y contraseña son obligatorios")
     }
+
+    // Si no se pone correo, generar uno interno con la cédula
+    const email = formData.email.trim() || `${formData.dni.trim()}@eduplan3d.local`
 
     setLoading(true)
     const res = await createInstitutionUser({
       full_name: formData.full_name,
       dni: formData.dni,
-      email: formData.email,
+      email,
       password: formData.password,
       role: formData.role,
       institution_id: institutionId,
@@ -96,8 +99,9 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
               <input type="text" required value={formData.dni} onChange={e => setFormData({...formData, dni: e.target.value})} placeholder="09XXXXXXXX" className="input-base" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Correo Vinculado</label>
-              <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="juan@escuela.com" className="input-base" />
+              <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Correo Vinculado <span className="text-ink4 font-normal normal-case">(opcional)</span></label>
+              <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="Dejar vacío para usar cédula como login" className="input-base" />
+              <p className="text-[10px] text-ink4">Si no tiene correo, ingresará con su cédula + contraseña. Se puede actualizar después.</p>
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Contraseña Maestra Inicial</label>
