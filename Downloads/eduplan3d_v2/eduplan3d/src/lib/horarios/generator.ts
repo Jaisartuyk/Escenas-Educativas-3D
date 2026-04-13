@@ -11,8 +11,12 @@ export function getDocForMateria(
   curso?: string
 ): string {
   // Use exact DB match if available
-  if (docentePorCurso && curso && docentePorCurso[curso] && docentePorCurso[curso][materia]) {
-    return docentePorCurso[curso][materia]
+  if (docentePorCurso && curso) {
+    if (docentePorCurso[curso] && docentePorCurso[curso][materia] !== undefined) {
+      return docentePorCurso[curso][materia]
+    }
+    // Strict mode: if the subject is not in DB (e.g. custom UI subject), it has no teacher
+    return '—'
   }
 
   // Fallback for old setups that don't have docentePorCurso
