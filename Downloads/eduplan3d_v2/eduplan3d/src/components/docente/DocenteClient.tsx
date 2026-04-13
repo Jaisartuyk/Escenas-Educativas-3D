@@ -507,8 +507,15 @@ export function DocenteClient({
   const teacherName = profile?.full_name || ''
   const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes'] as const
 
-  // Extract teacher's subjects names for matching against the generated schedule
-  const mySubjectNames = new Set(mySubjects.map((s: any) => (s.name || '').toUpperCase().trim()))
+  // Extract teacher's subjects names tied to their specific courses for matching
+  const mySubjectsMap: Record<string, Set<string>> = {}
+  mySubjects.forEach((s: any) => {
+    const cName = s.course?.name || ''
+    const cPar  = s.course?.parallel || ''
+    const fullCourseName = `${cName}${cPar ? ` ${cPar}` : ''}`.trim()
+    if (!mySubjectsMap[fullCourseName]) mySubjectsMap[fullCourseName] = new Set()
+    mySubjectsMap[fullCourseName].add((s.name || '').toUpperCase().trim())
+  })
 
   // ── Per-slot data: config + teacher's grid (dia → periodoIndex → {materia, curso}) ──
   type ScheduleCell = { materia: string; curso: string }
@@ -538,7 +545,7 @@ export function DocenteClient({
         if (!Array.isArray(materias) || !grid[dia]) return
         materias.forEach((materia: string, idx: number) => {
           if (!materia || recesos.has(idx)) return
-          if (mySubjectNames.has(materia.toUpperCase().trim())) {
+          if (mySubjectsMap[curso] && mySubjectsMap[curso].has(materia.toUpperCase().trim())) {
             grid[dia][idx] = { materia, curso }
             cursosInSlot.add(curso)
           }
