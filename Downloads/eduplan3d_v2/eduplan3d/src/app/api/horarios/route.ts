@@ -385,12 +385,14 @@ export async function POST(req: Request) {
       await admin.from('courses' as any).insert(toInsert)
     }
 
-    // ── 2c. Subjects desde horasPorCurso ─────────────────────────────────────
-    // Mapa materia → teacher_id (solo UUIDs reales de profiles)
-    const materiaTeacher: Record<string, string> = {}
+    // ── 2c. Subjects desde config ─────────────────────────────────────
+    // Mapa nombre del docente → teacher_id (solo UUIDs reales de profiles)
+    const nameToTeacherId: Record<string, string> = {}
+    const materiaTeacherGlobal: Record<string, string> = {} // Fallback legacy
     ;(body.docentes || []).forEach((d: any) => {
       if (isValidUUID(d.id)) {
-        ;(d.materias || []).forEach((m: string) => { materiaTeacher[m] = d.id })
+        if (d.nombre) nameToTeacherId[d.nombre.trim()] = d.id
+        ;(d.materias || []).forEach((m: string) => { materiaTeacherGlobal[m] = d.id })
       }
     })
 
@@ -406,13 +408,22 @@ export async function POST(req: Request) {
 
       Object.entries(materias as Record<string, number>).forEach(([matName, hours]) => {
         if (!hours || hours <= 0) return
+        
+        let exactTeacherId = null
+        if (body.docentePorCurso && body.docentePorCurso[cursName] && body.docentePorCurso[cursName][matName]) {
+          const tName = body.docentePorCurso[cursName][matName]
+          if (tName && tName !== '—') exactTeacherId = nameToTeacherId[tName.trim()] || null
+        } else if (!body.docentePorCurso) {
+          exactTeacherId = materiaTeacherGlobal[matName] || null
+        }
+
         validSubjectNames[course_id].push(matName)
         subjectsToUpsert.push({
           course_id,
           institution_id: instId,
           name:           matName,
           weekly_hours:   Number(hours),
-          teacher_id:     materiaTeacher[matName] || null,
+          teacher_id:     exactTeacherId,
         })
       })
     })
