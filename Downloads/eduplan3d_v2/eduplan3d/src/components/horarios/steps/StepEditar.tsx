@@ -180,6 +180,12 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
               </tbody>
             </table>
           </div>
+          <details className="mt-4">
+            <summary className="text-xs text-ink3 cursor-pointer">Debug Data (Mándame captura de esto por favor)</summary>
+            <pre className="text-[10px] mt-2 p-2 bg-[rgba(0,0,0,0.8)] text-white rounded overflow-auto max-h-40">
+              {JSON.stringify(datos, null, 2)}
+            </pre>
+          </details>
 
           {/* Leyenda */}
           <div className="flex items-center gap-4 mt-3 flex-wrap">
