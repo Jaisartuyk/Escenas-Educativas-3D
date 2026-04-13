@@ -48,8 +48,8 @@ export default async function InstitucionPage() {
     .eq('institution_id', profile.institution_id)
     .order('name', { ascending: true })
 
-  // Docentes para asignar a materias
-  const teachers = (members ?? []).filter((m: any) => m.role === 'teacher' || m.role === 'admin')
+  // Docentes para asignar a materias (solo rol teacher, no admin)
+  const teachers = (members ?? []).filter((m: any) => m.role === 'teacher')
 
   return (
     <div className="animate-fade-in">

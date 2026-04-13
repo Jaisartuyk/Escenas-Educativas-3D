@@ -243,16 +243,20 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
     return t?.full_name || '—'
   }
 
-  // Get teachers associated with a specific subject name (teach it in any course)
+  // Get teachers who already teach this subject in any course
+  // If nobody teaches it yet, return all teachers so the first assignment can be made
   const getTeachersForSubject = (subjectName: string) => {
     const normalizedName = subjectName.trim().toUpperCase()
+    if (!normalizedName) return { associated: [], others: teachers }
+
     const teacherIdsWithSubject = new Set(
       subjects
         .filter(s => s.name.trim().toUpperCase() === normalizedName && s.teacher_id)
         .map(s => s.teacher_id!)
     )
     const associated = teachers.filter(t => teacherIdsWithSubject.has(t.id))
-    const others = teachers.filter(t => !teacherIdsWithSubject.has(t.id))
+    // Only show "others" if nobody teaches this subject yet (first assignment)
+    const others = associated.length === 0 ? teachers : []
     return { associated, others }
   }
 
@@ -574,7 +578,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                           </optgroup>
                         )}
                         {others.length > 0 && (
-                          <optgroup label="Otros docentes">
+                          <optgroup label="Todos los docentes (sin asignación previa)">
                             {others.map(t => (
                               <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
                             ))}
@@ -634,7 +638,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                           </optgroup>
                         )}
                         {others.length > 0 && (
-                          <optgroup label="Otros docentes">
+                          <optgroup label="Todos los docentes (sin asignación previa)">
                             {others.map(t => (
                               <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
                             ))}
