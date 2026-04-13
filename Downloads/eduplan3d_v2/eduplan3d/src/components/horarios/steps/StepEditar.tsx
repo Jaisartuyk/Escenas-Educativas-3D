@@ -26,7 +26,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
     return ['', ...Array.from(materias).sort(), 'ACOMPAÑAMIENTO']
   }, [horasPorCurso])
 
-  const conflictos = detectConflictos(horario, docentes, config.nPeriodos, config.jornada, config.nivel)
+  const conflictos = detectConflictos(horario, docentes, config.nPeriodos, config.jornada, config.nivel, state.docentePorCurso)
   const conflictoSet = new Set(
     conflictos.map(c => `${c.curso}|${c.dia}|${c.periodo}`)
   )

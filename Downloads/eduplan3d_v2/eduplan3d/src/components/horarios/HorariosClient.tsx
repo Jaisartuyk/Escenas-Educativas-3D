@@ -168,11 +168,10 @@ export function HorariosClient() {
   }
 
   const handleGenerar = useCallback(() => {
-    const horario = generarHorario(state.config, state.docentes, state.horasPorCurso)
-    console.log('HORARIO OBTENIDO:', horario)
+    const horario = generarHorario(state.config, state.docentes, state.horasPorCurso, state.docentePorCurso)
     updateState(s => ({ ...s, horario, step: 2 }), true)
     toast.success('Horario generado ✓')
-  }, [state.config, state.docentes, state.horasPorCurso])
+  }, [state.config, state.docentes, state.horasPorCurso, state.docentePorCurso])
 
   async function handleExport() {
     const t = toast.loading('Generando Excel...')
