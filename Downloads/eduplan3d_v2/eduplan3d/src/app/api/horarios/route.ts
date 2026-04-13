@@ -128,27 +128,25 @@ export async function GET(req: Request) {
   const slotJornada = horariosConfig.config?.jornada  || qJornada || ''
 
   const matchingCourses = (dbCourses as any[] || []).filter((c: any) => {
-    const levelOk = !slotNivel || !c.level || c.level === slotNivel
-    const shiftOk = !slotJornada || !c.shift || c.shift === 'AMBAS' || c.shift === slotJornada
+    // Courses without level/shift defined don't match any specific slot
+    if (!c.level || !c.shift) return false
+    const levelOk = !slotNivel || c.level === slotNivel
+    const shiftOk = !slotJornada || c.shift === 'AMBAS' || c.shift === slotJornada
     return levelOk && shiftOk
   })
 
   const normalize = (s: string) =>
     s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
 
+  // Replace cursos list with DB courses that match this slot (source of truth)
   if (matchingCourses.length > 0) {
     const dbCourseNames = matchingCourses.map((c: any) => {
       return c.parallel ? `${c.name} ${c.parallel}`.trim() : c.name
     })
-    const currentCursos: string[] = horariosConfig.config?.cursos || []
-    const normalizedCurrent = currentCursos.map(normalize)
-
-    dbCourseNames.forEach((name: string) => {
-      if (!normalizedCurrent.includes(normalize(name))) {
-        currentCursos.push(name)
-      }
-    })
-    horariosConfig.config.cursos = currentCursos
+    horariosConfig.config.cursos = dbCourseNames
+  } else {
+    // No matching courses in DB — clear the list
+    horariosConfig.config.cursos = []
   }
 
   // Map course id → display name (only matching courses)
@@ -378,7 +376,13 @@ export async function POST(req: Request) {
         const nid = randomUUID()
         courseMap[c] = nid
         normalizedMap[normalize(c)] = c
-        return { id: nid, institution_id: instId, name: c }
+        return {
+          id: nid,
+          institution_id: instId,
+          name: c,
+          level: bodyNivel || null,
+          shift: bodyJornada || null,
+        }
       })
       await admin.from('courses' as any).insert(toInsert)
     }
