@@ -83,6 +83,9 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
   const [newEmail, setNewEmail] = useState('')
   const [savingEmail, setSavingEmail] = useState(false)
 
+  // Use the local domain used in the bulk creation script
+  const LOCAL_DOMAIN = '@letamendi.edu.ec'
+
   async function handleUpdateEmail(userId: string) {
     if (!newEmail.trim() || !newEmail.includes('@')) return toast.error('Ingresa un correo válido')
     setSavingEmail(true)
@@ -93,7 +96,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
       toast.success('Correo actualizado')
       setEditingEmailId(null)
       setNewEmail('')
-      window.location.reload()
+      router.refresh()
     }
     setSavingEmail(false)
   }
@@ -266,7 +269,47 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
     return t?.full_name || '—'
   }
 
-  // Simply return all teachers — assignment is per course, not per subject name
+  // Get teachers associated with this subject IN THE SAME COURSE only
+  // Helps find the right teacher quickly but keeps all others available as fallback
+  const getTeachersForSubject = (subjectName: string, courseId?: string) => {
+    const normalizedName = (subjectName || '').trim().toUpperCase()
+    if (!normalizedName) return { associated: [], recommended: [], others: teachers }
+
+    // Logic: Look ONLY at assignments within this course or where this teacher has this subject name
+    const teacherIdsAssignedToThisNameGlobal = new Set(
+      subjects
+        .filter(s => s.name.trim().toUpperCase() === normalizedName && s.teacher_id)
+        .map(s => s.teacher_id!)
+    )
+
+    const teacherIdsInThisCourse = new Set(
+      subjects
+        .filter(s =>
+          s.name.trim().toUpperCase() === normalizedName &&
+          s.teacher_id &&
+          (!courseId || s.course_id === courseId)
+        )
+        .map(s => s.teacher_id!)
+    )
+
+    // A teacher is "Associated" if they are ALREADY assigned to this subject in THIS course
+    // OR if they are assigned to this subject in ANY course (legacy/helpful hint)
+    // BUT we prioritize the current course
+    const associated = teachers.filter(t => teacherIdsInThisCourse.has(t.id))
+    
+    // "Recommended" are teachers who teach this subject elsewhere but not here yet
+    const recommended = teachers.filter(t => 
+      !teacherIdsInThisCourse.has(t.id) && 
+      teacherIdsAssignedToThisNameGlobal.has(t.id)
+    )
+
+    const others = teachers.filter(t => 
+      !teacherIdsInThisCourse.has(t.id) && 
+      !teacherIdsAssignedToThisNameGlobal.has(t.id)
+    )
+
+    return { associated, recommended, others }
+  }
 
   const filteredSubjects = filterCourseId === 'all'
     ? subjects
@@ -334,56 +377,53 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
         <div>
           <p className="text-sm text-ink3 mb-4">{members.length} miembro{members.length !== 1 ? 's' : ''} en esta institución</p>
           <div className="flex flex-col gap-3">
-            {members.map(m => {
-              const isLocalEmail = m.email?.endsWith('@eduplan3d.local')
-              return (
-                <div key={m.id} className="card p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet to-violet2 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
-                      {m.full_name?.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase() || '?'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold">{m.full_name || 'Sin nombre'} {m.id === currentUserId && <span className="text-ink3 text-xs">(tú)</span>}</p>
-                      <p className="text-xs text-ink3 truncate">
-                        {isLocalEmail ? (
-                          <span className="text-amber">Ingresa con cédula: {m.email.replace('@eduplan3d.local', '')}</span>
-                        ) : m.email}
-                      </p>
-                    </div>
-                    <span className={`text-[11px] font-bold px-2 py-1 rounded-lg ${ROLE_COLORS[m.role] ?? 'bg-surface text-ink3'}`}>
-                      {ROLE_LABELS[m.role] ?? m.role}
-                    </span>
-                    {m.id !== currentUserId && (
-                      <button
-                        onClick={() => { setEditingEmailId(editingEmailId === m.id ? null : m.id); setNewEmail('') }}
-                        className="text-[11px] text-violet2 hover:underline"
-                      >
-                        {editingEmailId === m.id ? 'Cancelar' : 'Editar correo'}
-                      </button>
-                    )}
+            {members.map(m => (
+              <div key={m.id} className="card p-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet to-violet2 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+                    {m.full_name?.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase() || '?'}
                   </div>
-                  {editingEmailId === m.id && (
-                    <div className="flex items-center gap-2 mt-3 ml-14">
-                      <input
-                        type="email"
-                        value={newEmail}
-                        onChange={e => setNewEmail(e.target.value)}
-                        placeholder="nuevo@correo.com"
-                        className="input-base text-sm flex-1"
-                        onKeyDown={e => e.key === 'Enter' && handleUpdateEmail(m.id)}
-                      />
-                      <button
-                        onClick={() => handleUpdateEmail(m.id)}
-                        disabled={savingEmail}
-                        className="btn-primary text-xs px-4 py-2"
-                      >
-                        {savingEmail ? '...' : 'Guardar'}
-                      </button>
-                    </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">{m.full_name || 'Sin nombre'} {m.id === currentUserId && <span className="text-ink3 text-xs">(tú)</span>}</p>
+                    <p className="text-xs text-ink3 truncate">
+                      {m.email?.endsWith(LOCAL_DOMAIN) ? (
+                        <span className="text-amber">Ingresa con cédula: <b>{m.email.replace(LOCAL_DOMAIN, '')}</b></span>
+                      ) : m.email}
+                    </p>
+                  </div>
+                  <span className={`text-[11px] font-bold px-2 py-1 rounded-lg ${ROLE_COLORS[m.role] ?? 'bg-surface text-ink3'}`}>
+                    {ROLE_LABELS[m.role] ?? m.role}
+                  </span>
+                  {m.id !== currentUserId && (
+                    <button
+                      onClick={() => { setEditingEmailId(editingEmailId === m.id ? null : m.id); setNewEmail('') }}
+                      className="text-[11px] text-violet2 hover:underline"
+                    >
+                      {editingEmailId === m.id ? 'Cancelar' : 'Editar correo'}
+                    </button>
                   )}
                 </div>
-              )
-            })}
+                {editingEmailId === m.id && (
+                  <div className="flex items-center gap-2 mt-3 ml-14">
+                    <input
+                      type="email"
+                      value={newEmail}
+                      onChange={e => setNewEmail(e.target.value)}
+                      placeholder="nuevo@correo.com"
+                      className="input-base text-sm flex-1"
+                      onKeyDown={e => e.key === 'Enter' && handleUpdateEmail(m.id)}
+                    />
+                    <button
+                      onClick={() => handleUpdateEmail(m.id)}
+                      disabled={savingEmail}
+                      className="btn-primary text-xs px-4 py-2"
+                    >
+                      {savingEmail ? '...' : 'Guardar'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -604,16 +644,37 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 </div>
                 <div className="col-span-2">
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Docente (opcional)</label>
-                  <select
-                    value={subjectTeacherId}
-                    onChange={e => setSubjectTeacherId(e.target.value)}
-                    className="input-base w-full"
-                  >
-                    <option value="">Sin asignar</option>
-                    {teachers.map(t => (
-                      <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
-                    ))}
-                  </select>
+                  {(() => {
+                    const { associated, recommended, others } = getTeachersForSubject(subjectName, subjectCourseId)
+                    return (
+                      <select
+                        value={subjectTeacherId}
+                        onChange={e => setSubjectTeacherId(e.target.value)}
+                        className="input-base w-full"
+                      >
+                        <option value="">Sin asignar</option>
+                        {associated.length > 0 && (
+                          <optgroup label="✓ Ya asignado en este curso">
+                            {associated.map(t => (
+                              <option key={t.id} value={t.id}>⭐ {t.full_name || t.email}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {recommended.length > 0 && (
+                          <optgroup label="💡 Sugerido (enseña esta materia en otros cursos)">
+                            {recommended.map(t => (
+                              <option key={t.id} value={t.id}>✨ {t.full_name || t.email}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        <optgroup label="Todos los demás docentes">
+                          {others.map(t => (
+                            <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    )
+                  })()}
                 </div>
               </div>
               <button onClick={addSubject} disabled={savingSubject} className="btn-primary text-sm px-6 py-2">
@@ -648,16 +709,37 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Docente</label>
-                  <select
-                    value={editingSubject.teacher_id || ''}
-                    onChange={e => setEditingSubject({ ...editingSubject, teacher_id: e.target.value || null })}
-                    className="input-base w-full"
-                  >
-                    <option value="">Sin asignar</option>
-                    {teachers.map(t => (
-                      <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
-                    ))}
-                  </select>
+                  {(() => {
+                    const { associated, recommended, others } = getTeachersForSubject(editingSubject.name, editingSubject.course_id)
+                    return (
+                      <select
+                        value={editingSubject.teacher_id || ''}
+                        onChange={e => setEditingSubject({ ...editingSubject, teacher_id: e.target.value || null })}
+                        className="input-base w-full"
+                      >
+                        <option value="">Sin asignar</option>
+                        {associated.length > 0 && (
+                          <optgroup label="✓ Ya asignado en este curso">
+                            {associated.map(t => (
+                              <option key={t.id} value={t.id}>⭐ {t.full_name || t.email}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {recommended.length > 0 && (
+                          <optgroup label="💡 Sugerido (enseña esta materia en otros cursos)">
+                            {recommended.map(t => (
+                              <option key={t.id} value={t.id}>✨ {t.full_name || t.email}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        <optgroup label="Todos los demás docentes">
+                          {others.map(t => (
+                            <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    )
+                  })()}
                 </div>
               </div>
               <div className="flex gap-2">
