@@ -20,8 +20,13 @@ export default async function DocentePage() {
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['admin', 'teacher'].includes(profile.role)) {
+  if (!profile || !['admin', 'assistant', 'teacher'].includes(profile.role)) {
     redirect('/dashboard')
+  }
+
+  // Admin/assistant should use the supervision panel instead
+  if (['admin', 'assistant'].includes(profile.role)) {
+    redirect('/dashboard/docencia')
   }
 
   const instId = profile.institution_id

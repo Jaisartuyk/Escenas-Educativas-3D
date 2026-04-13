@@ -47,7 +47,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
     items: [
       { href: '/dashboard/planificador', icon: '📋', label: 'Planificador' },
       { href: '/dashboard/horarios',     icon: '📅', label: 'Horarios' },
-      { href: '/dashboard/docente',      icon: '📝', label: 'Docencia' },
+      { href: '/dashboard/docencia',      icon: '📝', label: 'Docencia' },
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
     ],
   },
