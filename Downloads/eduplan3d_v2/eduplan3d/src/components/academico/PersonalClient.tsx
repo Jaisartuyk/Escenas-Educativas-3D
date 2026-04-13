@@ -96,17 +96,29 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Cédula / DNI</label>
-              <input type="text" required value={formData.dni} onChange={e => setFormData({...formData, dni: e.target.value})} placeholder="09XXXXXXXX" className="input-base" />
+              <input type="text" required value={formData.dni} onChange={e => {
+                const dni = e.target.value
+                setFormData({...formData, dni, password: formData.password || dni })
+              }} placeholder="09XXXXXXXX" className="input-base" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Correo Vinculado <span className="text-ink4 font-normal normal-case">(opcional)</span></label>
-              <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="Dejar vacío para usar cédula como login" className="input-base" />
-              <p className="text-[10px] text-ink4">Si no tiene correo, ingresará con su cédula + contraseña. Se puede actualizar después.</p>
+              <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="Dejar vacío → ingresa con su cédula" className="input-base" />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Contraseña Maestra Inicial</label>
-              <input type="text" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="Define una clave secreta..." className="input-base" />
+              <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Contraseña Inicial <span className="text-ink4 font-normal normal-case">(por defecto: cédula)</span></label>
+              <input type="text" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} placeholder="Se usa la cédula si no cambia" className="input-base" />
             </div>
+            {formData.dni && (
+              <div className="md:col-span-2 p-3 rounded-xl bg-[rgba(38,215,180,0.06)] border border-[rgba(38,215,180,0.15)]">
+                <p className="text-[11px] font-bold text-teal uppercase tracking-wider mb-1">Credenciales de acceso:</p>
+                <p className="text-sm text-ink2">
+                  <span className="text-ink3">Usuario:</span> <strong>{formData.email || formData.dni}</strong>
+                  <span className="text-ink4 mx-2">|</span>
+                  <span className="text-ink3">Contraseña:</span> <strong>{formData.password || formData.dni}</strong>
+                </p>
+              </div>
+            )}
             {formData.role === 'student' && courses.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Curso a Matricular</label>

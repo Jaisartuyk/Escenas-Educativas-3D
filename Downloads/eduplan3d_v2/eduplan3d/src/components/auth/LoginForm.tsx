@@ -25,8 +25,8 @@ export function LoginForm() {
         </div>
       )}
       <div>
-        <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Correo electrónico</label>
-        <input name="email" type="email" required placeholder="tu@correo.com" className="input-base" />
+        <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Cédula o correo electrónico</label>
+        <input name="email" type="text" required placeholder="0912345678 o tu@correo.com" className="input-base" />
       </div>
       <div>
         <div className="flex items-center justify-between mb-1.5">

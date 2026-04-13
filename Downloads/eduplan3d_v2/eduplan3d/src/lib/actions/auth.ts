@@ -7,10 +7,15 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function signIn(formData: FormData) {
   const supabase = createClient()
-  const email    = formData.get('email')    as string
+  let   login    = (formData.get('email') as string || '').trim()
   const password = formData.get('password') as string
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  // If login is not an email (no @), treat it as cedula-based login
+  if (!login.includes('@')) {
+    login = `${login}@eduplan3d.local`
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({ email: login, password })
 
   if (error) return { error: error.message }
 

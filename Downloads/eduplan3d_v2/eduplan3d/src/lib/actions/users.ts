@@ -71,6 +71,29 @@ export async function createInstitutionUser(data: {
   return { success: true, userId: newUserId }
 }
 
+export async function updateUserEmail(userId: string, newEmail: string) {
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  // Update in auth.users
+  const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, { email: newEmail })
+  if (authError) return { error: authError.message }
+
+  // Update in profiles
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .update({ email: newEmail })
+    .eq('id', userId)
+
+  if (profileError) return { error: profileError.message }
+
+  revalidatePath('/dashboard/institucion')
+  return { success: true }
+}
+
 export async function updateProfileMetadata(institutionId: string, userId: string, metadata: any) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

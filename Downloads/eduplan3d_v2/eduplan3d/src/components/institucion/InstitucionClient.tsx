@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import { updateUserEmail } from '@/lib/actions/users'
 
 interface Miembro {
   id: string
@@ -76,6 +77,26 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
   const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null)
   const [editingSubject, setEditingSubject] = useState<Materia | null>(null)
   const [filterCourseId, setFilterCourseId] = useState<string>('all')
+
+  // ── Edit email state ──
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null)
+  const [newEmail, setNewEmail] = useState('')
+  const [savingEmail, setSavingEmail] = useState(false)
+
+  async function handleUpdateEmail(userId: string) {
+    if (!newEmail.trim() || !newEmail.includes('@')) return toast.error('Ingresa un correo válido')
+    setSavingEmail(true)
+    const res = await updateUserEmail(userId, newEmail.trim())
+    if (res.error) {
+      toast.error(res.error)
+    } else {
+      toast.success('Correo actualizado')
+      setEditingEmailId(null)
+      setNewEmail('')
+      window.location.reload()
+    }
+    setSavingEmail(false)
+  }
 
   // ── Course actions ──
   async function deleteCourse(id: string, name: string) {
@@ -245,22 +266,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
     return t?.full_name || '—'
   }
 
-  // Get teachers who already teach this subject in any course
-  // If nobody teaches it yet, return all teachers so the first assignment can be made
-  const getTeachersForSubject = (subjectName: string) => {
-    const normalizedName = subjectName.trim().toUpperCase()
-    if (!normalizedName) return { associated: [], others: teachers }
-
-    const teacherIdsWithSubject = new Set(
-      subjects
-        .filter(s => s.name.trim().toUpperCase() === normalizedName && s.teacher_id)
-        .map(s => s.teacher_id!)
-    )
-    const associated = teachers.filter(t => teacherIdsWithSubject.has(t.id))
-    // Only show "others" if nobody teaches this subject yet (first assignment)
-    const others = associated.length === 0 ? teachers : []
-    return { associated, others }
-  }
+  // Simply return all teachers — assignment is per course, not per subject name
 
   const filteredSubjects = filterCourseId === 'all'
     ? subjects
@@ -328,21 +334,56 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
         <div>
           <p className="text-sm text-ink3 mb-4">{members.length} miembro{members.length !== 1 ? 's' : ''} en esta institución</p>
           <div className="flex flex-col gap-3">
-            {members.map(m => (
-              <div key={m.id} className="card p-4 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet to-violet2 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
-                  {m.full_name?.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase() || '?'}
+            {members.map(m => {
+              const isLocalEmail = m.email?.endsWith('@eduplan3d.local')
+              return (
+                <div key={m.id} className="card p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet to-violet2 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+                      {m.full_name?.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold">{m.full_name || 'Sin nombre'} {m.id === currentUserId && <span className="text-ink3 text-xs">(tú)</span>}</p>
+                      <p className="text-xs text-ink3 truncate">
+                        {isLocalEmail ? (
+                          <span className="text-amber">Ingresa con cédula: {m.email.replace('@eduplan3d.local', '')}</span>
+                        ) : m.email}
+                      </p>
+                    </div>
+                    <span className={`text-[11px] font-bold px-2 py-1 rounded-lg ${ROLE_COLORS[m.role] ?? 'bg-surface text-ink3'}`}>
+                      {ROLE_LABELS[m.role] ?? m.role}
+                    </span>
+                    {m.id !== currentUserId && (
+                      <button
+                        onClick={() => { setEditingEmailId(editingEmailId === m.id ? null : m.id); setNewEmail('') }}
+                        className="text-[11px] text-violet2 hover:underline"
+                      >
+                        {editingEmailId === m.id ? 'Cancelar' : 'Editar correo'}
+                      </button>
+                    )}
+                  </div>
+                  {editingEmailId === m.id && (
+                    <div className="flex items-center gap-2 mt-3 ml-14">
+                      <input
+                        type="email"
+                        value={newEmail}
+                        onChange={e => setNewEmail(e.target.value)}
+                        placeholder="nuevo@correo.com"
+                        className="input-base text-sm flex-1"
+                        onKeyDown={e => e.key === 'Enter' && handleUpdateEmail(m.id)}
+                      />
+                      <button
+                        onClick={() => handleUpdateEmail(m.id)}
+                        disabled={savingEmail}
+                        className="btn-primary text-xs px-4 py-2"
+                      >
+                        {savingEmail ? '...' : 'Guardar'}
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{m.full_name || 'Sin nombre'} {m.id === currentUserId && <span className="text-ink3 text-xs">(tú)</span>}</p>
-                  <p className="text-xs text-ink3 truncate">{m.email}</p>
-                </div>
-                <span className={`text-[11px] font-bold px-2 py-1 rounded-lg ${ROLE_COLORS[m.role] ?? 'bg-surface text-ink3'}`}>
-                  {ROLE_LABELS[m.role] ?? m.role}
-                </span>
-                <span className="text-[11px] text-ink3">{format(new Date(m.created_at), "d MMM yyyy", { locale: es })}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -563,32 +604,16 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 </div>
                 <div className="col-span-2">
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Docente (opcional)</label>
-                  {(() => {
-                    const { associated, others } = getTeachersForSubject(subjectName)
-                    return (
-                      <select
-                        value={subjectTeacherId}
-                        onChange={e => setSubjectTeacherId(e.target.value)}
-                        className="input-base w-full"
-                      >
-                        <option value="">Sin asignar</option>
-                        {associated.length > 0 && (
-                          <optgroup label={`✓ Docentes de ${subjectName.toUpperCase() || 'esta materia'}`}>
-                            {associated.map(t => (
-                              <option key={t.id} value={t.id}>⭐ {t.full_name || t.email}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {others.length > 0 && (
-                          <optgroup label="Todos los docentes (sin asignación previa)">
-                            {others.map(t => (
-                              <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
-                    )
-                  })()}
+                  <select
+                    value={subjectTeacherId}
+                    onChange={e => setSubjectTeacherId(e.target.value)}
+                    className="input-base w-full"
+                  >
+                    <option value="">Sin asignar</option>
+                    {teachers.map(t => (
+                      <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <button onClick={addSubject} disabled={savingSubject} className="btn-primary text-sm px-6 py-2">
@@ -623,32 +648,16 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Docente</label>
-                  {(() => {
-                    const { associated, others } = getTeachersForSubject(editingSubject.name)
-                    return (
-                      <select
-                        value={editingSubject.teacher_id || ''}
-                        onChange={e => setEditingSubject({ ...editingSubject, teacher_id: e.target.value || null })}
-                        className="input-base w-full"
-                      >
-                        <option value="">Sin asignar</option>
-                        {associated.length > 0 && (
-                          <optgroup label={`✓ Docentes de ${editingSubject.name}`}>
-                            {associated.map(t => (
-                              <option key={t.id} value={t.id}>⭐ {t.full_name || t.email}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {others.length > 0 && (
-                          <optgroup label="Todos los docentes (sin asignación previa)">
-                            {others.map(t => (
-                              <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
-                    )
-                  })()}
+                  <select
+                    value={editingSubject.teacher_id || ''}
+                    onChange={e => setEditingSubject({ ...editingSubject, teacher_id: e.target.value || null })}
+                    className="input-base w-full"
+                  >
+                    <option value="">Sin asignar</option>
+                    {teachers.map(t => (
+                      <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="flex gap-2">
