@@ -1,9 +1,9 @@
 'use client'
 // src/components/horarios/steps/StepEditar.tsx
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { HorariosState, HorarioGrid, Dia } from '@/types/horarios'
-import { DIAS, TODAS_MATERIAS } from '@/types/horarios'
+import { DIAS } from '@/types/horarios'
 import { detectConflictos, getDocForMateria } from '@/lib/horarios/generator'
 
 interface Props {
@@ -13,12 +13,18 @@ interface Props {
   onExport: () => void
 }
 
-const OPCIONES_CELDA = ['', ...TODAS_MATERIAS, 'ACOMPAÑAMIENTO']
-
 export function StepEditar({ state, onChange, onBack, onExport }: Props) {
-  const { config, docentes, horario } = state
+  const { config, docentes, horario, horasPorCurso } = state
   const [cursoActivo, setCursoActivo] = useState(config.cursos[0] ?? '')
   const [vistaDoc, setVistaDoc] = useState(false)
+
+  const OPCIONES_CELDA = useMemo(() => {
+    const materias = new Set<string>()
+    Object.values(horasPorCurso).forEach(curso => {
+      Object.keys(curso).forEach(m => materias.add(m))
+    })
+    return ['', ...Array.from(materias).sort(), 'ACOMPAÑAMIENTO']
+  }, [horasPorCurso])
 
   const conflictos = detectConflictos(horario, docentes, config.nPeriodos, config.jornada, config.nivel)
   const conflictoSet = new Set(
