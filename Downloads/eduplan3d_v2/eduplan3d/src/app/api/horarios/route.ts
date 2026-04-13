@@ -161,10 +161,14 @@ export async function GET(req: Request) {
     .select('name, weekly_hours, course_id, teacher_id')
     .eq('institution_id', instId)
 
-  // Track which teachers teach in which levels/shifts (from ALL courses, not just matching)
+  // Track which teachers teach in which levels/shifts (from ALL courses for deduction)
   const teacherLevels:  Record<string, Set<string>> = {}
   const teacherShifts:  Record<string, Set<string>> = {}
+  // Materias ONLY from courses matching this slot (for the horario generator)
   const teacherMaterias: Record<string, Set<string>> = {}
+
+  // Set of matching course IDs for this slot
+  const matchingCourseIds = new Set(matchingCourses.map((c: any) => c.id))
 
   if (dbSubjects && dbCourses) {
     // Build full course map for level/shift lookup
@@ -178,11 +182,15 @@ export async function GET(req: Request) {
 
       if (!teacherLevels[sub.teacher_id])  teacherLevels[sub.teacher_id]  = new Set()
       if (!teacherShifts[sub.teacher_id])  teacherShifts[sub.teacher_id]  = new Set()
-      if (!teacherMaterias[sub.teacher_id]) teacherMaterias[sub.teacher_id] = new Set()
 
       if (course.level) teacherLevels[sub.teacher_id].add(course.level)
       if (course.shift) teacherShifts[sub.teacher_id].add(course.shift)
-      teacherMaterias[sub.teacher_id].add(sub.name)
+
+      // Only add materias from courses that match this slot
+      if (matchingCourseIds.has(sub.course_id)) {
+        if (!teacherMaterias[sub.teacher_id]) teacherMaterias[sub.teacher_id] = new Set()
+        teacherMaterias[sub.teacher_id].add(sub.name)
+      }
     })
   }
 
@@ -205,7 +213,7 @@ export async function GET(req: Request) {
     return 'AMBOS'
   }
 
-  // ── Auto-inyección de DOCENTES reales ──────────────────────────────────────
+  // ── Auto-inyección de DOCENTES reales (DB es fuente de verdad) ──────────
   const { data: dbTeachers } = await admin
     .from('profiles' as any)
     .select('id, full_name')
@@ -213,56 +221,34 @@ export async function GET(req: Request) {
     .eq('role', 'teacher')
 
   if (dbTeachers) {
-    const existingIds = horariosConfig.docentes.map((d: any) => d.id)
-
-    ;(dbTeachers as any[]).forEach((dbT: any) => {
-      if (!existingIds.includes(dbT.id)) {
-        horariosConfig.docentes.push({
-          id:       dbT.id,
-          titulo:   '',
-          nombre:   dbT.full_name,
-          materias: Array.from(teacherMaterias[dbT.id] || []),
-          jornada:  deduceJornada(dbT.id),
-          nivel:    deduceNivel(dbT.id),
-        })
-      } else {
-        const idx = horariosConfig.docentes.findIndex((d: any) => d.id === dbT.id)
-        if (idx !== -1) {
-          const doc = horariosConfig.docentes[idx]
-          doc.nombre = dbT.full_name
-          // Always update jornada/nivel from DB courses (source of truth)
-          doc.jornada = deduceJornada(dbT.id)
-          doc.nivel   = deduceNivel(dbT.id)
-          // Merge materias from DB
-          const dbMats = teacherMaterias[dbT.id]
-          if (dbMats) {
-            const existing: string[] = doc.materias || []
-            dbMats.forEach((m: string) => {
-              if (!existing.includes(m)) existing.push(m)
-            })
-            doc.materias = existing
-          }
-        }
-      }
-    })
+    // Build docentes list entirely from DB — materias come from subjects table
+    horariosConfig.docentes = (dbTeachers as any[]).map((dbT: any) => ({
+      id:       dbT.id,
+      titulo:   '',
+      nombre:   dbT.full_name,
+      materias: Array.from(teacherMaterias[dbT.id] || []),
+      jornada:  deduceJornada(dbT.id),
+      nivel:    deduceNivel(dbT.id),
+    }))
   }
 
-  // ── Inyectar horas por curso de materias que coincidan ───────────────────
+  // ── Inyectar horas por curso desde DB (fuente de verdad) ─────────────────
+  // DB subjects REPLACE saved horasPorCurso — the institution page is the source of truth
   if (dbSubjects && (dbSubjects as any[]).length > 0) {
-    const horasPorCurso = horariosConfig.horasPorCurso || {}
+    const horasPorCurso: Record<string, Record<string, number>> = {}
 
     ;(dbSubjects as any[]).forEach((sub: any) => {
       const courseName = courseIdToName[sub.course_id]
       if (!courseName) return // skip subjects from non-matching courses
 
       if (!horasPorCurso[courseName]) horasPorCurso[courseName] = {}
-
-      if (horasPorCurso[courseName][sub.name] === undefined || horasPorCurso[courseName][sub.name] === 0) {
-        horasPorCurso[courseName][sub.name] = sub.weekly_hours || 1
-      }
+      horasPorCurso[courseName][sub.name] = sub.weekly_hours || 1
     })
 
     horariosConfig.horasPorCurso = horasPorCurso
+  } else {
+    // No subjects in DB for matching courses → clear
+    horariosConfig.horasPorCurso = {}
   }
 
   return NextResponse.json(
