@@ -100,6 +100,7 @@ const NAV_SECRETARY: NavItem[] = [
 // ─── Nav horarios_only ───────────────────────────────────────────────────────
 const NAV_HORARIOS: NavItem[] = [
   { href: '/dashboard/horarios',     icon: '📅', label: 'Horarios'     },
+  { href: '/dashboard/institucion',  icon: '🏢', label: 'Mi Institución' },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
 
