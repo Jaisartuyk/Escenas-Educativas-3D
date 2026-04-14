@@ -135,9 +135,6 @@ export async function GET(req: Request) {
     return levelOk && shiftOk
   })
 
-  const normalize = (s: string) =>
-    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-
   // Replace cursos list with DB courses that match this slot (source of truth)
   if (matchingCourses.length > 0) {
     const dbCourseNames = matchingCourses.map((c: any) => {
@@ -220,7 +217,7 @@ export async function GET(req: Request) {
     .eq('institution_id', instId)
     .eq('role', 'teacher')
 
-  if (dbTeachers) {
+  if (dbTeachers && (dbTeachers as any[]).length > 0) {
     // Build docentes list entirely from DB — materias come from subjects table
     horariosConfig.docentes = (dbTeachers as any[]).map((dbT: any) => ({
       id:       dbT.id,
@@ -231,6 +228,7 @@ export async function GET(req: Request) {
       nivel:    deduceNivel(dbT.id),
     }))
   }
+  // else: keep docentes from JSONB settings (manually loaded via wizard or SQL)
 
   // ── Inyectar horas por curso desde DB (fuente de verdad) ─────────────────
   // DB subjects REPLACE saved horasPorCurso — the institution page is the source of truth
