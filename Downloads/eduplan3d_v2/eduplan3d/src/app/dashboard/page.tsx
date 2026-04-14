@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { AdminStatsCharts } from '@/components/dashboard/AdminStatsCharts'
 
 export const dynamic    = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -325,62 +326,125 @@ export default async function DashboardPage() {
   // ════════════════════════════════════════════════════════════════════════
   // DASHBOARD ADMIN (original, mejorado con adminClient)
   // ════════════════════════════════════════════════════════════════════════
-  const { data: planificaciones } = await admin
+  // ════════════════════════════════════════════════════════════════════════
+  // DASHBOARD ADMIN (Profesionalizado con estadísticas)
+  // ════════════════════════════════════════════════════════════════════════
+  const startOfPeriod = new Date();
+  startOfPeriod.setDate(startOfPeriod.getDate() - 14);
+  const startOfPeriodISO = startOfPeriod.toISOString();
+
+  // 1. Tendencia de planificaciones (últimos 14 días)
+  const { data: trendRaw } = (await admin
     .from('planificaciones')
-    .select('id, title, subject, grade, type, created_at')
-    .eq('user_id', user.id)
+    .select('created_at, profiles!inner(institution_id)')
+    .eq('profiles.institution_id', instId)
+    .gte('created_at', startOfPeriodISO)) as any;
+
+  const last14Days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - i));
+    return d.toISOString().split('T')[0];
+  });
+
+  const planningTrend = last14Days.map(date => ({
+    date: date.split('-').slice(1).reverse().join('/'), // format DD/MM
+    count: ((trendRaw as any[]) || []).filter((p: any) => p.created_at.startsWith(date)).length
+  }));
+
+  // 2. Distribución de contenido
+  const { data: typeCounts } = (await admin
+    .from('planificaciones')
+    .select('type, profiles!inner(institution_id)')
+    .eq('profiles.institution_id', instId)) as any;
+
+  const contentDistribution = Object.entries(TYPE_LABELS).map(([key, label]) => ({
+    name: label,
+    value: ((typeCounts as any[]) || []).filter((p: any) => p.type === key).length
+  }));
+
+  // 3. Asistencia por Nivel (Escuela vs Colegio)
+  const { data: attData } = await admin
+    .from('attendance')
+    .select('status, subject_id')
+    .eq('institution_id', instId);
+
+  const { data: subData } = await admin
+    .from('subjects')
+    .select('id, course:courses(level)')
+    .eq('institution_id', instId);
+
+  const levels = ['Escuela', 'Colegio'];
+  const attendanceByLevel = levels.map(lvl => {
+    const relevantSubIds = (subData || [])
+      .filter((s: any) => s.course?.level === lvl)
+      .map((s: any) => s.id);
+    
+    const records = (attData || []).filter(a => relevantSubIds.includes(a.subject_id));
+    const present = records.filter(a => a.status === 'present').length;
+    
+    return {
+      level: lvl,
+      percentage: records.length > 0 ? Math.round((present / records.length) * 100) : 0
+    };
+  });
+
+  // 4. Composición de roles
+  const { data: roleCounts } = await admin
+    .from('profiles')
+    .select('role')
+    .eq('institution_id', instId);
+
+  const roleDistribution = [
+    { name: 'Docentes', count: (roleCounts || []).filter(p => p.role === 'teacher').length },
+    { name: 'Alumnos',  count: (roleCounts || []).filter(p => p.role === 'student').length },
+    { name: 'Admins',   count: (roleCounts || []).filter(p => p.role === 'admin').length },
+  ];
+
+  // Datos recientes para la lista
+  const { data: planificaciones } = (await admin
+    .from('planificaciones')
+    .select('id, title, subject, grade, type, created_at, profiles!inner(institution_id)')
+    .eq('profiles.institution_id', instId)
     .order('created_at', { ascending: false })
-    .limit(5)
+    .limit(5)) as any;
 
-  const { count: totalPlans } = await admin
+  const { count: totalPlans } = (await admin
     .from('planificaciones')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
+    .select('*, profiles!inner(institution_id)', { count: 'exact', head: true })
+    .eq('profiles.institution_id', instId)) as any;
 
-  const { count: thisMonth } = await admin
+  const { count: thisMonth } = (await admin
     .from('planificaciones')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
+    .select('*, profiles!inner(institution_id)', { count: 'exact', head: true })
+    .eq('profiles.institution_id', instId)
+    .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())) as any;
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in pb-12">
       {/* Institution Banner */}
       {institution && (
-        <div className="mb-6 flex items-center gap-4 p-4 rounded-2xl bg-[rgba(38,215,180,0.06)] border border-[rgba(38,215,180,0.2)]">
+        <div className="mb-8 flex items-center gap-4 p-4 rounded-2xl bg-[rgba(38,215,180,0.06)] border border-[rgba(38,215,180,0.2)]">
           <span className="text-2xl">🏫</span>
           <div className="flex-1">
             <strong className="text-sm font-bold block">{institution.name}</strong>
             <span className="text-xs text-ink3">Código de invitación: <code className="text-teal font-mono font-bold">{institution.join_code}</code></span>
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg bg-[rgba(38,215,180,0.15)] text-teal">Admin</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg bg-[rgba(38,215,180,0.15)] text-teal">Panel Administrativo</span>
         </div>
       )}
 
       <div className="mb-8">
         <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">{greeting}, {firstName} 👋</h1>
-        <p className="text-ink3 text-sm mt-1">
-          {new Intl.DateTimeFormat('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())}
-        </p>
+        <p className="text-ink3 text-sm mt-1">Aquí tienes un resumen estadístico de tu institución para hoy.</p>
       </div>
 
-      {profile?.plan === 'free' && (
-        <div className="mb-6 flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-[rgba(124,109,250,0.12)] to-[rgba(240,98,146,0.10)] border border-[rgba(124,109,250,0.25)]">
-          <span className="text-2xl">⚡</span>
-          <div className="flex-1">
-            <strong className="text-sm font-semibold block mb-0.5">Estás en el plan Starter</strong>
-            <span className="text-xs text-ink2">Tienes {Math.max(0, 10 - (thisMonth ?? 0))} planificaciones restantes este mes</span>
-          </div>
-          <Link href="/dashboard/configuracion?tab=plan" className="btn-primary text-sm px-5 py-2 whitespace-nowrap">Mejorar a Pro →</Link>
-        </div>
-      )}
-
+      {/* Stats Cards Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Total planificaciones', value: totalPlans ?? 0,  color: 'text-violet2' },
-          { label: 'Este mes',              value: thisMonth ?? 0,   color: 'text-teal'   },
-          { label: 'Escenas 3D vistas',     value: 12,               color: 'text-rose'   },
-          { label: 'Horas ahorradas',       value: `${((totalPlans ?? 0) * 1.5).toFixed(0)}h`, color: 'text-amber' },
+          { label: 'Total Planificaciones', value: totalPlans ?? 0,  color: 'text-violet2' },
+          { label: 'Generadas este mes',    value: thisMonth ?? 0,   color: 'text-teal'   },
+          { label: 'Docentes Activos',      value: roleDistribution[0].count, color: 'text-rose'   },
+          { label: 'Total Estudiantes',     value: roleDistribution[1].count, color: 'text-amber' },
         ].map(s => (
           <div key={s.label} className="card p-5">
             <p className="text-[11px] font-semibold text-ink3 uppercase tracking-[.5px] mb-2">{s.label}</p>
@@ -389,21 +453,34 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+      {/* 📊 Charts Section */}
+      <div className="mb-10">
+        <div className="flex items-center gap-3 mb-6">
+          <h2 className="font-display text-xl font-bold tracking-tight">Análisis Institucional</h2>
+          <div className="h-px flex-1 bg-[rgba(120,100,255,0.1)]"></div>
+        </div>
+        
+        <script dangerouslySetInnerHTML={{ __html: `window.__DASHBOARD_DATA__ = ${JSON.stringify({ planningTrend, contentDistribution, attendanceByLevel, roleDistribution })}` }} />
+        
+        {/* Usamos el componente cliente para los gráficos */}
+        <AdminStatsCharts data={{ planningTrend, contentDistribution, attendanceByLevel, roleDistribution }} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
+        {/* Recientes */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-bold tracking-tight">Planificaciones recientes</h2>
-            <Link href="/dashboard/historial" className="text-xs text-violet2 font-medium hover:underline">Ver todas →</Link>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-display text-lg font-bold tracking-tight">Últimas planificaciones</h2>
+            <Link href="/dashboard/historial" className="text-xs text-violet2 font-medium hover:underline">Gestionar todas →</Link>
           </div>
           <div className="flex flex-col gap-3">
             {!planificaciones?.length ? (
               <div className="card p-10 text-center text-ink3">
                 <p className="text-4xl mb-3">📋</p>
-                <p className="font-medium text-sm mb-1">Aún no tienes planificaciones</p>
-                <p className="text-xs">Ve al Planificador para generar tu primera</p>
+                <p className="font-medium text-sm mb-1">Sin actividad reciente</p>
               </div>
             ) : planificaciones.map((p: any) => (
-              <Link key={p.id} href={`/dashboard/historial/${p.id}`} className="card-hover p-4 flex items-center gap-4 cursor-pointer">
+              <Link key={p.id} href={`/dashboard/historial/${p.id}`} className="card-hover p-4 flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
                   p.type === 'clase' ? 'bg-[rgba(124,109,250,0.15)]' :
                   p.type === 'unidad' ? 'bg-[rgba(255,179,71,0.15)]' : 'bg-[rgba(240,98,146,0.15)]'
@@ -420,14 +497,15 @@ export default async function DashboardPage() {
           </div>
         </div>
 
+        {/* Acciones */}
         <div>
-          <h2 className="font-display text-lg font-bold tracking-tight mb-4">Acciones rápidas</h2>
+          <h2 className="font-display text-lg font-bold tracking-tight mb-5">Gestión Institucional</h2>
           <div className="flex flex-col gap-3">
             {[
-              { icon: '📋', title: 'Nueva planificación de clase', sub: 'Lista en ~30 segundos',   href: '/dashboard/planificador?type=clase',  bg: 'bg-[rgba(124,109,250,0.15)]' },
-              { icon: '📚', title: 'Nueva unidad didáctica',       sub: 'Completa y estructurada', href: '/dashboard/planificador?type=unidad',  bg: 'bg-[rgba(255,179,71,0.15)]' },
-              { icon: '📅', title: 'Generar horario',              sub: 'Sin choques de docentes', href: '/dashboard/horarios',                  bg: 'bg-[rgba(38,215,180,0.15)]'  },
-              { icon: '🔬', title: 'Explorar escenas 3D',          sub: '6 modelos interactivos',  href: '/dashboard/escenas',                  bg: 'bg-[rgba(240,98,146,0.15)]'  },
+              { icon: '👥', title: 'Gestionar Miembros',   sub: 'Docentes y alumnos',      href: '/dashboard/institucion',     bg: 'bg-violet/15'              },
+              { icon: '📅', title: 'Horarios Escolares',   sub: 'Configuración de clases', href: '/dashboard/horarios',        bg: 'bg-[rgba(38,215,180,0.15)]'  },
+              { icon: '📚', title: 'Biblioteca de Recursos', sub: 'Material compartido',      href: '/dashboard/biblioteca',      bg: 'bg-[rgba(255,179,71,0.15)]' },
+              { icon: '⚙️', title: 'Configuración',        sub: 'Ajustes de la cuenta',    href: '/dashboard/configuracion',   bg: 'bg-surface'                },
             ].map(a => (
               <Link key={a.title} href={a.href} className="card-hover p-4 flex items-center gap-4 group">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${a.bg}`}>{a.icon}</div>
