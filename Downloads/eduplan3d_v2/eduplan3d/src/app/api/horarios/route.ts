@@ -427,11 +427,25 @@ export async function POST(req: Request) {
     })
 
     // Upsert materias con horas > 0
+    // Se usa institution_id en el filtro para garantizar aislamiento por institución
     if (subjectsToUpsert.length > 0) {
-      await admin.from('subjects' as any).upsert(subjectsToUpsert, {
-        onConflict:       'course_id,name',
-        ignoreDuplicates: false,
-      })
+      for (const sub of subjectsToUpsert) {
+        const { data: existing } = await admin
+          .from('subjects' as any)
+          .select('id')
+          .eq('course_id', sub.course_id)
+          .eq('name', sub.name)
+          .eq('institution_id', instId)
+          .maybeSingle()
+
+        if (existing) {
+          await admin.from('subjects' as any)
+            .update({ weekly_hours: sub.weekly_hours, teacher_id: sub.teacher_id })
+            .eq('id', (existing as any).id)
+        } else {
+          await admin.from('subjects' as any).insert(sub)
+        }
+      }
     }
 
     // ── Eliminar materias que bajaron a 0 horas o fueron quitadas ──────────
