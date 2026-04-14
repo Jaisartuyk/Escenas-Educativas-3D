@@ -103,7 +103,15 @@ const NAV_HORARIOS: NavItem[] = [
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
 
-export function Sidebar({ role = 'admin' }: { role?: string }) {
+export function Sidebar({ 
+  role = 'admin',
+  institutionName,
+  logoUrl
+}: { 
+  role?: string,
+  institutionName?: string
+  logoUrl?: string | null
+}) {
   const pathname = usePathname()
   const isAdmin = role === 'admin' || role === 'assistant'
   const [open, setOpen] = useState(false)
@@ -211,7 +219,7 @@ export function Sidebar({ role = 'admin' }: { role?: string }) {
     <>
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-5 border-b border-[rgba(120,100,255,0.14)]">
-        <Logo size="sm" />
+        <Logo size="sm" institutionName={institutionName} logoUrl={logoUrl ?? undefined} />
         {/* Close button visible only on mobile */}
         <button onClick={() => setOpen(false)} className="lg:hidden text-ink3 hover:text-ink">
           <X size={20} />

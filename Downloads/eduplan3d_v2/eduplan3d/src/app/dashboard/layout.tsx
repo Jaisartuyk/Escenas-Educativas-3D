@@ -26,12 +26,30 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const isMissingInstitution = !profile?.institution_id
   const isHorariosOnly = profile?.role === 'horarios_only' || user!.email === 'israferaldascarlett15@gmail.com'
 
+  // ── Fetch Institution Data ──────────────────────────────────────────────────
+  let institution = null
+  if (profile?.institution_id) {
+    const { data } = await (supabase as any)
+      .from('institutions')
+      .select('name, settings')
+      .eq('id', profile.institution_id)
+      .single()
+    institution = data
+  }
+
+  // Logo logic: if name matches our known asset, use it
+  const logoUrl = institution?.name?.includes('LETAMENDI') ? '/logo-institucion.png' : null
+
   return (
     <div className="min-h-screen flex bg-bg relative">
       {isMissingInstitution && <OnboardingModal profileName={profile?.full_name || 'Usuario'} />}
-      <Sidebar role={isHorariosOnly ? 'horarios_only' : profile?.role} />
+      <Sidebar 
+        role={isHorariosOnly ? 'horarios_only' : profile?.role} 
+        institutionName={institution?.name}
+        logoUrl={logoUrl}
+      />
       <div className="flex-1 flex flex-col min-w-0">
-        <Topbar profile={profile} />
+        <Topbar profile={profile} institutionName={institution?.name} />
         <main className="flex-1 p-4 pt-16 lg:p-8 lg:pt-8 max-w-[1200px] w-full mx-auto">
           {children}
         </main>

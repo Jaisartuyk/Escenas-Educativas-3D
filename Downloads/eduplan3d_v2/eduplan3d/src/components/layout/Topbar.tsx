@@ -6,9 +6,12 @@ import Link from 'next/link'
 import { signOut } from '@/lib/actions/auth'
 import type { Profile } from '@/types/supabase'
 
-interface Props { profile: Profile | null }
+interface Props { 
+  profile: Profile | null 
+  institutionName?: string
+}
 
-export function Topbar({ profile }: Props) {
+export function Topbar({ profile, institutionName }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -25,12 +28,22 @@ export function Topbar({ profile }: Props) {
 
   return (
     <header className="h-14 lg:h-16 flex items-center justify-between px-4 lg:px-8 border-b border-[rgba(120,100,255,0.14)] bg-bg2 sticky top-0 z-30 ml-0 lg:ml-0">
-      {/* Search (decorativo por ahora) */}
-      <div className="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl bg-[rgba(0,0,0,0.04)] border border-[rgba(120,100,255,0.12)] w-64">
-        <span className="text-ink3 text-sm">🔍</span>
-        <span className="text-ink3 text-sm">Buscar planificación...</span>
-        <kbd className="ml-auto text-[10px] text-ink3 border border-[rgba(120,100,255,0.2)] rounded px-1.5 py-0.5">⌘K</kbd>
+      {/* Search (decorativo por ahora) o Nombre Institución */}
+      <div className="hidden md:flex items-center gap-6 flex-1">
+        <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[rgba(0,0,0,0.04)] border border-[rgba(120,100,255,0.12)] w-64">
+          <span className="text-ink3 text-sm">🔍</span>
+          <span className="text-ink3 text-sm">Buscar planificación...</span>
+          <kbd className="ml-auto text-[10px] text-ink3 border border-[rgba(120,100,255,0.2)] rounded px-1.5 py-0.5">⌘K</kbd>
+        </div>
+
+        {institutionName && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[rgba(120,100,255,0.05)] border border-[rgba(120,100,255,0.1)] max-w-md">
+            <span className="text-xs font-bold text-ink truncate animate-fade-in">{institutionName}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-teal animate-pulse" />
+          </div>
+        )}
       </div>
+
       {/* Mobile: spacer for hamburger */}
       <div className="md:hidden w-10" />
 
