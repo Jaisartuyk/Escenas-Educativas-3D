@@ -29,23 +29,25 @@ export default async function InstitucionPage() {
     .eq('id', profile.institution_id)
     .single()
 
+  // Usamos el cliente admin para saltar RLS en esta página administrativa del servidor
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+
   // Miembros de esta institución
-  const { data: members } = await (supabase as any)
+  const { data: members } = await admin
     .from('profiles')
     .select('id, full_name, email, role, created_at')
     .eq('institution_id', profile.institution_id)
     .order('created_at', { ascending: true })
 
   // Cursos de esta institución
-  const { data: courses } = await (supabase as any)
+  const { data: courses } = await admin
     .from('courses')
     .select('id, name, parallel, level, shift, created_at')
     .eq('institution_id', profile.institution_id)
     .order('created_at', { ascending: true })
 
   // Materias de esta institución (con curso y docente)
-  const { createAdminClient } = await import('@/lib/supabase/admin')
-  const admin = createAdminClient()
   const { data: subjects } = await admin
     .from('subjects' as any)
     .select('id, name, weekly_hours, course_id, teacher_id')
