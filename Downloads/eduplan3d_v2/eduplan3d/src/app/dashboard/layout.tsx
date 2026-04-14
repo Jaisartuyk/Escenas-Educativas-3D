@@ -24,7 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .single()
 
   const isMissingInstitution = !profile?.institution_id
-  const isHorariosOnly = profile?.role === 'horarios_only' || user!.email === 'israferaldascarlett15@gmail.com'
+  const isHorariosOnly = profile?.role === 'horarios_only'
 
   // ── Fetch Institution Data ──────────────────────────────────────────────────
   let institution = null
