@@ -1,7 +1,7 @@
 'use client'
 // src/components/institucion/InstitucionClient.tsx
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -77,11 +77,22 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
   const [deletingSubjectId, setDeletingSubjectId] = useState<string | null>(null)
   const [editingSubject, setEditingSubject] = useState<Materia | null>(null)
   const [filterCourseId, setFilterCourseId] = useState<string>('all')
+  const [catalogMaterias, setCatalogMaterias] = useState<string[]>([])
+  const [showCatalog, setShowCatalog] = useState(false)
+  const catalogRef = useRef<HTMLDivElement>(null)
 
   // ── Edit email state ──
   const [editingEmailId, setEditingEmailId] = useState<string | null>(null)
   const [newEmail, setNewEmail] = useState('')
   const [savingEmail, setSavingEmail] = useState(false)
+
+  // Cargar catálogo global de nombres de materias
+  useEffect(() => {
+    fetch('/api/institucion/subjects')
+      .then(r => r.json())
+      .then(d => { if (d.names) setCatalogMaterias(d.names) })
+      .catch(() => {})
+  }, [])
 
   // Use the local domain used in the bulk creation script
   const LOCAL_DOMAIN = '@letamendi.edu.ec'
@@ -602,14 +613,37 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
             <div className="card p-5 mb-5 border border-[rgba(124,109,250,0.3)]">
               <h3 className="font-bold text-sm mb-4">Nueva Materia</h3>
               <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="col-span-2">
+                <div className="col-span-2 relative" ref={catalogRef}>
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nombre de la Materia</label>
                   <input
                     value={subjectName}
-                    onChange={e => setSubjectName(e.target.value)}
+                    onChange={e => { setSubjectName(e.target.value); setShowCatalog(true) }}
+                    onFocus={() => setShowCatalog(true)}
+                    onBlur={() => setTimeout(() => setShowCatalog(false), 150)}
                     placeholder="Ej: MATEMÁTICA"
                     className="input-base w-full"
+                    autoComplete="off"
                   />
+                  {/* Catálogo desplegable */}
+                  {showCatalog && subjectName.trim().length > 0 && (() => {
+                    const q = subjectName.trim().toUpperCase()
+                    const matches = catalogMaterias.filter(n => n.includes(q))
+                    if (matches.length === 0) return null
+                    return (
+                      <div className="absolute z-50 left-0 right-0 mt-1 bg-bg2 border border-[rgba(124,109,250,0.3)] rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {matches.map(name => (
+                          <button
+                            key={name}
+                            type="button"
+                            onMouseDown={() => { setSubjectName(name); setShowCatalog(false) }}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-[rgba(124,109,250,0.1)] text-ink2 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                          >
+                            {name}
+                          </button>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Curso</label>

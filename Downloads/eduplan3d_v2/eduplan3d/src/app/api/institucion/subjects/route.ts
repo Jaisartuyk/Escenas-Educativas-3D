@@ -3,6 +3,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+/** GET /api/institucion/subjects?catalog=true
+ *  Devuelve nombres de materias distintos de toda la plataforma (catálogo global).
+ */
+export async function GET(_req: NextRequest) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('subjects' as any)
+    .select('name')
+
+  const names: string[] = Array.from(
+    new Set((data || []).map((s: any) => s.name as string))
+  ).sort()
+  return NextResponse.json({ names })
+}
+
 export async function POST(req: NextRequest) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
