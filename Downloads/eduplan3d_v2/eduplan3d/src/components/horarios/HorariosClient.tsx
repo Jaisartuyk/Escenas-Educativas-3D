@@ -3,6 +3,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { StepInstitucion }  from './steps/StepInstitucion'
+import { StepDocentes }     from './steps/StepDocentes'
 import { StepGenerar }      from './steps/StepGenerar'
 import { StepEditar }       from './steps/StepEditar'
 import { generarHorario }   from '@/lib/horarios/generator'
@@ -12,6 +13,7 @@ import toast from 'react-hot-toast'
 
 const TABS = [
   { label: 'Institución',       icon: '🏫' },
+  { label: 'Docentes',          icon: '👨‍🏫' },
   { label: 'Generar',           icon: '⚡' },
   { label: 'Editar / Exportar', icon: '📋' },
 ]
@@ -88,7 +90,7 @@ export function HorariosClient() {
             docentes:      safeDocentes,
             horasPorCurso: data.horasPorCurso || {},
             horario:       data.horario       || {},
-            step: typeof data.step === 'number' ? Math.min(data.step, 2) : 0,
+            step: typeof data.step === 'number' ? Math.min(data.step, 3) : 0,
           })
         }
         setLoadingInitial(false)
@@ -169,7 +171,7 @@ export function HorariosClient() {
 
   const handleGenerar = useCallback(() => {
     const horario = generarHorario(state.config, state.docentes, state.horasPorCurso, state.docentePorCurso)
-    updateState(s => ({ ...s, horario, step: 2 }), true)
+    updateState(s => ({ ...s, horario, step: 3 }), true)
     toast.success('Horario generado ✓')
   }, [state.config, state.docentes, state.horasPorCurso, state.docentePorCurso])
 
@@ -411,17 +413,28 @@ export function HorariosClient() {
             />
           )}
           {state.step === 1 && (
-            <StepGenerar
-              state={state}
+            <StepDocentes
+              docentes={state.docentes}
+              jornadaInstitucional={state.config.jornada}
+              nivelInstitucional={state.config.nivel}
+              directoryMetadata={{} as any}
+              onChange={docentes => updateState(s => ({ ...s, docentes }))}
               onBack={() => setTab(0)}
-              onGenerar={handleGenerar}
+              onNext={() => setTab(2)}
             />
           )}
           {state.step === 2 && (
+            <StepGenerar
+              state={state}
+              onBack={() => setTab(1)}
+              onGenerar={handleGenerar}
+            />
+          )}
+          {state.step === 3 && (
             <StepEditar
               state={state}
               onChange={horario => updateState(s => ({ ...s, horario }))}
-              onBack={() => setTab(1)}
+              onBack={() => setTab(2)}
               onExport={handleExport}
             />
           )}
