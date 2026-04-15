@@ -86,8 +86,6 @@ const NAV_TEACHER: NavItem[] = [
 const NAV_STUDENT: NavItem[] = [
   { href: '/dashboard/alumno',       icon: '🎒', label: 'Mi Panel'     },
   { href: '/dashboard/libretas',     icon: '📓', label: 'Mis Notas'    },
-  { href: '/dashboard/escenas',      icon: '🧪', label: 'Escenas 3D'   },
-  { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca'   },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
 
