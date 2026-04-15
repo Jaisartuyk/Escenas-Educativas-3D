@@ -728,6 +728,33 @@ export function AlumnoClient({
                   </div>
                 )}
 
+                {/* Teacher attached files */}
+                {Array.isArray(selectedAssignment.attachment_urls) && selectedAssignment.attachment_urls.length > 0 && (
+                  <div className="p-4 bg-violet-50/60 dark:bg-violet-900/10 border border-violet-100 dark:border-violet-800/30 rounded-2xl">
+                    <p className="text-[11px] font-black text-violet-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <Paperclip size={13}/> Material del Docente ({selectedAssignment.attachment_urls.length})
+                    </p>
+                    <div className="space-y-2">
+                      {selectedAssignment.attachment_urls.map((url: string, i: number) => {
+                        const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] || `Archivo ${i+1}`)
+                        // Detect file type
+                        const ext = name.split('.').pop()?.toLowerCase() || ''
+                        const isImage = ['jpg','jpeg','png','gif','webp'].includes(ext)
+                        return (
+                          <a key={i} href={url} target="_blank" rel="noreferrer"
+                            className="flex items-center gap-3 p-2.5 bg-white dark:bg-surface border border-violet-100 dark:border-violet-800/30 rounded-xl hover:border-violet-300 transition-colors group">
+                            <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black text-violet-600 uppercase">
+                              {isImage ? '🖼️' : ext || '📄'}
+                            </div>
+                            <span className="text-sm text-ink flex-1 truncate group-hover:text-violet-600 transition-colors">{name}</span>
+                            <ExternalLink size={13} className="text-ink4 group-hover:text-violet-500 flex-shrink-0 transition-colors"/>
+                          </a>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Already submitted */}
                 {sub ? (
                   <div className="p-4 bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-2xl">
