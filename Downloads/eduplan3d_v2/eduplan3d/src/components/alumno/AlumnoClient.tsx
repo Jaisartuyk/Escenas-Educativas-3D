@@ -21,6 +21,12 @@ const DIAS_SEMANA = ['Lunes','Martes','Miércoles','Jueves','Viernes'] as const
 
 function toISO(d: Date) { return d.toISOString().split('T')[0] }
 
+function parseLocalDate(dateStr: string) {
+  if (!dateStr) return new Date();
+  const [yyyy, mm, dd] = dateStr.split('T')[0].split('-');
+  return new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+}
+
 export function AlumnoClient({
   profile, courses, subjects, assignments, grades, categories, attendance, behaviors, scheduleConfig, horariosData
 }: any) {
@@ -263,7 +269,13 @@ export function AlumnoClient({
               {assignments.length > 0 ? assignments.map((a: any) => {
                 const subject = subjects.find((s: any) => s.id === a.subject_id)
                 const grade = grades.find((g: any) => g.assignment_id === a.id)
-                const isPastDue = a.due_date && new Date(a.due_date).getTime() < new Date().getTime()
+                
+                let isPastDue = false
+                if (a.due_date) {
+                  const due = parseLocalDate(a.due_date)
+                  due.setHours(23, 59, 59, 999) // Due at end of day local time
+                  isPastDue = due.getTime() < new Date().getTime()
+                }
                 
                 return (
                   <div key={a.id} className="relative overflow-hidden flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-6 rounded-2xl border border-surface2 bg-bg hover:border-amber-400/50 transition-all duration-300 group hover:shadow-md">
@@ -285,7 +297,7 @@ export function AlumnoClient({
                         <div className="text-sm font-medium text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-lg">{subject?.name || 'Materia general'}</div>
                         {a.due_date && (
                           <div className={`text-xs font-semibold flex items-center gap-1.5 ${isPastDue && !grade ? 'text-rose-500' : 'text-ink4'}`}>
-                            <CalendarDays size={14}/> Vence: {new Date(a.due_date).toLocaleDateString('es-ES')}
+                            <CalendarDays size={14}/> Vence: {parseLocalDate(a.due_date).toLocaleDateString('es-ES')}
                           </div>
                         )}
                       </div>
