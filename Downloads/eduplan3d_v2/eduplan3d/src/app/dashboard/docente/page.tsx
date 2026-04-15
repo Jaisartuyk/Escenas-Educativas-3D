@@ -45,7 +45,7 @@ export default async function DocentePage() {
   if (subjectIds.length > 0) {
     const { data } = await admin
       .from('assignments')
-      .select('id, subject_id, title, description, start_date, due_date, due_time, trimestre, parcial, category_id, created_at, updated_at')
+      .select('id, subject_id, title, description, start_date, due_date, due_time, trimestre, parcial, category_id, attachment_urls, created_at, updated_at')
       .in('subject_id', subjectIds)
       .order('created_at', { ascending: false })
     assignments = data || []
