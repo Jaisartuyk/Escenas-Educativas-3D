@@ -59,3 +59,25 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ submission: data })
 }
+
+// DELETE — student deletes their own submission
+export async function DELETE(req: Request) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const id = searchParams.get('id')
+
+  if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('assignment_submissions')
+    .delete()
+    .eq('id', id)
+    .eq('student_id', user.id) // Security check
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
+}

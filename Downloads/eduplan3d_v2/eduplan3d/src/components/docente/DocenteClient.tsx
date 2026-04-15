@@ -340,6 +340,8 @@ export function DocenteClient({
     setActDueDate(a.due_date || '')
     setActDueTime(a.due_time || '23:59')
     setActCatId(a.category_id || '')
+    setActAttachments(a.attachment_urls || [])
+    setActNewFiles([])
   }
   async function saveActivity() {
     if (!editActivity || !actTitle.trim()) return

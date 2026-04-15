@@ -5,7 +5,8 @@ import {
   BookOpen, CalendarDays, BarChart2,
   CheckCircle2, Clock3, ThumbsUp, ThumbsDown,
   Upload, X, Check, Paperclip, AlertTriangle,
-  Award, Trophy, Star, Send, ExternalLink, FileText
+  Award, Trophy, Star, Send, ExternalLink, FileText,
+  Trash2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
@@ -102,6 +103,26 @@ export function AlumnoClient({
       toast.error(err.message)
     } finally {
       setIsSubmittingTask(false)
+    }
+  }
+
+  async function handleDeleteSubmission(submissionId: string, assignmentId: string) {
+    if (!confirm('¿Estás seguro de que deseas eliminar tu entrega? Esta acción no se puede deshacer.')) return
+
+    try {
+      const res = await fetch(`/api/alumno/submissions?id=${submissionId}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error('Error al eliminar la entrega')
+      
+      setMySubmissions(prev => {
+        const next = { ...prev }
+        delete next[assignmentId]
+        return next
+      })
+      toast.success('Entrega eliminada correctamente')
+    } catch (err: any) {
+      toast.error(err.message)
     }
   }
 
@@ -769,12 +790,22 @@ export function AlumnoClient({
                         "{sub.comment}"
                       </div>
                     )}
-                    {sub.file_url && (
-                      <a href={sub.file_url} target="_blank" rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-colors">
-                        <ExternalLink size={14}/> Ver archivo adjunto
-                      </a>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {sub.file_url && (
+                        <a href={sub.file_url} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-colors">
+                          <ExternalLink size={14}/> Ver archivo adjunto
+                        </a>
+                      )}
+                      <button 
+                        type="button"
+                        onClick={() => handleDeleteSubmission(sub.id, selectedAssignment.id)}
+                        className="p-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors border border-rose-100 dark:bg-rose-900/10 dark:border-rose-800/30 dark:text-rose-400"
+                        title="Eliminar entrega"
+                      >
+                        <Trash2 size={16}/>
+                      </button>
+                    </div>
                     <div className="mt-4 pt-4 border-t border-blue-100 dark:border-blue-800/30">
                       <p className="text-xs text-ink4 mb-2">¿Deseas reemplazar tu entrega anterior?</p>
                     </div>
