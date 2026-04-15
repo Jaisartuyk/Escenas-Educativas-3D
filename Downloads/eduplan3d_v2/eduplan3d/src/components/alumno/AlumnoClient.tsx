@@ -451,7 +451,8 @@ export function AlumnoClient({
                         <div className="text-[10px] font-black uppercase text-ink4 tracking-widest mt-3 flex items-center gap-1.5"><Clock3 size={12}/> {new Date(b.date).toLocaleDateString('es-ES')}</div>
                       </div>
                     </div>
-) : (
+                  )
+                }) : (
                  <div className="col-span-full flex flex-col items-center justify-center py-16 bg-bg rounded-2xl border border-dashed border-surface2">
                    <Star size={40} className="text-ink4/40 mb-3" />
                    <p className="text-ink3 font-medium">Aún no hay registros de comportamiento.</p>
