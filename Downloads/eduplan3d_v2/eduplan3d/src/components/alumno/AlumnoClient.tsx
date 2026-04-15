@@ -27,6 +27,10 @@ export function AlumnoClient({
   const supabase = createClient()
   const [activeTab, setActiveTab] = useState<TabType>('resumen')
 
+  const currentDayIndex = new Date().getDay()
+  const defaultDay = currentDayIndex >= 1 && currentDayIndex <= 5 ? DIAS_SEMANA[currentDayIndex - 1] : 'Lunes'
+  const [selectedDay, setSelectedDay] = useState<string>(defaultDay)
+
   // Justification Modal State
   const [showJustifyModal, setShowJustifyModal] = useState<any>(null)
   const [justifyText, setJustifyText] = useState('')
@@ -447,8 +451,7 @@ export function AlumnoClient({
                         <div className="text-[10px] font-black uppercase text-ink4 tracking-widest mt-3 flex items-center gap-1.5"><Clock3 size={12}/> {new Date(b.date).toLocaleDateString('es-ES')}</div>
                       </div>
                     </div>
-                  )
-               }) : (
+) : (
                  <div className="col-span-full flex flex-col items-center justify-center py-16 bg-bg rounded-2xl border border-dashed border-surface2">
                    <Star size={40} className="text-ink4/40 mb-3" />
                    <p className="text-ink3 font-medium">Aún no hay registros de comportamiento.</p>
@@ -460,87 +463,108 @@ export function AlumnoClient({
         
         {activeTab === 'horario' && (
           <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
-            <h2 className="font-display text-2xl font-bold flex items-center gap-3 mb-6">
-              <span className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><CalendarDays size={20}/></span> 
-              Horario de Clases
-            </h2>
+            {/* Header and Day Picker */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+              <h2 className="font-display text-2xl font-bold flex items-center gap-3">
+                <span className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><CalendarDays size={20}/></span> 
+                Horario Institucional
+              </h2>
+              
+              {/* Day Tabs */}
+              <div className="flex bg-surface2/50 backdrop-blur-md p-1.5 rounded-2xl w-full sm:w-auto overflow-x-auto custom-scrollbar">
+                {DIAS_SEMANA.map(dia => (
+                  <button 
+                    key={dia}
+                    onClick={() => setSelectedDay(dia)}
+                    className={`flex-1 py-1.5 sm:py-2 px-3 sm:px-4 rounded-xl text-[13px] sm:text-sm font-bold transition-all whitespace-nowrap ${selectedDay === dia ? 'bg-white dark:bg-surface text-indigo-600 shadow-sm ring-1 ring-indigo-500/10' : 'text-ink4 hover:text-ink hover:bg-black/5'}`}
+                  >
+                    {dia}
+                  </button>
+                ))}
+              </div>
+            </div>
             
             {myScheduleGrid && myPeriods.length > 0 ? (
-              <div className="overflow-x-auto custom-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
-                <div className="min-w-[700px]">
-                  {/* Header */}
-                  <div className="grid grid-cols-[100px_repeat(5,1fr)] gap-2 mb-2">
-                    <div className="font-bold text-[10px] uppercase tracking-widest text-ink4 flex items-center justify-center bg-surface2 rounded-xl p-3">Hora</div>
-                    {DIAS_SEMANA.map(dia => (
-                      <div key={dia} className={`font-bold text-sm text-center rounded-xl p-3 transition-colors ${dia === todayName ? 'bg-violet-600 text-white shadow-md shadow-violet-500/20' : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 text-ink'}`}>
-                        {dia}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Body */}
-                  <div className="flex flex-col gap-2">
-                    {myPeriods.map((periodo: string, pIdx: number) => {
-                      const isReceso = myBreaks.has(pIdx)
-                      
+              <div className="relative">
+                {/* Connecting Line (Desktop) */}
+                <div className="absolute top-4 bottom-4 left-[3rem] sm:left-[4.5rem] w-0.5 bg-surface2 rounded-full hidden sm:block" />
+                
+                <div className="flex flex-col gap-4 relative z-10">
+                  {myPeriods.map((periodo: string, pIdx: number) => {
+                    const isReceso = myBreaks.has(pIdx)
+                    const materia = myScheduleGrid[selectedDay]?.[pIdx] || ''
+                    const isVacant = !materia || materia.trim() === ''
+                    
+                    if (isReceso) {
                       return (
-                        <div key={pIdx} className="grid grid-cols-[100px_repeat(5,1fr)] gap-2">
-                          {/* Hora */}
-                          <div className="flex items-center justify-center font-semibold text-xs text-ink3 bg-surface2 rounded-xl p-3 text-center border border-surface2">
-                            {periodo}
+                        <div key={pIdx} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 group">
+                          {/* Time Badge */}
+                          <div className="w-full sm:w-[9rem] flex-shrink-0 flex sm:justify-end">
+                            <span className="text-[11px] sm:text-xs font-bold text-ink4 bg-surface2/50 px-3 py-1.5 rounded-lg border border-surface2 shadow-sm">{periodo}</span>
                           </div>
                           
-                          {/* Materias o Receso */}
-                          {isReceso ? (
-                            <div className="col-span-5 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-xl p-3 flex items-center justify-center">
-                              <span className="font-black text-amber-600 tracking-[0.2em] text-sm uppercase flex items-center gap-3">
-                                ☕ Receso
-                              </span>
+                          {/* Recess Card */}
+                          <div className="flex-1 w-full p-4 rounded-2xl bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 overflow-hidden shadow-sm flex items-center justify-center sm:justify-start gap-3">
+                            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/40 text-amber-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                              ☕
                             </div>
-                          ) : (
-                            DIAS_SEMANA.map(dia => {
-                              const materia = myScheduleGrid[dia]?.[pIdx] || ''
-                              const isVacant = !materia || materia.trim() === ''
-                              const isToday = dia === todayName
-                              
-                              if (isVacant) {
-                                return (
-                                  <div key={dia} className={`rounded-xl border border-dashed border-surface2 flex items-center justify-center p-3 opacity-50 ${isToday ? 'bg-surface2/50' : 'bg-bg'}`}>
-                                    <span className="text-xs text-ink4 italic">Libre</span>
-                                  </div>
-                                )
-                              }
-
-                              // Basic hash for color
-                              let charCodeSum = 0
-                              for (let i = 0; i < materia.length; i++) {
-                                charCodeSum += materia.charCodeAt(i)
-                              }
-                              const colorPalette = [
-                                'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30',
-                                'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/30',
-                                'bg-violet-50 text-violet-700 border-violet-100 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-800/30',
-                                'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800/30',
-                                'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800/30',
-                                'bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-300 dark:border-cyan-800/30'
-                              ]
-                              const theme = colorPalette[charCodeSum % colorPalette.length]
-
-                              return (
-                                <div key={dia} className={`rounded-xl border p-3 flex flex-col items-center justify-center text-center shadow-sm transition-all hover:scale-[1.02] ${theme} ${isToday ? 'ring-2 ring-violet-500/30 shadow-md' : ''}`}>
-                                  <span className="font-bold text-sm leading-tight line-clamp-3">{materia}</span>
-                                </div>
-                              )
-                            })
-                          )}
+                            <span className="font-black text-amber-600 tracking-[0.2em] text-sm md:text-base uppercase">Receso</span>
+                          </div>
                         </div>
                       )
-                    })}
-                  </div>
+                    }
+                    
+                    if (isVacant) {
+                      return (
+                         <div key={pIdx} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 opacity-60">
+                           <div className="w-full sm:w-[9rem] flex-shrink-0 flex sm:justify-end">
+                             <span className="text-[11px] sm:text-xs font-semibold text-ink4/70 px-3 py-1.5">{periodo}</span>
+                           </div>
+                           <div className="flex-1 w-full p-4 rounded-2xl border border-dashed border-surface2 bg-bg flex items-center gap-3">
+                             <div className="w-2 h-2 rounded-full bg-surface2 flex-shrink-0"/>
+                             <span className="text-sm font-medium text-ink4 italic">Hora libre</span>
+                           </div>
+                         </div>
+                      )
+                    }
+
+                    // Dynamically generate beautiful colors based on subject hash
+                    let charCodeSum = 0
+                    for (let i = 0; i < materia.length; i++) charCodeSum += materia.charCodeAt(i)
+                    const colorThemes = [
+                      { bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700', iconBg: 'bg-blue-100', dark: 'dark:bg-blue-900/20 dark:border-blue-800/30 dark:text-blue-300 dark:iconBg:bg-blue-900/40' },
+                      { bg: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', iconBg: 'bg-emerald-100', dark: 'dark:bg-emerald-900/20 dark:border-emerald-800/30 dark:text-emerald-300 dark:iconBg:bg-emerald-900/40' },
+                      { bg: 'bg-violet-50', border: 'border-violet-100', text: 'text-violet-700', iconBg: 'bg-violet-100', dark: 'dark:bg-violet-900/20 dark:border-violet-800/30 dark:text-violet-300 dark:iconBg:bg-violet-900/40' },
+                      { bg: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-700', iconBg: 'bg-rose-100', dark: 'dark:bg-rose-900/20 dark:border-rose-800/30 dark:text-rose-300 dark:iconBg:bg-rose-900/40' },
+                      { bg: 'bg-cyan-50', border: 'border-cyan-100', text: 'text-cyan-700', iconBg: 'bg-cyan-100', dark: 'dark:bg-cyan-900/20 dark:border-cyan-800/30 dark:text-cyan-300 dark:iconBg:bg-cyan-900/40' },
+                    ]
+                    const t = colorThemes[charCodeSum % colorThemes.length]
+
+                    return (
+                      <div key={pIdx} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 group">
+                        <div className="w-full sm:w-[9rem] flex-shrink-0 flex sm:justify-end">
+                          <span className={`text-[11px] sm:text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm border transition-all ${t.bg} ${t.border} ${t.text} ${t.dark}`}>{periodo}</span>
+                        </div>
+                        <div className={`flex-1 w-full p-4 sm:p-5 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 ${t.bg} ${t.border} ${t.text} ${t.dark} flex items-center justify-between`}>
+                           <div className="flex items-center gap-4">
+                             <div className={`hidden sm:flex w-12 h-12 rounded-xl items-center justify-center font-black text-xl shadow-inner ${t.iconBg}`}>
+                               {materia.substring(0,2).toUpperCase()}
+                             </div>
+                             <div>
+                               <div className="font-bold text-base sm:text-lg md:text-xl leading-tight mb-1 drop-shadow-sm">{materia}</div>
+                               <div className="text-[10px] sm:text-xs font-bold opacity-70 uppercase tracking-wider flex items-center gap-1.5">
+                                 <Clock3 size={12}/> {myPeriods[pIdx]}
+                               </div>
+                             </div>
+                           </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 bg-bg rounded-2xl border border-dashed border-surface2">
+              <div className="flex flex-col items-center justify-center py-16 bg-bg rounded-2xl border border-dashed border-surface2 mx-4 sm:mx-0">
                 <CalendarDays size={48} className="text-ink4/50 mb-4" />
                 <h3 className="font-bold text-ink">Horario no disponible</h3>
                 <p className="text-ink3 font-medium max-w-sm mt-1 text-center">La institución aún no ha publicado un horario para tu curso o jornada.</p>
