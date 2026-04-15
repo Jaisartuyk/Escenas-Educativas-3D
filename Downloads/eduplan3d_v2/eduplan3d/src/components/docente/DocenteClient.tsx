@@ -1871,11 +1871,36 @@ export function DocenteClient({
                     })
                     setActAttachments(merged)
                     setActNewFiles([])
+                    
+                    // Update the parent assignments state so it persists when reopening the modal
+                    setAssignments(prev => prev.map(a => 
+                      a.id === editActivity.id ? { ...a, attachment_urls: merged } : a
+                    ))
+
                     toast.success(`${uploaded.length} archivo(s) subido(s) correctamente`)
                   } catch (err: any) {
                     toast.error(err.message)
                   } finally {
                     setUploadingAtt(false)
+                  }
+                }
+
+                async function handleDeleteAttachment(url: string) {
+                  const merged = actAttachments.filter(u => u !== url)
+                  try {
+                    await fetch('/api/docente/assignment-attachments', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ assignment_id: editActivity.id, file_urls: merged })
+                    })
+                    setActAttachments(merged)
+                    // Update parent state
+                    setAssignments(prev => prev.map(a => 
+                      a.id === editActivity.id ? { ...a, attachment_urls: merged } : a
+                    ))
+                    toast.success('Archivo eliminado')
+                  } catch (err: any) {
+                    toast.error('Error al eliminar archivo')
                   }
                 }
 
@@ -1931,7 +1956,7 @@ export function DocenteClient({
                               <a href={url} target="_blank" rel="noreferrer"
                                 className="text-sm flex-1 truncate text-indigo-600 hover:underline">{name}</a>
                               <button type="button"
-                                onClick={() => setActAttachments(prev => prev.filter((_, j) => j !== i))}
+                                onClick={() => handleDeleteAttachment(url)}
                                 className="text-ink4 hover:text-rose-500 transition-colors">
                                 <X size={14}/>
                               </button>
