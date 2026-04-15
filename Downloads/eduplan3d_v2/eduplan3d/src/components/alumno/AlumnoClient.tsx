@@ -44,30 +44,36 @@ export function AlumnoClient({
   const dayIndex = now.getDay()
   const todayName = dayIndex >= 1 && dayIndex <= 5 ? DIAS_SEMANA[dayIndex - 1] : null
   
+  // ── My Schedule Logic
+  let myScheduleGrid: any = null
+  let myPeriods: string[] = []
+  let myBreaks = new Set<number>()
+  
   const todayClasses: any[] = []
   const myCourseNames = courses.map((c: any) => `${c.name} ${c.parallel || ''}`.trim())
   
-  if (todayName) {
-    Object.values(horariosData).forEach((slot: any) => {
-      const cfg = slot.config || {}
-      const perArr = cfg.horarios || []
-      const rec = new Set<number>(cfg.recesos || [4])
-      
-      Object.entries(slot.horario || {}).forEach(([curso, dias]: [string, any]) => {
-        if (myCourseNames.includes(curso)) {
-          const materias = dias[todayName] || []
-          materias.forEach((m: string, idx: number) => {
-            if (m && !rec.has(idx)) {
-              todayClasses.push({
-                materia: m,
-                curso,
-                hora: perArr[idx] || `${idx + 1}°`,
-                periodoIdx: idx
-              })
-            }
-          })
-        }
-      })
+  Object.values(horariosData).forEach((slot: any) => {
+    Object.entries(slot.horario || {}).forEach(([cursoName, schedule]: [string, any]) => {
+      // Find matching schedule for my enrolled course
+      if (myCourseNames.includes(cursoName.trim()) && !myScheduleGrid) {
+        myScheduleGrid = schedule
+        myPeriods = slot.config?.horarios || []
+        myBreaks = new Set(slot.config?.recesos || [4])
+      }
+    })
+  })
+  
+  if (todayName && myScheduleGrid) {
+    const materias = myScheduleGrid[todayName] || []
+    materias.forEach((m: string, idx: number) => {
+      if (m && !myBreaks.has(idx)) {
+        todayClasses.push({
+          materia: m,
+          curso: myCourseNames[0],
+          hora: myPeriods[idx] || `${idx + 1}°`,
+          periodoIdx: idx
+        })
+      }
     })
     todayClasses.sort((a, b) => a.periodoIdx - b.periodoIdx)
   }
@@ -453,12 +459,93 @@ export function AlumnoClient({
         )}
         
         {activeTab === 'horario' && (
-          <div className="bg-surface rounded-[2rem] border border-surface2 p-12 text-center shadow-sm">
-            <div className="w-20 h-20 bg-indigo-50 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CalendarDays size={32} />
-            </div>
-            <h3 className="text-2xl font-display font-bold text-ink mb-2">Horario Institucional</h3>
-            <p className="text-ink3 font-medium max-w-sm mx-auto">Tu representación gráfica de horarios estará disponible aquí como una vista semanal interactiva próximamente.</p>
+          <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
+            <h2 className="font-display text-2xl font-bold flex items-center gap-3 mb-6">
+              <span className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><CalendarDays size={20}/></span> 
+              Horario de Clases
+            </h2>
+            
+            {myScheduleGrid && myPeriods.length > 0 ? (
+              <div className="overflow-x-auto custom-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="min-w-[700px]">
+                  {/* Header */}
+                  <div className="grid grid-cols-[100px_repeat(5,1fr)] gap-2 mb-2">
+                    <div className="font-bold text-[10px] uppercase tracking-widest text-ink4 flex items-center justify-center bg-surface2 rounded-xl p-3">Hora</div>
+                    {DIAS_SEMANA.map(dia => (
+                      <div key={dia} className={`font-bold text-sm text-center rounded-xl p-3 transition-colors ${dia === todayName ? 'bg-violet-600 text-white shadow-md shadow-violet-500/20' : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 text-ink'}`}>
+                        {dia}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Body */}
+                  <div className="flex flex-col gap-2">
+                    {myPeriods.map((periodo: string, pIdx: number) => {
+                      const isReceso = myBreaks.has(pIdx)
+                      
+                      return (
+                        <div key={pIdx} className="grid grid-cols-[100px_repeat(5,1fr)] gap-2">
+                          {/* Hora */}
+                          <div className="flex items-center justify-center font-semibold text-xs text-ink3 bg-surface2 rounded-xl p-3 text-center border border-surface2">
+                            {periodo}
+                          </div>
+                          
+                          {/* Materias o Receso */}
+                          {isReceso ? (
+                            <div className="col-span-5 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,0,0,0.02)_10px,rgba(0,0,0,0.02)_20px)] bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-xl p-3 flex items-center justify-center">
+                              <span className="font-black text-amber-600 tracking-[0.2em] text-sm uppercase flex items-center gap-3">
+                                ☕ Receso
+                              </span>
+                            </div>
+                          ) : (
+                            DIAS_SEMANA.map(dia => {
+                              const materia = myScheduleGrid[dia]?.[pIdx] || ''
+                              const isVacant = !materia || materia.trim() === ''
+                              const isToday = dia === todayName
+                              
+                              if (isVacant) {
+                                return (
+                                  <div key={dia} className={`rounded-xl border border-dashed border-surface2 flex items-center justify-center p-3 opacity-50 ${isToday ? 'bg-surface2/50' : 'bg-bg'}`}>
+                                    <span className="text-xs text-ink4 italic">Libre</span>
+                                  </div>
+                                )
+                              }
+
+                              // Basic hash for color
+                              let charCodeSum = 0
+                              for (let i = 0; i < materia.length; i++) {
+                                charCodeSum += materia.charCodeAt(i)
+                              }
+                              const colorPalette = [
+                                'bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/30',
+                                'bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/30',
+                                'bg-violet-50 text-violet-700 border-violet-100 dark:bg-violet-900/20 dark:text-violet-300 dark:border-violet-800/30',
+                                'bg-rose-50 text-rose-700 border-rose-100 dark:bg-rose-900/20 dark:text-rose-300 dark:border-rose-800/30',
+                                'bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800/30',
+                                'bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-900/20 dark:text-cyan-300 dark:border-cyan-800/30'
+                              ]
+                              const theme = colorPalette[charCodeSum % colorPalette.length]
+
+                              return (
+                                <div key={dia} className={`rounded-xl border p-3 flex flex-col items-center justify-center text-center shadow-sm transition-all hover:scale-[1.02] ${theme} ${isToday ? 'ring-2 ring-violet-500/30 shadow-md' : ''}`}>
+                                  <span className="font-bold text-sm leading-tight line-clamp-3">{materia}</span>
+                                </div>
+                              )
+                            })
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 bg-bg rounded-2xl border border-dashed border-surface2">
+                <CalendarDays size={48} className="text-ink4/50 mb-4" />
+                <h3 className="font-bold text-ink">Horario no disponible</h3>
+                <p className="text-ink3 font-medium max-w-sm mt-1 text-center">La institución aún no ha publicado un horario para tu curso o jornada.</p>
+              </div>
+            )}
           </div>
         )}
         
