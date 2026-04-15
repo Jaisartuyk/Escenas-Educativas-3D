@@ -150,6 +150,8 @@ export function DocenteClient({
   const [actAttachments,   setActAttachments]   = useState<string[]>([])  // existing file URLs
   const [actNewFiles,      setActNewFiles]      = useState<File[]>([])    // pending uploads
   const [uploadingAtt,     setUploadingAtt]     = useState(false)
+  const [actSubmissions,   setActSubmissions]   = useState<any[]>([])     // student submissions for this assignment
+  const [loadingActSubs,   setLoadingActSubs]   = useState(false)
 
   const selectedSubject = mySubjects.find((s: any) => s.id === selectedSubjectId)
   const instId        = (profile?.institutions as any)?.id || profile?.institution_id
@@ -1747,10 +1749,21 @@ export function DocenteClient({
             {/* Tabs */}
             <div className="flex border-b border-surface2 px-5 flex-shrink-0">
               {(['general', 'descripcion', 'adjuntos', 'estudiantes'] as const).map(tab => (
-                <button key={tab} onClick={() => setActTab(tab)}
+                <button key={tab} onClick={async () => {
+                  setActTab(tab)
+                  if (tab === 'estudiantes' && editActivity?.id) {
+                    setLoadingActSubs(true)
+                    try {
+                      const res = await fetch(`/api/alumno/submissions?assignment_id=${editActivity.id}`)
+                      const data = await res.json()
+                      setActSubmissions(data.submissions || [])
+                    } catch { setActSubmissions([]) }
+                    finally { setLoadingActSubs(false) }
+                  }
+                }}
                   className={`px-4 py-3 text-sm font-medium border-b-2 transition-all capitalize
                     ${actTab === tab ? 'border-violet text-violet' : 'border-transparent text-ink3 hover:text-ink'}`}>
-                  {tab === 'descripcion' ? 'Descripción' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab === 'descripcion' ? 'Descripción' : tab === 'estudiantes' ? 'Entregas' : tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
               ))}
             </div>
@@ -1937,27 +1950,73 @@ export function DocenteClient({
               {actTab === 'estudiantes' && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-ink">Estudiantes asignados a la actividad</h3>
-                    <span className="text-xs text-ink3">{students.length} estudiantes</span>
+                    <h3 className="text-sm font-semibold text-ink">Entregas de estudiantes</h3>
+                    <span className="text-xs text-ink3">
+                      {actSubmissions.length}/{students.length} entregaron
+                    </span>
                   </div>
-                  <div className="border border-surface2 rounded-xl divide-y divide-surface overflow-hidden">
-                    {students.length === 0 ? (
-                      <p className="text-sm text-ink4 text-center py-6">No hay alumnos matriculados.</p>
-                    ) : students.map((st: any, idx: number) => {
-                      const grade = getGrade(editActivity.id, st.id)
-                      return (
-                        <div key={st.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-bg/40 transition-colors">
-                          <CheckCircle2 size={16} className="text-violet flex-shrink-0" />
-                          <span className="flex-1 text-sm text-ink font-medium truncate">{st.full_name}</span>
-                          {grade !== null ? (
-                            <span className={`text-sm font-bold ${gradeColor(grade)}`}>{grade.toFixed(1)}</span>
-                          ) : (
-                            <span className="text-xs text-ink4">Sin nota</span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
+
+                  {loadingActSubs ? (
+                    <p className="text-sm text-ink4 text-center py-6 animate-pulse">Cargando entregas...</p>
+                  ) : (
+                    <div className="border border-surface2 rounded-xl divide-y divide-surface overflow-hidden">
+                      {students.length === 0 ? (
+                        <p className="text-sm text-ink4 text-center py-6">No hay alumnos matriculados.</p>
+                      ) : students.map((st: any) => {
+                        const grade = getGrade(editActivity.id, st.id)
+                        const submission = actSubmissions.find((s: any) => s.student_id === st.id)
+                        return (
+                          <div key={st.id} className="flex flex-col gap-1 px-4 py-3 hover:bg-bg/40 transition-colors">
+                            <div className="flex items-center gap-3">
+                              {/* Status icon */}
+                              {grade !== null ? (
+                                <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                                  <CheckCircle2 size={12} className="text-white"/>
+                                </span>
+                              ) : submission ? (
+                                <span className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0">
+                                  <CheckCircle2 size={12} className="text-white"/>
+                                </span>
+                              ) : (
+                                <span className="w-5 h-5 rounded-full bg-surface2 flex-shrink-0"/>
+                              )}
+
+                              <span className="flex-1 text-sm text-ink font-medium truncate">{st.full_name}</span>
+
+                              {/* Badge */}
+                              {grade !== null ? (
+                                <span className="text-xs font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-lg">{grade.toFixed(1)}</span>
+                              ) : submission ? (
+                                <span className="text-[10px] font-black text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-lg uppercase tracking-widest">Entregó</span>
+                              ) : (
+                                <span className="text-[10px] font-black text-ink4 bg-surface2 px-2 py-0.5 rounded-lg uppercase tracking-widest">Pendiente</span>
+                              )}
+                            </div>
+
+                            {/* Submission details */}
+                            {submission && (
+                              <div className="ml-8 space-y-1">
+                                <p className="text-[10px] text-ink4">
+                                  {new Date(submission.submitted_at).toLocaleString('es-ES')}
+                                </p>
+                                {submission.comment && (
+                                  <p className="text-xs text-ink3 italic line-clamp-2 bg-surface px-2 py-1.5 rounded-lg border border-surface2">
+                                    "{submission.comment}"
+                                  </p>
+                                )}
+                                {submission.file_url && (
+                                  <a href={submission.file_url} target="_blank" rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 px-2 py-1 rounded-lg transition-colors">
+                                    <Paperclip size={10}/> Ver archivo
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
