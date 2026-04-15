@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   title: { default: 'ClassNova', template: '%s | ClassNova' },
   description: 'Planificaciones docentes inteligentes con escenas 3D didácticas para secundaria y bachillerato',
   keywords: ['planificaciones', 'docentes', 'educación', 'currículo', '3D', 'IA', 'ClassNova'],
-  manifest: '/manifest.json',
+  manifest: '/manifest.json?v=2',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -45,7 +45,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className={`${bricolage.variable} ${instrument.variable}`}>
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="icon" href="/favicon.png?v=2" type="image/png" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png?v=2" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="bg-bg text-ink font-body antialiased">
