@@ -6,10 +6,11 @@ import {
   Plus, Users, ClipboardList, BarChart2,
   CheckCircle2, XCircle, Clock3, ThumbsUp, ThumbsDown,
   Star, Trash2, BookOpen, CalendarDays, Settings, X,
+  Upload, Paperclip
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
-// Removed direct Supabase client — all writes go through admin-proxied API routes
+import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AttendanceStatus = 'present' | 'absent' | 'late'
@@ -77,6 +78,7 @@ export function DocenteClient({
   horariosData = {},
 }: any) {
   // ── Enrollments + student profiles — cargados via API (server components no pueden consultar profiles) ──
+  const supabase = createClient()
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [enrollmentsLoaded, setEnrollmentsLoaded] = useState(false)
 
@@ -145,6 +147,9 @@ export function DocenteClient({
   const [actDueTime,       setActDueTime]       = useState('23:59')
   const [actCatId,         setActCatId]         = useState('')
   const [savingAct,        setSavingAct]        = useState(false)
+  const [actAttachments,   setActAttachments]   = useState<string[]>([])  // existing file URLs
+  const [actNewFiles,      setActNewFiles]      = useState<File[]>([])    // pending uploads
+  const [uploadingAtt,     setUploadingAtt]     = useState(false)
 
   const selectedSubject = mySubjects.find((s: any) => s.id === selectedSubjectId)
   const instId        = (profile?.institutions as any)?.id || profile?.institution_id
@@ -1827,21 +1832,106 @@ export function DocenteClient({
               )}
 
               {/* ── Tab Adjuntos ── */}
-              {actTab === 'adjuntos' && (
-                <div className="space-y-4">
-                  <div className="border-2 border-dashed border-surface2 rounded-2xl p-10 text-center">
-                    <div className="text-ink4 mb-3">
-                      <BookOpen size={32} className="mx-auto opacity-40" />
-                    </div>
-                    <p className="text-sm text-ink3 mb-2">Arrastra archivos aquí o haz clic para seleccionar</p>
-                    <p className="text-xs text-ink4">PDF, imágenes, documentos — máx 10 MB</p>
-                    <button className="mt-4 bg-violet/10 text-violet px-4 py-2 rounded-xl text-sm font-semibold hover:bg-violet/20 transition-colors">
-                      Seleccionar archivos
-                    </button>
+              {actTab === 'adjuntos' && (() => {
+
+                async function handleUploadFiles() {
+                  if (!actNewFiles.length) return
+                  setUploadingAtt(true)
+                  const uploaded: string[] = []
+                  try {
+                    for (const file of actNewFiles) {
+                      const ext = file.name.split('.').pop()
+                      const fileName = `assignment-${editActivity.id}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+                      const { error } = await supabase.storage.from('submissions').upload(fileName, file)
+                      if (error) throw new Error(error.message)
+                      const { data: { publicUrl } } = supabase.storage.from('submissions').getPublicUrl(fileName)
+                      uploaded.push(publicUrl)
+                    }
+                    const merged = [...actAttachments, ...uploaded]
+                    // Save to the assignment via API (store in description metadata or dedicated field)
+                    await fetch('/api/docente/assignment-attachments', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ assignment_id: editActivity.id, file_urls: merged })
+                    })
+                    setActAttachments(merged)
+                    setActNewFiles([])
+                    toast.success(`${uploaded.length} archivo(s) subido(s) correctamente`)
+                  } catch (err: any) {
+                    toast.error(err.message)
+                  } finally {
+                    setUploadingAtt(false)
+                  }
+                }
+
+                return (
+                  <div className="space-y-4">
+                    {/* Dropzone */}
+                    <label className="border-2 border-dashed border-surface2 hover:border-violet/50 transition-colors rounded-2xl p-8 text-center cursor-pointer block group">
+                      <div className="text-ink4 mb-3 group-hover:text-violet transition-colors">
+                        <Upload size={32} className="mx-auto" />
+                      </div>
+                      <p className="text-sm text-ink3 mb-1">Arrastra archivos aquí o haz clic para seleccionar</p>
+                      <p className="text-xs text-ink4">PDF, imágenes, documentos — máx 10 MB por archivo</p>
+                      <input type="file" multiple className="hidden"
+                        accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.ppt,.pptx,.xlsx,.zip"
+                        onChange={e => {
+                          const files = Array.from(e.target.files || [])
+                          setActNewFiles(prev => [...prev, ...files])
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
+
+                    {/* Pending uploads (not yet saved) */}
+                    {actNewFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-ink4 uppercase tracking-wider">Pendientes de subir ({actNewFiles.length})</p>
+                        {actNewFiles.map((f, i) => (
+                          <div key={i} className="flex items-center gap-3 px-3 py-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 rounded-xl">
+                            <span className="text-sm flex-1 truncate text-ink">{f.name}</span>
+                            <span className="text-xs text-ink4">{(f.size / 1024).toFixed(0)} KB</span>
+                            <button type="button" onClick={() => setActNewFiles(prev => prev.filter((_, j) => j !== i))}
+                              className="text-ink4 hover:text-rose-500 transition-colors">
+                              <X size={14}/>
+                            </button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={handleUploadFiles} disabled={uploadingAtt}
+                          className="w-full py-2.5 bg-violet text-white rounded-xl font-bold text-sm hover:bg-violet2 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                          {uploadingAtt ? 'Subiendo...' : <><Upload size={16}/> Subir {actNewFiles.length} archivo(s)</>}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Already uploaded files */}
+                    {actAttachments.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-ink4 uppercase tracking-wider">Archivos adjuntos ({actAttachments.length})</p>
+                        {actAttachments.map((url, i) => {
+                          const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] || `Archivo ${i+1}`)
+                          return (
+                            <div key={i} className="flex items-center gap-3 px-3 py-2.5 bg-bg border border-surface2 rounded-xl">
+                              <Paperclip size={14} className="text-violet flex-shrink-0"/>
+                              <a href={url} target="_blank" rel="noreferrer"
+                                className="text-sm flex-1 truncate text-indigo-600 hover:underline">{name}</a>
+                              <button type="button"
+                                onClick={() => setActAttachments(prev => prev.filter((_, j) => j !== i))}
+                                className="text-ink4 hover:text-rose-500 transition-colors">
+                                <X size={14}/>
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {actAttachments.length === 0 && actNewFiles.length === 0 && (
+                      <p className="text-xs text-ink4 text-center pt-2">Aún no hay archivos adjuntos en esta tarea.</p>
+                    )}
                   </div>
-                  <p className="text-xs text-ink4 text-center">La funcionalidad de adjuntos estará disponible próximamente.</p>
-                </div>
-              )}
+                )
+              })()}
 
               {/* ── Tab Estudiantes ── */}
               {actTab === 'estudiantes' && (
