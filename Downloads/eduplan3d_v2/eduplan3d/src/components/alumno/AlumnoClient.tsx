@@ -529,31 +529,33 @@ export function AlumnoClient({
                       )
                     }
 
-                    // Dynamically generate beautiful colors based on subject hash
+                    // Dynamically generate beautiful pastel backgrounds with high-contrast text
                     let charCodeSum = 0
                     for (let i = 0; i < materia.length; i++) charCodeSum += materia.charCodeAt(i)
                     const colorThemes = [
-                      { bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-700', iconBg: 'bg-blue-100', dark: 'dark:bg-blue-900/20 dark:border-blue-800/30 dark:text-blue-300 dark:iconBg:bg-blue-900/40' },
-                      { bg: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', iconBg: 'bg-emerald-100', dark: 'dark:bg-emerald-900/20 dark:border-emerald-800/30 dark:text-emerald-300 dark:iconBg:bg-emerald-900/40' },
-                      { bg: 'bg-violet-50', border: 'border-violet-100', text: 'text-violet-700', iconBg: 'bg-violet-100', dark: 'dark:bg-violet-900/20 dark:border-violet-800/30 dark:text-violet-300 dark:iconBg:bg-violet-900/40' },
-                      { bg: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-700', iconBg: 'bg-rose-100', dark: 'dark:bg-rose-900/20 dark:border-rose-800/30 dark:text-rose-300 dark:iconBg:bg-rose-900/40' },
-                      { bg: 'bg-cyan-50', border: 'border-cyan-100', text: 'text-cyan-700', iconBg: 'bg-cyan-100', dark: 'dark:bg-cyan-900/20 dark:border-cyan-800/30 dark:text-cyan-300 dark:iconBg:bg-cyan-900/40' },
+                      { bg: 'bg-blue-50/60 dark:bg-blue-900/10', border: 'border-blue-100 dark:border-blue-800/30', iconBg: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' },
+                      { bg: 'bg-emerald-50/60 dark:bg-emerald-900/10', border: 'border-emerald-100 dark:border-emerald-800/30', iconBg: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' },
+                      { bg: 'bg-violet-50/60 dark:bg-violet-900/10', border: 'border-violet-100 dark:border-violet-800/30', iconBg: 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' },
+                      { bg: 'bg-rose-50/60 dark:bg-rose-900/10', border: 'border-rose-100 dark:border-rose-800/30', iconBg: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' },
+                      { bg: 'bg-amber-50/60 dark:bg-amber-900/10', border: 'border-amber-100 dark:border-amber-800/30', iconBg: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' },
+                      { bg: 'bg-cyan-50/60 dark:bg-cyan-900/10', border: 'border-cyan-100 dark:border-cyan-800/30', iconBg: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400' },
                     ]
                     const t = colorThemes[charCodeSum % colorThemes.length]
 
                     return (
                       <div key={pIdx} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 group">
                         <div className="w-full sm:w-[9rem] flex-shrink-0 flex sm:justify-end">
-                          <span className={`text-[11px] sm:text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm border transition-all ${t.bg} ${t.border} ${t.text} ${t.dark}`}>{periodo}</span>
+                          <span className={`text-[11px] sm:text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm border transition-all text-ink ${t.bg} ${t.border}`}>{periodo}</span>
                         </div>
-                        <div className={`flex-1 w-full p-4 sm:p-5 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 ${t.bg} ${t.border} ${t.text} ${t.dark} flex items-center justify-between`}>
+                        <div className={`flex-1 w-full p-4 sm:p-5 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 ${t.bg} ${t.border} flex items-center justify-between`}>
                            <div className="flex items-center gap-4">
                              <div className={`hidden sm:flex w-12 h-12 rounded-xl items-center justify-center font-black text-xl shadow-inner ${t.iconBg}`}>
                                {materia.substring(0,2).toUpperCase()}
                              </div>
                              <div>
-                               <div className="font-bold text-base sm:text-lg md:text-xl leading-tight mb-1 drop-shadow-sm">{materia}</div>
-                               <div className="text-[10px] sm:text-xs font-bold opacity-70 uppercase tracking-wider flex items-center gap-1.5">
+                               {/* text-ink forces high contrast reading for the class name regardless of background */}
+                               <div className="font-bold text-base sm:text-lg md:text-xl text-ink leading-tight mb-1 drop-shadow-sm">{materia}</div>
+                               <div className="text-[10px] sm:text-xs font-bold text-ink4 uppercase tracking-wider flex items-center gap-1.5">
                                  <Clock3 size={12}/> {myPeriods[pIdx]}
                                </div>
                              </div>
