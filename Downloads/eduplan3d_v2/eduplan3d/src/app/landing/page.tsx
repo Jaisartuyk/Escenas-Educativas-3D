@@ -39,7 +39,7 @@ const PLANS = [
     name: 'Institución', price: '$49', period: 'Hasta 20 docentes',
     desc: 'Para colegios y unidades educativas', featured: false,
     features: ['Todo de Pro', 'Panel de administración', 'Biblioteca compartida', 'Capacitación incluida', 'SLA garantizado'],
-    cta: 'Contactar ventas', href: 'mailto:hola@eduplan3d.io',
+    cta: 'Contactar ventas', href: 'mailto:hola@classnova.io',
   },
 ]
 
@@ -122,7 +122,7 @@ export default function LandingPage() {
       {/* ── FOOTER ── */}
       <footer className="border-t border-[rgba(120,100,255,0.14)] px-4 lg:px-12 py-6 lg:py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-ink3 text-sm">
         <Logo size="sm" />
-        <span>© 2025 EduPlan 3D — Hecho para docentes ecuatorianos 🇪🇨</span>
+        <span>© 2026 ClassNova — Inteligencia artificial para la educación</span>
         <div className="flex gap-6">
           <Link href="/legal/privacidad" className="hover:text-ink transition-colors">Privacidad</Link>
           <Link href="/legal/terminos"   className="hover:text-ink transition-colors">Términos</Link>

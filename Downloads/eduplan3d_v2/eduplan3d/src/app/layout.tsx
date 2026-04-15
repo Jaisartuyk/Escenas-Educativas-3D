@@ -25,17 +25,17 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: { default: 'EduPlan 3D', template: '%s | EduPlan 3D' },
+  title: { default: 'ClassNova', template: '%s | ClassNova' },
   description: 'Planificaciones docentes inteligentes con escenas 3D didácticas para secundaria y bachillerato',
-  keywords: ['planificaciones', 'docentes', 'educación', 'currículo', '3D', 'IA'],
+  keywords: ['planificaciones', 'docentes', 'educación', 'currículo', '3D', 'IA', 'ClassNova'],
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'EduPlan 3D',
+    title: 'ClassNova',
   },
   openGraph: {
-    title: 'EduPlan 3D',
+    title: 'ClassNova',
     description: 'Planificaciones docentes inteligentes',
     type: 'website',
   },

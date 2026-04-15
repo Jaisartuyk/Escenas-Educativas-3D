@@ -65,7 +65,7 @@ export function OnboardingModal({ profileName }: { profileName: string }) {
             ¡Hola, {profileName.split(' ')[0]}! 👋
           </h1>
           <p className="text-sm text-ink3 text-center mb-8">
-            Para empezar a usar EduPlan 3D, necesitas conectarte a una Unidad Educativa.
+            Para empezar a usar ClassNova, necesitas conectarte a una Institución Educativa.
           </p>
 
           {mode === 'select' && (

@@ -1,6 +1,6 @@
 {
-  "name": "EduPlan 3D",
-  "short_name": "EduPlan 3D",
+  "name": "ClassNova",
+  "short_name": "ClassNova",
   "description": "Planificaciones docentes inteligentes con escenas 3D didácticas",
   "start_url": "/dashboard",
   "display": "standalone",

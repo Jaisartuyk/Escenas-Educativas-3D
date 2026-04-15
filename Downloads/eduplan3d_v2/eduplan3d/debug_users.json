@@ -1,0 +1,28 @@
+{
+  "users": [
+    {
+      "email": "israferaldascarlett15@gmail.com",
+      "role": "admin",
+      "institution_id": "3734e510-a6de-4e4f-87b1-772556bf0070"
+    },
+    {
+      "email": "andy.zambrano@letamendi.edu.ec",
+      "role": "teacher",
+      "institution_id": "52572a7d-ba27-477b-8020-20d882cc30bb"
+    }
+  ],
+  "all_institutions": [
+    {
+      "id": "90bb9436-6175-4550-8f8a-e08b9441aa63",
+      "name": "Leonidas Ortega"
+    },
+    {
+      "id": "52572a7d-ba27-477b-8020-20d882cc30bb",
+      "name": "UNIDAD EDUCATIVA PARTICULAR CORONEL MIGUEL DE LETAMENDI"
+    },
+    {
+      "id": "3734e510-a6de-4e4f-87b1-772556bf0070",
+      "name": "Unidas Educativa \"24 de Julio\""
+    }
+  ]
+}
