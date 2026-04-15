@@ -57,6 +57,7 @@ export default async function DocenciaPage() {
   let grades: any[] = []
   let attendance: any[] = []
   let behaviors: any[] = []
+  let submissions: any[] = []
 
   if (subjectIds.length > 0) {
     const [aRes, attRes, behRes] = await Promise.all([
@@ -78,11 +79,18 @@ export default async function DocenciaPage() {
     behaviors = behRes.data || []
 
     if (assignments.length > 0) {
-      const { data: gData } = await admin
-        .from('grades')
-        .select('assignment_id, student_id, score')
-        .in('assignment_id', assignments.map((a: any) => a.id))
-      grades = gData || []
+      const [gRes, subRes] = await Promise.all([
+        admin
+          .from('grades')
+          .select('assignment_id, student_id, score')
+          .in('assignment_id', assignments.map((a: any) => a.id)),
+        admin
+          .from('assignment_submissions' as any)
+          .select('id, assignment_id, student_id, comment, file_url, submitted_at, student:profiles(id, full_name)')
+          .in('assignment_id', assignments.map((a: any) => a.id))
+      ])
+      grades = gRes.data || []
+      submissions = subRes.data || []
     }
   }
 
@@ -108,6 +116,7 @@ export default async function DocenciaPage() {
         attendance={attendance}
         behaviors={behaviors}
         parcialesCount={(scheduleConfig as any)?.parciales_count || 2}
+        submissions={submissions}
       />
     </div>
   )

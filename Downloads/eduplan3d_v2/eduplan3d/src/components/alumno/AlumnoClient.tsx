@@ -5,7 +5,7 @@ import {
   BookOpen, CalendarDays, BarChart2,
   CheckCircle2, Clock3, ThumbsUp, ThumbsDown,
   Upload, X, Check, Paperclip, AlertTriangle,
-  Award, Trophy, Star
+  Award, Trophy, Star, Send, ExternalLink, FileText
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
@@ -43,6 +43,67 @@ export function AlumnoClient({
   const [justifyFile, setJustifyFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [localAttendance, setLocalAttendance] = useState<any[]>(attendance || [])
+
+  // Assignment Submission Modal State
+  const [selectedAssignment, setSelectedAssignment] = useState<any>(null)
+  const [mySubmissions, setMySubmissions] = useState<Record<string, any>>({})
+  const [submitComment, setSubmitComment] = useState('')
+  const [submitFile, setSubmitFile] = useState<File | null>(null)
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false)
+  const [loadedSubmissions, setLoadedSubmissions] = useState(false)
+
+  // Load submissions once when Tareas tab is opened
+  async function loadMySubmissions() {
+    if (loadedSubmissions) return
+    try {
+      const res = await fetch('/api/alumno/submissions')
+      const data = await res.json()
+      const map: Record<string, any> = {}
+      ;(data.submissions || []).forEach((s: any) => { map[s.assignment_id] = s })
+      setMySubmissions(map)
+      setLoadedSubmissions(true)
+    } catch {}
+  }
+
+  async function handleOpenAssignment(a: any) {
+    setSelectedAssignment(a)
+    setSubmitComment('')
+    setSubmitFile(null)
+    if (!loadedSubmissions) await loadMySubmissions()
+  }
+
+  async function handleSubmitTask(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedAssignment) return
+    setIsSubmittingTask(true)
+    try {
+      let file_url = null
+      if (submitFile) {
+        const ext = submitFile.name.split('.').pop()
+        const fileName = `${profile.id}-${selectedAssignment.id}-${Date.now()}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('submissions')
+          .upload(fileName, submitFile)
+        if (uploadError) throw new Error('Error al subir: ' + uploadError.message)
+        const { data: { publicUrl } } = supabase.storage.from('submissions').getPublicUrl(fileName)
+        file_url = publicUrl
+      }
+      const res = await fetch('/api/alumno/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignment_id: selectedAssignment.id, comment: submitComment, file_url })
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setMySubmissions(prev => ({ ...prev, [selectedAssignment.id]: data.submission }))
+      toast.success('¡Tarea entregada correctamente!')
+      setSelectedAssignment(null)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setIsSubmittingTask(false)
+    }
+  }
 
   // ── Stats
   const missingAssignments = assignments.filter((a: any) => !grades.find((g: any) => g.assignment_id === a.id))
@@ -269,28 +330,31 @@ export function AlumnoClient({
               {assignments.length > 0 ? assignments.map((a: any) => {
                 const subject = subjects.find((s: any) => s.id === a.subject_id)
                 const grade = grades.find((g: any) => g.assignment_id === a.id)
+                const hasSubmission = !!mySubmissions[a.id]
                 
                 let isPastDue = false
                 if (a.due_date) {
                   const due = parseLocalDate(a.due_date)
-                  due.setHours(23, 59, 59, 999) // Due at end of day local time
+                  due.setHours(23, 59, 59, 999)
                   isPastDue = due.getTime() < new Date().getTime()
                 }
                 
                 return (
-                  <div key={a.id} className="relative overflow-hidden flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-6 rounded-2xl border border-surface2 bg-bg hover:border-amber-400/50 transition-all duration-300 group hover:shadow-md">
-                    {/* Subtle status indicator edge */}
-                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${grade ? 'bg-emerald-400' : isPastDue ? 'bg-rose-400' : 'bg-amber-400'}`} />
-                    
+                  <button key={a.id} onClick={() => { setActiveTab('tareas'); handleOpenAssignment(a) }}
+                    className="w-full text-left relative overflow-hidden flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-6 rounded-2xl border border-surface2 bg-bg hover:border-violet-400/50 transition-all duration-300 group hover:shadow-md"
+                  >
+                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${grade ? 'bg-emerald-400' : hasSubmission ? 'bg-blue-400' : isPastDue ? 'bg-rose-400' : 'bg-amber-400'}`} />
                     <div className="pl-2">
                       <div className="flex flex-wrap items-center gap-3 mb-2">
                         <div className="font-bold text-lg text-ink">{a.title}</div>
                         {grade ? (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest bg-emerald-500/10 text-emerald-600 uppercase border border-emerald-500/20">Evaluada</span>
+                        ) : hasSubmission ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest bg-blue-500/10 text-blue-600 uppercase border border-blue-500/20">Entregada ✓</span>
                         ) : isPastDue ? (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest bg-rose-500/10 text-rose-600 uppercase border border-rose-500/20">Atrasada</span>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest bg-amber-500/10 text-amber-600 uppercase border border-amber-500/20">Asignada</span>
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest bg-amber-500/10 text-amber-600 uppercase border border-amber-500/20">Pendiente</span>
                         )}
                       </div>
                       <div className="flex items-center gap-4">
@@ -308,7 +372,12 @@ export function AlumnoClient({
                         <div className="text-[10px] text-ink4 font-bold uppercase tracking-widest bg-emerald-50 text-emerald-700 px-2 rounded-md mt-1">Nota Final</div>
                       </div>
                     )}
-                  </div>
+                    {!grade && (
+                      <div className="flex-shrink-0 hidden sm:flex items-center gap-2 text-ink4 group-hover:text-violet-500 transition-colors text-xs font-semibold">
+                        <FileText size={14}/> Ver detalles
+                      </div>
+                    )}
+                  </button>
                 )
               }) : (
                 <div className="flex flex-col items-center justify-center py-20 bg-bg rounded-2xl border border-dashed border-surface2">
@@ -621,6 +690,116 @@ export function AlumnoClient({
         )}
 
       </div>
+
+      {/* ── Assignment Detail & Submit Modal ── */}
+      {selectedAssignment && (() => {
+        const sub = mySubmissions[selectedAssignment.id]
+        const subject = subjects.find((s: any) => s.id === selectedAssignment.subject_id)
+        return (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/40 backdrop-blur-md animate-fade-in">
+            <div className="bg-surface rounded-3xl border border-surface2 shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+              {/* Header */}
+              <div className="relative bg-gradient-to-r from-indigo-600 to-violet-600 p-6">
+                <button onClick={() => setSelectedAssignment(null)} className="absolute top-4 right-4 text-white/70 hover:text-white bg-black/10 hover:bg-black/20 rounded-full p-1.5 transition-colors">
+                  <X size={20}/>
+                </button>
+                <div className="flex items-start gap-3 pr-10">
+                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <BookOpen size={20} className="text-white"/>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white/60 uppercase tracking-widest mb-1">{subject?.name || 'Tarea'}</p>
+                    <h3 className="font-display text-xl font-bold text-white leading-tight">{selectedAssignment.title}</h3>
+                    {selectedAssignment.due_date && (
+                      <p className="text-xs text-white/70 mt-1 flex items-center gap-1.5">
+                        <CalendarDays size={12}/> Fecha de entrega: {parseLocalDate(selectedAssignment.due_date).toLocaleDateString('es-ES')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-6 space-y-5">
+                {/* Description */}
+                {selectedAssignment.description && (
+                  <div className="p-4 bg-bg rounded-2xl border border-surface2">
+                    <p className="text-[11px] font-black text-ink4 uppercase tracking-widest mb-2">Descripción</p>
+                    <p className="text-sm text-ink3 leading-relaxed">{selectedAssignment.description}</p>
+                  </div>
+                )}
+
+                {/* Already submitted */}
+                {sub ? (
+                  <div className="p-4 bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-2xl">
+                    <p className="text-[11px] font-black text-blue-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <CheckCircle2 size={14}/> Tarea Entregada
+                    </p>
+                    <p className="text-xs text-ink4 mb-2">
+                      Enviada el {new Date(sub.submitted_at).toLocaleString('es-ES')}
+                    </p>
+                    {sub.comment && (
+                      <div className="bg-white dark:bg-surface p-3 rounded-xl border border-surface2 text-sm text-ink3 italic mb-3">
+                        "{sub.comment}"
+                      </div>
+                    )}
+                    {sub.file_url && (
+                      <a href={sub.file_url} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-colors">
+                        <ExternalLink size={14}/> Ver archivo adjunto
+                      </a>
+                    )}
+                    <div className="mt-4 pt-4 border-t border-blue-100 dark:border-blue-800/30">
+                      <p className="text-xs text-ink4 mb-2">¿Deseas reemplazar tu entrega anterior?</p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Submit form */}
+                <form onSubmit={handleSubmitTask} className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-black text-ink4 uppercase tracking-widest mb-2 ml-1">
+                      {sub ? 'Nueva entrega (reemplaza la anterior)' : 'Tu entrega'}
+                    </label>
+                    <textarea
+                      value={submitComment} onChange={e => setSubmitComment(e.target.value)}
+                      className="input-base w-full h-28 resize-none rounded-2xl bg-bg border-surface2 focus:border-violet-500 focus:ring-violet-500/20 shadow-inner text-sm"
+                      placeholder="Escribe un comentario, respuesta o descripción de tu trabajo (opcional)..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-black text-ink4 uppercase tracking-widest mb-2 ml-1">
+                      Archivo Adjunto (Foto, PDF, Documento)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <label className="btn-secondary bg-white hover:bg-surface2 px-4 py-2.5 rounded-xl border border-surface2 cursor-pointer flex items-center gap-2 font-bold shadow-sm transition-all text-sm flex-shrink-0">
+                        <Paperclip size={16} className="text-violet-500"/> {submitFile ? 'Cambiar' : 'Seleccionar archivo'}
+                        <input type="file" className="hidden" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.ppt,.pptx,.xlsx,.zip" onChange={e => setSubmitFile(e.target.files?.[0] || null)} />
+                      </label>
+                      {submitFile ? (
+                        <div className="flex-1 min-w-0 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 truncate flex items-center gap-2">
+                          <Check size={12} className="flex-shrink-0"/> {submitFile.name}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-ink4 italic">Sin archivo...</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button type="button" onClick={() => setSelectedAssignment(null)} className="btn-secondary hover:bg-surface2 px-5 py-2.5 rounded-xl font-bold">Cerrar</button>
+                    <button type="submit" disabled={isSubmittingTask || (!submitComment.trim() && !submitFile)}
+                      className="btn-primary shadow-glow shadow-violet-500/30 px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all disabled:opacity-50">
+                      {isSubmittingTask ? 'Enviando...' : <><Send size={16}/> {sub ? 'Reenviar Tarea' : 'Entregar Tarea'}</>}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
     </div>
   )
 }

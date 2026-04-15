@@ -15,6 +15,7 @@ interface Props {
   attendance: any[]
   behaviors: any[]
   parcialesCount: number
+  submissions?: any[]
 }
 
 type TabKey = 'resumen' | 'tareas' | 'calificaciones' | 'asistencia' | 'comportamiento'
@@ -28,7 +29,7 @@ function cualitativo(score: number) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
-export function SupervisionClient({ teachers, courses, subjects, enrollments, assignments, grades, categories, attendance, behaviors, parcialesCount }: Props) {
+export function SupervisionClient({ teachers, courses, subjects, enrollments, assignments, grades, categories, attendance, behaviors, parcialesCount, submissions = [] }: Props) {
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('')
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('')
   const [activeTab, setActiveTab] = useState<TabKey>('resumen')
@@ -249,6 +250,7 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
                     filterTrimestre={filterTrimestre}
                     setFilterTrimestre={setFilterTrimestre}
                     parcialesCount={parcialesCount}
+                    submissions={submissions}
                   />
                 )}
                 {activeTab === 'calificaciones' && (
@@ -410,7 +412,7 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB: Tareas
 // ═══════════════════════════════════════════════════════════════════════════════
-function TareasTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount }: any) {
+function TareasTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount, submissions = [] }: any) {
   const filtered = assignments.filter((a: any) => a.trimestre === filterTrimestre)
 
   // Group by parcial
@@ -456,8 +458,8 @@ function TareasTab({ assignments, grades, students, categories, filterTrimestre,
               const cat = categories.find((c: any) => c.id === a.category_id)
 
               return (
-                <div key={a.id} className="bg-bg rounded-xl p-4 border border-[rgba(0,0,0,0.04)]">
-                  <div className="flex items-start justify-between">
+                <div key={a.id} className="bg-bg rounded-xl border border-[rgba(0,0,0,0.04)] overflow-hidden">
+                  <div className="flex items-start justify-between p-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-semibold text-sm">{a.title}</p>
@@ -484,6 +486,42 @@ function TareasTab({ assignments, grades, students, categories, filterTrimestre,
                       )}
                     </div>
                   </div>
+
+                  {/* Submissions section */}
+                  {(() => {
+                    const aSubmissions = submissions.filter((s: any) => s.assignment_id === a.id)
+                    if (aSubmissions.length === 0) return (
+                      <div className="px-4 pb-3 text-xs text-ink4 italic">Sin entregas de alumnos aún.</div>
+                    )
+                    return (
+                      <div className="border-t border-[rgba(0,0,0,0.04)] bg-surface">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-ink4 px-4 pt-3 pb-2">
+                          Entregas ({aSubmissions.length})
+                        </p>
+                        <div className="space-y-2 px-4 pb-3">
+                          {aSubmissions.map((s: any) => {
+                            const student = students.find((st: any) => st.id === s.student_id) ||
+                              (s.student as any)
+                            return (
+                              <div key={s.id} className="flex items-start justify-between gap-3 p-2 rounded-lg bg-bg border border-[rgba(0,0,0,0.04)]">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold text-ink truncate">{student?.full_name || 'Alumno'}</p>
+                                  <p className="text-[10px] text-ink4">{new Date(s.submitted_at).toLocaleString('es-ES')}</p>
+                                  {s.comment && <p className="text-xs text-ink3 mt-0.5 line-clamp-2 italic">"{s.comment}"</p>}
+                                </div>
+                                {s.file_url && (
+                                  <a href={s.file_url} target="_blank" rel="noreferrer"
+                                    className="flex-shrink-0 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                                    📎 Archivo
+                                  </a>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               )
             })}
