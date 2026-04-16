@@ -410,70 +410,225 @@ export function AlumnoClient({
           </div>
         )}
 
-        {activeTab === 'asistencia' && (
-          <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
-            <h2 className="font-display text-2xl font-bold flex items-center gap-3 mb-6">
-              <span className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl"><AlertTriangle size={20}/></span> 
-              Control de Asistencia
-            </h2>
-            <div className="grid grid-cols-1 gap-4">
-              {attendanceIssues.length > 0 ? attendanceIssues.map((a: any) => {
-                const subject = subjects.find((s: any) => s.id === a.subject_id)
-                const isLate = a.status === 'late'
-                
-                return (
-                  <div key={a.id} className="p-6 rounded-2xl border border-surface2 bg-bg hover:border-surface3 transition-all flex flex-col sm:flex-row justify-between sm:items-start gap-4">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider ${isLate ? 'text-amber-600 bg-amber-100 border border-amber-200' : 'text-rose-600 bg-rose-100 border border-rose-200'}`}>
-                          {isLate ? '⏳ Atraso' : '❌ Falta Injustificada'}
-                        </div>
-                        <div className="font-bold text-ink">{subject?.name || 'Clase'}</div>
-                      </div>
-                      <div className="text-sm font-medium text-ink4 flex items-center gap-2">
-                        <CalendarDays size={14}/> {new Date(a.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}
-                      </div>
-                      
-                      {a.justification_status && (
-                        <div className="mt-4 p-4 rounded-xl bg-surface border border-surface2 relative overflow-hidden">
-                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${a.justification_status === 'pending' ? 'bg-amber-400' : a.justification_status === 'approved' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-                          <div className="flex items-center gap-2 mb-2 ml-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-ink4">Estado del Trámite:</span>
-                            {a.justification_status === 'pending' && <span className="text-xs font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded">En revisión administrativa</span>}
-                            {a.justification_status === 'approved' && <span className="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded">Falta Justificada ✅</span>}
-                            {a.justification_status === 'rejected' && <span className="text-xs font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded">Rechazada ❌</span>}
-                          </div>
-                          <div className="text-sm text-ink3 italic ml-2 bg-bg p-3 rounded-lg border border-surface2">
-                            "{a.justification_text}"
-                          </div>
-                          {a.justification_file_url && (
-                            <a href={a.justification_file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 px-3 py-1.5 rounded-lg mt-3 ml-2 transition-colors">
-                              <Paperclip size={14}/> Ver Evidencia Adjunta
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {!a.justification_status && (
-                      <button onClick={() => setShowJustifyModal(a)} className="btn-secondary whitespace-nowrap bg-white hover:bg-surface2 shadow-sm border-surface2 px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 text-ink">
-                        <Upload size={16}/> Enviar Justificativo
-                      </button>
-                    )}
+        {activeTab === 'asistencia' && (() => {
+          // ── Build attendance data by subject ──
+          const allDates = Array.from(new Set(localAttendance.map((a: any) => a.date) as string[])).sort()
+          const totalPresent = localAttendance.filter((a: any) => a.status === 'present').length
+          const totalLate = localAttendance.filter((a: any) => a.status === 'late').length
+          const totalAbsent = localAttendance.filter((a: any) => a.status === 'absent').length
+          const totalRecords = localAttendance.length
+          const attendancePct = totalRecords > 0 ? ((totalPresent + totalLate) / totalRecords * 100) : 100
+
+          // Group by subject
+          const bySubject: Record<string, { subject: any; records: any[]; present: number; late: number; absent: number }> = {}
+          subjects.forEach((s: any) => {
+            const recs = localAttendance.filter((a: any) => a.subject_id === s.id)
+            bySubject[s.id] = {
+              subject: s,
+              records: recs,
+              present: recs.filter((r: any) => r.status === 'present').length,
+              late: recs.filter((r: any) => r.status === 'late').length,
+              absent: recs.filter((r: any) => r.status === 'absent').length,
+            }
+          })
+
+          // Issues for the detail list below
+          const issues = localAttendance.filter((a: any) => a.status === 'absent' || a.status === 'late')
+
+          return (
+          <div className="space-y-6">
+            {/* ── Stats Cards ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="relative overflow-hidden bg-surface rounded-2xl border border-surface2 p-5 shadow-sm">
+                <div className="absolute -right-3 -top-3 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl" />
+                <div className="text-[10px] font-black text-ink4 uppercase tracking-widest mb-1">Presentes</div>
+                <div className="text-3xl font-black text-emerald-500">{totalPresent}</div>
+              </div>
+              <div className="relative overflow-hidden bg-surface rounded-2xl border border-surface2 p-5 shadow-sm">
+                <div className="absolute -right-3 -top-3 w-16 h-16 bg-amber-500/10 rounded-full blur-xl" />
+                <div className="text-[10px] font-black text-ink4 uppercase tracking-widest mb-1">Atrasos</div>
+                <div className="text-3xl font-black text-amber-500">{totalLate}</div>
+              </div>
+              <div className="relative overflow-hidden bg-surface rounded-2xl border border-surface2 p-5 shadow-sm">
+                <div className="absolute -right-3 -top-3 w-16 h-16 bg-rose-500/10 rounded-full blur-xl" />
+                <div className="text-[10px] font-black text-ink4 uppercase tracking-widest mb-1">Faltas</div>
+                <div className="text-3xl font-black text-rose-500">{totalAbsent}</div>
+              </div>
+              <div className="relative overflow-hidden bg-surface rounded-2xl border border-surface2 p-5 shadow-sm">
+                <div className="absolute -right-3 -top-3 w-16 h-16 bg-blue-500/10 rounded-full blur-xl" />
+                <div className="text-[10px] font-black text-ink4 uppercase tracking-widest mb-1">Asistencia</div>
+                <div className={`text-3xl font-black ${attendancePct >= 80 ? 'text-emerald-500' : attendancePct >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
+                  {attendancePct.toFixed(0)}%
+                </div>
+              </div>
+            </div>
+
+            {/* ── Progress Bar ── */}
+            {totalRecords > 0 && (
+              <div className="bg-surface rounded-2xl border border-surface2 p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-bold text-ink3">Porcentaje de asistencia global</span>
+                  <span className={`text-sm font-black ${attendancePct >= 80 ? 'text-emerald-500' : attendancePct >= 60 ? 'text-amber-500' : 'text-rose-500'}`}>
+                    {attendancePct.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="h-3 bg-surface2 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-500 flex">
+                    {totalPresent > 0 && <div className="bg-emerald-500 h-full" style={{ width: `${totalPresent / totalRecords * 100}%` }} />}
+                    {totalLate > 0 && <div className="bg-amber-400 h-full" style={{ width: `${totalLate / totalRecords * 100}%` }} />}
+                    {totalAbsent > 0 && <div className="bg-rose-500 h-full" style={{ width: `${totalAbsent / totalRecords * 100}%` }} />}
                   </div>
-                )
-              }) : (
-                <div className="flex flex-col items-center justify-center py-20 bg-bg rounded-2xl border border-dashed border-emerald-300">
-                  <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-4">
-                    <CheckCircle2 size={32} />
-                  </div>
-                  <h3 className="font-display font-bold text-xl text-ink">¡Asistencia Perfecta!</h3>
-                  <p className="text-ink3 font-medium mt-1">No tienes faltas ni atrasos reportados.</p>
+                </div>
+                <div className="flex items-center gap-4 mt-2">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-ink4"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Presente</span>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-ink4"><span className="w-2 h-2 rounded-full bg-amber-400" /> Atraso</span>
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold text-ink4"><span className="w-2 h-2 rounded-full bg-rose-500" /> Falta</span>
+                </div>
+              </div>
+            )}
+
+            {/* ── Table by Subject ── */}
+            <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
+              <h2 className="font-display text-2xl font-bold flex items-center gap-3 mb-6">
+                <span className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><CalendarDays size={20}/></span>
+                Registro de Asistencia por Materia
+              </h2>
+
+              {Object.values(bySubject).some((s: any) => s.records.length > 0) ? (
+                <div className="space-y-4">
+                  {Object.values(bySubject).map((data: any) => {
+                    const total = data.records.length
+                    if (total === 0) return null
+                    const pct = total > 0 ? ((data.present + data.late) / total * 100) : 100
+                    // Get unique dates for this subject, sorted desc, last 15
+                    const subDates = Array.from(new Set(data.records.map((r: any) => r.date) as string[])).sort().reverse().slice(0, 15).reverse()
+
+                    return (
+                      <div key={data.subject.id} className="border border-surface2 rounded-2xl overflow-hidden bg-bg">
+                        {/* Subject header */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface border-b border-surface2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center text-xs font-black">
+                              {data.subject.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm text-ink">{data.subject.name}</p>
+                              <p className="text-[10px] text-ink4">{data.subject.teacher?.full_name || ''}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">✓ {data.present}</span>
+                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">⏱ {data.late}</span>
+                            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">✗ {data.absent}</span>
+                            <span className={`text-xs font-black px-2.5 py-1 rounded-lg ${pct >= 80 ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' : pct >= 60 ? 'text-amber-600 bg-amber-50 border border-amber-100' : 'text-rose-600 bg-rose-50 border border-rose-100'}`}>
+                              {pct.toFixed(0)}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Date cells */}
+                        <div className="p-4 overflow-x-auto custom-scrollbar">
+                          <div className="flex gap-2 min-w-max">
+                            {subDates.map(date => {
+                              const record = data.records.find((r: any) => r.date === date)
+                              const status = record?.status || 'unknown'
+                              const d = new Date(date + 'T12:00:00')
+                              const dayName = d.toLocaleDateString('es-EC', { weekday: 'short' })
+                              const dayNum = d.getDate()
+                              const month = d.toLocaleDateString('es-EC', { month: 'short' })
+
+                              return (
+                                <div key={date} className="flex flex-col items-center gap-1.5 min-w-[52px]">
+                                  <span className="text-[9px] font-bold text-ink4 uppercase">{dayName}</span>
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black transition-all ${
+                                    status === 'present'
+                                      ? 'bg-emerald-100 text-emerald-600 border border-emerald-200 shadow-sm'
+                                      : status === 'late'
+                                      ? 'bg-amber-100 text-amber-600 border border-amber-200 shadow-sm'
+                                      : status === 'absent'
+                                      ? 'bg-rose-100 text-rose-600 border border-rose-200 shadow-sm'
+                                      : 'bg-surface2 text-ink4 border border-surface2'
+                                  }`}>
+                                    {status === 'present' ? '✓' : status === 'late' ? '⏱' : status === 'absent' ? '✗' : '·'}
+                                  </div>
+                                  <span className="text-[9px] font-semibold text-ink4">{dayNum} {month}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 bg-bg rounded-2xl border border-dashed border-surface2">
+                  <CalendarDays size={48} className="text-ink4/50 mb-4" />
+                  <h3 className="font-bold text-ink">Sin registros de asistencia</h3>
+                  <p className="text-ink3 font-medium mt-1">Los docentes aún no han registrado asistencia.</p>
                 </div>
               )}
             </div>
+
+            {/* ── Faltas & Atrasos Detail (with justify) ── */}
+            {issues.length > 0 && (
+              <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
+                <h2 className="font-display text-xl font-bold flex items-center gap-3 mb-5">
+                  <span className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl"><AlertTriangle size={18}/></span>
+                  Faltas y Atrasos
+                </h2>
+                <div className="grid grid-cols-1 gap-3">
+                  {issues.map((a: any) => {
+                    const subject = subjects.find((s: any) => s.id === a.subject_id)
+                    const isLate = a.status === 'late'
+
+                    return (
+                      <div key={a.id} className="p-4 rounded-2xl border border-surface2 bg-bg hover:border-surface3 transition-all flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 ${isLate ? 'bg-amber-100 text-amber-600 border border-amber-200' : 'bg-rose-100 text-rose-600 border border-rose-200'}`}>
+                            {isLate ? '⏱' : '✗'}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-sm text-ink">{subject?.name || 'Materia'}</span>
+                              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg ${isLate ? 'text-amber-600 bg-amber-50 border border-amber-100' : 'text-rose-600 bg-rose-50 border border-rose-100'}`}>
+                                {isLate ? 'Atraso' : 'Falta'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-ink4 mt-0.5">
+                              {new Date(a.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {a.justification_status === 'pending' && (
+                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100">⏳ En revisión</span>
+                          )}
+                          {a.justification_status === 'approved' && (
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">✅ Justificada</span>
+                          )}
+                          {a.justification_status === 'rejected' && (
+                            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100">❌ Rechazada</span>
+                          )}
+                          {!a.justification_status && (
+                            <button
+                              onClick={() => setShowJustifyModal(a)}
+                              className="text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 px-4 py-2 rounded-xl border border-violet-100 transition-colors flex items-center gap-1.5"
+                            >
+                              <Upload size={13}/> Justificar
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+          )
+        })()}
 
         {/* Justification Modal */}
         {showJustifyModal && (
