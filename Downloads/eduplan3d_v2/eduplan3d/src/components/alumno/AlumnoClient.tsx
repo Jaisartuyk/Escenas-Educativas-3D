@@ -591,15 +591,14 @@ export function AlumnoClient({
                     return (
                       <div key={a.id} className={`rounded-2xl border overflow-hidden transition-all duration-300 ${
                         isExpanded
-                          ? 'border-violet-300 dark:border-violet-700 shadow-lg shadow-violet-500/10 bg-surface'
-                          : hasJustification
-                          ? 'border-surface2 bg-bg'
+                          ? hasJustification
+                            ? 'border-amber-200 dark:border-amber-700 shadow-lg shadow-amber-500/10 bg-surface'
+                            : 'border-violet-300 dark:border-violet-700 shadow-lg shadow-violet-500/10 bg-surface'
                           : 'border-surface2 bg-bg hover:border-violet-200 hover:shadow-md cursor-pointer'
                       }`}>
                         {/* ── Row header ── */}
                         <div
                           onClick={() => {
-                            if (hasJustification) return
                             if (isExpanded) {
                               setExpandedJustifyId(null)
                               setJustifyText('')
@@ -610,7 +609,7 @@ export function AlumnoClient({
                               setJustifyFile(null)
                             }
                           }}
-                          className={`p-4 sm:p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3 ${!hasJustification ? 'cursor-pointer' : ''}`}
+                          className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3 cursor-pointer"
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-base font-black flex-shrink-0 shadow-sm ${
@@ -667,17 +666,82 @@ export function AlumnoClient({
                           </div>
                         </div>
 
-                        {/* ── Justification already sent (view details) ── */}
-                        {hasJustification && a.justification_text && (
-                          <div className="px-5 pb-5 border-t border-surface2">
-                            <div className="mt-4 p-4 rounded-xl bg-bg border border-surface2">
-                              <p className="text-[10px] font-black text-ink4 uppercase tracking-widest mb-2">Motivo enviado</p>
-                              <p className="text-sm text-ink3 leading-relaxed italic">"{a.justification_text}"</p>
+                        {/* ── Justification already sent (view details when expanded) ── */}
+                        {isExpanded && hasJustification && (
+                          <div className="border-t border-amber-100 dark:border-amber-900/30 bg-gradient-to-b from-amber-50/50 to-transparent dark:from-amber-900/5">
+                            <div className="p-5 sm:p-6 space-y-4">
+                              {/* Status banner */}
+                              <div className={`flex items-start gap-3 p-4 rounded-xl border ${
+                                a.justification_status === 'pending'
+                                  ? 'bg-amber-50/80 border-amber-100'
+                                  : a.justification_status === 'approved'
+                                  ? 'bg-emerald-50/80 border-emerald-100'
+                                  : 'bg-rose-50/80 border-rose-100'
+                              }`}>
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                  a.justification_status === 'pending'
+                                    ? 'bg-amber-100 text-amber-600'
+                                    : a.justification_status === 'approved'
+                                    ? 'bg-emerald-100 text-emerald-600'
+                                    : 'bg-rose-100 text-rose-600'
+                                }`}>
+                                  {a.justification_status === 'pending' ? <Clock3 size={16}/> : a.justification_status === 'approved' ? <CheckCircle2 size={16}/> : <X size={16}/>}
+                                </div>
+                                <div>
+                                  <p className={`text-xs font-bold mb-0.5 ${
+                                    a.justification_status === 'pending' ? 'text-amber-700' : a.justification_status === 'approved' ? 'text-emerald-700' : 'text-rose-700'
+                                  }`}>
+                                    {a.justification_status === 'pending' ? 'Justificacion en revision' : a.justification_status === 'approved' ? 'Justificacion aprobada' : 'Justificacion rechazada'}
+                                  </p>
+                                  <p className={`text-[11px] leading-relaxed ${
+                                    a.justification_status === 'pending' ? 'text-amber-600/80' : a.justification_status === 'approved' ? 'text-emerald-600/80' : 'text-rose-600/80'
+                                  }`}>
+                                    {a.justification_status === 'pending'
+                                      ? 'Tu solicitud ha sido recibida y esta siendo revisada por la administracion del plantel.'
+                                      : a.justification_status === 'approved'
+                                      ? 'Tu falta ha sido justificada exitosamente. No se contabilizara en tu registro.'
+                                      : 'Tu justificacion no fue aceptada. Contacta a la administracion para mas detalles.'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Sent justification details */}
+                              {a.justification_text && (
+                                <div className="p-4 rounded-xl bg-white dark:bg-surface border border-surface2">
+                                  <p className="flex items-center gap-2 text-[10px] font-black text-ink4 uppercase tracking-widest mb-2">
+                                    <span className="w-4 h-4 rounded bg-violet-100 text-violet-600 flex items-center justify-center text-[9px] font-black">1</span>
+                                    Motivo enviado
+                                  </p>
+                                  <p className="text-sm text-ink2 leading-relaxed bg-bg p-3 rounded-lg border border-surface2 italic">
+                                    "{a.justification_text}"
+                                  </p>
+                                </div>
+                              )}
+
                               {a.justification_file_url && (
-                                <a href={a.justification_file_url} target="_blank" rel="noreferrer"
-                                  className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-lg bg-violet-50 text-violet-600 text-xs font-bold hover:bg-violet-100 border border-violet-100 transition-colors">
-                                  <Paperclip size={13}/> Ver documento adjunto
-                                </a>
+                                <div className="p-4 rounded-xl bg-white dark:bg-surface border border-surface2">
+                                  <p className="flex items-center gap-2 text-[10px] font-black text-ink4 uppercase tracking-widest mb-3">
+                                    <span className="w-4 h-4 rounded bg-violet-100 text-violet-600 flex items-center justify-center text-[9px] font-black">2</span>
+                                    Documento adjunto
+                                  </p>
+                                  <a href={a.justification_file_url} target="_blank" rel="noreferrer"
+                                    className="inline-flex items-center gap-3 p-3 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-colors group w-full">
+                                    <div className="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                                      <Paperclip size={18} className="text-violet-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-bold text-violet-700 truncate">Ver documento adjunto</p>
+                                      <p className="text-[10px] text-violet-500">Haz clic para abrir en nueva pestaña</p>
+                                    </div>
+                                    <ExternalLink size={14} className="text-violet-400 group-hover:text-violet-600 flex-shrink-0 transition-colors" />
+                                  </a>
+                                </div>
+                              )}
+
+                              {!a.justification_text && !a.justification_file_url && (
+                                <div className="p-4 rounded-xl bg-bg border border-surface2 text-center">
+                                  <p className="text-sm text-ink4">No hay detalles disponibles de esta justificacion.</p>
+                                </div>
                               )}
                             </div>
                           </div>
