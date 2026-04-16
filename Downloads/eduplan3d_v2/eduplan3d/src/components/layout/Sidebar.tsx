@@ -48,6 +48,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
       { href: '/dashboard/planificador', icon: '📋', label: 'Planificador' },
       { href: '/dashboard/horarios',     icon: '📅', label: 'Horarios' },
       { href: '/dashboard/docencia',      icon: '📝', label: 'Docencia' },
+      { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas' },
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
     ],
   },
@@ -75,6 +76,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
 // ─── Nav docente ─────────────────────────────────────────────────────────────
 const NAV_TEACHER: NavItem[] = [
   { href: '/dashboard/docente',      icon: '📝', label: 'Panel Docente' },
+  { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas'      },
   { href: '/dashboard/planificador', icon: '📋', label: 'Planificador'  },
   { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas'      },
   { href: '/dashboard/escenas',      icon: '🧪', label: 'Escenas 3D'    },
