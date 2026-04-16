@@ -672,6 +672,8 @@ function CalificacionesTab({ assignments, grades, students, categories, filterTr
 // TAB: Asistencia
 // ═══════════════════════════════════════════════════════════════════════════════
 function AsistenciaTab({ attendance, students }: any) {
+  const [expandedJustification, setExpandedJustification] = useState<string | null>(null)
+
   // Get unique dates sorted
   const dates = Array.from(new Set(attendance.map((a: any) => a.date) as string[])).sort()
 
@@ -690,6 +692,14 @@ function AsistenciaTab({ attendance, students }: any) {
     return stats
   }, [attendance, students])
 
+  // Justifications pending review
+  const justifications = useMemo(() =>
+    attendance.filter((a: any) => a.justification_status),
+    [attendance]
+  )
+
+  const pendingJustifications = justifications.filter((j: any) => j.justification_status === 'pending')
+
   const statusIcon: Record<string, { icon: string; color: string }> = {
     present: { icon: '✓', color: 'text-emerald-400 bg-emerald-400/10' },
     absent: { icon: '✗', color: 'text-rose-400 bg-rose-400/10' },
@@ -707,10 +717,14 @@ function AsistenciaTab({ attendance, students }: any) {
   // Show last 10 dates for readability
   const recentDates = dates.slice(-10)
 
-  return (
-    <div className="space-y-4 animate-fade-in">
-      <p className="text-xs text-ink3">{dates.length} días registrados · Mostrando últimos {recentDates.length}</p>
+  // Student name lookup
+  const studentNameMap = new Map<string, string>(students.map((s: any) => [s.id, s.full_name]))
 
+  return (
+    <div className="space-y-5 animate-fade-in">
+      <p className="text-xs text-ink3">{dates.length} dias registrados · Mostrando ultimos {recentDates.length}</p>
+
+      {/* ── Attendance Table ── */}
       <div className="overflow-x-auto custom-scrollbar">
         <table className="w-full text-sm border-collapse">
           <thead>
@@ -735,14 +749,20 @@ function AsistenciaTab({ attendance, students }: any) {
                   {recentDates.map(d => {
                     const record = attendance.find((a: any) => a.student_id === st.id && a.date === d)
                     const s = record ? statusIcon[record.status] : null
+                    const hasJustification = record?.justification_status
                     return (
-                      <td key={d} className="p-1 text-center">
+                      <td key={d} className="p-1 text-center relative">
                         {s ? (
-                          <span className={`inline-flex w-6 h-6 items-center justify-center rounded-md text-[10px] font-bold ${s.color}`}>
+                          <span className={`inline-flex w-6 h-6 items-center justify-center rounded-md text-[10px] font-bold ${s.color} ${hasJustification ? 'ring-2 ring-offset-1 ring-amber-300' : ''}`}
+                            title={hasJustification ? `Justificacion: ${record.justification_status}` : undefined}
+                          >
                             {s.icon}
                           </span>
                         ) : (
                           <span className="text-ink4 text-[10px]">·</span>
+                        )}
+                        {hasJustification && (
+                          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border border-white" />
                         )}
                       </td>
                     )
@@ -761,6 +781,104 @@ function AsistenciaTab({ attendance, students }: any) {
           </tbody>
         </table>
       </div>
+
+      {/* ── Justifications Section ── */}
+      {justifications.length > 0 && (
+        <div className="mt-2">
+          <div className="flex items-center gap-3 mb-3">
+            <h4 className="text-sm font-bold text-ink2">Justificaciones Recibidas</h4>
+            {pendingJustifications.length > 0 && (
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                {pendingJustifications.length} pendiente{pendingJustifications.length > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {justifications.map((j: any) => {
+              const isExpanded = expandedJustification === j.id
+              const studentName = studentNameMap.get(j.student_id) || 'Alumno'
+
+              return (
+                <div key={j.id} className={`rounded-xl border overflow-hidden transition-all ${
+                  isExpanded
+                    ? 'border-violet2/30 shadow-md bg-surface'
+                    : 'border-[rgba(0,0,0,0.06)] bg-bg hover:border-violet2/20'
+                }`}>
+                  {/* Header row */}
+                  <button
+                    onClick={() => setExpandedJustification(isExpanded ? null : j.id)}
+                    className="w-full p-3 flex items-center gap-3 text-left cursor-pointer"
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                      j.justification_status === 'pending'
+                        ? 'bg-amber-100 text-amber-600'
+                        : j.justification_status === 'approved'
+                        ? 'bg-emerald-100 text-emerald-600'
+                        : 'bg-rose-100 text-rose-600'
+                    }`}>
+                      {j.justification_status === 'pending' ? '⏳' : j.justification_status === 'approved' ? '✅' : '❌'}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-bold text-ink">{studentName}</span>
+                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                          j.status === 'absent' ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'
+                        }`}>
+                          {j.status === 'absent' ? 'Falta' : 'Atraso'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-ink4 mt-0.5">
+                        {new Date(j.date + 'T12:00:00').toLocaleDateString('es-EC', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg flex-shrink-0 ${
+                      j.justification_status === 'pending'
+                        ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                        : j.justification_status === 'approved'
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                        : 'bg-rose-50 text-rose-600 border border-rose-100'
+                    }`}>
+                      {j.justification_status === 'pending' ? 'Pendiente' : j.justification_status === 'approved' ? 'Aprobada' : 'Rechazada'}
+                    </span>
+
+                    <ChevronDown size={14} className={`text-ink4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Expanded details */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 border-t border-[rgba(0,0,0,0.05)] space-y-3 pt-3">
+                      {j.justification_text ? (
+                        <div className="p-3 rounded-lg bg-bg border border-[rgba(0,0,0,0.04)]">
+                          <p className="text-[10px] font-bold text-ink4 uppercase tracking-wider mb-1.5">Motivo del estudiante</p>
+                          <p className="text-sm text-ink2 leading-relaxed italic">"{j.justification_text}"</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-ink4 italic">Sin motivo detallado.</p>
+                      )}
+
+                      {j.justification_file_url && (
+                        <a
+                          href={j.justification_file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-violet2/10 text-violet2 text-xs font-bold hover:bg-violet2/20 transition-colors"
+                        >
+                          <BookOpen size={13} />
+                          Ver documento adjunto →
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
