@@ -38,12 +38,14 @@ export function AlumnoClient({
   const defaultDay = currentDayIndex >= 1 && currentDayIndex <= 5 ? DIAS_SEMANA[currentDayIndex - 1] : 'Lunes'
   const [selectedDay, setSelectedDay] = useState<string>(defaultDay)
 
-  // Justification Modal State
-  const [showJustifyModal, setShowJustifyModal] = useState<any>(null)
+  // Justification Inline State
+  const [expandedJustifyId, setExpandedJustifyId] = useState<string | null>(null)
   const [justifyText, setJustifyText] = useState('')
   const [justifyFile, setJustifyFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [localAttendance, setLocalAttendance] = useState<any[]>(attendance || [])
+  // Keep modal state for backward compat (used in handleJustifySubmit)
+  const [showJustifyModal, setShowJustifyModal] = useState<any>(null)
 
   // Assignment Submission Modal State
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null)
@@ -570,56 +572,268 @@ export function AlumnoClient({
               )}
             </div>
 
-            {/* ── Faltas & Atrasos Detail (with justify) ── */}
+            {/* ── Faltas & Atrasos Detail (with inline justify) ── */}
             {issues.length > 0 && (
               <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
-                <h2 className="font-display text-xl font-bold flex items-center gap-3 mb-5">
+                <h2 className="font-display text-xl font-bold flex items-center gap-3 mb-2">
                   <span className="p-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl"><AlertTriangle size={18}/></span>
                   Faltas y Atrasos
                 </h2>
-                <div className="grid grid-cols-1 gap-3">
+                <p className="text-xs text-ink4 mb-5 ml-1">Selecciona una falta para enviar tu justificación con documentos de respaldo.</p>
+
+                <div className="grid grid-cols-1 gap-4">
                   {issues.map((a: any) => {
                     const subject = subjects.find((s: any) => s.id === a.subject_id)
                     const isLate = a.status === 'late'
+                    const isExpanded = expandedJustifyId === a.id
+                    const hasJustification = !!a.justification_status
 
                     return (
-                      <div key={a.id} className="p-4 rounded-2xl border border-surface2 bg-bg hover:border-surface3 transition-all flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0 ${isLate ? 'bg-amber-100 text-amber-600 border border-amber-200' : 'bg-rose-100 text-rose-600 border border-rose-200'}`}>
-                            {isLate ? '⏱' : '✗'}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-sm text-ink">{subject?.name || 'Materia'}</span>
-                              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg ${isLate ? 'text-amber-600 bg-amber-50 border border-amber-100' : 'text-rose-600 bg-rose-50 border border-rose-100'}`}>
-                                {isLate ? 'Atraso' : 'Falta'}
-                              </span>
+                      <div key={a.id} className={`rounded-2xl border overflow-hidden transition-all duration-300 ${
+                        isExpanded
+                          ? 'border-violet-300 dark:border-violet-700 shadow-lg shadow-violet-500/10 bg-surface'
+                          : hasJustification
+                          ? 'border-surface2 bg-bg'
+                          : 'border-surface2 bg-bg hover:border-violet-200 hover:shadow-md cursor-pointer'
+                      }`}>
+                        {/* ── Row header ── */}
+                        <div
+                          onClick={() => {
+                            if (hasJustification) return
+                            if (isExpanded) {
+                              setExpandedJustifyId(null)
+                              setJustifyText('')
+                              setJustifyFile(null)
+                            } else {
+                              setExpandedJustifyId(a.id)
+                              setJustifyText('')
+                              setJustifyFile(null)
+                            }
+                          }}
+                          className={`p-4 sm:p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-3 ${!hasJustification ? 'cursor-pointer' : ''}`}
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-base font-black flex-shrink-0 shadow-sm ${
+                              isLate ? 'bg-gradient-to-br from-amber-100 to-amber-50 text-amber-600 border border-amber-200'
+                                     : 'bg-gradient-to-br from-rose-100 to-rose-50 text-rose-600 border border-rose-200'
+                            }`}>
+                              {isLate ? '⏱' : '✗'}
                             </div>
-                            <p className="text-xs text-ink4 mt-0.5">
-                              {new Date(a.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                            </p>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-ink">{subject?.name || 'Materia'}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg ${
+                                  isLate ? 'text-amber-700 bg-amber-100 border border-amber-200' : 'text-rose-700 bg-rose-100 border border-rose-200'
+                                }`}>
+                                  {isLate ? 'Atraso' : 'Falta'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-ink4 mt-0.5 flex items-center gap-1.5">
+                                <CalendarDays size={12}/>
+                                {new Date(a.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {a.justification_status === 'pending' && (
+                              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-100">
+                                <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                                <span className="text-xs font-bold text-amber-700">En revision</span>
+                              </div>
+                            )}
+                            {a.justification_status === 'approved' && (
+                              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                                <CheckCircle2 size={14} className="text-emerald-500" />
+                                <span className="text-xs font-bold text-emerald-700">Justificada</span>
+                              </div>
+                            )}
+                            {a.justification_status === 'rejected' && (
+                              <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-100">
+                                <X size={14} className="text-rose-500" />
+                                <span className="text-xs font-bold text-rose-700">Rechazada</span>
+                              </div>
+                            )}
+                            {!hasJustification && (
+                              <div className={`flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all text-xs font-bold ${
+                                isExpanded
+                                  ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                                  : 'bg-violet-50 text-violet-600 border border-violet-100 hover:bg-violet-100'
+                              }`}>
+                                <Upload size={13}/>
+                                {isExpanded ? 'Justificando...' : 'Justificar'}
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {a.justification_status === 'pending' && (
-                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100">⏳ En revisión</span>
-                          )}
-                          {a.justification_status === 'approved' && (
-                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100">✅ Justificada</span>
-                          )}
-                          {a.justification_status === 'rejected' && (
-                            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100">❌ Rechazada</span>
-                          )}
-                          {!a.justification_status && (
-                            <button
-                              onClick={() => setShowJustifyModal(a)}
-                              className="text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 px-4 py-2 rounded-xl border border-violet-100 transition-colors flex items-center gap-1.5"
+                        {/* ── Justification already sent (view details) ── */}
+                        {hasJustification && a.justification_text && (
+                          <div className="px-5 pb-5 border-t border-surface2">
+                            <div className="mt-4 p-4 rounded-xl bg-bg border border-surface2">
+                              <p className="text-[10px] font-black text-ink4 uppercase tracking-widest mb-2">Motivo enviado</p>
+                              <p className="text-sm text-ink3 leading-relaxed italic">"{a.justification_text}"</p>
+                              {a.justification_file_url && (
+                                <a href={a.justification_file_url} target="_blank" rel="noreferrer"
+                                  className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-lg bg-violet-50 text-violet-600 text-xs font-bold hover:bg-violet-100 border border-violet-100 transition-colors">
+                                  <Paperclip size={13}/> Ver documento adjunto
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── Inline justification form ── */}
+                        {isExpanded && !hasJustification && (
+                          <div className="border-t border-violet-100 dark:border-violet-900/30 bg-gradient-to-b from-violet-50/50 to-transparent dark:from-violet-900/5">
+                            <form
+                              onSubmit={async (e) => {
+                                e.preventDefault()
+                                if (!justifyText.trim()) return
+                                setIsSubmitting(true)
+                                try {
+                                  let file_url = null
+                                  if (justifyFile) {
+                                    const ext = justifyFile.name.split('.').pop()
+                                    const fileName = `${profile.id}-${Date.now()}.${ext}`
+                                    const { error: uploadError } = await supabase.storage.from('justifications').upload(fileName, justifyFile)
+                                    if (uploadError) throw new Error('Error al subir: ' + uploadError.message)
+                                    const { data: { publicUrl } } = supabase.storage.from('justifications').getPublicUrl(fileName)
+                                    file_url = publicUrl
+                                  }
+                                  const res = await fetch('/api/alumno/attendance/justify', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ attendance_id: a.id, text: justifyText, file_url })
+                                  })
+                                  const data = await res.json()
+                                  if (data.error) throw new Error(data.error)
+                                  setLocalAttendance(prev => prev.map(att =>
+                                    att.id === a.id ? { ...att, justification_status: 'pending', justification_text: justifyText, justification_file_url: file_url } : att
+                                  ))
+                                  toast.success('Justificacion enviada correctamente')
+                                  setExpandedJustifyId(null)
+                                  setJustifyText('')
+                                  setJustifyFile(null)
+                                } catch (err: any) {
+                                  toast.error(err.message)
+                                } finally {
+                                  setIsSubmitting(false)
+                                }
+                              }}
+                              className="p-5 sm:p-6 space-y-5"
                             >
-                              <Upload size={13}/> Justificar
-                            </button>
-                          )}
-                        </div>
+                              {/* Info banner */}
+                              <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-50/80 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/30">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <AlertTriangle size={16} className="text-indigo-500" />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-0.5">Proceso de Justificacion</p>
+                                  <p className="text-[11px] text-indigo-600/80 dark:text-indigo-400/80 leading-relaxed">
+                                    Describe el motivo de la inasistencia y adjunta un certificado medico, constancia u otro documento probatorio.
+                                    Tu solicitud sera revisada por la administracion.
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Text area */}
+                              <div>
+                                <label className="flex items-center gap-2 text-[11px] font-black text-ink3 uppercase tracking-widest mb-2.5">
+                                  <span className="w-5 h-5 rounded-md bg-violet-100 text-violet-600 flex items-center justify-center text-[10px] font-black">1</span>
+                                  Motivo de la Inasistencia <span className="text-rose-400">*</span>
+                                </label>
+                                <textarea
+                                  required
+                                  autoFocus
+                                  value={justifyText}
+                                  onChange={e => setJustifyText(e.target.value)}
+                                  rows={4}
+                                  className="input-base w-full resize-none rounded-2xl bg-white dark:bg-surface border-surface2 focus:border-violet-400 focus:ring-2 focus:ring-violet-500/10 text-sm leading-relaxed shadow-sm"
+                                  placeholder="Ej: El estudiante presento sintomas de gripe con fiebre alta, por lo que asistio a consulta medica durante el horario de clases..."
+                                />
+                              </div>
+
+                              {/* File upload */}
+                              <div>
+                                <label className="flex items-center gap-2 text-[11px] font-black text-ink3 uppercase tracking-widest mb-2.5">
+                                  <span className="w-5 h-5 rounded-md bg-violet-100 text-violet-600 flex items-center justify-center text-[10px] font-black">2</span>
+                                  Documento de Respaldo
+                                  <span className="text-[9px] font-semibold text-ink4 normal-case tracking-normal ml-1">(opcional)</span>
+                                </label>
+
+                                {!justifyFile ? (
+                                  <label className="group flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 border-dashed border-surface2 hover:border-violet-300 bg-white dark:bg-surface hover:bg-violet-50/30 cursor-pointer transition-all duration-300">
+                                    <div className="w-14 h-14 rounded-2xl bg-violet-100 dark:bg-violet-900/30 text-violet-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                                      <Upload size={24} />
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-sm font-bold text-ink2 group-hover:text-violet-600 transition-colors">
+                                        Arrastra o haz clic para subir
+                                      </p>
+                                      <p className="text-[11px] text-ink4 mt-1">
+                                        Certificado medico, constancia, foto, PDF · Max 10MB
+                                      </p>
+                                    </div>
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.webp"
+                                      onChange={e => setJustifyFile(e.target.files?.[0] || null)}
+                                    />
+                                  </label>
+                                ) : (
+                                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/30">
+                                    <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                                      <Paperclip size={18} className="text-emerald-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 truncate">{justifyFile.name}</p>
+                                      <p className="text-[10px] text-emerald-600/70 mt-0.5">
+                                        {(justifyFile.size / 1024).toFixed(0)} KB · Listo para enviar
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setJustifyFile(null)}
+                                      className="w-8 h-8 rounded-lg bg-emerald-100 hover:bg-rose-100 text-emerald-600 hover:text-rose-600 flex items-center justify-center transition-colors flex-shrink-0"
+                                    >
+                                      <X size={15} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex items-center justify-between pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => { setExpandedJustifyId(null); setJustifyText(''); setJustifyFile(null) }}
+                                  className="text-xs font-bold text-ink4 hover:text-ink transition-colors px-4 py-2.5 rounded-xl hover:bg-surface2"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="submit"
+                                  disabled={isSubmitting || !justifyText.trim()}
+                                  className="btn-primary px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 text-sm shadow-lg shadow-violet-500/25 disabled:opacity-50 disabled:shadow-none transition-all"
+                                >
+                                  {isSubmitting ? (
+                                    <>
+                                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                      Enviando...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send size={15} />
+                                      Enviar Justificacion
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </form>
+                          </div>
+                        )}
                       </div>
                     )
                   })}
