@@ -290,17 +290,17 @@ export function AlumnoClient({
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
-                { label: 'Materias Inscritas', value: subjects.length, color: 'from-blue-600 to-cyan-500', icon: '📚', shadow: 'shadow-blue-500/20' },
-                { label: 'Tareas Pendientes', value: missingAssignments.length, color: 'from-amber-500 to-orange-600', icon: '📝', shadow: 'shadow-orange-500/20' },
-                { label: 'Faltas y Atrasos', value: attendanceIssues.length, color: 'from-rose-600 to-red-600', icon: '⚠️', shadow: 'shadow-rose-500/20' },
-                { label: 'Felicitaciones', value: merits.length, color: 'from-emerald-500 to-teal-600', icon: '🏆', shadow: 'shadow-emerald-500/20' },
+                { label: 'Materias Inscritas', value: subjects.length, color: 'from-blue-600 to-cyan-500', numColor: 'text-blue-600', icon: '📚', shadow: 'shadow-blue-500/20' },
+                { label: 'Tareas Pendientes', value: missingAssignments.length, color: 'from-amber-500 to-orange-600', numColor: 'text-amber-600', icon: '📝', shadow: 'shadow-orange-500/20' },
+                { label: 'Faltas y Atrasos', value: attendanceIssues.length, color: 'from-rose-600 to-red-600', numColor: 'text-rose-600', icon: '⚠️', shadow: 'shadow-rose-500/20' },
+                { label: 'Felicitaciones', value: merits.length, color: 'from-emerald-500 to-teal-600', numColor: 'text-emerald-600', icon: '🏆', shadow: 'shadow-emerald-500/20' },
               ].map((stat, i) => (
                 <div key={i} className={`relative overflow-hidden bg-surface rounded-[1.5rem] border border-surface2 p-6 shadow-xl ${stat.shadow} hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 group`}>
                   <div className={`absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-br ${stat.color} opacity-10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500`} />
                   <div className="flex justify-between items-start relative z-10">
                     <div>
                       <div className="text-[11px] font-black text-ink2 uppercase tracking-widest mb-1">{stat.label}</div>
-                      <div className={`text-4xl font-black bg-gradient-to-br ${stat.color} text-transparent bg-clip-text`}>{stat.value}</div>
+                      <div className={`text-4xl font-black ${stat.numColor}`}>{stat.value}</div>
                     </div>
                     <div className={`text-2xl p-3 bg-gradient-to-br ${stat.color} bg-opacity-10 rounded-2xl bg-clip-padding backdrop-filter backdrop-blur-sm shadow-sm`}>{stat.icon}</div>
                   </div>
