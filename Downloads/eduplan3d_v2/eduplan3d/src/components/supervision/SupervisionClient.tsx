@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ChevronDown, BookOpen, ClipboardCheck, Users, AlertTriangle, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { ChevronDown, BookOpen, ClipboardCheck, Users, AlertTriangle, CheckCircle, Clock, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Props {
@@ -673,6 +674,23 @@ function CalificacionesTab({ assignments, grades, students, categories, filterTr
 // ═══════════════════════════════════════════════════════════════════════════════
 function AsistenciaTab({ attendance, students }: any) {
   const [expandedJustification, setExpandedJustification] = useState<string | null>(null)
+  // Local status overrides for optimistic UI updates: id → new status
+  const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({})
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+
+  const supabase = createClient()
+
+  async function handleJustificationAction(id: string, action: 'approved' | 'rejected') {
+    setUpdatingId(id)
+    const { error } = await supabase
+      .from('attendance')
+      .update({ justification_status: action })
+      .eq('id', id)
+    if (!error) {
+      setLocalStatuses(prev => ({ ...prev, [id]: action }))
+    }
+    setUpdatingId(null)
+  }
 
   // Get unique dates sorted
   const dates = Array.from(new Set(attendance.map((a: any) => a.date) as string[])).sort()
@@ -698,7 +716,16 @@ function AsistenciaTab({ attendance, students }: any) {
     [attendance]
   )
 
-  const pendingJustifications = justifications.filter((j: any) => j.justification_status === 'pending')
+  // Merge local status overrides
+  const effectiveJustifications = useMemo(() =>
+    justifications.map((j: any) => ({
+      ...j,
+      justification_status: localStatuses[j.id] ?? j.justification_status,
+    })),
+    [justifications, localStatuses]
+  )
+
+  const pendingJustifications = effectiveJustifications.filter((j: any) => j.justification_status === 'pending')
 
   const statusIcon: Record<string, { icon: string; color: string }> = {
     present: { icon: '✓', color: 'text-emerald-400 bg-emerald-400/10' },
@@ -796,9 +823,13 @@ function AsistenciaTab({ attendance, students }: any) {
           </div>
 
           <div className="space-y-2">
-            {justifications.map((j: any) => {
+            {effectiveJustifications.map((j: any) => {
               const isExpanded = expandedJustification === j.id
               const studentName = studentNameMap.get(j.student_id) || 'Alumno'
+              const isPending = j.justification_status === 'pending'
+              const isApproved = j.justification_status === 'approved'
+              const isRejected = j.justification_status === 'rejected'
+              const isUpdating = updatingId === j.id
 
               return (
                 <div key={j.id} className={`rounded-xl border overflow-hidden transition-all ${
@@ -812,13 +843,13 @@ function AsistenciaTab({ attendance, students }: any) {
                     className="w-full p-3 flex items-center gap-3 text-left cursor-pointer"
                   >
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                      j.justification_status === 'pending'
+                      isPending
                         ? 'bg-amber-100 text-amber-600'
-                        : j.justification_status === 'approved'
+                        : isApproved
                         ? 'bg-emerald-100 text-emerald-600'
                         : 'bg-rose-100 text-rose-600'
                     }`}>
-                      {j.justification_status === 'pending' ? '⏳' : j.justification_status === 'approved' ? '✅' : '❌'}
+                      {isPending ? '⏳' : isApproved ? '✅' : '❌'}
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -836,13 +867,13 @@ function AsistenciaTab({ attendance, students }: any) {
                     </div>
 
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg flex-shrink-0 ${
-                      j.justification_status === 'pending'
+                      isPending
                         ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                        : j.justification_status === 'approved'
+                        : isApproved
                         ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                         : 'bg-rose-50 text-rose-600 border border-rose-100'
                     }`}>
-                      {j.justification_status === 'pending' ? 'Pendiente' : j.justification_status === 'approved' ? 'Aprobada' : 'Rechazada'}
+                      {isPending ? 'Pendiente' : isApproved ? 'Aprobada' : 'Rechazada'}
                     </span>
 
                     <ChevronDown size={14} className={`text-ink4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
@@ -870,6 +901,55 @@ function AsistenciaTab({ attendance, students }: any) {
                           <BookOpen size={13} />
                           Ver documento adjunto →
                         </a>
+                      )}
+
+                      {/* ── Approve / Reject Actions ── */}
+                      {isPending && (
+                        <div className="flex items-center gap-2 pt-1 border-t border-[rgba(0,0,0,0.05)]">
+                          <span className="text-[10px] text-ink4 font-semibold flex-1">Resolución:</span>
+                          <button
+                            onClick={() => handleJustificationAction(j.id, 'approved')}
+                            disabled={isUpdating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 text-xs font-bold hover:bg-emerald-500/20 transition-colors disabled:opacity-50 border border-emerald-500/20"
+                          >
+                            {isUpdating ? (
+                              <span className="w-3 h-3 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
+                            ) : (
+                              <ThumbsUp size={12} />
+                            )}
+                            Aprobar
+                          </button>
+                          <button
+                            onClick={() => handleJustificationAction(j.id, 'rejected')}
+                            disabled={isUpdating}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-600 text-xs font-bold hover:bg-rose-500/20 transition-colors disabled:opacity-50 border border-rose-500/20"
+                          >
+                            {isUpdating ? (
+                              <span className="w-3 h-3 rounded-full border-2 border-rose-500 border-t-transparent animate-spin" />
+                            ) : (
+                              <ThumbsDown size={12} />
+                            )}
+                            Rechazar
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Status resolved badge */}
+                      {!isPending && (
+                        <div className={`flex items-center gap-2 text-xs font-semibold pt-1 border-t border-[rgba(0,0,0,0.05)] ${
+                          isApproved ? 'text-emerald-500' : 'text-rose-500'
+                        }`}>
+                          {isApproved ? <CheckCircle size={13} /> : <XCircle size={13} />}
+                          Justificación {isApproved ? 'aprobada' : 'rechazada'} por el administrador
+                          {localStatuses[j.id] && (
+                            <button
+                              onClick={() => setLocalStatuses(prev => { const n = {...prev}; delete n[j.id]; return n })}
+                              className="ml-auto text-[10px] text-ink4 hover:text-ink3 underline"
+                            >
+                              Deshacer
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
