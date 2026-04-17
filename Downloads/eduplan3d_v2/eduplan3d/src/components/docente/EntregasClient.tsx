@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import {
   Inbox, BookOpen, CheckCircle2, Clock3, Filter, ChevronDown,
-  Search, FileText, Check, AlertTriangle, ExternalLink, MessageSquare, Award, X
+  Search, FileText, Check, AlertTriangle, ExternalLink, MessageSquare, Award, X, Eye, EyeOff
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -25,6 +25,7 @@ export function EntregasClient({ profile, subjects, assignments, submissions, gr
   const [filterStatus, setFilterStatus] = useState('todos') // todos, evaluadas, pendientes
   const [searchTerm, setSearchTerm] = useState('')
   const [expandedAsg, setExpandedAsg] = useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = useState<Record<string, boolean>>({})
 
   // ── Filtros Derivados ──
   const courses = useMemo(() => {
@@ -261,39 +262,56 @@ export function EntregasClient({ profile, subjects, assignments, submissions, gr
                               const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)/i.test(lower)
                               const isPdf = /\.pdf/i.test(lower)
                               const isOffice = /\.(docx?|xlsx?|pptx?|odt|ods|odp)/i.test(lower)
-
-                              // URL para el visor de Microsoft Office Online (gratis, solo necesita URL pública)
                               const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`
+                              const isOpen = previewOpen[sub.id] || false
 
                               return (
                                 <div className="flex flex-col gap-2 w-full max-w-2xl">
-                                  {/* Preview según tipo de archivo */}
-                                  {isImage && (
-                                    <a href={url} target="_blank" rel="noreferrer" className="block max-w-xs overflow-hidden rounded-xl border border-surface2 hover:shadow-md transition-shadow">
-                                      <img src={url} alt="Vista previa" className="w-full h-auto object-contain max-h-[300px]" />
+                                  {/* Botones de acción */}
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setPreviewOpen(prev => ({ ...prev, [sub.id]: !prev[sub.id] })) }}
+                                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg transition-all border ${
+                                        isOpen
+                                          ? 'bg-violet-100 text-violet-700 border-violet-200 shadow-sm'
+                                          : 'bg-surface text-ink3 border-surface2 hover:bg-violet-50 hover:text-violet-600 hover:border-violet-200'
+                                      }`}
+                                    >
+                                      {isOpen ? <EyeOff size={14} /> : <Eye size={14} />}
+                                      {isOpen ? 'Ocultar vista previa' : 'Ver archivo'}
+                                    </button>
+                                    <a href={url} target="_blank" rel="noreferrer"
+                                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg transition-colors border border-indigo-100">
+                                      <ExternalLink size={14} className="flex-shrink-0" />
+                                      <span>Abrir en pestaña nueva</span>
                                     </a>
-                                  )}
-                                  {isPdf && (
-                                    <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
-                                      <iframe src={url} className="w-full h-[400px]" title="Vista previa del PDF" />
+                                  </div>
+
+                                  {/* Vista previa colapsable */}
+                                  {isOpen && (
+                                    <div className="animate-fade-in">
+                                      {isImage && (
+                                        <a href={url} target="_blank" rel="noreferrer" className="block max-w-xs overflow-hidden rounded-xl border border-surface2 hover:shadow-md transition-shadow">
+                                          <img src={url} alt="Vista previa" className="w-full h-auto object-contain max-h-[300px]" />
+                                        </a>
+                                      )}
+                                      {isPdf && (
+                                        <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
+                                          <iframe src={url} className="w-full h-[400px]" title="Vista previa del PDF" />
+                                        </div>
+                                      )}
+                                      {isOffice && (
+                                        <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
+                                          <iframe src={officeViewerUrl} className="w-full h-[400px]" title="Vista previa del documento" />
+                                        </div>
+                                      )}
+                                      {!isImage && !isPdf && !isOffice && (
+                                        <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
+                                          <iframe src={url} className="w-full h-[350px]" title="Vista previa del archivo" />
+                                        </div>
+                                      )}
                                     </div>
                                   )}
-                                  {isOffice && (
-                                    <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
-                                      <iframe src={officeViewerUrl} className="w-full h-[400px]" title="Vista previa del documento" />
-                                    </div>
-                                  )}
-                                  {!isImage && !isPdf && !isOffice && (
-                                    <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
-                                      <iframe src={url} className="w-full h-[350px]" title="Vista previa del archivo" />
-                                    </div>
-                                  )}
-                                  <a href={url} target="_blank" rel="noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors border border-indigo-100 max-w-full w-max">
-                                    <FileText size={14} className="flex-shrink-0" />
-                                    <span className="truncate">Abrir en pestaña nueva</span>
-                                    <ExternalLink size={12} className="ml-1 opacity-60 flex-shrink-0" />
-                                  </a>
                                 </div>
                               )
                             })() : (
