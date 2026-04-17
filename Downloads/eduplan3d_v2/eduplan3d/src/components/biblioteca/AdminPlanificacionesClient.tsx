@@ -256,7 +256,11 @@ export function AdminPlanificacionesClient({ planificaciones, teachers }: Props)
                         {docs.map(doc => {
                           const url = getUrl(doc.storage_path)
                           const isPreview = previewId === doc.id
-                          const isPdfFile = doc.file_name?.toLowerCase().endsWith('.pdf') || doc.file_type === 'application/pdf'
+                          const lowerName = (doc.file_name || '').toLowerCase()
+                          const isOffice = /\.(docx?|xlsx?|pptx?|odt|ods|odp)/i.test(lowerName)
+                          const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)/i.test(lowerName)
+                          const isPdfFile = lowerName.endsWith('.pdf') || doc.file_type === 'application/pdf'
+                          const canPreview = isPdfFile || isOffice || isImage
                           
                           return (
                             <div key={doc.id} className="bg-surface rounded-2xl border border-surface2 p-4 shadow-sm hover:shadow-md transition-shadow group relative">
@@ -280,7 +284,7 @@ export function AdminPlanificacionesClient({ planificaciones, teachers }: Props)
                               )}
 
                               <div className="flex items-center gap-3 mt-4 pt-3 border-t border-surface2">
-                                {isPdfFile ? (
+                                {canPreview ? (
                                   <button 
                                     onClick={() => setPreviewId(isPreview ? null : doc.id)}
                                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all ${
@@ -292,7 +296,7 @@ export function AdminPlanificacionesClient({ planificaciones, teachers }: Props)
                                     <Eye size={14} /> {isPreview ? 'Cerrar' : 'Ver'}
                                   </button>
                                 ) : (
-                                  <div className="flex-1 opacity-50 cursor-not-allowed flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-surface2 text-ink3">
+                                  <div className="flex-1 opacity-50 cursor-not-allowed flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-surface2 text-ink3" title="Formato no soportado para vista previa">
                                     <MoreVertical size={14} /> No previsualizable
                                   </div>
                                 )}
@@ -306,7 +310,7 @@ export function AdminPlanificacionesClient({ planificaciones, teachers }: Props)
                                 </a>
                               </div>
 
-                              {isPreview && isPdfFile && (
+                              {isPreview && canPreview && (
                                 <div className="mt-4 animate-in fade-in slide-in-from-top-2">
                                   <FilePreview url={url} compact />
                                 </div>
