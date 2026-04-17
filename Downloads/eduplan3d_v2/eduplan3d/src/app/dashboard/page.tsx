@@ -333,11 +333,33 @@ export default async function DashboardPage() {
   startOfPeriod.setDate(startOfPeriod.getDate() - 14);
   const startOfPeriodISO = startOfPeriod.toISOString();
 
+  // ─── Institutional Filters for Metrics ───────────────────────────────────
+  // Get all teacher IDs of this institution
+  const { data: instTeachers } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('institution_id', instId)
+    .eq('role', 'teacher');
+  const teacherIds = (instTeachers || []).map(t => t.id);
+
+  // Get all subject IDs of this institution (via courses)
+  const { data: instCourses } = await admin
+    .from('courses')
+    .select('id')
+    .eq('institution_id', instId);
+  const courseIds = (instCourses || []).map(c => c.id);
+
+  const { data: instSubs } = await admin
+    .from('subjects')
+    .select('id')
+    .in('course_id', courseIds.length > 0 ? courseIds : ['none']);
+  const subjectIds = (instSubs || []).map(s => s.id);
+
   // 1. Tendencia de planificaciones (últimos 14 días)
   const { data: trendRaw } = (await admin
     .from('planificacion_docs')
-    .select('created_at, user_id, profiles!inner(institution_id)')
-    .eq('profiles.institution_id', instId)
+    .select('created_at, user_id')
+    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])
     .gte('created_at', startOfPeriodISO)) as any;
 
   const last14Days = Array.from({ length: 14 }, (_, i) => {
@@ -354,8 +376,8 @@ export default async function DashboardPage() {
   // 2. Distribución de contenido
   const { data: typeCounts } = (await admin
     .from('planificacion_docs')
-    .select('tipo, profiles!inner(institution_id)')
-    .eq('profiles.institution_id', instId)) as any;
+    .select('tipo')
+    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])) as any;
 
   const contentDistribution = [
     { name: 'Anual', value: ((typeCounts as any[]) || []).filter((p: any) => p.tipo === 'anual').length },
@@ -368,17 +390,17 @@ export default async function DashboardPage() {
   const { data: attData } = await admin
     .from('attendance')
     .select('status, subject_id')
-    .eq('institution_id', instId);
+    .in('subject_id', subjectIds.length > 0 ? subjectIds : ['none']);
 
   const { data: subData } = await admin
     .from('subjects')
     .select('id, course:courses(level)')
-    .eq('institution_id', instId);
+    .in('id', subjectIds.length > 0 ? subjectIds : ['none']);
 
   const levels = ['Escuela', 'Colegio'];
   const attendanceByLevel = levels.map(lvl => {
     const relevantSubIds = (subData || [])
-      .filter((s: any) => s.course?.level === lvl)
+      .filter((s: any) => (s.course as any)?.level === lvl)
       .map((s: any) => s.id);
     
     const records = (attData || []).filter(a => relevantSubIds.includes(a.subject_id));
@@ -405,8 +427,8 @@ export default async function DashboardPage() {
   // Datos recientes para la lista
   const { data: planificaciones } = (await admin
     .from('planificacion_docs')
-    .select('id, titulo, asignatura, curso, tipo, created_at, profiles!inner(institution_id)')
-    .eq('profiles.institution_id', instId)
+    .select('id, titulo, asignatura, curso, tipo, created_at')
+    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])
     .order('created_at', { ascending: false })
     .limit(5)) as any;
 
@@ -421,13 +443,13 @@ export default async function DashboardPage() {
 
   const { count: totalPlans } = (await admin
     .from('planificacion_docs')
-    .select('*, profiles!inner(institution_id)', { count: 'exact', head: true })
-    .eq('profiles.institution_id', instId)) as any;
+    .select('*', { count: 'exact', head: true })
+    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])) as any;
 
   const { count: thisMonth } = (await admin
     .from('planificacion_docs')
-    .select('*, profiles!inner(institution_id)', { count: 'exact', head: true })
-    .eq('profiles.institution_id', instId)
+    .select('*', { count: 'exact', head: true })
+    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])
     .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())) as any;
 
   return (
