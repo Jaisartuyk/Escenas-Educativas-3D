@@ -190,26 +190,33 @@ export function DocxEditor({ fileUrl, fileName, storagePath, docId, onClose, onS
       const htmlDocx = (await import('html-docx-js/dist/html-docx')).default
       const blob: Blob = htmlDocx.asBlob(html)
 
-      // Delete old file and re-upload (avoids RLS issues with storage.update)
-      await supabase.storage.from('submissions').remove([storagePath])
+      // Upload to a NEW path (avoids RLS overwrite restriction — bucket only allows INSERT)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('No autenticado')
+
+      const baseName = fileName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9._-]/g, '_')
+      const newPath = `planificacion_docs/${user.id}/${Date.now()}_${baseName}.docx`
 
       const { error: uploadErr } = await supabase.storage
         .from('submissions')
-        .upload(storagePath, blob, {
+        .upload(newPath, blob, {
           contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          upsert: true,
         })
       if (uploadErr) throw new Error('Error al subir: ' + uploadErr.message)
 
-      // Update file_size in DB (use admin-free anon call — user owns the row via RLS)
+      // Update DB record with new path + file size
       const { error: dbErr } = await (supabase as any)
         .from('planificacion_docs')
         .update({
+          storage_path: newPath,
           file_size: blob.size,
           file_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         })
         .eq('id', docId)
-      if (dbErr) console.warn('DB update warning:', dbErr.message)
+      if (dbErr) throw new Error('Error al actualizar registro: ' + dbErr.message)
+
+      // Clean up old file silently (ignore errors)
+      supabase.storage.from('submissions').remove([storagePath]).catch(() => {})
 
       toast.success('¡Planificación guardada! ✓', { id: t })
       onSaved()
