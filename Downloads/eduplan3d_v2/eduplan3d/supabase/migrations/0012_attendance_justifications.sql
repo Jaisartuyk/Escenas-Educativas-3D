@@ -3,8 +3,11 @@
 -- Añade soporte para la justificación de faltas y atrasos por parte de padres/estudiantes
 
 ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS justification_text text;
-ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS justification_status text DEFAULT 'pending' CHECK (justification_status IN ('pending', 'approved', 'rejected'));
+ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS justification_status text DEFAULT NULL CHECK (justification_status IS NULL OR justification_status IN ('pending', 'approved', 'rejected'));
 ALTER TABLE public.attendance ADD COLUMN IF NOT EXISTS justification_file_url text; -- Para subir certificados médicos si es necesario
+
+-- Corregir registros existentes sin texto de justificación (creados con DEFAULT 'pending' incorrecto)
+UPDATE public.attendance SET justification_status = NULL WHERE justification_text IS NULL AND justification_status = 'pending';
 
 -- Actualizar comentario de la tabla para documentación
 COMMENT ON COLUMN public.attendance.justification_text IS 'Motivo ingresado por el padre/estudiante para justificar falta/atraso';
