@@ -45,7 +45,6 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
     icon: '📚',
     color: 'from-amber/20 to-amber/5',
     items: [
-      { href: '/dashboard/planificador', icon: '📋', label: 'Planificador' },
       { href: '/dashboard/horarios',     icon: '📅', label: 'Horarios' },
       { href: '/dashboard/docencia',      icon: '📝', label: 'Docencia' },
       { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas' },
@@ -57,8 +56,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
     icon: '🔬',
     color: 'from-rose/20 to-rose/5',
     items: [
-      { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca' },
-      { href: '/dashboard/escenas',      icon: '🧪', label: 'Escenas 3D' },
+      { href: '/dashboard/biblioteca',   icon: '📋', label: 'Planificaciones Docentes' },
     ],
   },
   {

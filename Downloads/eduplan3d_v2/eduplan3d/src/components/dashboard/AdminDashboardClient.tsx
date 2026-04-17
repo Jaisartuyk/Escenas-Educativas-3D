@@ -349,7 +349,7 @@ export function AdminDashboardClient({
               { icon: '📅', title: 'Generar horario',            sub: 'Sin choques de docentes',  href: '/dashboard/horarios',                bg: 'bg-[rgba(38,215,180,0.15)]' },
               { icon: '🏫', title: 'Mi Institucion',             sub: 'Cursos, materias, personal', href: '/dashboard/institucion',           bg: 'bg-[rgba(255,179,71,0.15)]' },
               { icon: '📊', title: 'Libretas',                   sub: 'Calificaciones generales', href: '/dashboard/libretas',                bg: 'bg-[rgba(240,98,146,0.15)]' },
-              { icon: '🔬', title: 'Escenas 3D',                 sub: 'Modelos interactivos',     href: '/dashboard/escenas',                 bg: 'bg-emerald-500/15' },
+
             ].map(a => (
               <Link key={a.title} href={a.href} className="card-hover p-4 flex items-center gap-4 group">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${a.bg}`}>{a.icon}</div>

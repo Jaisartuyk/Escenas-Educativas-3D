@@ -77,7 +77,7 @@ export function Topbar({ profile, institutionName }: Props) {
               </div>
               {[
                 { icon: '⚙️', label: 'Configuración',  href: '/dashboard/configuracion' },
-                { icon: '🔬', label: 'Escenas 3D',      href: '/dashboard/escenas' },
+                { icon: '📅', label: 'Horarios',        href: '/dashboard/horarios' },
                 { icon: '📂', label: 'Historial',       href: '/dashboard/historial' },
               ].map(item => (
                 <Link
