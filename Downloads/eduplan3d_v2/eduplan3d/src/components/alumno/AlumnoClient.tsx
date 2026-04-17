@@ -183,15 +183,15 @@ export function AlumnoClient({
       let file_url = null
       if (justifyFile) {
         const fileExt = justifyFile.name.split('.').pop()
-        const fileName = `${profile.id}-${Date.now()}.${fileExt}`
+        const fileName = `justifications/${profile.id}-${showJustifyModal?.id || Date.now()}-${Date.now()}.${fileExt}`
         const { error: uploadError } = await supabase.storage
-          .from('justifications')
+          .from('submissions')
           .upload(fileName, justifyFile)
-          
+
         if (uploadError) throw new Error('Error al subir el archivo: ' + uploadError.message)
-        
+
         const { data: { publicUrl } } = supabase.storage
-          .from('justifications')
+          .from('submissions')
           .getPublicUrl(fileName)
         file_url = publicUrl
       }
@@ -725,17 +725,7 @@ export function AlumnoClient({
                                     <span className="w-4 h-4 rounded bg-violet-100 text-violet-600 flex items-center justify-center text-[9px] font-black">2</span>
                                     Documento adjunto
                                   </p>
-                                  <a href={a.justification_file_url} target="_blank" rel="noreferrer"
-                                    className="inline-flex items-center gap-3 p-3 rounded-xl bg-violet-50 hover:bg-violet-100 border border-violet-100 transition-colors group w-full">
-                                    <div className="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                                      <Paperclip size={18} className="text-violet-600" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-bold text-violet-700 truncate">Ver documento adjunto</p>
-                                      <p className="text-[10px] text-violet-500">Haz clic para abrir en nueva pestaña</p>
-                                    </div>
-                                    <ExternalLink size={14} className="text-violet-400 group-hover:text-violet-600 flex-shrink-0 transition-colors" />
-                                  </a>
+                                  <FilePreview url={a.justification_file_url} name="Justificacion" />
                                 </div>
                               )}
 
@@ -760,10 +750,10 @@ export function AlumnoClient({
                                   let file_url = null
                                   if (justifyFile) {
                                     const ext = justifyFile.name.split('.').pop()
-                                    const fileName = `${profile.id}-${Date.now()}.${ext}`
-                                    const { error: uploadError } = await supabase.storage.from('justifications').upload(fileName, justifyFile)
+                                    const fileName = `justifications/${profile.id}-${a.id}-${Date.now()}.${ext}`
+                                    const { error: uploadError } = await supabase.storage.from('submissions').upload(fileName, justifyFile)
                                     if (uploadError) throw new Error('Error al subir: ' + uploadError.message)
-                                    const { data: { publicUrl } } = supabase.storage.from('justifications').getPublicUrl(fileName)
+                                    const { data: { publicUrl } } = supabase.storage.from('submissions').getPublicUrl(fileName)
                                     file_url = publicUrl
                                   }
                                   const res = await fetch('/api/alumno/attendance/justify', {
