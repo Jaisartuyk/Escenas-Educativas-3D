@@ -8,10 +8,17 @@ import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import {
   Upload, FileText, Trash2, Search, Filter,
-  ChevronDown, FolderOpen, Calendar, BookOpen,
-  X, Plus, Download, Eye
+  FolderOpen, Calendar,
+  X, Plus, Download, Eye, Pencil
 } from 'lucide-react'
 import { FilePreview } from '@/components/ui/FilePreview'
+import dynamic from 'next/dynamic'
+
+// Lazy-load editor (heavy bundle — only loads when user opens it)
+const DocxEditor = dynamic(() => import('./DocxEditor').then(m => ({ default: m.DocxEditor })), {
+  ssr: false,
+  loading: () => null,
+})
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface SubjectOption {
@@ -84,8 +91,10 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Preview
+  // Preview (PDF inline)
   const [previewDoc, setPreviewDoc] = useState<PlanDoc | null>(null)
+  // DOCX editor
+  const [editingDoc, setEditingDoc] = useState<PlanDoc | null>(null)
 
   // Derived subject options
   const subjectNames = useMemo(() =>
@@ -596,6 +605,7 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
                     {/* Actions */}
                     <div className="flex gap-2 pt-3 border-t border-[rgba(0,0,0,0.05)]">
                       {isPdfFile ? (
+                        /* PDF → inline preview */
                         <button
                           onClick={() => setPreviewDoc(previewDoc?.id === doc.id ? null : doc)}
                           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-colors border ${
@@ -608,10 +618,14 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
                           {previewDoc?.id === doc.id ? 'Cerrar' : 'Ver'}
                         </button>
                       ) : (
-                        <span className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold text-ink4 bg-bg border border-[rgba(0,0,0,0.06)]">
-                          {fileIcon(doc.file_type, doc.file_name)}
-                          {doc.file_name?.split('.').pop()?.toUpperCase()}
-                        </span>
+                        /* DOCX / other → Edit button */
+                        <button
+                          onClick={() => setEditingDoc(doc)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-colors border bg-[rgba(124,109,250,0.08)] text-violet2 border-violet2/20 hover:bg-[rgba(124,109,250,0.15)]"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          Editar
+                        </button>
                       )}
                       <a
                         href={url}
@@ -638,6 +652,18 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
           </div>
         )
       })}
+
+      {/* ── DOCX Editor overlay ─────────────────────────────────────── */}
+      {editingDoc && (
+        <DocxEditor
+          fileUrl={getUrl(editingDoc.storage_path)}
+          fileName={editingDoc.file_name || editingDoc.titulo}
+          storagePath={editingDoc.storage_path}
+          docId={editingDoc.id}
+          onClose={() => setEditingDoc(null)}
+          onSaved={() => { setEditingDoc(null); loadDocs() }}
+        />
+      )}
 
       {/* ── Stats footer ────────────────────────────────────────────── */}
       {docs.length > 0 && (
