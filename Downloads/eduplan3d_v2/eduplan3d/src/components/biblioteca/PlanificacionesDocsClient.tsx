@@ -143,7 +143,7 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
       const path  = `planificacion_docs/${user.id}/${Date.now()}_${safe}`
 
       const { error: uploadError } = await supabase.storage
-        .from('biblioteca')
+        .from('submissions')
         .upload(path, selectedFile, { contentType: selectedFile.type })
 
       if (uploadError) throw new Error('Error al subir: ' + uploadError.message)
@@ -183,7 +183,7 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
     if (!confirm(`¿Eliminar "${doc.titulo}"?`)) return
     const t = toast.loading('Eliminando...')
     try {
-      await supabase.storage.from('biblioteca').remove([doc.storage_path])
+      await supabase.storage.from('submissions').remove([doc.storage_path])
       await (supabase as any).from('planificacion_docs').delete().eq('id', doc.id)
       toast.success('Eliminado', { id: t })
       if (previewDoc?.id === doc.id) setPreviewDoc(null)
@@ -226,7 +226,7 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
 
   // ── Get public URL ────────────────────────────────────────────────────────
   function getUrl(path: string) {
-    return supabase.storage.from('biblioteca').getPublicUrl(path).data.publicUrl
+    return supabase.storage.from('submissions').getPublicUrl(path).data.publicUrl
   }
 
   return (

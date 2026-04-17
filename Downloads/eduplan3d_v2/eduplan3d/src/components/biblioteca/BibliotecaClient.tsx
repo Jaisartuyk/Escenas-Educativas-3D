@@ -87,7 +87,7 @@ export function BibliotecaClient({ subjects }: { subjects: SubjectOption[] }) {
       const fileName = `${user.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`
 
       const { error: uploadError } = await supabase.storage
-        .from('biblioteca')
+        .from('submissions')
         .upload(fileName, file, { contentType: 'application/pdf' })
 
       if (uploadError) throw new Error('Error al subir PDF: ' + uploadError.message)
@@ -117,7 +117,7 @@ export function BibliotecaClient({ subjects }: { subjects: SubjectOption[] }) {
     if (!confirm('Seguro que deseas eliminar este documento?')) return
     const t = toast.loading('Eliminando...')
     try {
-      await supabase.storage.from('biblioteca').remove([path])
+      await supabase.storage.from('submissions').remove([path])
       await (supabase as any).from('documentos').delete().eq('id', id)
       toast.success('Eliminado', { id: t })
       loadDocs()
@@ -318,7 +318,7 @@ export function BibliotecaClient({ subjects }: { subjects: SubjectOption[] }) {
               </span>
 
               <div className="mt-4 pt-3 border-t border-[rgba(0,0,0,0.06)] space-y-3">
-                <FilePreview url={supabase.storage.from('biblioteca').getPublicUrl(d.storage_path).data.publicUrl} compact />
+                <FilePreview url={supabase.storage.from('submissions').getPublicUrl(d.storage_path).data.publicUrl} compact />
                 
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-ink3 flex items-center gap-1">
