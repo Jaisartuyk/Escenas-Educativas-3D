@@ -682,7 +682,7 @@ function AsistenciaTab({ attendance, students }: any) {
 
   async function handleJustificationAction(id: string, action: 'approved' | 'rejected') {
     setUpdatingId(id)
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('attendance')
       .update({ justification_status: action })
       .eq('id', id)
