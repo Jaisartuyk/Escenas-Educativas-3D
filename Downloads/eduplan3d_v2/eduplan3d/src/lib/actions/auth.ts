@@ -12,7 +12,7 @@ export async function signIn(formData: FormData) {
 
   // If login is not an email (no @), treat it as cedula-based login
   if (!login.includes('@')) {
-    login = `${login}@eduplan3d.local`
+    login = `${login}@classnova.local`
   }
 
   const { error } = await supabase.auth.signInWithPassword({ email: login, password })

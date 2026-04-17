@@ -43,7 +43,7 @@ export function Logo({ size = 'md', institutionName, logoUrl }: Props) {
           <rect x="10" y="10" width="7" height="7" rx="2" fill="white" opacity=".85"/>
         </svg>
       </span>
-      Edu<span className="text-violet2">Plan</span> 3D
+      Class<span className="text-violet2">Nova</span>
     </Link>
   )
 }

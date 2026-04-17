@@ -30,7 +30,7 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
     }
 
     // Si no se pone correo, generar uno interno con la cédula
-    const email = formData.email.trim() || `${formData.dni.trim()}@eduplan3d.local`
+    const email = formData.email.trim() || `${formData.dni.trim()}@classnova.local`
 
     setLoading(true)
     const res = await createInstitutionUser({
