@@ -79,7 +79,6 @@ const NAV_TEACHER: NavItem[] = [
   { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas'      },
   { href: '/dashboard/planificador', icon: '📋', label: 'Planificador'  },
   { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas'      },
-  { href: '/dashboard/escenas',      icon: '🧪', label: 'Escenas 3D'    },
   { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca'    },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración' },
 ]

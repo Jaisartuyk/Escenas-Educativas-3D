@@ -39,8 +39,32 @@ export default async function LibretasPage() {
     admin.from('schedule_configs' as any).select('parciales_count, tutores').eq('institution_id', instId).maybeSingle(),
   ])
 
-  // Filter subjects by institution courses
-  const courseIds = (courses || []).map((c: any) => c.id)
+  // For teachers: only show the course(s) they are tutor of
+  const tutores: Record<string, string> = (scheduleConfig as any)?.tutores || {}
+  const isTeacher = profile.role === 'teacher'
+
+  let filteredCourses = courses || []
+  if (isTeacher) {
+    // tutores map: "CourseName Parallel" → teacherName (full_name string)
+    const teacherName = profile.full_name || ''
+    const tutorCourseNames = Object.entries(tutores)
+      .filter(([, name]) => name === teacherName)
+      .map(([courseName]) => courseName)
+
+    if (tutorCourseNames.length > 0) {
+      // Match by "name parallel" or just "name"
+      filteredCourses = (courses || []).filter((c: any) => {
+        const key = `${c.name} ${c.parallel || ''}`.trim()
+        const keyNoParallel = c.name
+        return tutorCourseNames.includes(key) || tutorCourseNames.includes(keyNoParallel)
+      })
+    } else {
+      // Teacher not assigned as tutor of any course → empty
+      filteredCourses = []
+    }
+  }
+
+  const courseIds = filteredCourses.map((c: any) => c.id)
   const instSubjects = (subjects || []).filter((s: any) => courseIds.includes(s.course_id))
   const subjectIds = instSubjects.map((s: any) => s.id)
 
@@ -90,6 +114,7 @@ export default async function LibretasPage() {
     ? (enrollments || []).filter((e: any) => e.student_id === user.id)
     : (enrollments || []).filter((e: any) => courseIds.includes(e.course_id))
 
+
   const filteredGrades = isStudent
     ? grades.filter((g: any) => g.student_id === user.id)
     : grades
@@ -112,7 +137,7 @@ export default async function LibretasPage() {
       <LibretasClient
         role={profile.role}
         institutionName={profile.institutions?.name}
-        courses={courses || []}
+        courses={filteredCourses}
         enrollments={filteredEnrollments}
         subjects={instSubjects}
         assignments={assignments}
@@ -120,7 +145,7 @@ export default async function LibretasPage() {
         categories={categories || []}
         currentUserId={user.id}
         parcialesCount={(scheduleConfig as any)?.parciales_count || 2}
-        tutores={(scheduleConfig as any)?.tutores || {}}
+        tutores={tutores}
         attendance={filteredAttendance}
         behaviors={filteredBehaviors}
       />
