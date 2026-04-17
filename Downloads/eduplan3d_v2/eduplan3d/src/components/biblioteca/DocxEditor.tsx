@@ -190,30 +190,26 @@ export function DocxEditor({ fileUrl, fileName, storagePath, docId, onClose, onS
       const htmlDocx = (await import('html-docx-js/dist/html-docx')).default
       const blob: Blob = htmlDocx.asBlob(html)
 
-      // Overwrite existing file in Supabase Storage
+      // Delete old file and re-upload (avoids RLS issues with storage.update)
+      await supabase.storage.from('submissions').remove([storagePath])
+
       const { error: uploadErr } = await supabase.storage
         .from('submissions')
-        .update(storagePath, blob, {
+        .upload(storagePath, blob, {
           contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           upsert: true,
         })
+      if (uploadErr) throw new Error('Error al subir: ' + uploadErr.message)
 
-      if (uploadErr) {
-        // If update fails try upload (new file)
-        const { error: uploadErr2 } = await supabase.storage
-          .from('submissions')
-          .upload(storagePath, blob, {
-            contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            upsert: true,
-          })
-        if (uploadErr2) throw uploadErr2
-      }
-
-      // Update file_size in DB
-      await (supabase as any)
+      // Update file_size in DB (use admin-free anon call — user owns the row via RLS)
+      const { error: dbErr } = await (supabase as any)
         .from('planificacion_docs')
-        .update({ file_size: blob.size, file_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+        .update({
+          file_size: blob.size,
+          file_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        })
         .eq('id', docId)
+      if (dbErr) console.warn('DB update warning:', dbErr.message)
 
       toast.success('¡Planificación guardada! ✓', { id: t })
       onSaved()
@@ -255,7 +251,7 @@ export function DocxEditor({ fileUrl, fileName, storagePath, docId, onClose, onS
   if (!editor) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#f3f3f3] animate-fade-in">
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#f3f3f3] animate-fade-in">
       {/* ── Top bar ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-white border-b border-[rgba(0,0,0,0.1)] shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
