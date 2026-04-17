@@ -6,7 +6,7 @@ import {
   CheckCircle2, Clock3, ThumbsUp, ThumbsDown,
   Upload, X, Check, Paperclip, AlertTriangle,
   Award, Trophy, Star, Send, ExternalLink, FileText,
-  Trash2
+  Trash2, ChevronDown
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { FilePreview } from '@/components/ui/FilePreview'
@@ -55,6 +55,7 @@ export function AlumnoClient({
   const [submitFile, setSubmitFile] = useState<File | null>(null)
   const [isSubmittingTask, setIsSubmittingTask] = useState(false)
   const [loadedSubmissions, setLoadedSubmissions] = useState(false)
+  const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null)
 
   // Load submissions once when Tareas tab is opened
   async function loadMySubmissions() {
@@ -344,74 +345,165 @@ export function AlumnoClient({
           </div>
         )}
 
-        {activeTab === 'tareas' && (
-          <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
-            <h2 className="font-display text-2xl font-bold flex items-center gap-3 mb-6">
-              <span className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-xl"><BookOpen size={20}/></span> 
-              Historial de Tareas
-            </h2>
-            <div className="grid grid-cols-1 gap-4">
-              {assignments.length > 0 ? assignments.map((a: any) => {
-                const subject = subjects.find((s: any) => s.id === a.subject_id)
-                const grade = grades.find((g: any) => g.assignment_id === a.id)
-                const hasSubmission = !!mySubmissions[a.id]
-                
-                let isPastDue = false
-                if (a.due_date) {
-                  const due = parseLocalDate(a.due_date)
-                  due.setHours(23, 59, 59, 999)
-                  isPastDue = due.getTime() < new Date().getTime()
-                }
-                
-                return (
-                  <button key={a.id} onClick={() => { setActiveTab('tareas'); handleOpenAssignment(a) }}
-                    className="w-full text-left relative overflow-hidden flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-6 rounded-2xl border border-surface2 bg-bg hover:border-violet-400/50 transition-all duration-300 group hover:shadow-md"
-                  >
-                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${grade ? 'bg-emerald-400' : hasSubmission ? 'bg-blue-400' : isPastDue ? 'bg-rose-400' : 'bg-amber-400'}`} />
-                    <div className="pl-2">
-                      <div className="flex flex-wrap items-center gap-3 mb-2">
-                        <div className="font-bold text-lg text-ink">{a.title}</div>
-                        {grade ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest bg-emerald-500/10 text-emerald-600 uppercase border border-emerald-500/20">Evaluada</span>
-                        ) : hasSubmission ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest bg-blue-500/10 text-blue-600 uppercase border border-blue-500/20">Entregada ✓</span>
-                        ) : isPastDue ? (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest bg-rose-500/10 text-rose-600 uppercase border border-rose-500/20">Atrasada</span>
-                        ) : (
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest bg-amber-500/10 text-amber-600 uppercase border border-amber-500/20">Pendiente</span>
+        {activeTab === 'tareas' && (() => {
+          const assignmentsBySubject: Record<string, any[]> = {}
+          assignments.forEach((a: any) => {
+            if (!assignmentsBySubject[a.subject_id]) assignmentsBySubject[a.subject_id] = []
+            assignmentsBySubject[a.subject_id].push(a)
+          })
+
+          const getSubjectColor = (name: string) => {
+            let hash = 0
+            for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+            const h = Math.abs(hash) % 360
+            return {
+              bg: `hsla(${h}, 70%, 95%, 1)`,
+              border: `hsla(${h}, 70%, 90%, 1)`,
+              text: `hsla(${h}, 80%, 30%, 1)`,
+              accent: `hsla(${h}, 80%, 45%, 1)`,
+              light: `hsla(${h}, 70%, 97%, 1)`,
+              badge: `hsla(${h}, 70%, 92%, 1)`
+            }
+          }
+
+          return (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h2 className="font-display text-2xl font-bold flex items-center gap-3">
+                  <span className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-xl"><BookOpen size={20}/></span> 
+                  Historial de Tareas
+                </h2>
+                <div className="flex items-center gap-3 bg-surface p-1.5 rounded-xl border border-surface2">
+                  <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 rounded-lg border border-amber-100">
+                    <div className="w-2 h-2 rounded-full bg-amber-400" />
+                    <span className="text-[10px] font-black uppercase text-amber-700">Pendientes: {missingAssignments.length}</span>
+                  </div>
+                </div>
+              </div>
+
+              {subjects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {subjects.map((sub: any) => {
+                    const subAssignments = assignmentsBySubject[sub.id] || []
+                    if (subAssignments.length === 0) return null
+                    const isExpanded = expandedSubjectId === sub.id
+                    const color = getSubjectColor(sub.name)
+                    const pendingCount = subAssignments.filter((a: any) => !mySubmissions[a.id] && !grades.find((g: any) => g.assignment_id === a.id)).length
+
+                    return (
+                      <div 
+                        key={sub.id} 
+                        className={`group rounded-[2rem] border transition-all duration-500 overflow-hidden flex flex-col ${
+                          isExpanded ? 'col-span-full shadow-2xl ring-1 ring-black/5 bg-surface' : 'bg-surface hover:shadow-xl hover:-translate-y-1'
+                        }`}
+                        style={{ borderColor: isExpanded ? color.accent : color.border }}
+                      >
+                        <div 
+                          onClick={() => setExpandedSubjectId(isExpanded ? null : sub.id)}
+                          className={`p-6 cursor-pointer relative overflow-hidden flex justify-between items-center transition-colors ${isExpanded ? 'border-b' : ''}`}
+                          style={{ backgroundColor: isExpanded ? color.light : 'transparent', borderColor: isExpanded ? color.border : 'transparent' }}
+                        >
+                          <div className="absolute right-0 top-0 w-32 h-32 opacity-10 blur-3xl pointer-events-none" style={{ backgroundColor: color.accent }} />
+                          <div className="flex items-center gap-4 relative z-10">
+                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-black shadow-inner" style={{ backgroundColor: color.bg, color: color.accent }}>
+                              {sub.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg text-ink leading-tight">{sub.name}</h3>
+                              <p className="text-xs font-semibold text-ink4 mt-0.5">{sub.teacher?.full_name || 'Sin docente'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 relative z-10">
+                            {pendingCount > 0 && !isExpanded && (
+                              <span className="flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-sm animate-pulse">
+                                {pendingCount} PENDIENTE{pendingCount > 1 ? 'S' : ''}
+                              </span>
+                            )}
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-300 ${isExpanded ? 'rotate-180 bg-white shadow-sm' : 'bg-surface2'}`} style={{ color: color.accent }}>
+                              <ChevronDown size={18} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="p-6 sm:p-8 space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                            {subAssignments.map((a: any) => {
+                              const grade = grades.find((g: any) => g.assignment_id === a.id)
+                              const hasSubmission = !!mySubmissions[a.id]
+                              let isPastDue = false
+                              if (a.due_date) {
+                                const due = parseLocalDate(a.due_date)
+                                due.setHours(23, 59, 59, 999)
+                                isPastDue = due.getTime() < new Date().getTime()
+                              }
+                              return (
+                                <button key={a.id} onClick={() => handleOpenAssignment(a)}
+                                  className="w-full text-left relative overflow-hidden flex flex-col sm:flex-row justify-between sm:items-center gap-4 p-5 rounded-2xl border border-surface2 bg-bg hover:border-violet-400/50 transition-all duration-300 group hover:shadow-md"
+                                >
+                                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${grade ? 'bg-emerald-400' : hasSubmission ? 'bg-blue-400' : isPastDue ? 'bg-rose-400' : 'bg-amber-400'}`} />
+                                  <div className="pl-3">
+                                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                                      <div className="font-bold text-base text-ink">{a.title}</div>
+                                      {grade ? ( <span className="px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-emerald-500/10 text-emerald-600 uppercase border border-emerald-500/20">Evaluada</span>
+                                      ) : hasSubmission ? ( <span className="px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-blue-500/10 text-blue-600 uppercase border border-blue-500/20">Entregada ✓</span>
+                                      ) : isPastDue ? ( <span className="px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-rose-500/10 text-rose-600 uppercase border border-rose-500/20">Atrasada</span>
+                                      ) : ( <span className="px-2.5 py-1 rounded-full text-[9px] font-black tracking-widest bg-amber-500/10 text-amber-600 uppercase border border-amber-500/20">Pendiente</span> )}
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                      {a.due_date && (
+                                        <div className={`text-xs font-semibold flex items-center gap-1.5 ${isPastDue && !grade ? 'text-rose-500' : 'text-ink4'}`}>
+                                          <CalendarDays size={14}/> Vence: {parseLocalDate(a.due_date).toLocaleDateString('es-ES')}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    {grade && (
+                                      <div className="bg-surface px-5 py-2.5 rounded-xl border border-emerald-100 dark:border-emerald-900/30 text-center min-w-[80px]">
+                                        <div className="text-2xl font-black text-emerald-500 leading-none">{grade.score}</div>
+                                        <div className="text-[9px] text-emerald-700 font-bold uppercase tracking-widest mt-1">Nota Final</div>
+                                      </div>
+                                    )}
+                                    {!grade && ( <div className="hidden sm:flex items-center gap-2 text-ink4 group-hover:text-violet-500 transition-colors text-xs font-bold"> <FileText size={14}/> Ver detalles </div> )}
+                                  </div>
+                                </button>
+                              )
+                            })}
+                            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpandedSubjectId(null) }}
+                              className="w-full py-3 rounded-xl border border-dashed border-surface2 text-xs font-bold text-ink4 hover:bg-surface2 hover:text-ink transition-all"
+                            >
+                              Contraer materia
+                            </button>
+                          </div>
                         )}
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-sm font-medium text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-lg">{subject?.name || 'Materia general'}</div>
-                        {a.due_date && (
-                          <div className={`text-xs font-semibold flex items-center gap-1.5 ${isPastDue && !grade ? 'text-rose-500' : 'text-ink4'}`}>
-                            <CalendarDays size={14}/> Vence: {parseLocalDate(a.due_date).toLocaleDateString('es-ES')}
+                        
+                        {!isExpanded && (
+                          <div className="px-6 pb-6 mt-auto">
+                            <div className="flex items-center justify-between pt-4 border-t border-surface2">
+                              <span className="text-[10px] font-bold text-ink4 uppercase tracking-widest flex items-center gap-1.5">
+                                <FileText size={12}/> {subAssignments.length} Tareas total
+                              </span>
+                              <div className="flex -space-x-1.5">
+                                {[...Array(Math.min(3, subAssignments.length))].map((_, i) => (
+                                  <div key={i} className="w-5 h-2 rounded-full ring-2 ring-white" style={{ backgroundColor: color.accent, opacity: 1 - (i*0.3) }} />
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
-                    </div>
-                    {grade && (
-                      <div className="sm:text-right bg-surface px-6 py-3 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
-                        <div className="text-3xl font-black text-emerald-500">{grade.score}</div>
-                        <div className="text-[10px] text-ink4 font-bold uppercase tracking-widest bg-emerald-50 text-emerald-700 px-2 rounded-md mt-1">Nota Final</div>
-                      </div>
-                    )}
-                    {!grade && (
-                      <div className="flex-shrink-0 hidden sm:flex items-center gap-2 text-ink4 group-hover:text-violet-500 transition-colors text-xs font-semibold">
-                        <FileText size={14}/> Ver detalles
-                      </div>
-                    )}
-                  </button>
-                )
-              }) : (
-                <div className="flex flex-col items-center justify-center py-20 bg-bg rounded-2xl border border-dashed border-surface2">
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 bg-surface rounded-[2rem] border border-dashed border-surface2">
                   <BookOpen size={48} className="text-ink4/50 mb-4" />
                   <p className="text-ink3 font-medium">No hay tareas publicadas actualmente.</p>
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )
+        })()}
 
         {activeTab === 'asistencia' && (() => {
           // ── Build attendance data by subject ──
