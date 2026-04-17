@@ -9,6 +9,7 @@ import {
   Trash2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { FilePreview } from '@/components/ui/FilePreview'
 import { createClient } from '@/lib/supabase/client'
 
 type TabType = 'resumen' | 'tareas' | 'horario' | 'calificaciones' | 'asistencia' | 'comportamiento'
@@ -1191,18 +1192,11 @@ export function AlumnoClient({
                     <div className="space-y-2">
                       {selectedAssignment.attachment_urls.map((url: string, i: number) => {
                         const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] || `Archivo ${i+1}`)
-                        // Detect file type
-                        const ext = name.split('.').pop()?.toLowerCase() || ''
-                        const isImage = ['jpg','jpeg','png','gif','webp'].includes(ext)
                         return (
-                          <a key={i} href={url} target="_blank" rel="noreferrer"
-                            className="flex items-center gap-3 p-2.5 bg-white dark:bg-surface border border-violet-100 dark:border-violet-800/30 rounded-xl hover:border-violet-300 transition-colors group">
-                            <div className="w-8 h-8 bg-violet-100 dark:bg-violet-900/30 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black text-violet-600 uppercase">
-                              {isImage ? '🖼️' : ext || '📄'}
-                            </div>
-                            <span className="text-sm text-ink flex-1 truncate group-hover:text-violet-600 transition-colors">{name}</span>
-                            <ExternalLink size={13} className="text-ink4 group-hover:text-violet-500 flex-shrink-0 transition-colors"/>
-                          </a>
+                          <div key={i} className="bg-white dark:bg-surface border border-violet-100 dark:border-violet-800/30 rounded-xl p-3 space-y-2">
+                            <span className="text-sm font-medium text-ink block truncate">{name}</span>
+                            <FilePreview url={url} name={name} compact />
+                          </div>
                         )
                       })}
                     </div>
@@ -1224,12 +1218,11 @@ export function AlumnoClient({
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      {sub.file_url && (
-                        <a href={sub.file_url} target="_blank" rel="noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-colors">
-                          <ExternalLink size={14}/> Ver archivo adjunto
-                        </a>
-                      )}
+                      <div className="flex-1">
+                        {sub.file_url && (
+                          <FilePreview url={sub.file_url} compact />
+                        )}
+                      </div>
                       <button 
                         type="button"
                         onClick={() => handleDeleteSubmission(sub.id, selectedAssignment.id)}

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
+import { FilePreview } from '@/components/ui/FilePreview'
 import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1946,20 +1947,23 @@ export function DocenteClient({
 
                     {/* Already uploaded files */}
                     {actAttachments.length > 0 && (
-                      <div className="space-y-2">
+                      <div className="space-y-4">
                         <p className="text-xs font-bold text-ink4 uppercase tracking-wider">Archivos adjuntos ({actAttachments.length})</p>
                         {actAttachments.map((url, i) => {
                           const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] || `Archivo ${i+1}`)
                           return (
-                            <div key={i} className="flex items-center gap-3 px-3 py-2.5 bg-bg border border-surface2 rounded-xl">
-                              <Paperclip size={14} className="text-violet flex-shrink-0"/>
-                              <a href={url} target="_blank" rel="noreferrer"
-                                className="text-sm flex-1 truncate text-indigo-600 hover:underline">{name}</a>
-                              <button type="button"
-                                onClick={() => handleDeleteAttachment(url)}
-                                className="text-ink4 hover:text-rose-500 transition-colors">
-                                <X size={14}/>
-                              </button>
+                            <div key={i} className="bg-bg border border-surface2 rounded-2xl p-4 space-y-3 shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <Paperclip size={14} className="text-violet flex-shrink-0"/>
+                                <span className="text-sm flex-1 truncate font-medium text-ink">{name}</span>
+                                <button type="button"
+                                  onClick={() => handleDeleteAttachment(url)}
+                                  className="text-ink4 hover:text-rose-500 transition-colors p-1"
+                                  title="Eliminar archivo">
+                                  <X size={16}/>
+                                </button>
+                              </div>
+                              <FilePreview url={url} name={name} />
                             </div>
                           )
                         })}
@@ -2032,10 +2036,9 @@ export function DocenteClient({
                                   </p>
                                 )}
                                 {submission.file_url && (
-                                  <a href={submission.file_url} target="_blank" rel="noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 px-2 py-1 rounded-lg transition-colors">
-                                    <Paperclip size={10}/> Ver archivo
-                                  </a>
+                                  <div className="pt-2">
+                                    <FilePreview url={submission.file_url} compact />
+                                  </div>
                                 )}
                               </div>
                             )}

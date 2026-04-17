@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
-import { Upload, FileText, Trash2, BookOpen, Search, Filter } from 'lucide-react'
+import { Upload, FileText, Trash2, BookOpen, Search, Filter, ExternalLink } from 'lucide-react'
+import { FilePreview } from '@/components/ui/FilePreview'
 
 interface Documento {
   id: string
@@ -316,14 +317,18 @@ export function BibliotecaClient({ subjects }: { subjects: SubjectOption[] }) {
                 {d.grado}
               </span>
 
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-[rgba(0,0,0,0.06)]">
-                <span className="text-[11px] text-ink3 flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  {(d.file_size / 1024 / 1024).toFixed(2)} MB
-                </span>
-                <span className="text-[11px] text-ink3">
-                  {new Date(d.created_at).toLocaleDateString('es-EC')}
-                </span>
+              <div className="mt-4 pt-3 border-t border-[rgba(0,0,0,0.06)] space-y-3">
+                <FilePreview url={supabase.storage.from('biblioteca').getPublicUrl(d.storage_path).data.publicUrl} compact />
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-ink3 flex items-center gap-1">
+                    <FileText className="w-3 h-3" />
+                    {(d.file_size / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                  <span className="text-[11px] text-ink3">
+                    {new Date(d.created_at).toLocaleDateString('es-EC')}
+                  </span>
+                </div>
               </div>
             </div>
           ))}
