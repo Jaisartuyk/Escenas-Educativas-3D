@@ -2,14 +2,16 @@
 // src/components/horarios/steps/StepInstitucion.tsx
 
 import type { InstitucionConfig } from '@/types/horarios'
+import type { Docente } from '@/types/horarios'
 
 interface Props {
   config: InstitucionConfig
   onChange: (c: InstitucionConfig) => void
   onNext: () => void
+  docentes?: Docente[]
 }
 
-export function StepInstitucion({ config, onChange, onNext }: Props) {
+export function StepInstitucion({ config, onChange, onNext, docentes = [] }: Props) {
   function set<K extends keyof InstitucionConfig>(key: K, val: InstitucionConfig[K]) {
     onChange({ ...config, [key]: val })
   }
@@ -136,19 +138,48 @@ export function StepInstitucion({ config, onChange, onNext }: Props) {
 
       {/* Tutores por curso */}
       <div className="card p-6 mb-5">
-        <h2 className="font-display text-base font-bold tracking-tight mb-4">Tutores por curso</h2>
+        <h2 className="font-display text-base font-bold tracking-tight mb-1">Tutores por curso</h2>
+        <p className="text-[11px] text-ink4 mb-4">Selecciona el docente tutor de cada curso. Solo aparecen docentes cargados en el paso anterior.</p>
         <div className="grid grid-cols-2 gap-3">
-          {config.cursos.map(curso => (
-            <div key={curso}>
-              <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">{curso}</label>
-              <input
-                value={config.tutores[curso] ?? ''}
-                onChange={e => handleTutor(curso, e.target.value)}
-                className="input-base text-sm"
-                placeholder="Nombre del tutor..."
-              />
-            </div>
-          ))}
+          {config.cursos.map(curso => {
+            const current = config.tutores[curso] ?? ''
+            // Build label for selected teacher
+            const selectedDoc = docentes.find(d => {
+              const fullName = `${d.titulo ? d.titulo + ' ' : ''}${d.nombre}`.trim()
+              return fullName === current
+            })
+            return (
+              <div key={curso}>
+                <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">{curso}</label>
+                <div className="relative">
+                  <select
+                    value={current}
+                    onChange={e => handleTutor(curso, e.target.value)}
+                    className="input-base text-sm appearance-none pr-8 cursor-pointer"
+                  >
+                    <option value="">— Sin tutor asignado —</option>
+                    {docentes.map((d, i) => {
+                      const fullName = `${d.titulo ? d.titulo + ' ' : ''}${d.nombre}`.trim()
+                      return (
+                        <option key={i} value={fullName}>
+                          {fullName}{d.materias?.length ? ` (${d.materias.slice(0, 2).join(', ')}${d.materias.length > 2 ? '…' : ''})` : ''}
+                        </option>
+                      )
+                    })}
+                  </select>
+                  {/* Chevron icon */}
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ink4">
+                    ▾
+                  </span>
+                </div>
+                {current && (
+                  <p className="text-[10px] text-teal mt-1 flex items-center gap-1">
+                    ✓ {current}
+                  </p>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 

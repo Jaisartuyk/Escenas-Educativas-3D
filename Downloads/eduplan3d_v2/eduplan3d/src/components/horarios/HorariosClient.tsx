@@ -410,6 +410,7 @@ export function HorariosClient() {
               config={state.config}
               onChange={config => updateState(s => ({ ...s, config }))}
               onNext={() => setTab(1)}
+              docentes={state.docentes}
             />
           )}
           {state.step === 1 && (
