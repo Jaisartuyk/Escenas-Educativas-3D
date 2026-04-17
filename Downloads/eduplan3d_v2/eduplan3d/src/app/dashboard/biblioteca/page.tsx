@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
-import { BibliotecaClient } from '@/components/biblioteca/BibliotecaClient'
+import { BibliotecaTabsClient } from '@/components/biblioteca/BibliotecaTabsClient'
 
 export const metadata: Metadata = { title: 'Mi Biblioteca' }
 export const dynamic = 'force-dynamic'
@@ -26,10 +26,10 @@ export default async function BibliotecaPage() {
       <div className="mb-6">
         <h1 className="font-display text-3xl font-bold tracking-tight">Mi Biblioteca</h1>
         <p className="text-ink3 text-sm mt-1">
-          Sube tus libros y documentos curriculares. La IA los usara como referencia en tus planificaciones.
+          Recursos curriculares y planificaciones organizadas por materia y curso.
         </p>
       </div>
-      <BibliotecaClient subjects={subjects || []} />
+      <BibliotecaTabsClient subjects={subjects || []} />
     </div>
   )
 }
