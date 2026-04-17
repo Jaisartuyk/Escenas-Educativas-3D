@@ -257,14 +257,37 @@ export function EntregasClient({ profile, subjects, assignments, submissions, gr
                             )}
                             {sub.file_url ? (() => {
                               const url: string = sub.file_url
-                              const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url) || /\/(submissions|attachments)\//i.test(url)
-                              const isPdf = /\.pdf(\?.*)?$/i.test(url)
+                              const lower = url.toLowerCase()
+                              const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)/i.test(lower)
+                              const isPdf = /\.pdf/i.test(lower)
+                              const isOffice = /\.(docx?|xlsx?|pptx?|odt|ods|odp)/i.test(lower)
+
+                              // URL para el visor de Microsoft Office Online (gratis, solo necesita URL pública)
+                              const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`
+
                               return (
                                 <div className="flex flex-col gap-2 w-full max-w-2xl">
-                                  {/* Preview: intento universal con iframe */}
-                                  <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
-                                    <iframe src={url} className="w-full h-[350px]" title="Vista previa del archivo" />
-                                  </div>
+                                  {/* Preview según tipo de archivo */}
+                                  {isImage && (
+                                    <a href={url} target="_blank" rel="noreferrer" className="block max-w-xs overflow-hidden rounded-xl border border-surface2 hover:shadow-md transition-shadow">
+                                      <img src={url} alt="Vista previa" className="w-full h-auto object-contain max-h-[300px]" />
+                                    </a>
+                                  )}
+                                  {isPdf && (
+                                    <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
+                                      <iframe src={url} className="w-full h-[400px]" title="Vista previa del PDF" />
+                                    </div>
+                                  )}
+                                  {isOffice && (
+                                    <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
+                                      <iframe src={officeViewerUrl} className="w-full h-[400px]" title="Vista previa del documento" />
+                                    </div>
+                                  )}
+                                  {!isImage && !isPdf && !isOffice && (
+                                    <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
+                                      <iframe src={url} className="w-full h-[350px]" title="Vista previa del archivo" />
+                                    </div>
+                                  )}
                                   <a href={url} target="_blank" rel="noreferrer"
                                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors border border-indigo-100 max-w-full w-max">
                                     <FileText size={14} className="flex-shrink-0" />
