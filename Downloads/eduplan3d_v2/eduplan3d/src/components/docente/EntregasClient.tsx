@@ -255,28 +255,25 @@ export function EntregasClient({ profile, subjects, assignments, submissions, gr
                                 <span className="line-clamp-2 truncate whitespace-normal" title={sub.comment}>"{sub.comment}"</span>
                               </div>
                             )}
-                            {sub.file_url ? (
-                              <div className="flex flex-col gap-2 w-full max-w-2xl">
-                                {/* Vista previa para imágenes */}
-                                {/\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(sub.file_url) && (
-                                  <a href={sub.file_url} target="_blank" rel="noreferrer" className="block max-w-[200px] max-h-[150px] overflow-hidden rounded-lg border border-surface2 hover:shadow-sm transition-shadow">
-                                    <img src={sub.file_url} alt="Preview" className="w-full h-full object-cover" />
-                                  </a>
-                                )}
-                                {/* Vista previa para documentos PDF */}
-                                {/\.(pdf)(\?.*)?$/i.test(sub.file_url) && (
-                                  <div className="overflow-hidden rounded-lg border border-surface2 bg-bg shadow-sm">
-                                    <iframe src={sub.file_url} className="w-full h-[350px]" title="Vista previa del PDF" />
+                            {sub.file_url ? (() => {
+                              const url: string = sub.file_url
+                              const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url) || /\/(submissions|attachments)\//i.test(url)
+                              const isPdf = /\.pdf(\?.*)?$/i.test(url)
+                              return (
+                                <div className="flex flex-col gap-2 w-full max-w-2xl">
+                                  {/* Preview: intento universal con iframe */}
+                                  <div className="overflow-hidden rounded-xl border border-surface2 bg-white shadow-sm">
+                                    <iframe src={url} className="w-full h-[350px]" title="Vista previa del archivo" />
                                   </div>
-                                )}
-                                <a href={sub.file_url} target="_blank" rel="noreferrer"
-                                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors border border-indigo-100 max-w-full w-max">
-                                  <FileText size={14} className="flex-shrink-0" />
-                                  <span className="truncate">Abrir archivo adjunto</span>
-                                  <ExternalLink size={12} className="ml-1 opacity-60 flex-shrink-0" />
-                                </a>
-                              </div>
-                            ) : (
+                                  <a href={url} target="_blank" rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 p-2 rounded-lg transition-colors border border-indigo-100 max-w-full w-max">
+                                    <FileText size={14} className="flex-shrink-0" />
+                                    <span className="truncate">Abrir en pestaña nueva</span>
+                                    <ExternalLink size={12} className="ml-1 opacity-60 flex-shrink-0" />
+                                  </a>
+                                </div>
+                              )
+                            })() : (
                               <span className="text-xs text-ink4 block">— Sin archivo —</span>
                             )}
                           </div>
