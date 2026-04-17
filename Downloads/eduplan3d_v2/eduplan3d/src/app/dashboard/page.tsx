@@ -335,8 +335,8 @@ export default async function DashboardPage() {
 
   // 1. Tendencia de planificaciones (últimos 14 días)
   const { data: trendRaw } = (await admin
-    .from('planificaciones')
-    .select('created_at, profiles!inner(institution_id)')
+    .from('planificacion_docs')
+    .select('created_at, user_id, profiles!inner(institution_id)')
     .eq('profiles.institution_id', instId)
     .gte('created_at', startOfPeriodISO)) as any;
 
@@ -353,14 +353,16 @@ export default async function DashboardPage() {
 
   // 2. Distribución de contenido
   const { data: typeCounts } = (await admin
-    .from('planificaciones')
-    .select('type, profiles!inner(institution_id)')
+    .from('planificacion_docs')
+    .select('tipo, profiles!inner(institution_id)')
     .eq('profiles.institution_id', instId)) as any;
 
-  const contentDistribution = Object.entries(TYPE_LABELS).map(([key, label]) => ({
-    name: label,
-    value: ((typeCounts as any[]) || []).filter((p: any) => p.type === key).length
-  }));
+  const contentDistribution = [
+    { name: 'Anual', value: ((typeCounts as any[]) || []).filter((p: any) => p.tipo === 'anual').length },
+    { name: 'Unidad', value: ((typeCounts as any[]) || []).filter((p: any) => p.tipo === 'unidad').length },
+    { name: 'Semanal', value: ((typeCounts as any[]) || []).filter((p: any) => p.tipo === 'semanal').length },
+    { name: 'Otros', value: ((typeCounts as any[]) || []).filter((p: any) => !['anual', 'unidad', 'semanal'].includes(p.tipo)).length },
+  ];
 
   // 3. Asistencia por Nivel (Escuela vs Colegio)
   const { data: attData } = await admin
@@ -402,19 +404,28 @@ export default async function DashboardPage() {
 
   // Datos recientes para la lista
   const { data: planificaciones } = (await admin
-    .from('planificaciones')
-    .select('id, title, subject, grade, type, created_at, profiles!inner(institution_id)')
+    .from('planificacion_docs')
+    .select('id, titulo, asignatura, curso, tipo, created_at, profiles!inner(institution_id)')
     .eq('profiles.institution_id', instId)
     .order('created_at', { ascending: false })
     .limit(5)) as any;
 
+  // Adapt data structure for list
+  const recentPlans = (planificaciones || []).map((p: any) => ({
+    ...p,
+    title: p.titulo,
+    subject: p.asignatura,
+    grade: p.curso,
+    type: p.tipo
+  }));
+
   const { count: totalPlans } = (await admin
-    .from('planificaciones')
+    .from('planificacion_docs')
     .select('*, profiles!inner(institution_id)', { count: 'exact', head: true })
     .eq('profiles.institution_id', instId)) as any;
 
   const { count: thisMonth } = (await admin
-    .from('planificaciones')
+    .from('planificacion_docs')
     .select('*, profiles!inner(institution_id)', { count: 'exact', head: true })
     .eq('profiles.institution_id', instId)
     .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())) as any;
@@ -479,8 +490,8 @@ export default async function DashboardPage() {
                 <p className="text-4xl mb-3">📋</p>
                 <p className="font-medium text-sm mb-1">Sin actividad reciente</p>
               </div>
-            ) : planificaciones.map((p: any) => (
-              <Link key={p.id} href={`/dashboard/historial/${p.id}`} className="card-hover p-4 flex items-center gap-4">
+            ) : recentPlans.map((p: any) => (
+              <Link key={p.id} href={`/dashboard/biblioteca`} className="card-hover p-4 flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
                   p.type === 'clase' ? 'bg-[rgba(124,109,250,0.15)]' :
                   p.type === 'unidad' ? 'bg-[rgba(255,179,71,0.15)]' : 'bg-[rgba(240,98,146,0.15)]'

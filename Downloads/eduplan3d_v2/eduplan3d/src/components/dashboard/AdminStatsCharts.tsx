@@ -23,7 +23,7 @@ export function AdminStatsCharts({ data }: Props) {
       {/* 📈 Tendencia de Planificación */}
       <div className="card p-6 flex flex-col h-[400px]">
         <h3 className="font-display text-sm font-bold mb-6 flex items-center gap-2">
-          <span>📈</span> Actividad de Planificación (Últimos 14 días)
+          <span>📈</span> Monitoreo de Planificaciones (Subidas últimos 14 días)
         </h3>
         <div className="flex-1 w-full min-h-0">
           <ResponsiveContainer width="100%" height="100%">
@@ -105,7 +105,7 @@ export function AdminStatsCharts({ data }: Props) {
       {/* 🍰 Distribución de Contenido */}
       <div className="card p-6 flex flex-col h-[350px]">
         <h3 className="font-display text-sm font-bold mb-6 flex items-center gap-2">
-          <span>🎯</span> Tipos de Documentos Generados
+          <span>🎯</span> Tipos de Planificaciones Subidas
         </h3>
         <div className="flex-1 w-full min-h-0">
           <ResponsiveContainer width="100%" height="100%">

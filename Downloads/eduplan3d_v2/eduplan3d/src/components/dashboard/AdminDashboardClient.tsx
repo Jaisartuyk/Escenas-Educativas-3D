@@ -34,7 +34,7 @@ interface Props {
   weeklyActivity: { day: string; tareas: number; asistencias: number }[]
 }
 
-const TYPE_LABELS:  Record<string, string> = { clase: 'Clase', unidad: 'Unidad', rubrica: 'Rubrica' }
+const TYPE_LABELS:  Record<string, string> = { anual: 'Anual', trimestral: 'Trimestral', unidad: 'Unidad', semanal: 'Semanal', diaria: 'Diaria' }
 
 // ─── Custom Tooltip ─────────────────────────────────────────────────────────
 function CustomTooltip({ active, payload, label }: any) {
@@ -107,8 +107,8 @@ export function AdminDashboardClient({
         <div className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-[rgba(124,109,250,0.12)] to-[rgba(240,98,146,0.10)] border border-[rgba(124,109,250,0.25)]">
           <span className="text-2xl">⚡</span>
           <div className="flex-1">
-            <strong className="text-sm font-semibold block mb-0.5">Plan Starter</strong>
-            <span className="text-xs text-ink2">{remainingPlans} planificaciones restantes este mes</span>
+            <strong className="text-sm font-semibold block mb-0.5">Plan ClassNova</strong>
+            <span className="text-xs text-ink2">Soporte y almacenamiento activo para tu institución</span>
           </div>
           <Link href="/dashboard/configuracion?tab=plan" className="btn-primary text-sm px-5 py-2 whitespace-nowrap">
             Mejorar a Pro →
@@ -123,7 +123,7 @@ export function AdminDashboardClient({
           { label: 'Estudiantes',      value: stats.totalStudents,     icon: '🎓', color: 'from-teal/15 to-teal/5',          textColor: 'text-teal'       },
           { label: 'Cursos',           value: stats.totalCourses,      icon: '📚', color: 'from-blue-500/15 to-blue-500/5',  textColor: 'text-blue-500'   },
           { label: 'Materias',         value: stats.totalSubjects,     icon: '📖', color: 'from-amber-500/15 to-amber-500/5', textColor: 'text-amber-500' },
-          { label: 'Tareas',           value: stats.totalAssignments,  icon: '📝', color: 'from-rose/15 to-rose/5',          textColor: 'text-rose'       },
+          { label: 'Planificaciones',      value: stats.totalPlans,        icon: '📋', color: 'from-rose/15 to-rose/5',          textColor: 'text-rose'       },
           { label: 'Calificaciones',   value: stats.totalGradesEntered, icon: '📊', color: 'from-emerald-500/15 to-emerald-500/5', textColor: 'text-emerald-500' },
         ].map(s => (
           <div key={s.label} className={`bg-gradient-to-br ${s.color} rounded-2xl p-4 border border-[rgba(0,0,0,0.04)]`}>
@@ -237,8 +237,8 @@ export function AdminDashboardClient({
 
         {/* Teacher Activity */}
         <div className="card p-5">
-          <h3 className="font-display text-sm font-bold tracking-tight mb-1">Actividad por Docente</h3>
-          <p className="text-[11px] text-ink3 mb-4">Tareas creadas y notas registradas</p>
+          <h3 className="font-display text-sm font-bold tracking-tight mb-1">Docentes más Activos</h3>
+          <p className="text-[11px] text-ink3 mb-4">Planificaciones y tareas publicadas</p>
           {teacherActivity.length > 0 ? (
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={teacherActivity} barSize={14} barGap={2}>
@@ -345,7 +345,7 @@ export function AdminDashboardClient({
           <div className="flex flex-col gap-3">
             {[
               { icon: '📝', title: 'Supervision Docente',       sub: 'Monitorear actividad',     href: '/dashboard/docencia',                bg: 'bg-violet/15' },
-              { icon: '📋', title: 'Nueva planificacion',       sub: 'Lista en ~30 segundos',    href: '/dashboard/planificador?type=clase', bg: 'bg-[rgba(124,109,250,0.15)]' },
+              { icon: '📋', title: 'Biblioteca de Planificaciones', sub: 'Control de documentos',    href: '/dashboard/biblioteca',              bg: 'bg-[rgba(124,109,250,0.15)]' },
               { icon: '📅', title: 'Generar horario',            sub: 'Sin choques de docentes',  href: '/dashboard/horarios',                bg: 'bg-[rgba(38,215,180,0.15)]' },
               { icon: '🏫', title: 'Mi Institucion',             sub: 'Cursos, materias, personal', href: '/dashboard/institucion',           bg: 'bg-[rgba(255,179,71,0.15)]' },
               { icon: '📊', title: 'Libretas',                   sub: 'Calificaciones generales', href: '/dashboard/libretas',                bg: 'bg-[rgba(240,98,146,0.15)]' },
