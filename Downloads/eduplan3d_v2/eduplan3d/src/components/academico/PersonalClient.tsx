@@ -1,15 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Download, UserPlus } from 'lucide-react'
+import { Plus, Download, UserPlus, FileSpreadsheet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createInstitutionUser } from '@/lib/actions/users'
 import { ProfileDetailsPanel } from './ProfileDetailsPanel'
+import { ImportarEstudiantesModal } from './ImportarEstudiantesModal'
 
 export function PersonalClient({ institutionId, teachers, students, horariosDocentes, directoryMetadata, courses = [] }: { institutionId: string, teachers: any[], students: any[], horariosDocentes: any[], directoryMetadata: any, courses?: any[] }) {
   const [loading, setLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
   const [showRegistrarForm, setShowRegistrarForm] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   
   // Local state for optimistic updates
   const [localMetaData, setLocalMetaData] = useState(directoryMetadata || {})
@@ -57,20 +59,37 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
   return (
     <div className="space-y-6 animate-fade-in">
       {!showRegistrarForm ? (
-        <div 
-          onClick={() => setShowRegistrarForm(true)} 
-          className="flex justify-between items-center bg-[rgba(124,109,250,0.05)] border border-[rgba(124,109,250,0.2)] rounded-2xl p-5 cursor-pointer hover:bg-[rgba(124,109,250,0.08)] transition-all transform hover:scale-[1.01]"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-violet2 flex text-white items-center justify-center shadow-[0_0_15px_rgba(124,109,250,0.5)]">
-              <UserPlus size={20} />
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Registro individual */}
+          <div
+            onClick={() => setShowRegistrarForm(true)}
+            className="flex-1 flex justify-between items-center bg-[rgba(124,109,250,0.05)] border border-[rgba(124,109,250,0.2)] rounded-2xl p-5 cursor-pointer hover:bg-[rgba(124,109,250,0.08)] transition-all transform hover:scale-[1.01]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-violet2 flex text-white items-center justify-center shadow-[0_0_15px_rgba(124,109,250,0.5)]">
+                <UserPlus size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-violet2 text-base drop-shadow-sm">Empadronar Nuevo Personal o Alumno</h3>
+                <p className="text-sm text-ink3">Registro individual con credenciales.</p>
+              </div>
+            </div>
+            <button className="btn-primary text-sm px-5 py-2 font-bold tracking-wide flex-shrink-0">Abrir Registro</button>
+          </div>
+
+          {/* Importar desde Excel */}
+          <div
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-4 bg-[rgba(38,215,180,0.05)] border border-[rgba(38,215,180,0.2)] rounded-2xl p-5 cursor-pointer hover:bg-[rgba(38,215,180,0.08)] transition-all transform hover:scale-[1.01] sm:w-64"
+          >
+            <div className="w-12 h-12 rounded-full bg-teal flex text-white items-center justify-center shadow-[0_0_15px_rgba(38,215,180,0.4)] flex-shrink-0">
+              <FileSpreadsheet size={20} />
             </div>
             <div>
-              <h3 className="font-bold text-violet2 text-lg drop-shadow-sm">Empadronar Nuevo Personal o Alumno</h3>
-              <p className="text-sm text-ink3">Genera credenciales oficiales y seguras para brindar acceso al sistema.</p>
+              <h3 className="font-bold text-teal text-base">Importar desde Excel</h3>
+              <p className="text-sm text-ink3">Carga masiva de estudiantes.</p>
             </div>
           </div>
-          <button className="btn-primary text-sm px-6 py-2.5 font-bold tracking-wide">Abrir Registro</button>
         </div>
       ) : (
         <div className="bg-surface rounded-2xl border border-[rgba(0,0,0,0.05)] p-6 shadow-xl animate-fade-in">
@@ -186,12 +205,21 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
       </div>
 
       {selectedUser && (
-        <ProfileDetailsPanel 
-          user={selectedUser} 
-          metadata={localMetaData[selectedUser.id] || {}} 
-          institutionId={institutionId} 
-          onClose={() => setSelectedUser(null)} 
+        <ProfileDetailsPanel
+          user={selectedUser}
+          metadata={localMetaData[selectedUser.id] || {}}
+          institutionId={institutionId}
+          onClose={() => setSelectedUser(null)}
           onUpdate={(newMeta) => setLocalMetaData((prev:any) => ({ ...prev, [selectedUser.id]: newMeta }))}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportarEstudiantesModal
+          institutionId={institutionId}
+          courses={courses}
+          onClose={() => setShowImportModal(false)}
+          onDone={() => window.location.reload()}
         />
       )}
     </div>
