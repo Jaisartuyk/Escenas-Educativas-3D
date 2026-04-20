@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { teacherOwnsAssignment, getProfile } from '@/lib/auth/ownership'
 
 export const dynamic = 'force-dynamic'
 
-// GET — fetch submissions for the current student or for a given assignment (admin)
+// GET — fetch submissions for the current student or for a given assignment (teacher)
 export async function GET(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,7 +17,26 @@ export async function GET(req: Request) {
   const admin = createAdminClient()
 
   if (assignmentId) {
-    // Admin/teacher fetching all submissions for an assignment
+    // Solo el docente dueño de la tarea (o admin/assistant de la misma institución) puede ver todas las entregas
+    const owns = await teacherOwnsAssignment(user.id, assignmentId)
+    if (!owns) {
+      // Fallback: admin/assistant de la institución de la tarea
+      const profile = await getProfile(user.id)
+      const { data: asgn } = await admin
+        .from('assignments')
+        .select('subjects:subject_id(courses:course_id(institution_id))')
+        .eq('id', assignmentId)
+        .single()
+      const asgnInst = (asgn as any)?.subjects?.courses?.institution_id
+      const isInstAdmin =
+        profile?.institution_id &&
+        profile.institution_id === asgnInst &&
+        (profile.role === 'admin' || profile.role === 'assistant')
+      if (!isInstAdmin) {
+        return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+      }
+    }
+
     const { data, error } = await admin
       .from('assignment_submissions')
       .select('*, student:profiles(id, full_name, email)')

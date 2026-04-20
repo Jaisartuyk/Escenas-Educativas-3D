@@ -14,6 +14,18 @@ async function getVerifiedInstitutionId(userId: string): Promise<string | null> 
   return (data as any)?.institution_id ?? null
 }
 
+/** Verifica que el usuario sea admin/assistant de la institución */
+async function isAdminOrAssistant(userId: string): Promise<boolean> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('profiles' as any)
+    .select('role')
+    .eq('id', userId)
+    .single()
+  const role = (data as any)?.role
+  return role === 'admin' || role === 'assistant'
+}
+
 export async function POST(req: NextRequest) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,6 +39,10 @@ export async function POST(req: NextRequest) {
   // institution_id proviene de la BD, no del cliente
   const institution_id = await getVerifiedInstitutionId(user.id)
   if (!institution_id) return NextResponse.json({ error: 'Sin institución asignada' }, { status: 403 })
+
+  if (!(await isAdminOrAssistant(user.id))) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
 
   const admin = createAdminClient()
   const { data, error } = await admin
@@ -50,6 +66,10 @@ export async function PATCH(req: NextRequest) {
 
   const institution_id = await getVerifiedInstitutionId(user.id)
   if (!institution_id) return NextResponse.json({ error: 'Sin institución asignada' }, { status: 403 })
+
+  if (!(await isAdminOrAssistant(user.id))) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
 
   const admin = createAdminClient()
 
@@ -92,6 +112,10 @@ export async function DELETE(req: NextRequest) {
 
   const institution_id = await getVerifiedInstitutionId(user.id)
   if (!institution_id) return NextResponse.json({ error: 'Sin institución asignada' }, { status: 403 })
+
+  if (!(await isAdminOrAssistant(user.id))) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
 
   const admin = createAdminClient()
 

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { teacherOwnsAssignment, getProfile } from '@/lib/auth/ownership'
 
 export const dynamic = 'force-dynamic'
 
-// POST — save attachment URLs for an assignment
+// POST — save attachment URLs for an assignment (docente dueño de la tarea)
 export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -15,10 +16,10 @@ export async function POST(req: Request) {
 
   if (!assignment_id) return NextResponse.json({ error: 'Falta assignment_id' }, { status: 400 })
 
+  const owns = await teacherOwnsAssignment(user.id, assignment_id)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta tarea' }, { status: 403 })
+
   const admin = createAdminClient()
-  
-  // Store file_urls as JSON in the assignments table
-  // We use a JSONB column called attachment_urls
   const { error } = await admin
     .from('assignments')
     .update({ attachment_urls: file_urls } as any)
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
   return NextResponse.json({ success: true })
 }
 
-// GET — get attachment URLs for an assignment
+// GET — get attachment URLs for an assignment (cualquier miembro de la institución o alumno matriculado)
 export async function GET(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -39,12 +40,19 @@ export async function GET(req: Request) {
   if (!assignment_id) return NextResponse.json({ error: 'Falta assignment_id' }, { status: 400 })
 
   const admin = createAdminClient()
-  const { data, error } = await admin
+
+  // Verificar que el usuario pertenece a la misma institución que la tarea
+  const { data: asgn } = await admin
     .from('assignments')
-    .select('attachment_urls')
+    .select('attachment_urls, subjects:subject_id(teacher_id, courses:course_id(institution_id))')
     .eq('id', assignment_id)
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ file_urls: (data as any)?.attachment_urls || [] })
+  const asgnInst = (asgn as any)?.subjects?.courses?.institution_id
+  const profile = await getProfile(user.id)
+  if (!asgnInst || !profile?.institution_id || profile.institution_id !== asgnInst) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
+
+  return NextResponse.json({ file_urls: (asgn as any)?.attachment_urls || [] })
 }

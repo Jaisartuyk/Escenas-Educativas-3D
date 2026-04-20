@@ -1,20 +1,50 @@
 import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getProfile } from '@/lib/auth/ownership'
 
 // POST /api/enrollments  body: { student_id, course_id }  → insert + auto-create payments
 // DELETE /api/enrollments?student_id=X&course_id=Y       → delete enrollment + related payments
+
+// Roles autorizados a matricular/desmatricular alumnos
+const ENROLL_ROLES = new Set(['admin', 'assistant'])
 
 export async function POST(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const profile = await getProfile(user.id)
+  if (!profile?.institution_id) return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
+  if (!ENROLL_ROLES.has(profile.role || '')) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
+
   const { student_id, course_id } = await req.json()
   if (!student_id || !course_id)
     return NextResponse.json({ error: 'Missing params' }, { status: 400 })
 
   const admin = createAdminClient()
+
+  // Verificar que el curso pertenece a la institución del admin
+  const { data: course } = await admin
+    .from('courses')
+    .select('institution_id, name')
+    .eq('id', course_id)
+    .single()
+  if (!course || (course as any).institution_id !== profile.institution_id) {
+    return NextResponse.json({ error: 'Curso no pertenece a tu institución' }, { status: 403 })
+  }
+
+  // Verificar que el alumno pertenece a la misma institución
+  const { data: student } = await admin
+    .from('profiles')
+    .select('institution_id, role')
+    .eq('id', student_id)
+    .single()
+  if (!student || (student as any).institution_id !== profile.institution_id) {
+    return NextResponse.json({ error: 'Alumno no pertenece a tu institución' }, { status: 403 })
+  }
 
   // 1. Insert enrollment
   const { error } = await admin
@@ -23,17 +53,8 @@ export async function POST(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // 2. Get institution_id from the course
-  const { data: course } = await admin
-    .from('courses')
-    .select('institution_id, name')
-    .eq('id', course_id)
-    .single()
-
-  if (!course) return NextResponse.json({ success: true }) // enrollment ok, no payments
-
-  const instId = course.institution_id
-  const courseName = course.name || ''
+  const instId = (course as any).institution_id
+  const courseName = (course as any).name || ''
 
   // 3. Check if payments already exist for this student+institution (avoid duplicates on re-enrollment)
   const { data: existing } = await admin
@@ -94,6 +115,12 @@ export async function DELETE(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const profile = await getProfile(user.id)
+  if (!profile?.institution_id) return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
+  if (!ENROLL_ROLES.has(profile.role || '')) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
+
   const { searchParams } = new URL(req.url)
   const student_id = searchParams.get('student_id')
   const course_id  = searchParams.get('course_id')
@@ -102,7 +129,16 @@ export async function DELETE(req: Request) {
 
   const admin = createAdminClient()
 
-  // Delete enrollment
+  // Verificar que el curso pertenece a la institución del admin
+  const { data: course } = await admin
+    .from('courses')
+    .select('institution_id')
+    .eq('id', course_id)
+    .single()
+  if (!course || (course as any).institution_id !== profile.institution_id) {
+    return NextResponse.json({ error: 'Curso no pertenece a tu institución' }, { status: 403 })
+  }
+
   const { error } = await admin
     .from('enrollments')
     .delete()

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { teacherOwnsSubject, teacherOwnsAssignment } from '@/lib/auth/ownership'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,8 +12,13 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const body = await req.json()
-  const admin = createAdminClient()
+  if (!body.subject_id) return NextResponse.json({ error: 'Falta subject_id' }, { status: 400 })
 
+  // Verificar que el docente es dueño de la materia
+  const owns = await teacherOwnsSubject(user.id, body.subject_id)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta materia' }, { status: 403 })
+
+  const admin = createAdminClient()
   const { error } = await admin.from('assignments').insert({
     id:          body.id,
     subject_id:  body.subject_id,
@@ -37,6 +43,9 @@ export async function PUT(req: Request) {
   const body = await req.json()
   if (!body.id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
 
+  const owns = await teacherOwnsAssignment(user.id, body.id)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta tarea' }, { status: 403 })
+
   const admin = createAdminClient()
   const { error } = await admin.from('assignments').update({
     title:       body.title,
@@ -60,6 +69,9 @@ export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
+
+  const owns = await teacherOwnsAssignment(user.id, id)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta tarea' }, { status: 403 })
 
   const admin = createAdminClient()
   await admin.from('assignments').delete().eq('id', id)

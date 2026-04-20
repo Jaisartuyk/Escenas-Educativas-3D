@@ -53,6 +53,29 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // ─ Planner_solo (docente externo): solo puede acceder a sus rutas permitidas ─
+  if (user && pathname.startsWith('/dashboard')) {
+    // Rutas explícitamente permitidas para planner_solo
+    const plannerSoloAllowed =
+      pathname === '/dashboard' ||
+      pathname.startsWith('/dashboard/planificador') ||
+      pathname.startsWith('/dashboard/biblioteca') ||
+      pathname.startsWith('/dashboard/configuracion') ||
+      pathname.startsWith('/dashboard/historial')
+
+    if (!plannerSoloAllowed) {
+      // Consultar plan del usuario solo cuando la ruta no esté en la whitelist
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', user.id)
+        .single()
+      if ((profile as any)?.plan === 'planner_solo') {
+        return NextResponse.redirect(new URL('/dashboard/planificador', request.url))
+      }
+    }
+  }
+
   return response
 }
 

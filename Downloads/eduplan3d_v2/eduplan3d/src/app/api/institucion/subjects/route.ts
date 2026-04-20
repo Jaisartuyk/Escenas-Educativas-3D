@@ -14,18 +14,43 @@ async function getVerifiedInstitutionId(userId: string): Promise<string | null> 
   return (data as any)?.institution_id ?? null
 }
 
+/** Verifica que el usuario sea admin/assistant */
+async function isAdminOrAssistant(userId: string): Promise<boolean> {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('profiles' as any)
+    .select('role')
+    .eq('id', userId)
+    .single()
+  const role = (data as any)?.role
+  return role === 'admin' || role === 'assistant'
+}
+
 /** GET /api/institucion/subjects
- *  Catálogo global: nombres distintos de materias de toda la plataforma.
+ *  Catálogo de nombres distintos de materias DE LA INSTITUCIÓN DEL USUARIO.
  */
 export async function GET(_req: NextRequest) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
+  const institution_id = await getVerifiedInstitutionId(user.id)
+  if (!institution_id) return NextResponse.json({ names: [] })
+
   const admin = createAdminClient()
+  // Buscamos cursos de la institución y de ahí sus materias
+  const { data: courses } = await admin
+    .from('courses' as any)
+    .select('id')
+    .eq('institution_id', institution_id)
+  const courseIds = (courses || []).map((c: any) => c.id)
+
+  if (courseIds.length === 0) return NextResponse.json({ names: [] })
+
   const { data } = await admin
     .from('subjects' as any)
     .select('name')
+    .in('course_id', courseIds)
 
   const names: string[] = Array.from(
     new Set((data || []).map((s: any) => s.name as string))
@@ -48,6 +73,10 @@ export async function POST(req: NextRequest) {
   // institution_id proviene de la BD, no del cliente
   const institution_id = await getVerifiedInstitutionId(user.id)
   if (!institution_id) return NextResponse.json({ error: 'Sin institución asignada' }, { status: 403 })
+
+  if (!(await isAdminOrAssistant(user.id))) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
 
   const admin = createAdminClient()
 
@@ -90,6 +119,10 @@ export async function PATCH(req: NextRequest) {
   const institution_id = await getVerifiedInstitutionId(user.id)
   if (!institution_id) return NextResponse.json({ error: 'Sin institución asignada' }, { status: 403 })
 
+  if (!(await isAdminOrAssistant(user.id))) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
+
   const admin = createAdminClient()
 
   // Verificar que la materia pertenece a la institución del usuario
@@ -130,6 +163,10 @@ export async function DELETE(req: NextRequest) {
 
   const institution_id = await getVerifiedInstitutionId(user.id)
   if (!institution_id) return NextResponse.json({ error: 'Sin institución asignada' }, { status: 403 })
+
+  if (!(await isAdminOrAssistant(user.id))) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
 
   const admin = createAdminClient()
 

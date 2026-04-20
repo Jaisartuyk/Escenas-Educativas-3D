@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { teacherOwnsSubject } from '@/lib/auth/ownership'
 
 // GET /api/docente/attendance?subjectId=X&weekStart=YYYY-MM-DD
 export async function GET(req: Request) {
@@ -13,6 +14,9 @@ export async function GET(req: Request) {
   const weekStart = searchParams.get('weekStart') // YYYY-MM-DD (Monday)
   if (!subjectId || !weekStart)
     return NextResponse.json({ error: 'Missing params' }, { status: 400 })
+
+  const owns = await teacherOwnsSubject(user.id, subjectId)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta materia' }, { status: 403 })
 
   // weekEnd = Friday
   const start = new Date(weekStart)
@@ -41,11 +45,13 @@ export async function POST(req: Request) {
   const body = await req.json()
   const { subject_id, student_id, date, status } = body
 
-  console.log('[attendance POST]', { subject_id, student_id, date, status })
+  if (!subject_id) return NextResponse.json({ error: 'Missing subject_id' }, { status: 400 })
+
+  const owns = await teacherOwnsSubject(user.id, subject_id)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta materia' }, { status: 403 })
 
   const admin = createAdminClient()
 
-  // Guardar todos los estados incluyendo 'present'
   const { error } = await admin
     .from('attendance' as any)
     .upsert(

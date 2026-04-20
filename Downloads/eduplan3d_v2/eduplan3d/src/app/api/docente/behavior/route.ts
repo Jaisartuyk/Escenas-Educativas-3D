@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { teacherOwnsSubject } from '@/lib/auth/ownership'
 
 // GET /api/docente/behavior?subjectId=X
 export async function GET(req: Request) {
@@ -11,6 +12,9 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const subjectId = searchParams.get('subjectId')
   if (!subjectId) return NextResponse.json({ error: 'Missing subjectId' }, { status: 400 })
+
+  const owns = await teacherOwnsSubject(user.id, subjectId)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta materia' }, { status: 403 })
 
   const admin = createAdminClient()
   const { data, error } = await admin
@@ -31,6 +35,11 @@ export async function POST(req: Request) {
 
   const body = await req.json()
   const { subject_id, student_id, type, description, date } = body
+
+  if (!subject_id) return NextResponse.json({ error: 'Missing subject_id' }, { status: 400 })
+
+  const owns = await teacherOwnsSubject(user.id, subject_id)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta materia' }, { status: 403 })
 
   const admin = createAdminClient()
   const { data, error } = await admin
@@ -53,7 +62,19 @@ export async function DELETE(req: Request) {
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
+  // Cargar el registro para verificar ownership vía subject
   const admin = createAdminClient()
+  const { data: rec } = await admin
+    .from('behavior_records' as any)
+    .select('subject_id')
+    .eq('id', id)
+    .single()
+  const subjectId = (rec as any)?.subject_id
+  if (!subjectId) return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 })
+
+  const owns = await teacherOwnsSubject(user.id, subjectId)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre este registro' }, { status: 403 })
+
   const { error } = await admin
     .from('behavior_records' as any)
     .delete()

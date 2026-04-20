@@ -280,12 +280,17 @@ export async function POST(req: Request) {
 
   const { data: profile } = await admin
     .from('profiles' as any)
-    .select('institution_id')
+    .select('institution_id, role')
     .eq('id', user.id)
     .single()
 
   if (!(profile as any)?.institution_id)
     return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
+
+  const userRole = (profile as any)?.role
+  if (userRole !== 'admin' && userRole !== 'assistant' && userRole !== 'horarios_only') {
+    return NextResponse.json({ error: 'Sin permiso para modificar horarios' }, { status: 403 })
+  }
 
   const instId = (profile as any).institution_id
 
