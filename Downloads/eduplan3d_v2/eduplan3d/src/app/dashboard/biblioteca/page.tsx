@@ -17,12 +17,13 @@ export default async function BibliotecaPage() {
 
   const { data: profile } = await admin
     .from('profiles')
-    .select('role, institution_id, full_name')
+    .select('role, institution_id, full_name, plan')
     .eq('id', user.id)
     .single()
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'assistant'
   const instId  = profile?.institution_id
+  const isPlannerSolo = (profile as any)?.plan === 'planner_solo'
 
   // ── ADMIN: fetch all teachers + their planificaciones ──────────────────────
   if (isAdmin && instId) {
@@ -70,12 +71,16 @@ export default async function BibliotecaPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="font-display text-3xl font-bold tracking-tight">Mi Biblioteca</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight">
+          {isPlannerSolo ? 'Mis Planificaciones' : 'Mi Biblioteca'}
+        </h1>
         <p className="text-ink3 text-sm mt-1">
-          Recursos curriculares y planificaciones organizadas por materia y curso.
+          {isPlannerSolo
+            ? 'Sube y organiza tus planes anuales, PUDs, planes semanales y diarios.'
+            : 'Recursos curriculares y planificaciones organizadas por materia y curso.'}
         </p>
       </div>
-      <BibliotecaTabsClient subjects={subjects || []} />
+      <BibliotecaTabsClient subjects={subjects || []} standalone={isPlannerSolo} />
     </div>
   )
 }

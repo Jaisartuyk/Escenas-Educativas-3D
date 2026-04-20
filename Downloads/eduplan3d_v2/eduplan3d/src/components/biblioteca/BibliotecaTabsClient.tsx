@@ -16,8 +16,23 @@ interface SubjectOption {
 
 type TabKey = 'biblioteca' | 'planificaciones'
 
-export function BibliotecaTabsClient({ subjects }: { subjects: SubjectOption[] }) {
+export function BibliotecaTabsClient({
+  subjects,
+  standalone = false,
+}: {
+  subjects: SubjectOption[]
+  standalone?: boolean
+}) {
   const [tab, setTab] = useState<TabKey>('planificaciones')
+
+  // Docente externo (planner_solo) → solo ve "Mis Planificaciones", sin tabs
+  if (standalone) {
+    return (
+      <div>
+        <PlanificacionesDocsClient subjects={subjects} standalone />
+      </div>
+    )
+  }
 
   const tabs: { key: TabKey; label: string; icon: any; desc: string }[] = [
     {

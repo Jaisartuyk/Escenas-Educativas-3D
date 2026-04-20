@@ -70,8 +70,17 @@ function isPdf(fileType: string | null, fileName: string | null) {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOption[] }) {
+export function PlanificacionesDocsClient({
+  subjects,
+  standalone = false,
+}: {
+  subjects: SubjectOption[]
+  standalone?: boolean
+}) {
   const supabase = createClient()
+
+  // Modo manual: docente externo (planner_solo) o docente sin materias asignadas
+  const manualMode = standalone || subjects.length === 0
 
   const [docs, setDocs] = useState<PlanDoc[]>([])
   const [loading, setLoading] = useState(true)
@@ -87,6 +96,8 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
   // Form state
   const [formTipo, setFormTipo] = useState('diaria')
   const [formSubjectId, setFormSubjectId] = useState('')
+  const [formAsignaturaManual, setFormAsignaturaManual] = useState('')
+  const [formCursoManual, setFormCursoManual] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -96,10 +107,14 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
   // DOCX editor
   const [editingDoc, setEditingDoc] = useState<PlanDoc | null>(null)
 
-  // Derived subject options
-  const subjectNames = useMemo(() =>
-    Array.from(new Set(subjects.map(s => s.name))).sort() as string[],
-    [subjects]
+  // Derived subject options — si no hay subjects (docente externo), usa las materias ya registradas en sus planificaciones
+  const subjectNames = useMemo(() => {
+    if (subjects.length > 0) {
+      return Array.from(new Set(subjects.map(s => s.name))).sort() as string[]
+    }
+    return Array.from(new Set(docs.map(d => d.asignatura).filter(Boolean))).sort()
+  },
+    [subjects, docs]
   )
 
   const selectedSubjectInfo = useMemo(() =>
@@ -130,16 +145,25 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
     const trimestre = form.get('trimestre') ? Number(form.get('trimestre')) : null
     const semana    = form.get('semana')    ? Number(form.get('semana'))    : null
 
-    if (!selectedSubjectInfo) return toast.error('Selecciona una materia')
+    if (manualMode) {
+      if (!formAsignaturaManual.trim()) return toast.error('Ingresa la materia')
+      if (!formCursoManual.trim())      return toast.error('Ingresa el curso')
+    } else {
+      if (!selectedSubjectInfo) return toast.error('Selecciona una materia')
+    }
     if (!selectedFile)        return toast.error('Adjunta un archivo')
 
     const fileMB = selectedFile.size / 1024 / 1024
     if (fileMB > MAX_MB) return toast.error(`El archivo supera los ${MAX_MB} MB permitidos`)
 
-    const asignatura = selectedSubjectInfo.name
-    const curso = selectedSubjectInfo.course
-      ? `${selectedSubjectInfo.course.name} ${selectedSubjectInfo.course.parallel || ''}`.trim()
-      : ''
+    const asignatura = manualMode
+      ? formAsignaturaManual.trim()
+      : (selectedSubjectInfo!.name)
+    const curso = manualMode
+      ? formCursoManual.trim()
+      : (selectedSubjectInfo!.course
+          ? `${selectedSubjectInfo!.course.name} ${selectedSubjectInfo!.course.parallel || ''}`.trim()
+          : '')
 
     setUploading(true)
     const t = toast.loading('Subiendo planificación...')
@@ -159,7 +183,7 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
 
       const { error: dbErr } = await (supabase as any).from('planificacion_docs').insert({
         user_id:      user.id,
-        subject_id:   selectedSubjectInfo.id,
+        subject_id:   manualMode ? null : selectedSubjectInfo!.id,
         titulo,
         tipo,
         trimestre,
@@ -178,6 +202,8 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
       setShowForm(false)
       setSelectedFile(null)
       setFormSubjectId('')
+      setFormAsignaturaManual('')
+      setFormCursoManual('')
       setFormTipo('diaria')
       loadDocs()
     } catch (err: any) {
@@ -367,36 +393,67 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
               </select>
             </div>
 
-            {/* Materia */}
-            <div>
-              <label className="block text-[11px] font-bold text-ink3 uppercase tracking-wider mb-1.5">
-                Materia y Curso *
-              </label>
-              <select
-                name="subject_id"
-                required
-                value={formSubjectId}
-                onChange={e => setFormSubjectId(e.target.value)}
-                className="input-base"
-              >
-                <option value="">— Seleccionar materia —</option>
-                {subjects.map(s => {
-                  const courseLabel = s.course
-                    ? `${s.course.name} ${s.course.parallel || ''}`.trim()
-                    : ''
-                  return (
-                    <option key={s.id} value={s.id}>
-                      {s.name}{courseLabel ? ` — ${courseLabel}` : ''}
-                    </option>
-                  )
-                })}
-              </select>
-              {selectedSubjectInfo?.course && (
-                <p className="text-[10px] text-teal mt-1 flex items-center gap-1">
-                  ✓ {selectedSubjectInfo.course.name} {selectedSubjectInfo.course.parallel || ''}
-                </p>
-              )}
-            </div>
+            {/* Materia — dropdown o inputs libres según modo */}
+            {manualMode ? (
+              <>
+                <div>
+                  <label className="block text-[11px] font-bold text-ink3 uppercase tracking-wider mb-1.5">
+                    Materia *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formAsignaturaManual}
+                    onChange={e => setFormAsignaturaManual(e.target.value)}
+                    placeholder="Ej: Matemáticas, Lengua, Ciencias..."
+                    className="input-base"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-ink3 uppercase tracking-wider mb-1.5">
+                    Curso / Nivel *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formCursoManual}
+                    onChange={e => setFormCursoManual(e.target.value)}
+                    placeholder="Ej: 8vo A, 1ro BGU, 3ro EGB..."
+                    className="input-base"
+                  />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="block text-[11px] font-bold text-ink3 uppercase tracking-wider mb-1.5">
+                  Materia y Curso *
+                </label>
+                <select
+                  name="subject_id"
+                  required
+                  value={formSubjectId}
+                  onChange={e => setFormSubjectId(e.target.value)}
+                  className="input-base"
+                >
+                  <option value="">— Seleccionar materia —</option>
+                  {subjects.map(s => {
+                    const courseLabel = s.course
+                      ? `${s.course.name} ${s.course.parallel || ''}`.trim()
+                      : ''
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {s.name}{courseLabel ? ` — ${courseLabel}` : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+                {selectedSubjectInfo?.course && (
+                  <p className="text-[10px] text-teal mt-1 flex items-center gap-1">
+                    ✓ {selectedSubjectInfo.course.name} {selectedSubjectInfo.course.parallel || ''}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Trimestre — solo si aplica */}
             {['trimestral', 'unidad', 'semanal', 'diaria'].includes(formTipo) && (
@@ -485,7 +542,13 @@ export function PlanificacionesDocsClient({ subjects }: { subjects: SubjectOptio
           <div className="flex justify-end mt-5 pt-4 border-t border-[rgba(0,0,0,0.06)]">
             <button
               type="submit"
-              disabled={uploading || !selectedFile || !formSubjectId}
+              disabled={
+                uploading ||
+                !selectedFile ||
+                (manualMode
+                  ? (!formAsignaturaManual.trim() || !formCursoManual.trim())
+                  : !formSubjectId)
+              }
               className="btn-primary px-6 py-2.5 flex items-center gap-2 disabled:opacity-50"
             >
               {uploading ? (
