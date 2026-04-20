@@ -77,7 +77,25 @@ REGLAS PARA CADA COLUMNA:
 **ESTRATEGIAS METODOLOGICAS (CICLO ERCA)**: las 4 fases con tiempos EXACTOS que sumen ${duration}. Dentro de la misma celda usa la etiqueta <br/> para saltar de linea entre fases (NO uses saltos reales, las tablas markdown no los soportan). Formato:
 **EXPERIENCIA (X min):** actividad de enganche<br/>**REFLEXION (X min):** preguntas guia<br/>**CONCEPTUALIZACION (X min):** desarrollo del contenido<br/>**APLICACION (X min):** ejercicios practicos${cuadernillo ? ' (Cuadernillo pag. indicada)' : ''}
 
-**RECURSOS**: lista compacta separada por <br/> en la misma celda (ej: "Cuadernillo pag. 12<br/>Pizarra<br/>Marcadores<br/>Proyector"). NO generes tabla aparte para esto.
+**RECURSOS**: lista compacta en la misma celda, separada por <br/>. Debe incluir DOS bloques:
+
+1) Recursos del aula (materiales fisicos): Cuadernillo pag. X, pizarra, marcadores, proyector, etc.
+
+2) **Recursos digitales de apoyo (OBLIGATORIO minimo 3)**: enlaces reales y verificables relacionados al tema de la clase. Usa formato markdown de link [texto](url). Prioriza en este orden:
+   - 1 video educativo de YouTube sobre el tema (canales como Educatina, Khan Academy en espanol, Smile and Learn, Happy Learning, Unicoos, Math2Me, etc.)
+   - 1 articulo/lectura de fuente confiable (Ministerio de Educacion Ecuador https://educacion.gob.ec, BBC Mundo, National Geographic, Wikipedia en espanol, RAE, etc.)
+   - 1 recurso interactivo o de investigacion (simulaciones PhET https://phet.colorado.edu, Educaplay, Liveworksheets, Genially publicos, etc.)
+
+NO inventes URLs especificas con IDs falsos (nada de "watch?v=xyz123" inventado). Usa URLs de busqueda o paginas raiz verificables, por ejemplo:
+- Busqueda en YouTube: https://www.youtube.com/results?search_query=TEMA+AQUI
+- Canal YouTube real: https://www.youtube.com/@KhanAcademyEspanol
+- Wikipedia articulo: https://es.wikipedia.org/wiki/TEMA
+- PhET: https://phet.colorado.edu/es/simulations/filter?subjects=TEMA
+- Ministerio Educacion EC: https://educacion.gob.ec/curriculo-nacional/
+- Recursos MinEduc: https://recursos2.educacion.gob.ec/
+
+Ejemplo del bloque digital:
+[Video: Textos literarios y no literarios (YouTube)](https://www.youtube.com/results?search_query=textos+literarios+y+no+literarios+10mo+EGB)<br/>[Lectura: Tipos de texto - Wikipedia](https://es.wikipedia.org/wiki/Texto)<br/>[Simulacion: Analisis textual interactivo](https://phet.colorado.edu/es/)
 
 **EVALUACION**: en la misma celda, separado por <br/>:
 **Tecnica:** (Observacion / Prueba escrita / etc.)<br/>**Instrumento:** (Lista de cotejo / Cuestionario / Rubrica)<br/>**Criterios:** 2-3 criterios clave separados por ";"

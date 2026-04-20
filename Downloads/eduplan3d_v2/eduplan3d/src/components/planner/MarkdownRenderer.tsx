@@ -23,8 +23,19 @@ function escapeHtml(str: string): string {
 }
 
 function inlineFormat(text: string): string {
+  // Markdown links [label](url) — rendered antes de bold/italic para que
+  // asteriscos dentro de la URL no rompan
+  let result = text.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-violet-600 underline hover:text-violet-800 break-all">$1</a>'
+  )
+  // URLs sueltas (auto-linkify)
+  result = result.replace(
+    /(^|[\s(])((https?:\/\/)[^\s<)]+)/g,
+    '$1<a href="$2" target="_blank" rel="noopener noreferrer" class="text-violet-600 underline hover:text-violet-800 break-all">$2</a>'
+  )
   // Bold **text** or __text__
-  let result = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   result = result.replace(/__(.+?)__/g, '<strong>$1</strong>')
   // Italic *text* or _text_
   result = result.replace(/\*(.+?)\*/g, '<em>$1</em>')
