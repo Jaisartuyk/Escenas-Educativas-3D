@@ -62,6 +62,15 @@ export function MateriaDocsModal({
   const [previewId, setPreviewId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Auto-rellena el título con el nombre del archivo si el campo está vacío
+  function pickFile(f: File | null) {
+    setSelectedFile(f)
+    if (f && !titulo.trim()) {
+      const base = f.name.replace(/\.[^.]+$/, '').replace(/_/g, ' ').trim()
+      setTitulo(base.slice(0, 120))
+    }
+  }
+
   useEffect(() => { loadDocs() }, [subject.id])
 
   async function loadDocs() {
@@ -141,7 +150,7 @@ export function MateriaDocsModal({
     e.preventDefault()
     setDragOver(false)
     const f = e.dataTransfer.files[0]
-    if (f) setSelectedFile(f)
+    if (f) pickFile(f)
   }
 
   function getUrl(path: string) {
@@ -243,17 +252,24 @@ export function MateriaDocsModal({
                 type="file"
                 accept={ACCEPTED}
                 className="hidden"
-                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
+                onChange={e => pickFile(e.target.files?.[0] || null)}
               />
             </div>
 
             <button
               type="submit"
               disabled={uploading || !selectedFile || !titulo.trim()}
-              className={`w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50 ${colorClass.solid} hover:opacity-90`}
+              className={`w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${colorClass.solid} hover:opacity-90`}
             >
               {uploading ? 'Subiendo…' : '+ Agregar material'}
             </button>
+            {(!selectedFile || !titulo.trim()) && !uploading && (
+              <p className="text-[11px] text-ink4 text-center">
+                {!selectedFile
+                  ? 'Selecciona un archivo para continuar'
+                  : 'Escribe un título para el material'}
+              </p>
+            )}
           </form>
 
           {/* Documents list */}

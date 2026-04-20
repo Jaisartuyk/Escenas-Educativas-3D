@@ -159,6 +159,8 @@ export async function POST(request: NextRequest) {
     const { data: profile } = await (supabase as any)
       .from('profiles').select('plan').eq('id', user.id).single() as { data: { plan: string } | null }
 
+    const isPlannerSolo = profile?.plan === 'planner_solo'
+
     if (profile?.plan === 'free') {
       const { count } = await (supabase as any)
         .from('planificaciones')
@@ -179,26 +181,55 @@ export async function POST(request: NextRequest) {
     // ── RAG: extract PDFs from teacher library ──
     let contextoExtra = ''
     try {
-      const { data: docs } = await (supabase as any)
-        .from('documentos')
-        .select('storage_path')
-        .eq('user_id', user.id)
-        .eq('asignatura', body.subject)
-        .eq('grado', body.grade)
+      let refs: Array<{ storage_path: string; bucket: string; titulo?: string }> = []
 
-      if (docs && docs.length > 0) {
+      if (isPlannerSolo && body.subjectId) {
+        // Docente externo: usar planner_reference_docs ligados a la materia seleccionada
+        const { data: docs } = await (supabase as any)
+          .from('planner_reference_docs')
+          .select('storage_path, titulo, file_type, file_name')
+          .eq('user_id', user.id)
+          .eq('planner_subject_id', body.subjectId)
+
+        refs = (docs || [])
+          .filter((d: any) => {
+            const ext = (d.file_name?.split('.').pop() || '').toLowerCase()
+            return d.file_type?.includes('pdf') || ext === 'pdf'
+          })
+          .map((d: any) => ({
+            storage_path: d.storage_path,
+            bucket: 'submissions',
+            titulo: d.titulo,
+          }))
+      } else {
+        // Docente institucional: fuente legacy
+        const { data: docs } = await (supabase as any)
+          .from('documentos')
+          .select('storage_path')
+          .eq('user_id', user.id)
+          .eq('asignatura', body.subject)
+          .eq('grado', body.grade)
+
+        refs = (docs || []).map((d: any) => ({
+          storage_path: d.storage_path,
+          bucket: 'biblioteca',
+        }))
+      }
+
+      if (refs.length > 0) {
         const pdfMod = await import('pdf-parse')
         const pdfParse = (pdfMod as any).default || pdfMod
 
-        for (const d of docs as any[]) {
+        for (const r of refs) {
           const { data: fileData, error: downloadError } = await supabase.storage
-            .from('biblioteca')
-            .download(d.storage_path)
+            .from(r.bucket)
+            .download(r.storage_path)
 
           if (fileData && !downloadError) {
             const buffer = Buffer.from(await fileData.arrayBuffer())
             const parsed = await pdfParse(buffer)
-            contextoExtra += `\nDocumento adjunto:\n${parsed.text.slice(0, 150000)}\n`
+            const header = r.titulo ? `Documento: ${r.titulo}` : 'Documento adjunto'
+            contextoExtra += `\n${header}:\n${parsed.text.slice(0, 150000)}\n`
           }
         }
       }
