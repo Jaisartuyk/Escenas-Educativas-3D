@@ -33,8 +33,16 @@ export default async function DashboardPage() {
     .single()
 
   const role      = profile?.role ?? 'admin'
+  const plan      = profile?.plan ?? ''
   const instId    = profile?.institution_id
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Usuario'
+
+  // ── Redirigir superadmin ─────────────────────────────────────────────────
+  const superAdminEmail = process.env.SUPERADMIN_EMAIL
+  if (superAdminEmail && user.email === superAdminEmail) redirect('/superadmin')
+
+  // ── Redirigir docente externo (planner_solo) ─────────────────────────────
+  if (plan === 'planner_solo') redirect('/dashboard/planificador')
 
   // ── Redirigir docentes y estudiantes a su página principal ───────────────
   if (role === 'teacher') redirect('/dashboard/docente')

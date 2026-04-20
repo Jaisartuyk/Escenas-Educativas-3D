@@ -101,17 +101,27 @@ const NAV_HORARIOS: NavItem[] = [
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
 
-export function Sidebar({ 
+// ─── Nav planner_solo (docente externo sin institución) ──────────────────────
+const NAV_PLANNER_SOLO: NavItem[] = [
+  { href: '/dashboard/planificador', icon: '🤖', label: 'Planificador IA' },
+  { href: '/dashboard/biblioteca',   icon: '📋', label: 'Mis Planificaciones' },
+  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'       },
+]
+
+export function Sidebar({
   role = 'admin',
+  plan,
   institutionName,
   logoUrl
-}: { 
+}: {
   role?: string,
+  plan?: string,
   institutionName?: string
   logoUrl?: string | null
 }) {
   const pathname = usePathname()
-  const isAdmin = role === 'admin' || role === 'assistant'
+  const isPlannerSolo = plan === 'planner_solo'
+  const isAdmin = !isPlannerSolo && (role === 'admin' || role === 'assistant')
   const [open, setOpen] = useState(false)
 
   // Track which groups are expanded (admin only)
@@ -139,6 +149,7 @@ export function Sidebar({
 
   // Get flat nav for non-admin roles
   function getFlatNav(): NavItem[] {
+    if (isPlannerSolo) return NAV_PLANNER_SOLO
     switch (role) {
       case 'teacher':       return NAV_TEACHER
       case 'student':       return NAV_STUDENT
@@ -217,7 +228,17 @@ export function Sidebar({
     <>
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-5 border-b border-[rgba(120,100,255,0.14)]">
-        <Logo size="sm" institutionName={institutionName} logoUrl={logoUrl ?? undefined} />
+        {isPlannerSolo ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🧠</span>
+            <div>
+              <p className="font-bold text-sm leading-tight text-ink">ClassNova</p>
+              <p className="text-[10px] text-violet2 font-semibold leading-none">Planificador</p>
+            </div>
+          </div>
+        ) : (
+          <Logo size="sm" institutionName={institutionName} logoUrl={logoUrl ?? undefined} />
+        )}
         {/* Close button visible only on mobile */}
         <button onClick={() => setOpen(false)} className="lg:hidden text-ink3 hover:text-ink">
           <X size={20} />

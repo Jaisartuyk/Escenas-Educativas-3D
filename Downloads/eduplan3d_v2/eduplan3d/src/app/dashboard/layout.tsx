@@ -23,7 +23,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq('id', user!.id)
     .single()
 
-  const isMissingInstitution = !profile?.institution_id
+  const isPlannerSolo     = profile?.plan === 'planner_solo'
+  const isMissingInstitution = !profile?.institution_id && !isPlannerSolo
   const isHorariosOnly = profile?.role === 'horarios_only'
 
   // ── Fetch Institution Data ──────────────────────────────────────────────────
@@ -43,10 +44,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="min-h-screen flex bg-bg relative">
       {isMissingInstitution && <OnboardingModal profileName={profile?.full_name || 'Usuario'} />}
-      <Sidebar 
-        role={isHorariosOnly ? 'horarios_only' : profile?.role} 
-        institutionName={institution?.name}
-        logoUrl={logoUrl}
+      <Sidebar
+        role={isHorariosOnly ? 'horarios_only' : profile?.role}
+        plan={profile?.plan}
+        institutionName={isPlannerSolo ? undefined : institution?.name}
+        logoUrl={isPlannerSolo ? null : logoUrl}
       />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar profile={profile} institutionName={institution?.name} />
