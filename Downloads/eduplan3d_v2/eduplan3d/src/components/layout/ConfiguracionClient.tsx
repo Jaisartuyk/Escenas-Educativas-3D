@@ -25,9 +25,26 @@ const PLANS = [
   },
 ]
 
-interface Props { profile: Profile | null }
+// Planes específicos para docente externo (planner_solo)
+const PLANNER_PLANS = [
+  {
+    id: 'planner_solo', name: 'Gratis', price: '$0/mes',
+    features: ['5 planificaciones/mes', 'Plan diario y semanal', 'Historial de 30 días', 'Exportar texto'],
+    color: 'border-[rgba(120,100,255,0.14)]',
+  },
+  {
+    id: 'planner_pro', name: 'Pro', price: '$4.99/mes',
+    features: ['Planificaciones ilimitadas', 'Todos los tipos (PCA, PUD, diario)', 'Biblioteca de PDFs', 'Historial completo', 'Exportar Word/PDF', 'Soporte prioritario'],
+    color: 'border-violet',
+  },
+]
 
-export function ConfiguracionClient({ profile }: Props) {
+interface Props {
+  profile: Profile | null
+  standalone?: boolean
+}
+
+export function ConfiguracionClient({ profile, standalone = false }: Props) {
   const [activeTab, setActiveTab] = useState<'perfil' | 'plan' | 'seguridad'>('perfil')
   const router = useRouter()
 
@@ -62,7 +79,9 @@ export function ConfiguracionClient({ profile }: Props) {
           <form onSubmit={handleProfileSave} className="space-y-5 max-w-lg">
             <div>
               <h2 className="font-display text-lg font-bold tracking-tight mb-0.5">Mi perfil</h2>
-              <p className="text-ink3 text-sm">Información personal y de tu institución</p>
+              <p className="text-ink3 text-sm">
+                {standalone ? 'Información personal de tu cuenta' : 'Información personal y de tu institución'}
+              </p>
             </div>
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nombre completo</label>
@@ -73,10 +92,12 @@ export function ConfiguracionClient({ profile }: Props) {
               <input value={profile?.email ?? ''} disabled className="input-base opacity-50 cursor-not-allowed" />
               <p className="text-[11px] text-ink3 mt-1">El correo no puede cambiarse desde aquí</p>
             </div>
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Institución educativa</label>
-              <input name="institution" defaultValue={profile?.institution ?? ''} placeholder="Unidad Educativa..." className="input-base" />
-            </div>
+            {!standalone && (
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Institución educativa</label>
+                <input name="institution" defaultValue={profile?.institution ?? ''} placeholder="Unidad Educativa..." className="input-base" />
+              </div>
+            )}
             <button type="submit" className="btn-primary px-6 py-2.5">Guardar cambios</button>
           </form>
         )}
@@ -85,11 +106,15 @@ export function ConfiguracionClient({ profile }: Props) {
         {activeTab === 'plan' && (
           <div>
             <div className="mb-6">
-              <h2 className="font-display text-lg font-bold tracking-tight mb-0.5">Suscripción</h2>
-              <p className="text-ink3 text-sm">Gestiona tu plan actual</p>
+              <h2 className="font-display text-lg font-bold tracking-tight mb-0.5">
+                {standalone ? 'Plan del Planificador' : 'Suscripción'}
+              </h2>
+              <p className="text-ink3 text-sm">
+                {standalone ? 'Cambia entre Gratis y Pro cuando quieras' : 'Gestiona tu plan actual'}
+              </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {PLANS.map(p => (
+            <div className={`grid grid-cols-1 ${standalone ? 'sm:grid-cols-2 max-w-xl' : 'sm:grid-cols-3'} gap-4`}>
+              {(standalone ? PLANNER_PLANS : PLANS).map(p => (
                 <div key={p.id} className={`card p-5 border-2 ${p.color} ${profile?.plan === p.id ? '' : 'opacity-70'} relative`}>
                   {profile?.plan === p.id && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet to-violet2 text-white text-[10px] font-bold px-3 py-0.5 rounded-full">

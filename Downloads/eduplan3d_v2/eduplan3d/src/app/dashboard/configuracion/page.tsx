@@ -20,13 +20,17 @@ export default async function ConfiguracionPage() {
     .eq('id', user.id)
     .single()
 
+  const isPlannerSolo = profile?.plan === 'planner_solo' || profile?.plan === 'planner_pro'
+
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="font-display text-3xl font-bold tracking-tight">Configuración</h1>
-        <p className="text-ink3 text-sm mt-1">Gestiona tu perfil y suscripción</p>
+        <p className="text-ink3 text-sm mt-1">
+          {isPlannerSolo ? 'Gestiona tu cuenta y tu plan del planificador' : 'Gestiona tu perfil y suscripción'}
+        </p>
       </div>
-      <ConfiguracionClient profile={profile} />
+      <ConfiguracionClient profile={profile} standalone={isPlannerSolo} />
     </div>
   )
 }
