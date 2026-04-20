@@ -88,8 +88,21 @@ export function Topbar({ profile, institutionName }: Props) {
                 { icon: '📅', label: 'Horarios',        href: '/dashboard/horarios' },
                 { icon: '📂', label: 'Historial',       href: '/dashboard/historial' },
               ].filter(item => {
-                // Docente externo (planner_solo) no tiene horarios institucionales
-                if ((profile as any)?.plan === 'planner_solo' && item.href === '/dashboard/horarios') return false
+                const role = (profile as any)?.role
+                const plan  = (profile as any)?.plan
+
+                // Horarios: solo admin y assistant
+                if (item.href === '/dashboard/horarios') {
+                  return role === 'admin' || role === 'assistant'
+                }
+
+                // Historial: solo docentes (teacher, planner_solo, admin, assistant)
+                if (item.href === '/dashboard/historial') {
+                  return role === 'admin' || role === 'assistant' ||
+                         role === 'teacher' || plan === 'planner_solo'
+                }
+
+                // Configuración: todos
                 return true
               })).map(item => (
                 <Link
