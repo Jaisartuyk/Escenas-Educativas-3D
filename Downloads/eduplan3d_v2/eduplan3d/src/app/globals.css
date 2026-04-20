@@ -116,7 +116,19 @@
   .print\:px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
   .print\:pb-4 { padding-bottom: 1rem !important; }
   .print\:mt-24 { margin-top: 6rem !important; }
+
+  /* Evitar que filas/tablas de la planificacion se partan entre paginas */
+  .planificacion-content table { page-break-inside: auto; break-inside: auto; }
+  .planificacion-content tr    { page-break-inside: avoid; break-inside: avoid; }
+  .planificacion-content thead { display: table-header-group; }
+  .planificacion-content h2,
+  .planificacion-content h3,
+  .planificacion-content h4    { page-break-after: avoid; break-after: avoid; }
 }
+
+/* Celdas de la tabla de planificacion: permitir wrap con saltos <br/> */
+.planificacion-content td,
+.planificacion-content th { white-space: normal; word-break: break-word; }
 
 /* ── TipTap / DocxEditor ── */
 .ProseMirror { outline: none; }

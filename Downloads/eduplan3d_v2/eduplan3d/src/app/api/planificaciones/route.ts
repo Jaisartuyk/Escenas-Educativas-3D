@@ -63,46 +63,43 @@ Tabla con: Institucion, Asignatura, Curso, Docente, Fecha, No. Estudiantes (22),
 - Eje Transversal: ${ejeTransversal}
 
 ### 2. TABLA PRINCIPAL DE LA CLASE
-Columnas EXACTAS:
+Genera UNA SOLA fila con estas columnas EXACTAS (no generes tablas separadas para Recursos ni Evaluacion, todo va aqui):
 
 | DESTREZA CON CRITERIO DE DESEMPENO (DCD) | INDICADOR DE EVALUACION | ESTRATEGIAS METODOLOGICAS (CICLO ERCA) | RECURSOS | EVALUACION |
 |---|---|---|---|---|
 
-Para la columna ESTRATEGIAS METODOLOGICAS, detalla las 4 fases del ciclo ERCA con tiempos EXACTOS que sumen ${duration}:
-- **EXPERIENCIA** (X min): Actividad de enganche/motivacion
-- **REFLEXION** (X min): Preguntas guia, analisis
-- **CONCEPTUALIZACION** (X min): Desarrollo del contenido, explicacion
-- **APLICACION** (X min): Ejercicios practicos${cuadernillo ? ' (usar Cuadernillo pag. indicada)' : ''}
+REGLAS PARA CADA COLUMNA:
 
-Para DCD e INDICADOR: incluye el codigo oficial exacto y descripcion completa.
+**DCD**: codigo oficial (ej. LL.5.3.1.) + descripcion completa. Texto breve, sin listas.
 
-IMPORTANTE: Las secciones 3, 4, 5 y 6 DEBEN estar en formato TABLA Markdown. NO repitas informacion que ya este en la tabla principal. Cada seccion es UNA SOLA tabla.
+**INDICADOR**: codigo oficial (ej. I.LL.5.4.1.) + descripcion. Texto breve.
 
-### 3. RECURSOS
-| **RECURSO** | **DESCRIPCION** |
-|---|---|
-(Lista: Cuadernillo pag. XX, pizarra, diapositivas, etc.)
+**ESTRATEGIAS METODOLOGICAS (CICLO ERCA)**: las 4 fases con tiempos EXACTOS que sumen ${duration}. Dentro de la misma celda usa la etiqueta <br/> para saltar de linea entre fases (NO uses saltos reales, las tablas markdown no los soportan). Formato:
+**EXPERIENCIA (X min):** actividad de enganche<br/>**REFLEXION (X min):** preguntas guia<br/>**CONCEPTUALIZACION (X min):** desarrollo del contenido<br/>**APLICACION (X min):** ejercicios practicos${cuadernillo ? ' (Cuadernillo pag. indicada)' : ''}
 
-### 4. EVALUACION
-| **ASPECTO** | **DETALLE** |
-|---|---|
-| Tecnica | (Observacion / Prueba escrita / etc.) |
-| Instrumento | (Lista de cotejo / Cuestionario / Rubrica) |
-| Criterios | (Lista de criterios de evaluacion) |
+**RECURSOS**: lista compacta separada por <br/> en la misma celda (ej: "Cuadernillo pag. 12<br/>Pizarra<br/>Marcadores<br/>Proyector"). NO generes tabla aparte para esto.
+
+**EVALUACION**: en la misma celda, separado por <br/>:
+**Tecnica:** (Observacion / Prueba escrita / etc.)<br/>**Instrumento:** (Lista de cotejo / Cuestionario / Rubrica)<br/>**Criterios:** 2-3 criterios clave separados por ";"
 ${isAporte ? '- OBLIGATORIO semana 6: Tecnica = Prueba de base estructurada, Instrumento = Cuestionario' : ''}
+NO generes una tabla aparte para Evaluacion.
 
-### 5. ADAPTACIONES CURRICULARES (NEE)
+MANTEN cada celda concisa para que la fila entera quepa sin partirse entre paginas. Evita parrafos largos.
+
+### 3. ADAPTACIONES CURRICULARES (NEE)
 | **TIPO DE NEE** | **ADAPTACION** |
 |---|---|
 | Dificultades de aprendizaje | (adaptaciones concretas) |
 | Altas capacidades | (actividades de extension) |
 | Principios DUA | (multiples formas de representacion, expresion, motivacion) |
 
-### 6. OBSERVACIONES Y FIRMAS
+### 4. OBSERVACIONES Y FIRMAS
 | **DOCENTE** | **REVISADO POR** | **APROBADO POR** |
 |---|---|---|
 | ${data.teacherName || 'Docente'} | | |
-| Firma: _________ | Firma: _________ | Firma: _________ |`.trim()
+| Firma: _________ | Firma: _________ | Firma: _________ |
+
+IMPORTANTE: NO repitas la informacion de Recursos o Evaluacion fuera de la tabla principal. La tabla principal es UNICA y contiene toda la info pedagogica.`.trim()
   }
 
   if (type === 'unidad') {
