@@ -104,8 +104,8 @@ const NAV_HORARIOS: NavItem[] = [
 // ─── Nav planner_solo (docente externo sin institución) ──────────────────────
 const NAV_PLANNER_SOLO: NavItem[] = [
   { href: '/dashboard/planificador', icon: '🤖', label: 'Planificador IA' },
-  { href: '/dashboard/biblioteca',   icon: '📋', label: 'Mis Planificaciones' },
-  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'       },
+  { href: '/dashboard/biblioteca',   icon: '📚', label: 'Mis Materias'    },
+  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'   },
 ]
 
 export function Sidebar({

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { BibliotecaTabsClient } from '@/components/biblioteca/BibliotecaTabsClient'
 import { AdminPlanificacionesClient } from '@/components/biblioteca/AdminPlanificacionesClient'
+import { MisMateriasPlanner } from '@/components/biblioteca/MisMateriasPlanner'
 
 export const metadata: Metadata = { title: 'Planificaciones Docentes' }
 export const dynamic = 'force-dynamic'
@@ -61,6 +62,22 @@ export default async function BibliotecaPage() {
     )
   }
 
+  // ── PLANNER_SOLO (docente externo): manager de materias propias ─────────────
+  if (isPlannerSolo) {
+    return (
+      <div className="animate-fade-in">
+        <div className="mb-6">
+          <h1 className="font-display text-3xl font-bold tracking-tight">Mis Materias</h1>
+          <p className="text-ink3 text-sm mt-1">
+            Registra las materias y cursos que dictas. Por cada una podrás subir los libros
+            y PDFs que la IA usará como referencia al generar tus planificaciones.
+          </p>
+        </div>
+        <MisMateriasPlanner />
+      </div>
+    )
+  }
+
   // ── TEACHER / other roles: personal library + personal planificaciones ──────
   const { data: subjects } = await admin
     .from('subjects' as any)
@@ -71,16 +88,12 @@ export default async function BibliotecaPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <h1 className="font-display text-3xl font-bold tracking-tight">
-          {isPlannerSolo ? 'Mis Planificaciones' : 'Mi Biblioteca'}
-        </h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight">Mi Biblioteca</h1>
         <p className="text-ink3 text-sm mt-1">
-          {isPlannerSolo
-            ? 'Sube y organiza tus planes anuales, PUDs, planes semanales y diarios.'
-            : 'Recursos curriculares y planificaciones organizadas por materia y curso.'}
+          Recursos curriculares y planificaciones organizadas por materia y curso.
         </p>
       </div>
-      <BibliotecaTabsClient subjects={subjects || []} standalone={isPlannerSolo} />
+      <BibliotecaTabsClient subjects={subjects || []} />
     </div>
   )
 }
