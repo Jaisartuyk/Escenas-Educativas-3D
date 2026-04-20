@@ -54,9 +54,17 @@ export function Topbar({ profile, institutionName }: Props) {
             ? 'bg-[rgba(124,109,250,0.15)] text-violet2 border border-[rgba(124,109,250,0.3)]'
             : profile?.plan === 'institucion'
             ? 'bg-[rgba(38,215,180,0.12)] text-teal border border-[rgba(38,215,180,0.25)]'
+            : (profile as any)?.plan === 'planner_solo'
+            ? 'bg-[rgba(124,109,250,0.1)] text-violet2 border border-[rgba(124,109,250,0.25)]'
             : 'bg-[rgba(255,179,71,0.12)] text-amber border border-[rgba(255,179,71,0.25)]'
         }`}>
-          {profile?.plan === 'pro' ? '⭐ Pro' : profile?.plan === 'institucion' ? '🏫 Institución' : 'Starter'}
+          {profile?.plan === 'pro'
+            ? '⭐ Pro'
+            : profile?.plan === 'institucion'
+            ? '🏫 Institución'
+            : (profile as any)?.plan === 'planner_solo'
+            ? '🧠 Planificador'
+            : 'Starter'}
         </span>
 
         {/* Avatar + menu */}
@@ -75,11 +83,15 @@ export function Topbar({ profile, institutionName }: Props) {
                 <p className="text-sm font-semibold">{profile?.full_name ?? 'Docente'}</p>
                 <p className="text-xs text-ink3 truncate">{profile?.email}</p>
               </div>
-              {[
+              {([
                 { icon: '⚙️', label: 'Configuración',  href: '/dashboard/configuracion' },
                 { icon: '📅', label: 'Horarios',        href: '/dashboard/horarios' },
                 { icon: '📂', label: 'Historial',       href: '/dashboard/historial' },
-              ].map(item => (
+              ].filter(item => {
+                // Docente externo (planner_solo) no tiene horarios institucionales
+                if ((profile as any)?.plan === 'planner_solo' && item.href === '/dashboard/horarios') return false
+                return true
+              })).map(item => (
                 <Link
                   key={item.href}
                   href={item.href}
