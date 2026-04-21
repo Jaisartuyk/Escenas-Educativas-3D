@@ -111,15 +111,15 @@ export function RendimientoClient({ courses, enrollments, subjects, assignments,
 
   const filteredMatrix = useMemo(() => {
     if (!riskOnly) return matrixData
-    return matrixData.filter(m => m.hasRisk)
+    return matrixData.filter((m: any) => m.hasRisk)
   }, [matrixData, riskOnly])
 
   // KPIs
   const kpis = useMemo(() => {
-    let validAvgs = matrixData.filter(m => m.globalAvg !== null).map(m => m.globalAvg as number)
+    let validAvgs = matrixData.filter((m: any) => m.globalAvg !== null).map((m: any) => m.globalAvg as number)
     const classAvg = validAvgs.length > 0 ? (validAvgs.reduce((a,b)=>a+b,0) / validAvgs.length).toFixed(2) : '--'
-    const riskCount = matrixData.filter(m => m.hasRisk).length
-    const excelentCount = validAvgs.filter(v => v >= 9).length
+    const riskCount = matrixData.filter((m: any) => m.hasRisk).length
+    const excelentCount = validAvgs.filter((v: number) => v >= 9).length
     return { classAvg, riskCount, excelentCount }
   }, [matrixData])
 
