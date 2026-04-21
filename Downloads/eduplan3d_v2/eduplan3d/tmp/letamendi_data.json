@@ -1,0 +1,1187 @@
+{
+  "config": {
+    "id": "081a4acc-76ab-448c-b3a8-5a6e924f010b",
+    "institution_id": "52572a7d-ba27-477b-8020-20d882cc30bb",
+    "nombre": "UNIDAD EDUCATIVA PARTICULAR CORONEL MIGUEL DE LETAMENDI",
+    "anio": "2026 - 2027",
+    "jornada": "VESPERTINA",
+    "nivel": "Colegio",
+    "n_periodos": 9,
+    "periodos": [
+      "12:30-13:10",
+      "13:10-13:50",
+      "13:50-14:30",
+      "14:30-15:10",
+      "15:10-15:40",
+      "15:40-16:20",
+      "16:20-17:00",
+      "17:00-17:40",
+      "17:40-18:20"
+    ],
+    "recesos": [
+      4
+    ],
+    "tutores": {},
+    "created_at": "2026-04-10T00:09:03.565514+00:00",
+    "updated_at": "2026-04-20T20:03:45.962188+00:00",
+    "parciales_count": 3
+  },
+  "courses": [
+    {
+      "id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3",
+      "name": "5TO BÁSICA"
+    },
+    {
+      "id": "9491da9a-353b-40d8-beba-d1ebf3663ac5",
+      "name": "1RO BÁSICA"
+    },
+    {
+      "id": "028be720-9a56-43a8-b878-dfbfa1cb1b04",
+      "name": "3RO BÁSICA"
+    },
+    {
+      "id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f",
+      "name": "4TO BÁSICA"
+    },
+    {
+      "id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21",
+      "name": "2DO BÁSICA"
+    },
+    {
+      "id": "a4731e1c-a654-421d-af91-471cf3ab9be8",
+      "name": "6TO BÁSICA"
+    },
+    {
+      "id": "cf6f1a99-5707-402d-acb6-cb4281f41295",
+      "name": "7MO BÁSICA"
+    },
+    {
+      "id": "46337fc2-03ff-474c-b3b0-f20605695ae0",
+      "name": "8VO"
+    },
+    {
+      "id": "fc88bde9-7d46-4f31-98f5-fb504effadaa",
+      "name": "9NO"
+    },
+    {
+      "id": "15c617eb-a402-4590-aad7-23fdae482bc6",
+      "name": "10MO"
+    },
+    {
+      "id": "a0976a80-92be-4ef2-8a96-827e18c6386d",
+      "name": "1ERO BGU"
+    },
+    {
+      "id": "ec1fc70b-1849-4e12-9462-f78c671df04f",
+      "name": "2DO BGU"
+    },
+    {
+      "id": "4846e066-1c7f-415c-a26e-85e04fca802e",
+      "name": "3ERO BGU"
+    },
+    {
+      "id": "5f22b0a6-65ae-4f5d-9f23-3e347da7e588",
+      "name": "INICIAL 2"
+    },
+    {
+      "id": "45acd27f-10f3-4b90-9003-2f5a15b92026",
+      "name": "INICIAL1"
+    }
+  ],
+  "subjects": [
+    {
+      "id": "e61302e7-9be9-414d-adde-76bb2b100d27",
+      "name": "BIOLOGIA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "c5c98862-fe68-481a-aef0-22ffb26ef697",
+      "name": "EDUCACION ARTISTICA",
+      "weekly_hours": 2,
+      "teacher_id": "f3aaca50-1601-4616-8202-4a2853f18379",
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "d1108eff-d7fb-40f4-b1ee-62b82235b49d",
+      "name": "INGLES",
+      "weekly_hours": 3,
+      "teacher_id": "4570ad44-a17e-4523-be18-1fd056dc7ade",
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "4967f649-6cb6-4f11-bf4b-808f3fda63f1",
+      "name": "INST. MILITAR",
+      "weekly_hours": 4,
+      "teacher_id": "48fb0f1f-051f-4000-be4c-581264bd8e5b",
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "dc339aa4-afc8-4945-88a0-30fe360c81c0",
+      "name": "MATEMATICA",
+      "weekly_hours": 4,
+      "teacher_id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "course_id": "45acd27f-10f3-4b90-9003-2f5a15b92026"
+    },
+    {
+      "id": "c2e691d2-3370-4788-b0f8-b686b6b2e152",
+      "name": "EE.SS",
+      "weekly_hours": 2,
+      "teacher_id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "course_id": "45acd27f-10f3-4b90-9003-2f5a15b92026"
+    },
+    {
+      "id": "265a75aa-5721-4822-8801-bf74d8a11ef0",
+      "name": "INGLES",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3"
+    },
+    {
+      "id": "f5b52186-5d4b-4e10-a7f2-c1fa558983b1",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 5,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3"
+    },
+    {
+      "id": "8225a393-1677-42ec-a151-ee702072312b",
+      "name": "CC.NN",
+      "weekly_hours": 5,
+      "teacher_id": null,
+      "course_id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3"
+    },
+    {
+      "id": "d0c28756-2115-4c0d-b996-1daca1c3e20a",
+      "name": "LENGUA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "7668ba3f-bfab-494f-ac41-a3d7066ffad9",
+      "name": "CIVICA Y SOSTENIBLE",
+      "weekly_hours": 1,
+      "teacher_id": "63065296-28ab-48d0-a2dc-b153727cdcc4",
+      "course_id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3"
+    },
+    {
+      "id": "978e75a4-6a71-449d-91fd-679de2c70c85",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": "2f83f729-f04c-46ec-9a98-071d221f7c53",
+      "course_id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3"
+    },
+    {
+      "id": "33dcac28-86f5-402e-a0ad-1bf5444a6429",
+      "name": "CC.NN",
+      "weekly_hours": 5,
+      "teacher_id": null,
+      "course_id": "a4731e1c-a654-421d-af91-471cf3ab9be8"
+    },
+    {
+      "id": "e0ae53b8-33ac-423d-9b0f-ffd41c9c97fa",
+      "name": "ED. FISICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "13d369ce-cb37-489c-9544-a778e7bdc9cb",
+      "name": "INST. MILITAR",
+      "weekly_hours": 4,
+      "teacher_id": "48fb0f1f-051f-4000-be4c-581264bd8e5b",
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "233fab92-3bc4-48da-a4ff-7ef1f5477b5a",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 5,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "4b45783b-bcb5-4a83-8029-6969f0723ff5",
+      "name": "ED. FÍSICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "a4731e1c-a654-421d-af91-471cf3ab9be8"
+    },
+    {
+      "id": "d4287135-14d3-40ee-a79b-680de8729cc2",
+      "name": "ECA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "a9132717-08d4-4bcc-bada-9f0744bbc612",
+      "name": "CC.NN",
+      "weekly_hours": 4,
+      "teacher_id": null,
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "7380c4d1-a683-48aa-9e9d-a81d082bceb6",
+      "name": "INGLES",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "a4731e1c-a654-421d-af91-471cf3ab9be8"
+    },
+    {
+      "id": "c26329c2-f7d3-4752-9021-cab9dc2a9537",
+      "name": "EE.SS",
+      "weekly_hours": 4,
+      "teacher_id": null,
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "b2474d17-8cb1-4f06-b687-a8a14fa8722b",
+      "name": "INGLES",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "f57d4df1-09a4-44f3-8c7a-f79c430b829c",
+      "name": "COMPUTACION",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "bf1c1bcf-5c96-429d-80ef-538043ec7b9c",
+      "name": "INSTRUCCIÓN MILITAR",
+      "weekly_hours": 2,
+      "teacher_id": "88f1227c-ab65-4932-8e0a-66fc8e09e241",
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "5e8a1bc3-33d2-4b08-919c-3af81489c74c",
+      "name": "CC.NN",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "8e28567d-cfdc-452a-8a15-c9c1cb7b616f",
+      "name": "EE.SS",
+      "weekly_hours": 4,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "1fa6e1b9-beb3-4e6c-ba8a-8aba9c9ac568",
+      "name": "COMPUTACION",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "d378dae2-119c-484b-93c5-5c4aaa600ea4",
+      "name": "ECA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "de340ec0-3139-4c66-bb5b-80f8ee014d41",
+      "name": "INGLES",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "1f92a9f2-d1fd-4e7e-902f-d5b3e28758e5",
+      "name": "INST. MILITAR",
+      "weekly_hours": 2,
+      "teacher_id": "48fb0f1f-051f-4000-be4c-581264bd8e5b",
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "5d255995-bf01-4456-9b95-a71b3a6782af",
+      "name": "CIUDADANIA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "040862c7-737a-4b7f-889b-cdd9e59e6b8e",
+      "name": "ED. FISICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "49493a8b-17e9-4ab1-af52-f62cee1d0888",
+      "name": "CIUDADANIA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "e1a3e872-f739-449e-8cbe-0a196904c258",
+      "name": "CC.NN",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "fdeb8783-0e1b-4b8d-9cf2-f7d48d3f7d75",
+      "name": "CC.NN",
+      "weekly_hours": 5,
+      "teacher_id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "course_id": "45acd27f-10f3-4b90-9003-2f5a15b92026"
+    },
+    {
+      "id": "095a8ffb-2b55-4f6a-b9f6-ec5a32069067",
+      "name": "ED. FISICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "5f4b4a0e-7272-46a9-86ea-dd39ea473d58",
+      "name": "EE.SS",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "4057de38-2700-49bd-9433-842c7e00d71f",
+      "name": "ED. FÍSICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3"
+    },
+    {
+      "id": "e011d269-d9dd-445c-93a2-5e58ba962ab1",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": "2f83f729-f04c-46ec-9a98-071d221f7c53",
+      "course_id": "a4731e1c-a654-421d-af91-471cf3ab9be8"
+    },
+    {
+      "id": "271ae190-6400-4c3b-a301-fb66d610eba1",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 5,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "a4731e1c-a654-421d-af91-471cf3ab9be8"
+    },
+    {
+      "id": "adb01626-4ba9-488b-96a2-266e40bbcb14",
+      "name": "EDUCACION ARTISTICA",
+      "weekly_hours": 2,
+      "teacher_id": "f3aaca50-1601-4616-8202-4a2853f18379",
+      "course_id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3"
+    },
+    {
+      "id": "507a4334-92b1-4272-8bd0-9c15c436dfe3",
+      "name": "EDUCACION ARTISTICA",
+      "weekly_hours": 2,
+      "teacher_id": "f3aaca50-1601-4616-8202-4a2853f18379",
+      "course_id": "a4731e1c-a654-421d-af91-471cf3ab9be8"
+    },
+    {
+      "id": "74527fff-7f44-4b7b-9370-dfbf08befaad",
+      "name": "INGLES",
+      "weekly_hours": 5,
+      "teacher_id": null,
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "9b579a52-8ba8-4f6c-96c0-bcf45d5fee06",
+      "name": "EDUCACION ARTISTICA",
+      "weekly_hours": 2,
+      "teacher_id": "f3aaca50-1601-4616-8202-4a2853f18379",
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "0959e030-b348-4c21-b186-7664e340dda7",
+      "name": "INSTRUCCIÓN MILITAR",
+      "weekly_hours": 2,
+      "teacher_id": "88f1227c-ab65-4932-8e0a-66fc8e09e241",
+      "course_id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3"
+    },
+    {
+      "id": "de3e0571-3f96-444f-a249-3cc2f1b4835c",
+      "name": "INSTRUCCIÓN MILITAR",
+      "weekly_hours": 2,
+      "teacher_id": "88f1227c-ab65-4932-8e0a-66fc8e09e241",
+      "course_id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f"
+    },
+    {
+      "id": "59b9d708-bec4-4694-8d9d-25b5b561fb65",
+      "name": "EE.SS",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f"
+    },
+    {
+      "id": "afbcd3d9-3621-4672-8010-1e1acfa9639d",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "course_id": "5f22b0a6-65ae-4f5d-9f23-3e347da7e588"
+    },
+    {
+      "id": "f79c13c7-1512-419e-8f3c-6bdaa83310bd",
+      "name": "ED. FÍSICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "9491da9a-353b-40d8-beba-d1ebf3663ac5"
+    },
+    {
+      "id": "0f920700-14a4-486e-86e1-db80dbddd607",
+      "name": "COMPUTACION",
+      "weekly_hours": 1,
+      "teacher_id": "5d3cf345-dc29-416d-9825-0188fb5651f7",
+      "course_id": "9491da9a-353b-40d8-beba-d1ebf3663ac5"
+    },
+    {
+      "id": "a9f000ad-1bc4-437a-91c0-4492d80cefa8",
+      "name": "EMPRENDIMIENTO",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "775f3c0b-415b-41e3-8718-ebedda106874",
+      "name": "COMPUTACION",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "98a446a5-aedf-4fe7-a9b4-8b07aa4510af",
+      "name": "LENGUA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "71af782c-7d39-4d8b-951e-d5f241a35ba2",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 5,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "15c617eb-a402-4590-aad7-23fdae482bc6"
+    },
+    {
+      "id": "2b332d8a-e881-4a17-9255-b2a1ee015aac",
+      "name": "HISTORIA",
+      "weekly_hours": 3,
+      "teacher_id": "6f18cce6-c3a8-47b6-9f07-8d496d773fa4",
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "39c925a6-a384-4bae-bda8-ca1184fc38a6",
+      "name": "MATEMATICA",
+      "weekly_hours": 5,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "2a05b430-612b-4a61-8537-91a74ea1ada2",
+      "name": "INGLES",
+      "weekly_hours": 5,
+      "teacher_id": null,
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "59624628-7b58-413d-a87f-622df25df2be",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": null,
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "e7d5ac66-9da6-40e4-b666-e04617f8078f",
+      "name": "HISTORIA",
+      "weekly_hours": 3,
+      "teacher_id": "6f18cce6-c3a8-47b6-9f07-8d496d773fa4",
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "cf1ad25a-2ec3-4040-a7d3-f472ccd2e71a",
+      "name": "ED. FISICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "f2a538f5-4e3c-49f2-ab66-289b6aca4142",
+      "name": "FILOSOFIA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "ddf8ac33-eb5b-4fb9-a843-1ce682b401e4",
+      "name": "INSTRUCCIÓN MILITAR",
+      "weekly_hours": 2,
+      "teacher_id": "88f1227c-ab65-4932-8e0a-66fc8e09e241",
+      "course_id": "a4731e1c-a654-421d-af91-471cf3ab9be8"
+    },
+    {
+      "id": "468d0e09-a182-45f9-bb65-f663a8ddeedc",
+      "name": "CIUDADANIA",
+      "weekly_hours": 3,
+      "teacher_id": "6f18cce6-c3a8-47b6-9f07-8d496d773fa4",
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "00871c81-41d9-4cfa-bc8b-638f1778180b",
+      "name": "MATEMATICA",
+      "weekly_hours": 4,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "c5a81b2a-548a-465d-a8c8-cd1599d3fcf1",
+      "name": "CIVICA Y SOSTENIBLE",
+      "weekly_hours": 1,
+      "teacher_id": null,
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "f29a8c0e-d5d6-4b36-991e-a1ed6fd20ef6",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": "4570ad44-a17e-4523-be18-1fd056dc7ade",
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "1e437c96-0427-428e-9820-13c55582695e",
+      "name": "CC.NN",
+      "weekly_hours": 5,
+      "teacher_id": "4570ad44-a17e-4523-be18-1fd056dc7ade",
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "887cd8fc-ef80-4d6d-9cb9-9777ebfa5976",
+      "name": "COMPUTACION",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "f45ec579-f4cd-45ff-b7f8-f5af8185b8bd",
+      "name": "INST. MILITAR",
+      "weekly_hours": 2,
+      "teacher_id": "48fb0f1f-051f-4000-be4c-581264bd8e5b",
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "01d2f485-e631-4ef9-a27e-474b916efea2",
+      "name": "ECA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "89e3316c-0ab8-4c29-9b6f-b136b47f0483",
+      "name": "FISICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "a0976a80-92be-4ef2-8a96-827e18c6386d"
+    },
+    {
+      "id": "0133b5ec-5897-4ce5-8760-60b527bc4e3b",
+      "name": "CIUDADANIA",
+      "weekly_hours": 2,
+      "teacher_id": "6f18cce6-c3a8-47b6-9f07-8d496d773fa4",
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "bb544690-278e-4c95-ad03-d12c9764137b",
+      "name": "EE.SS",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "131cddde-62c7-4f71-8ae9-83a28ddf8fa3"
+    },
+    {
+      "id": "8cd64deb-827d-413f-aebe-6a8f12c7342f",
+      "name": "CC.NN",
+      "weekly_hours": 5,
+      "teacher_id": null,
+      "course_id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f"
+    },
+    {
+      "id": "c977b1a1-c14b-4d9f-ae85-c4e34257230c",
+      "name": "HISTORIA",
+      "weekly_hours": 3,
+      "teacher_id": "6f18cce6-c3a8-47b6-9f07-8d496d773fa4",
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "e7f6acb7-fc43-4922-8dfe-28838548cde6",
+      "name": "INST. MILITAR",
+      "weekly_hours": 3,
+      "teacher_id": "48fb0f1f-051f-4000-be4c-581264bd8e5b",
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "2a6035cd-766d-46d6-91f4-bf226a5e0a33",
+      "name": "FISICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "143a28ed-7de7-4fdf-8595-91ad394a1f0d",
+      "name": "INGLES",
+      "weekly_hours": 4,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "ba2ce8b9-915a-44a2-bf99-b76af551518c",
+      "name": "COMPUTACION",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "1698bc04-e1eb-4bde-93f7-167d7c5fa646",
+      "name": "EDUCACION ARTISTICA",
+      "weekly_hours": 2,
+      "teacher_id": "f3aaca50-1601-4616-8202-4a2853f18379",
+      "course_id": "46337fc2-03ff-474c-b3b0-f20605695ae0"
+    },
+    {
+      "id": "37416e6c-440c-4ad4-8f83-d72ce589f80c",
+      "name": "LENGUA",
+      "weekly_hours": 6,
+      "teacher_id": null,
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "d032162c-1ac4-4260-b46f-4f6697abccf1",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 4,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "5056372a-bbbf-4ca5-8817-bc9b349cccff",
+      "name": "EDUCACION ARTISTICA",
+      "weekly_hours": 2,
+      "teacher_id": "f3aaca50-1601-4616-8202-4a2853f18379",
+      "course_id": "fc88bde9-7d46-4f31-98f5-fb504effadaa"
+    },
+    {
+      "id": "9f33380b-0f7f-4158-86fa-7ab15093cc5c",
+      "name": "CIVICA Y SOSTENIBLE",
+      "weekly_hours": 1,
+      "teacher_id": "63065296-28ab-48d0-a2dc-b153727cdcc4",
+      "course_id": "a4731e1c-a654-421d-af91-471cf3ab9be8"
+    },
+    {
+      "id": "e4859200-f23b-4235-8730-8d7c54ce61f1",
+      "name": "FILOSOFIA",
+      "weekly_hours": 3,
+      "teacher_id": "6f18cce6-c3a8-47b6-9f07-8d496d773fa4",
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "4fd60600-8825-4641-991e-1294472653ce",
+      "name": "INST. MILITAR",
+      "weekly_hours": 2,
+      "teacher_id": "48fb0f1f-051f-4000-be4c-581264bd8e5b",
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "aad99bf6-51bb-4224-9f89-d33b61136772",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": "2f83f729-f04c-46ec-9a98-071d221f7c53",
+      "course_id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f"
+    },
+    {
+      "id": "4329283e-77f4-4793-95d3-996e29d50160",
+      "name": "ESTUDIOS SOCIALES",
+      "weekly_hours": 3,
+      "teacher_id": "4570ad44-a17e-4523-be18-1fd056dc7ade",
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "a9c76540-e4dd-4cc5-ad6b-911d49a8d74e",
+      "name": "ECA",
+      "weekly_hours": 2,
+      "teacher_id": "4570ad44-a17e-4523-be18-1fd056dc7ade",
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "e68b0446-c940-4265-9093-d2000ac806a5",
+      "name": "COMPUTACION",
+      "weekly_hours": 1,
+      "teacher_id": "4570ad44-a17e-4523-be18-1fd056dc7ade",
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "c437bfa9-26d9-46f5-bb86-2aa39a612b5e",
+      "name": "ED. FÍSICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f"
+    },
+    {
+      "id": "a38ec8ad-9dd6-48eb-93f1-7299748f54f2",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 5,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f"
+    },
+    {
+      "id": "fb86f2b2-ad93-4a7f-8697-2511a1276209",
+      "name": "CIVICA Y SOSTENIBLE",
+      "weekly_hours": 1,
+      "teacher_id": "63065296-28ab-48d0-a2dc-b153727cdcc4",
+      "course_id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f"
+    },
+    {
+      "id": "2c3f6b2c-f6d0-4235-951e-b724e4b2d92d",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": "5d3cf345-dc29-416d-9825-0188fb5651f7",
+      "course_id": "9491da9a-353b-40d8-beba-d1ebf3663ac5"
+    },
+    {
+      "id": "8df9f1f4-f70f-4444-a66a-b7c13446603e",
+      "name": "ED. FÍSICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "42dfca43-c71c-4a28-b69a-aec171831044",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 4,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "028be720-9a56-43a8-b878-dfbfa1cb1b04"
+    },
+    {
+      "id": "02f1f300-8af8-4262-bd82-6f20451de219",
+      "name": "CC.NN",
+      "weekly_hours": 5,
+      "teacher_id": "5d3cf345-dc29-416d-9825-0188fb5651f7",
+      "course_id": "9491da9a-353b-40d8-beba-d1ebf3663ac5"
+    },
+    {
+      "id": "5ff4e1ac-fb47-4d47-9df1-efabeaca4296",
+      "name": "INGLES",
+      "weekly_hours": 3,
+      "teacher_id": "5d3cf345-dc29-416d-9825-0188fb5651f7",
+      "course_id": "9491da9a-353b-40d8-beba-d1ebf3663ac5"
+    },
+    {
+      "id": "805227e5-8115-447e-b92e-da611c43ade6",
+      "name": "CIVICA Y SOSTENIBLE",
+      "weekly_hours": 3,
+      "teacher_id": "63065296-28ab-48d0-a2dc-b153727cdcc4",
+      "course_id": "9491da9a-353b-40d8-beba-d1ebf3663ac5"
+    },
+    {
+      "id": "015d2f0f-9f66-4d46-8544-877077af35dd",
+      "name": "ED. FISICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "0dff09ce-b46c-463a-bf3b-51ca1443d308",
+      "name": "EMPRENDIMIENTO",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "1cf255cc-ff6d-4a6c-b8c4-6dc4edd17f2c",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "1f8c9141-8136-48e3-b895-00f5f5cbb7c3",
+      "name": "COMPUTACION",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "2db24486-0a81-4aa4-b9fd-d5e0c524cada",
+      "name": "ECA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "d0dc6009-08bc-4feb-89c1-708ffcb631d8",
+      "name": "ROBOTICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "e2c8c85f-048d-40bb-9266-ec6aeff6ace2",
+      "name": "ED. FISICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "576189c4-257f-4a5c-8872-e3056510c7b9",
+      "name": "QUIMICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "fbb26140-aade-4455-8dd0-48c1936909d9",
+      "name": "CIVICA Y SOSTENIBLE",
+      "weekly_hours": 1,
+      "teacher_id": null,
+      "course_id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21"
+    },
+    {
+      "id": "f963123d-e427-4300-ba8f-6a2724fd0d24",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "1c914887-121a-4c5f-9170-b98ccc7c782f",
+      "name": "FILOSOFIA",
+      "weekly_hours": 3,
+      "teacher_id": "6f18cce6-c3a8-47b6-9f07-8d496d773fa4",
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "2e72b1a4-087b-4aa9-8cf8-776b01f8c4e6",
+      "name": "EMPRENDIMIENTO",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "8933d545-3a05-420e-947d-9ca77a0cab2e",
+      "name": "MATEMATICA",
+      "weekly_hours": 4,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "22e65d3a-3eac-47f3-86d9-a57558f64af2",
+      "name": "ECA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "77dbd6fe-7db3-4ac1-924c-d82d5390ebe6",
+      "name": "BIOLOGIA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "4846e066-1c7f-415c-a26e-85e04fca802e"
+    },
+    {
+      "id": "6aa14f16-6e86-4be2-b563-8b3181eda479",
+      "name": "EE.SS",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "a4731e1c-a654-421d-af91-471cf3ab9be8"
+    },
+    {
+      "id": "b0989754-d1f9-4026-a1e3-95a6f9a6b010",
+      "name": "ED. FÍSICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "cf6f1a99-5707-402d-acb6-cb4281f41295"
+    },
+    {
+      "id": "e4d7b9ae-3168-4de7-a5f4-79dee1be047a",
+      "name": "EDUCACION ARTISTICA",
+      "weekly_hours": 2,
+      "teacher_id": "f3aaca50-1601-4616-8202-4a2853f18379",
+      "course_id": "cf6f1a99-5707-402d-acb6-cb4281f41295"
+    },
+    {
+      "id": "71d82fa8-8908-49c0-a8ab-11d19e0d970e",
+      "name": "CIVICA Y SOSTENIBLE",
+      "weekly_hours": 1,
+      "teacher_id": "63065296-28ab-48d0-a2dc-b153727cdcc4",
+      "course_id": "cf6f1a99-5707-402d-acb6-cb4281f41295"
+    },
+    {
+      "id": "d2bc15b2-126e-4431-bd3e-15558905af1f",
+      "name": "CIUDADANIA",
+      "weekly_hours": 2,
+      "teacher_id": "6f18cce6-c3a8-47b6-9f07-8d496d773fa4",
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "791cc044-900b-4fa1-832f-abdc1029c71c",
+      "name": "ESTUDIOS SOCIALES",
+      "weekly_hours": 3,
+      "teacher_id": "5a4ad5f3-a6b6-49b1-bc33-4243e4f647b9",
+      "course_id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21"
+    },
+    {
+      "id": "3568d440-7d02-4f71-920a-0d410c6452cf",
+      "name": "INSTRUCCIÓN MILITAR",
+      "weekly_hours": 2,
+      "teacher_id": "88f1227c-ab65-4932-8e0a-66fc8e09e241",
+      "course_id": "cf6f1a99-5707-402d-acb6-cb4281f41295"
+    },
+    {
+      "id": "18eb0b30-4e09-4d88-83a9-86ed3a20c3e3",
+      "name": "EE.SS",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "cf6f1a99-5707-402d-acb6-cb4281f41295"
+    },
+    {
+      "id": "2461f64a-f2cd-4f31-bdc0-598a60d4e236",
+      "name": "EE.SS",
+      "weekly_hours": 5,
+      "teacher_id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "course_id": "5f22b0a6-65ae-4f5d-9f23-3e347da7e588"
+    },
+    {
+      "id": "02a6bcf8-d9fe-4eda-9c13-bb52fabdc4f2",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": "2f83f729-f04c-46ec-9a98-071d221f7c53",
+      "course_id": "cf6f1a99-5707-402d-acb6-cb4281f41295"
+    },
+    {
+      "id": "f4121f65-eaee-4463-81d4-30e0ff759aaf",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "course_id": "45acd27f-10f3-4b90-9003-2f5a15b92026"
+    },
+    {
+      "id": "acebe795-9b08-493c-9b8c-d7b3de17438a",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 5,
+      "teacher_id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "course_id": "cf6f1a99-5707-402d-acb6-cb4281f41295"
+    },
+    {
+      "id": "94a52c81-c959-4c4e-aa7c-55268a2bc28b",
+      "name": "INGLES",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "cf6f1a99-5707-402d-acb6-cb4281f41295"
+    },
+    {
+      "id": "579df14d-a4ef-4052-bfe4-728183bfa633",
+      "name": "ÁMBITOS DE APRENDIZAJE",
+      "weekly_hours": 3,
+      "teacher_id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "course_id": "5f22b0a6-65ae-4f5d-9f23-3e347da7e588"
+    },
+    {
+      "id": "ce121376-b476-48ab-a94d-7f5bda2c5ef1",
+      "name": "CC.NN",
+      "weekly_hours": 5,
+      "teacher_id": null,
+      "course_id": "cf6f1a99-5707-402d-acb6-cb4281f41295"
+    },
+    {
+      "id": "0a373a86-2094-47ea-9160-77e1c57d89a3",
+      "name": "CC.NN",
+      "weekly_hours": 4,
+      "teacher_id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "course_id": "5f22b0a6-65ae-4f5d-9f23-3e347da7e588"
+    },
+    {
+      "id": "e59b8a6d-2df2-4699-bb75-2b6ba5644711",
+      "name": "EDUCACION ARTISTICA",
+      "weekly_hours": 2,
+      "teacher_id": "f3aaca50-1601-4616-8202-4a2853f18379",
+      "course_id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f"
+    },
+    {
+      "id": "da469cd0-9543-43b1-80be-df11ac1c067d",
+      "name": "INGLES",
+      "weekly_hours": 4,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "f9774edd-1cbf-4a96-a95b-8670e5fd78a4",
+      "name": "INGLES",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "ce42d533-499b-4390-a3a7-b2fccfee0b9f"
+    },
+    {
+      "id": "a6c5db2a-c6be-45d8-9ad4-758a9dc43b9b",
+      "name": "QUIMICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "449bdbe8-26d5-46c1-8386-9fef1a7413bb",
+      "name": "BIOLOGIA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "ca33b518-33aa-4f2d-bc1d-d3d99174ff9c",
+      "name": "ECA",
+      "weekly_hours": 2,
+      "teacher_id": "5d3cf345-dc29-416d-9825-0188fb5651f7",
+      "course_id": "9491da9a-353b-40d8-beba-d1ebf3663ac5"
+    },
+    {
+      "id": "6014bdff-a220-4448-9af3-b84a3a2d6cba",
+      "name": "ROBOTICA",
+      "weekly_hours": 2,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    },
+    {
+      "id": "4e9c4636-e8a1-4e89-b7c2-71ae7dbddf4f",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 7,
+      "teacher_id": "5d3cf345-dc29-416d-9825-0188fb5651f7",
+      "course_id": "9491da9a-353b-40d8-beba-d1ebf3663ac5"
+    },
+    {
+      "id": "514fddce-8626-4353-826b-5eac95f62dc6",
+      "name": "ESTUDIOS SOCIALES",
+      "weekly_hours": 3,
+      "teacher_id": "5d3cf345-dc29-416d-9825-0188fb5651f7",
+      "course_id": "9491da9a-353b-40d8-beba-d1ebf3663ac5"
+    },
+    {
+      "id": "49d97548-8ffe-4120-b79b-e1beff580abb",
+      "name": "ECA",
+      "weekly_hours": 2,
+      "teacher_id": "5a4ad5f3-a6b6-49b1-bc33-4243e4f647b9",
+      "course_id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21"
+    },
+    {
+      "id": "b0b15e0f-bab1-4d14-8035-6cbc1919d8ec",
+      "name": "COMPUTACION",
+      "weekly_hours": 1,
+      "teacher_id": "5a4ad5f3-a6b6-49b1-bc33-4243e4f647b9",
+      "course_id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21"
+    },
+    {
+      "id": "81227dbe-accb-4f4a-8954-9e7b3a560582",
+      "name": "MATEMATICA",
+      "weekly_hours": 6,
+      "teacher_id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "course_id": "5f22b0a6-65ae-4f5d-9f23-3e347da7e588"
+    },
+    {
+      "id": "25281473-25f7-4408-aea4-3275dad72670",
+      "name": "ED. FÍSICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21"
+    },
+    {
+      "id": "9f079cc5-1d97-4e14-ae82-e58ce1fa97ef",
+      "name": "LENGUA",
+      "weekly_hours": 5,
+      "teacher_id": "5a4ad5f3-a6b6-49b1-bc33-4243e4f647b9",
+      "course_id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21"
+    },
+    {
+      "id": "40d568d0-d17a-4e9f-9393-8b62988766b0",
+      "name": "CC.NN",
+      "weekly_hours": 5,
+      "teacher_id": "5a4ad5f3-a6b6-49b1-bc33-4243e4f647b9",
+      "course_id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21"
+    },
+    {
+      "id": "0e797776-9341-4793-a851-9e7a7b0881cd",
+      "name": "INGLES",
+      "weekly_hours": 3,
+      "teacher_id": "5a4ad5f3-a6b6-49b1-bc33-4243e4f647b9",
+      "course_id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21"
+    },
+    {
+      "id": "42909ad3-6101-4f03-ab81-34117d853b08",
+      "name": "MATEMÁTICA",
+      "weekly_hours": 7,
+      "teacher_id": "5a4ad5f3-a6b6-49b1-bc33-4243e4f647b9",
+      "course_id": "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21"
+    },
+    {
+      "id": "5a7b02b8-45c3-453a-a209-778c11e0db37",
+      "name": "FISICA",
+      "weekly_hours": 3,
+      "teacher_id": null,
+      "course_id": "ec1fc70b-1849-4e12-9462-f78c671df04f"
+    }
+  ],
+  "teachers": [
+    {
+      "id": "48fb0f1f-051f-4000-be4c-581264bd8e5b",
+      "full_name": "NOBOA CRUZ JUAN ALFREDO"
+    },
+    {
+      "id": "5d3cf345-dc29-416d-9825-0188fb5651f7",
+      "full_name": "MALDONADO RODRIGUEZ MAYERLY BRIGGITH"
+    },
+    {
+      "id": "2f83f729-f04c-46ec-9a98-071d221f7c53",
+      "full_name": "URDANIGO RAMIREZ MONICA PATRICIA"
+    },
+    {
+      "id": "f3aaca50-1601-4616-8202-4a2853f18379",
+      "full_name": "DIAZ CARCELEN MARCOS DAVID"
+    },
+    {
+      "id": "f36f6d49-ff87-4a60-aa0c-c0b5cac85039",
+      "full_name": "IVONNE ALVEAR MACIAS"
+    },
+    {
+      "id": "88f1227c-ab65-4932-8e0a-66fc8e09e241",
+      "full_name": "BORBOR SOTAMINGA HERBERT ENRIQUE"
+    },
+    {
+      "id": "5a4ad5f3-a6b6-49b1-bc33-4243e4f647b9",
+      "full_name": "CRUZ CARDENAS MICHELL VANESSA"
+    },
+    {
+      "id": "7c36b1b0-fcd3-4499-9547-739f404eccb8",
+      "full_name": "MARURI VERA LADY SHIRLEY"
+    },
+    {
+      "id": "ffac6133-646a-4b4f-84c4-a289d8c0e476",
+      "full_name": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+    },
+    {
+      "id": "4570ad44-a17e-4523-be18-1fd056dc7ade",
+      "full_name": "VALLE REZABALA LOURDES YESENIA"
+    },
+    {
+      "id": "6f18cce6-c3a8-47b6-9f07-8d496d773fa4",
+      "full_name": "CELLERY RUIZ MARIA ISABEL"
+    },
+    {
+      "id": "63065296-28ab-48d0-a2dc-b153727cdcc4",
+      "full_name": "QUIMIS CALLE MARIA FERNANDA"
+    },
+    {
+      "id": "fe2a11db-5199-448b-8dec-8f0af2fcf005",
+      "full_name": "ZAMBRANO NUÑEZ ANDY JAVIER"
+    },
+    {
+      "id": "26af83be-fa6a-40a7-812f-bad92eada437",
+      "full_name": "VILLAO CAICEDO LUIS EMILIO"
+    }
+  ]
+}

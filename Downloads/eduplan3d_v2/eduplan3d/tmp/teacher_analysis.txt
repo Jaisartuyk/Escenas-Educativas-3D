@@ -1,0 +1,13 @@
+| Docente | Horas Docencia Semanal | Estado de Carga |
+|---|---|---|
+| RIVADENEIRA BAJAÑA MARIO ENRIQUE | 51h | ⚠️ **Sobrecarga** (>30h). Difícil de cuadrar. |
+| MARURI VERA LADY SHIRLEY | 39h | ⚠️ **Sobrecarga** (>30h). Difícil de cuadrar. |
+| MALDONADO RODRIGUEZ MAYERLY BRIGGITH | 26h | Carga Óptima (20-30h) |
+| CRUZ CARDENAS MICHELL VANESSA | 26h | Carga Óptima (20-30h) |
+| CELLERY RUIZ MARIA ISABEL | 22h | Carga Óptima (20-30h) |
+| URDANIGO RAMIREZ MONICA PATRICIA | 20h | Carga Óptima (20-30h) |
+| VALLE REZABALA LOURDES YESENIA | 19h | Carga Óptima (20-30h) |
+| NOBOA CRUZ JUAN ALFREDO | 17h | Carga Óptima (20-30h) |
+| DIAZ CARCELEN MARCOS DAVID | 16h | Carga Óptima (20-30h) |
+| BORBOR SOTAMINGA HERBERT ENRIQUE | 10h | Baja carga (<15h). |
+| QUIMIS CALLE MARIA FERNANDA | 7h | Baja carga (<15h). |

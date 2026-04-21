@@ -21,6 +21,8 @@ interface NavGroup {
   items: NavItem[]
 }
 
+type NavNode = NavItem | NavGroup;
+
 // ─── Nav admin agrupado ─────────────────────────────────────────────────────
 const NAV_ADMIN_GROUPED: NavGroup[] = [
   {
@@ -72,12 +74,21 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
 ]
 
 // ─── Nav docente ─────────────────────────────────────────────────────────────
-const NAV_TEACHER: NavItem[] = [
+const NAV_TEACHER: NavNode[] = [
   { href: '/dashboard/docente',      icon: '📝', label: 'Panel Docente' },
-  { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas'      },
   { href: '/dashboard/planificador', icon: '📋', label: 'Planificador'  },
-  { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas'      },
   { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca'    },
+  {
+    title: 'Tutorías',
+    icon: '👥',
+    color: 'from-blue/20 to-blue/5',
+    items: [
+      { href: '/dashboard/asistencias',  icon: '✅', label: 'Asistencias' },
+      { href: '/dashboard/entregas',     icon: '📥', label: 'Deberes'      },
+      { href: '/dashboard/horarios',     icon: '📅', label: 'Horario'     },
+      { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas'      },
+    ]
+  },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración' },
 ]
 
@@ -147,9 +158,10 @@ export function Sidebar({
     })
   }
 
-  // Get flat nav for non-admin roles
-  function getFlatNav(): NavItem[] {
+  // Get nav structure for current role
+  function getNav(): NavNode[] {
     if (isPlannerSolo) return NAV_PLANNER_SOLO
+    if (isAdmin) return NAV_ADMIN_GROUPED
     switch (role) {
       case 'teacher':       return NAV_TEACHER
       case 'student':       return NAV_STUDENT
@@ -164,14 +176,14 @@ export function Sidebar({
 
   // Auto-expand active group on route change
   useEffect(() => {
-    if (isAdmin) {
-      NAV_ADMIN_GROUPED.forEach(g => {
-        if (g.items.some(item => item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href))) {
-          setExpandedGroups(prev => new Set(prev).add(g.title))
+    getNav().forEach(node => {
+      if ('items' in node) {
+        if (node.items.some(item => item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href))) {
+          setExpandedGroups(prev => new Set(prev).add(node.title))
         }
-      })
-    }
-  }, [pathname, isAdmin])
+      }
+    })
+  }, [pathname, isAdmin, role, isPlannerSolo])
 
   // Close on Escape
   useEffect(() => {
@@ -247,15 +259,16 @@ export function Sidebar({
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar">
-        {isAdmin ? (
-          /* ── Admin: grouped navigation ── */
-          <div className="space-y-1">
-            {NAV_ADMIN_GROUPED.map(group => {
+        <div className="space-y-1">
+          {getNav().map((node, idx) => {
+            if ('items' in node) {
+              // Es un NavGroup
+              const group = node
               const expanded = expandedGroups.has(group.title)
               const active = isGroupActive(group)
 
               return (
-                <div key={group.title}>
+                <div key={group.title || idx}>
                   {/* Group header */}
                   <button
                     onClick={() => toggleGroup(group.title)}
@@ -283,12 +296,12 @@ export function Sidebar({
                   )}
                 </div>
               )
-            })}
-          </div>
-        ) : (
-          /* ── Other roles: flat navigation ── */
-          getFlatNav().map(item => renderNavLink(item))
-        )}
+            } else {
+              // Es un NavItem
+              return renderNavLink(node)
+            }
+          })}
+        </div>
       </nav>
 
       {/* Bottom section */}
