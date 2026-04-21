@@ -24,8 +24,17 @@ const QUICK_PROMPTS: { label: string; prompt: string }[] = [
   { label: '🎯 Redactar indicador',     prompt: 'Ayúdame a redactar un indicador de evaluación para una destreza que te diré.' },
 ]
 
+// Rutas donde Aura está permitida. Aura es un copiloto pedagógico, así que
+// solo aparece en planificador e historial (no en instituciones, docentes,
+// alumnos, horarios, etc.).
+const AURA_ALLOWED_PREFIXES = [
+  '/dashboard/planificador',
+  '/dashboard/historial',
+]
+
 export function FloatingAura() {
   const pathname = usePathname() || ''
+  const isAllowedRoute = AURA_ALLOWED_PREFIXES.some(p => pathname.startsWith(p))
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -190,6 +199,9 @@ export function FloatingAura() {
     if (!confirm('¿Borrar toda la conversación con Aura?')) return
     setMessages([])
   }
+
+  // Solo visible en planificador e historial.
+  if (!isAllowedRoute) return null
 
   return (
     <>
