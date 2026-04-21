@@ -98,7 +98,8 @@ const NAV_TEACHER: NavNode[] = [
 // ─── Nav estudiante ───────────────────────────────────────────────────────────
 const NAV_STUDENT: NavItem[] = [
   { href: '/dashboard/alumno',       icon: '🎒', label: 'Mi Panel'     },
-  { href: '/dashboard/libretas',     icon: '📓', label: 'Mis Notas'    },
+  { href: '/dashboard/notas',        icon: '📊', label: 'Mis Notas'    },
+  { href: '/dashboard/libretas',     icon: '📓', label: 'Libreta'      },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
 
