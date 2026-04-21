@@ -79,6 +79,7 @@ export function PlannerClient({
   // Variantes generadas (nee_sin_disc + diac) para mostrar en tabs
   const [variants, setVariants] = useState<Planificacion[]>([])
   const [activeTab, setActiveTab] = useState<'regular' | 'nee_sin_disc' | 'diac'>('regular')
+  const [detectedPlanification, setDetectedPlanification] = useState(false)
 
   function toggleNeeSinDiscCode(code: string) {
     setNeeSinDiscCodes(prev =>
@@ -113,6 +114,7 @@ export function PlannerClient({
     setResults([])
     setVariants([])
     setActiveTab('regular')
+    setDetectedPlanification(false)
 
     // Validaciones NEE
     const finalNeeSinDisc = neeSinDiscEnabled ? neeSinDiscCodes : []
@@ -180,12 +182,16 @@ export function PlannerClient({
         setResult(data.planificacion)
         setVariants(data.variants || [])
         setActiveTab('regular')
+        setDetectedPlanification(!!data.detectedPlanification)
         const variantCount = (data.variants || []).length
         toast.success(
           variantCount > 0
             ? `Planificacion generada con ${variantCount} adaptacion${variantCount > 1 ? 'es' : ''} NEE`
             : 'Planificacion generada y guardada'
         )
+        if (data.detectedPlanification) {
+          toast('📄 Se detecto una planificacion en tus documentos y se adapto al formato institucional', { duration: 6000 })
+        }
       }
     } catch (err: any) {
       toast.error(err.message ?? 'Error al generar')

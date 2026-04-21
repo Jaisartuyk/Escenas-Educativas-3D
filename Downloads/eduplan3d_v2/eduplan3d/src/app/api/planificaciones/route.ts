@@ -25,7 +25,7 @@ REGLAS DE ORO:
 5. Los tiempos de cada fase de la estrategia metodologica elegida deben sumar EXACTAMENTE la duracion total de la clase.`
 
 // ── Build prompt for each type ───────────────────────────────────────────────
-function buildPrompt(data: any, contextoExtra: string = ''): string {
+function buildPrompt(data: any, contextoExtra: string = '', detectedPlanification: boolean = false): string {
   const {
     type, subject, grade, topic, duration, extra,
     trimestre, parcial, semana, eje, cuadernillo,
@@ -39,6 +39,17 @@ function buildPrompt(data: any, contextoExtra: string = ''): string {
   const extraNotes = extra ? `\nNOTAS DEL DOCENTE: ${extra}` : ''
   const ragContext = contextoExtra ? `\nCONTEXTO BIBLIOGRAFICO (biblioteca del docente):\n---\n${contextoExtra}\n---\nBasa el contenido en este material cuando sea relevante.` : ''
 
+  const planDetectedNote = detectedPlanification
+    ? `\n\nIMPORTANTE — SE DETECTO UNA PLANIFICACION YA ELABORADA EN LOS DOCUMENTOS SUBIDOS:
+Uno o mas documentos del docente contienen una planificacion lista. Tu tarea PRINCIPAL es TRANSCRIBIR Y ADAPTAR esa planificacion al formato MINEDUC estricto que se pide, PRESERVANDO:
+- Los objetivos de aprendizaje del documento original.
+- Las destrezas y contenidos declarados.
+- Las actividades principales (puedes enriquecerlas con fases de la metodologia elegida, pero NO reemplazarlas).
+- Los criterios e instrumentos de evaluacion del documento original cuando existan.
+Cuando haya conflicto entre tus sugerencias por defecto y el documento, PRIORIZA SIEMPRE el documento original. Anade fases de la metodologia ${methodology.name} solo para estructurar, no para re-inventar el contenido.`
+    : ''
+
+
   const commonHeader = `
 DATOS DEL CONTEXTO:
 - Institucion: ${institutionName || 'Institucion Educativa'}
@@ -51,7 +62,7 @@ DATOS DEL CONTEXTO:
 - Duracion de esta clase: ${duration}
 - Eje Transversal: ${ejeTransversal}
 - Estrategia metodologica elegida por el docente: ${methodology.name} (${methodology.description})
-${cuadernilloRef}${extraNotes}${ragContext}`
+${cuadernilloRef}${extraNotes}${ragContext}${planDetectedNote}`
 
   if (type === 'clase') {
     const isAporte = semana === 6
@@ -170,6 +181,83 @@ Estructura:
 Usa tablas Markdown limpias.`.trim()
 }
 
+// ── Clasificador de intención: ¿cada doc es referencia o planificación? ─────
+async function classifyDocuments(
+  docs: Array<{ titulo: string; text: string }>
+): Promise<Array<{ kind: 'referencia' | 'planificacion' }>> {
+  if (docs.length === 0) return []
+
+  // Heurística rápida previa (muy barata). Si queda dudoso, llamar Haiku.
+  const simple = docs.map(d => {
+    const text = d.text.slice(0, 4000).toLowerCase()
+    const planSignals = [
+      'destreza con criterio',
+      'indicador de evaluacion',
+      'indicador de evaluación',
+      'estrategias metodolog',
+      'ciclo erca',
+      'experiencia',
+      'conceptualizacion',
+      'aplicacion',
+      'dca:',
+      'dcd:',
+      'planificacion microcurricular',
+      'planificación microcurricular',
+    ]
+    const hits = planSignals.filter(s => text.includes(s)).length
+    return { kind: hits >= 3 ? 'planificacion' as const : 'referencia' as const, hits }
+  })
+
+  // Si todos son claramente uno u otro, ahorrar la llamada.
+  const allClear = simple.every(s => s.hits === 0 || s.hits >= 4)
+  if (allClear) {
+    return simple.map(s => ({ kind: s.kind }))
+  }
+
+  // Refinar con Haiku solo los ambiguos.
+  try {
+    const items = docs
+      .map((d, i) => `[${i}] ${d.titulo}\n${d.text.slice(0, 2500)}`)
+      .join('\n---\n')
+
+    const resp = await anthropic.messages.create({
+      model: 'claude-3-5-haiku-20241022',
+      max_tokens: 400,
+      system: 'Eres un clasificador breve de documentos educativos. Responde SOLO JSON sin markdown ni explicacion.',
+      messages: [{
+        role: 'user',
+        content: `Clasifica cada documento como:
+- "referencia": material de consulta (libro, cuadernillo, curriculo oficial, tema explicado, articulo, manual).
+- "planificacion": un plan de clase ya elaborado con estructura (destrezas, objetivos, actividades secuenciadas, evaluacion) listo para impartir.
+
+Responde un JSON array del mismo tamano que los documentos, con la forma:
+[{"index":0,"kind":"referencia"}, {"index":1,"kind":"planificacion"}, ...]
+
+DOCUMENTOS:
+${items}`,
+      }],
+    })
+
+    const text = resp.content[0]?.type === 'text' ? resp.content[0].text : '[]'
+    const jsonMatch = text.match(/\[[\s\S]*\]/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      if (Array.isArray(parsed)) {
+        return docs.map((_, i) => {
+          const entry = parsed.find((p: any) => p?.index === i)
+          const kind = entry?.kind === 'planificacion' ? 'planificacion' : 'referencia'
+          return { kind }
+        })
+      }
+    }
+  } catch (e) {
+    console.error('[classifyDocuments fallback]', e)
+  }
+
+  // Fallback: usar heurística simple
+  return simple.map(s => ({ kind: s.kind }))
+}
+
 // ── Prompt para adaptar una planificación ya generada a NEE ──────────────────
 function buildNeeAdaptationPrompt(opts: {
   regularContent: string
@@ -259,6 +347,7 @@ export async function POST(request: NextRequest) {
 
     // ── RAG: extract PDFs from teacher library ──
     let contextoExtra = ''
+    let detectedPlanification = false
     try {
       let refs: Array<{ storage_path: string; bucket: string; titulo?: string }> = []
 
@@ -299,6 +388,8 @@ export async function POST(request: NextRequest) {
         const pdfMod = await import('pdf-parse')
         const pdfParse = (pdfMod as any).default || pdfMod
 
+        // 1) Extraer texto de cada documento
+        const parsedDocs: Array<{ titulo: string; text: string }> = []
         for (const r of refs) {
           const { data: fileData, error: downloadError } = await supabase.storage
             .from(r.bucket)
@@ -307,10 +398,25 @@ export async function POST(request: NextRequest) {
           if (fileData && !downloadError) {
             const buffer = Buffer.from(await fileData.arrayBuffer())
             const parsed = await pdfParse(buffer)
-            const header = r.titulo ? `Documento: ${r.titulo}` : 'Documento adjunto'
-            contextoExtra += `\n${header}:\n${parsed.text.slice(0, 150000)}\n`
+            parsedDocs.push({
+              titulo: r.titulo || 'Documento adjunto',
+              text: parsed.text.slice(0, 150000),
+            })
           }
         }
+
+        // 2) Clasificar: ¿cada doc es "referencia" o "planificacion" ya elaborada?
+        const classifications = await classifyDocuments(parsedDocs)
+        detectedPlanification = classifications.some(c => c.kind === 'planificacion')
+
+        // 3) Construir el contextoExtra etiquetando cada doc según su tipo
+        parsedDocs.forEach((d, i) => {
+          const cls = classifications[i]?.kind || 'referencia'
+          const badge = cls === 'planificacion'
+            ? '[TIPO: PLANIFICACION YA ELABORADA — ADAPTAR AL FORMATO, no re-inventar]'
+            : '[TIPO: MATERIAL DE REFERENCIA — usar como fuente tematica]'
+          contextoExtra += `\n${badge}\nDocumento: ${d.titulo}:\n${d.text}\n`
+        })
       }
     } catch (err) {
       console.error('[RAG Biblioteca Error]', err)
@@ -321,7 +427,7 @@ export async function POST(request: NextRequest) {
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: buildPrompt(body, contextoExtra) }],
+      messages: [{ role: 'user', content: buildPrompt(body, contextoExtra, detectedPlanification) }],
     })
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
@@ -455,7 +561,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ planificacion: saved, variants })
+    return NextResponse.json({
+      planificacion: saved,
+      variants,
+      detectedPlanification,
+    })
   } catch (err: any) {
     console.error('[POST /api/planificaciones]', err)
     return NextResponse.json({ error: err.message ?? 'Error interno' }, { status: 500 })
