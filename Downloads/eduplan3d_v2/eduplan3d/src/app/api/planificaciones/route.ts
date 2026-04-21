@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getMethodology } from '@/lib/pedagogy/methodologies'
 import { buildNeePromptBlock, getNeeType } from '@/lib/pedagogy/nee'
+import { fetchCurriculoBlock } from '@/lib/curriculo/lookup'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -420,6 +421,20 @@ export async function POST(request: NextRequest) {
       }
     } catch (err) {
       console.error('[RAG Biblioteca Error]', err)
+    }
+
+    // ── Inyección del Currículo Priorizado MinEduc ──
+    try {
+      const curriculoBlock = await fetchCurriculoBlock(supabase as any, {
+        grado: body.grade,
+        asignatura: body.subject,
+        tema: body.topic,
+      })
+      if (curriculoBlock) {
+        contextoExtra = `${curriculoBlock}\n${contextoExtra}`
+      }
+    } catch (err) {
+      console.error('[Curriculo Lookup Error]', err)
     }
 
     // Call Claude with system prompt + user prompt (regular)
