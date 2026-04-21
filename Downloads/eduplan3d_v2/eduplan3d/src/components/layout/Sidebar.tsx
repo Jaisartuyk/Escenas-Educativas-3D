@@ -85,7 +85,7 @@ const NAV_TEACHER: NavNode[] = [
     items: [
       { href: '/dashboard/asistencias',  icon: '✅', label: 'Asistencias' },
       { href: '/dashboard/entregas',     icon: '📥', label: 'Deberes'      },
-      { href: '/dashboard/horarios',     icon: '📅', label: 'Horario'     },
+      { href: '/dashboard/tutorias/horarios', icon: '📅', label: 'Horarios'     },
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas'      },
     ]
   },
