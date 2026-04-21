@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 import { getMethodology } from '@/lib/pedagogy/methodologies'
+import { buildNeePromptBlock, getNeeType } from '@/lib/pedagogy/nee'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -169,6 +170,61 @@ Estructura:
 Usa tablas Markdown limpias.`.trim()
 }
 
+// ── Prompt para adaptar una planificación ya generada a NEE ──────────────────
+function buildNeeAdaptationPrompt(opts: {
+  regularContent: string
+  kind: 'nee_sin_disc' | 'diac'
+  neeCodes: string[]
+  studentName?: string
+  gradoReal?: string
+  subject: string
+  grade: string
+  topic: string
+  duration: string
+}): string {
+  const { regularContent, kind, neeCodes, studentName, gradoReal, subject, grade, topic, duration } = opts
+  const isSignificativa = kind === 'diac'
+  const neeBlock = buildNeePromptBlock(neeCodes)
+  const studentLine = studentName ? `\n- Estudiante: ${studentName}` : ''
+  const gradoRealLine = gradoReal ? `\n- Grado curricular REAL del estudiante: ${gradoReal} (puede ser diferente al del aula)` : ''
+
+  const header = isSignificativa
+    ? `Genera una PLANIFICACION ADAPTADA CON DIAC (Documento Individual de Adaptación Curricular).
+Esta es una ADAPTACION SIGNIFICATIVA: los objetivos, destrezas y contenidos DEBEN reescribirse al nivel real del estudiante (pueden ser de grados anteriores). El estudiante NO trabaja los mismos objetivos del grupo-clase.`
+    : `Genera una PLANIFICACION ADAPTADA NO SIGNIFICATIVA para estudiantes con NEE sin discapacidad.
+Se MANTIENEN los objetivos, destrezas y contenidos del grado del aula. Solo se adapta el CÓMO: metodología, tiempos, recursos y evaluación.`
+
+  return `${header}
+
+DATOS:
+- Asignatura: ${subject}
+- Curso/Grado del aula: ${grade}
+- Tema: ${topic}
+- Duración de la clase: ${duration}${studentLine}${gradoRealLine}
+
+NECESIDADES EDUCATIVAS A ATENDER:
+${neeBlock}
+
+PLANIFICACION REGULAR DE REFERENCIA (la que usa el grupo-clase):
+---
+${regularContent}
+---
+
+INSTRUCCIONES:
+1. Produce UNA planificacion completa con la MISMA estructura de secciones que la regular (encabezado, tabla principal, adaptaciones DUA, firmas).
+2. Mantén el formato de tabla Markdown con las mismas columnas (DCD, Indicador, Estrategias, Recursos, Evaluación).
+3. En la tabla principal, ${isSignificativa
+    ? 'REESCRIBE la DCD al nivel real del estudiante. Usa códigos de DCD de ese grado. El indicador debe ser funcional/autónomo, no comparativo con el grupo.'
+    : 'MANTÉN la DCD y el indicador del grado. Solo adapta las actividades, recursos y forma de evaluación.'}
+4. En la columna de estrategias metodológicas aplica las adaptaciones descritas arriba.
+5. En RECURSOS incluye materiales específicos de la adaptación (pictogramas, lector de pantalla, material manipulable, etc.) además de los digitales.
+6. En EVALUACION ${isSignificativa
+    ? 'usa criterios individualizados propios del DIAC (observación de progreso, evidencias, no comparación con el grupo).'
+    : 'usa los MISMOS criterios del grupo, pero adaptados en forma (oral, tiempo extra, apoyos).'}
+7. Añade al final una sección "### JUSTIFICACION DE LA ADAPTACION" explicando brevemente por qué esta adaptación responde a la necesidad.
+8. Usa tablas Markdown limpias. Las celdas deben tener <br/> para saltos internos.`
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createClient()
@@ -260,7 +316,7 @@ export async function POST(request: NextRequest) {
       console.error('[RAG Biblioteca Error]', err)
     }
 
-    // Call Claude with system prompt + user prompt
+    // Call Claude with system prompt + user prompt (regular)
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
@@ -275,7 +331,7 @@ export async function POST(request: NextRequest) {
     const semLabel = body.semana ? `-S${body.semana}` : ''
     const title = `${body.subject} — ${body.topic || 'Planificacion'} (${trimLabel}${semLabel})`.slice(0, 100)
 
-    // Save to Supabase
+    // Save regular plan
     const { data: saved, error } = await (supabase as any)
       .from('planificaciones')
       .insert({
@@ -288,6 +344,7 @@ export async function POST(request: NextRequest) {
         duration:      body.duration,
         methodologies: body.methodology ? [body.methodology] : (body.methodologies || []),
         content,
+        tipo_documento: 'regular',
         metadata: {
           trimestre: body.trimestre,
           parcial:   body.parcial,
@@ -305,7 +362,100 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
-    return NextResponse.json({ planificacion: saved })
+    // ── Generar variantes NEE (opcional) ──
+    const variants: any[] = []
+    const neeSinDiscCodes: string[] = Array.isArray(body.nee_sin_disc_codes) ? body.nee_sin_disc_codes : []
+    const neeConDiscCode:  string   = typeof body.nee_con_disc_code === 'string' ? body.nee_con_disc_code : ''
+
+    // Validar que los códigos existen en el catálogo
+    const validSinDisc = neeSinDiscCodes.filter(c => {
+      const n = getNeeType(c)
+      return n && n.category === 'sin_discapacidad'
+    })
+    const validConDisc = (() => {
+      const n = getNeeType(neeConDiscCode)
+      return n && n.category === 'con_discapacidad' ? neeConDiscCode : ''
+    })()
+
+    // Función auxiliar para generar una variante
+    const userId = user.id
+    const generateVariant = async (kind: 'nee_sin_disc' | 'diac', neeCodes: string[], extraFields: Record<string, any> = {}) => {
+      const prompt = buildNeeAdaptationPrompt({
+        regularContent: content,
+        kind,
+        neeCodes,
+        subject: body.subject,
+        grade: body.grade,
+        topic: body.topic,
+        duration: body.duration,
+        studentName: extraFields.estudiante_nombre,
+        gradoReal:   extraFields.grado_curricular_real,
+      })
+      const msg = await anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
+      })
+      const variantContent = msg.content[0].type === 'text' ? msg.content[0].text : ''
+      const variantLabel = kind === 'diac' ? 'DIAC' : 'NEE'
+      const variantTitle = `${title.slice(0, 80)} — ${variantLabel}`.slice(0, 100)
+
+      const { data: savedVariant, error: vErr } = await (supabase as any)
+        .from('planificaciones')
+        .insert({
+          user_id:       userId,
+          title:         variantTitle,
+          type:          saved.type,
+          subject:       body.subject,
+          grade:         body.grade,
+          topic:         body.topic,
+          duration:      body.duration,
+          methodologies: body.methodology ? [body.methodology] : (body.methodologies || []),
+          content:       variantContent,
+          tipo_documento: kind,
+          parent_planificacion_id: saved.id,
+          nee_tipos: neeCodes,
+          ...extraFields,
+          metadata: {
+            ...saved.metadata,
+            variantOf: saved.id,
+            neeKind: kind,
+            neeCodes,
+          },
+        })
+        .select()
+        .single()
+
+      if (vErr) {
+        console.error('[NEE variant insert error]', vErr)
+        return null
+      }
+      return savedVariant
+    }
+
+    if (validSinDisc.length > 0) {
+      try {
+        const v = await generateVariant('nee_sin_disc', validSinDisc)
+        if (v) variants.push(v)
+      } catch (e) {
+        console.error('[NEE sin discapacidad error]', e)
+      }
+    }
+
+    if (validConDisc) {
+      try {
+        const v = await generateVariant('diac', [validConDisc], {
+          estudiante_nombre:     body.diac_student_name || null,
+          grado_curricular_real: body.diac_grado_real   || null,
+        })
+        if (v) variants.push(v)
+      } catch (e) {
+        console.error('[DIAC error]', e)
+      }
+    }
+
+    return NextResponse.json({ planificacion: saved, variants })
   } catch (err: any) {
     console.error('[POST /api/planificaciones]', err)
     return NextResponse.json({ error: err.message ?? 'Error interno' }, { status: 500 })

@@ -10,6 +10,7 @@ import {
   FileText, ClipboardList, Target, Sparkles, Copy, ExternalLink,
 } from 'lucide-react'
 import { METHODOLOGIES, DEFAULT_METHODOLOGY } from '@/lib/pedagogy/methodologies'
+import { NEE_SIN_DISCAPACIDAD, NEE_CON_DISCAPACIDAD } from '@/lib/pedagogy/nee'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TRIMESTRES = [
@@ -67,6 +68,24 @@ export function PlannerClient({
   const [result,     setResult]     = useState<Planificacion | null>(null)
   const [results,    setResults]    = useState<Planificacion[]>([]) // for parcial mode
 
+  // NEE state
+  const [neeSinDiscEnabled,  setNeeSinDiscEnabled]  = useState(false)
+  const [neeSinDiscCodes,    setNeeSinDiscCodes]    = useState<string[]>([])
+  const [neeConDiscEnabled,  setNeeConDiscEnabled]  = useState(false)
+  const [neeConDiscCode,     setNeeConDiscCode]     = useState('')
+  const [diacStudentName,    setDiacStudentName]    = useState('')
+  const [diacGradoReal,      setDiacGradoReal]      = useState('')
+
+  // Variantes generadas (nee_sin_disc + diac) para mostrar en tabs
+  const [variants, setVariants] = useState<Planificacion[]>([])
+  const [activeTab, setActiveTab] = useState<'regular' | 'nee_sin_disc' | 'diac'>('regular')
+
+  function toggleNeeSinDiscCode(code: string) {
+    setNeeSinDiscCodes(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    )
+  }
+
   // Derived
   const selectedSubject = subjects.find((s: any) => s.id === subjectId)
   const courseName  = selectedSubject?.course?.name || ''
@@ -92,6 +111,20 @@ export function PlannerClient({
     setLoading(true)
     setResult(null)
     setResults([])
+    setVariants([])
+    setActiveTab('regular')
+
+    // Validaciones NEE
+    const finalNeeSinDisc = neeSinDiscEnabled ? neeSinDiscCodes : []
+    const finalNeeConDisc = neeConDiscEnabled && neeConDiscCode ? neeConDiscCode : ''
+    if (neeSinDiscEnabled && finalNeeSinDisc.length === 0) {
+      setLoading(false)
+      return toast.error('Selecciona al menos una necesidad sin discapacidad o desactiva esa adaptacion')
+    }
+    if (neeConDiscEnabled && !finalNeeConDisc) {
+      setLoading(false)
+      return toast.error('Selecciona el tipo de discapacidad o desactiva el DIAC')
+    }
 
     try {
       const payload = {
@@ -114,6 +147,11 @@ export function PlannerClient({
         teacherName,
         institutionName,
         subjectId,
+        // NEE
+        nee_sin_disc_codes: finalNeeSinDisc,
+        nee_con_disc_code:  finalNeeConDisc,
+        diac_student_name:  diacStudentName.trim(),
+        diac_grado_real:    diacGradoReal.trim(),
       }
 
       if (mode === 'parcial') {
@@ -140,7 +178,14 @@ export function PlannerClient({
         const data = await res.json()
         if (!res.ok) throw new Error(data.error)
         setResult(data.planificacion)
-        toast.success('Planificacion generada y guardada')
+        setVariants(data.variants || [])
+        setActiveTab('regular')
+        const variantCount = (data.variants || []).length
+        toast.success(
+          variantCount > 0
+            ? `Planificacion generada con ${variantCount} adaptacion${variantCount > 1 ? 'es' : ''} NEE`
+            : 'Planificacion generada y guardada'
+        )
       }
     } catch (err: any) {
       toast.error(err.message ?? 'Error al generar')
@@ -348,6 +393,87 @@ export function PlannerClient({
           />
         </div>
 
+        {/* ── NEE: Adaptación no significativa (sin discapacidad) ── */}
+        {(mode === 'clase' || mode === 'parcial') && (
+          <div className="rounded-xl border border-surface2 bg-bg p-3 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={neeSinDiscEnabled}
+                onChange={e => setNeeSinDiscEnabled(e.target.checked)}
+                className="accent-violet-600"
+              />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-ink2">
+                Generar adaptación NEE (sin discapacidad)
+              </span>
+            </label>
+            <p className="text-[10px] text-ink4 -mt-1 pl-6">
+              Adaptación no significativa: mismos objetivos, diferente metodología.
+            </p>
+            {neeSinDiscEnabled && (
+              <div className="grid grid-cols-1 gap-1 pl-6">
+                {NEE_SIN_DISCAPACIDAD.map(n => (
+                  <label key={n.code} className="flex items-start gap-2 text-[11px] text-ink2 cursor-pointer py-0.5">
+                    <input
+                      type="checkbox"
+                      checked={neeSinDiscCodes.includes(n.code)}
+                      onChange={() => toggleNeeSinDiscCode(n.code)}
+                      className="accent-violet-600 mt-0.5"
+                    />
+                    <span>{n.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── NEE: DIAC (con discapacidad) ── */}
+        {(mode === 'clase' || mode === 'parcial') && (
+          <div className="rounded-xl border border-surface2 bg-bg p-3 space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={neeConDiscEnabled}
+                onChange={e => setNeeConDiscEnabled(e.target.checked)}
+                className="accent-teal-600"
+              />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-ink2">
+                Generar DIAC (con discapacidad)
+              </span>
+            </label>
+            <p className="text-[10px] text-ink4 -mt-1 pl-6">
+              Adaptación significativa: objetivos individualizados al nivel real.
+            </p>
+            {neeConDiscEnabled && (
+              <div className="pl-6 space-y-2">
+                <select
+                  value={neeConDiscCode}
+                  onChange={e => setNeeConDiscCode(e.target.value)}
+                  className="w-full bg-surface border border-surface2 rounded-lg px-2 py-1.5 text-[11px] focus:outline-none focus:border-teal-500/50"
+                >
+                  <option value="">Tipo de discapacidad...</option>
+                  {NEE_CON_DISCAPACIDAD.map(n => (
+                    <option key={n.code} value={n.code}>{n.label}</option>
+                  ))}
+                </select>
+                <input
+                  value={diacStudentName}
+                  onChange={e => setDiacStudentName(e.target.value)}
+                  placeholder="Nombre del estudiante (opcional)"
+                  className="w-full bg-surface border border-surface2 rounded-lg px-2 py-1.5 text-[11px] focus:outline-none focus:border-teal-500/50"
+                />
+                <input
+                  value={diacGradoReal}
+                  onChange={e => setDiacGradoReal(e.target.value)}
+                  placeholder="Grado curricular real (ej: 2do EGB)"
+                  className="w-full bg-surface border border-surface2 rounded-lg px-2 py-1.5 text-[11px] focus:outline-none focus:border-teal-500/50"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Generate button */}
         <button
           onClick={handleGenerate}
@@ -420,14 +546,43 @@ export function PlannerClient({
           </div>
         )}
 
-        {/* Single result */}
-        {result && (
-          <div className="flex-1 p-6 overflow-y-auto">
-            <pre className="text-sm text-ink2 whitespace-pre-wrap leading-relaxed font-body">
-              {result.content}
-            </pre>
+        {/* Tabs (solo si hay variantes NEE) */}
+        {result && variants.length > 0 && (
+          <div className="flex gap-1 px-6 pt-3 border-b border-surface2 bg-bg">
+            {([
+              { id: 'regular' as const,       label: '📄 Regular',        show: true },
+              { id: 'nee_sin_disc' as const,  label: '♿ NEE s/disc',      show: variants.some(v => (v as any).tipo_documento === 'nee_sin_disc') },
+              { id: 'diac' as const,          label: '🧩 DIAC',           show: variants.some(v => (v as any).tipo_documento === 'diac') },
+            ]).filter(t => t.show).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`px-3 py-2 text-xs font-semibold rounded-t-lg border-b-2 transition-colors ${
+                  activeTab === t.id
+                    ? 'text-violet2 border-violet2 bg-surface'
+                    : 'text-ink3 border-transparent hover:text-ink2'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         )}
+
+        {/* Single result (regular o variant activa) */}
+        {result && (() => {
+          const active =
+            activeTab === 'regular'
+              ? result
+              : variants.find(v => (v as any).tipo_documento === activeTab) || result
+          return (
+            <div className="flex-1 p-6 overflow-y-auto">
+              <pre className="text-sm text-ink2 whitespace-pre-wrap leading-relaxed font-body">
+                {active.content}
+              </pre>
+            </div>
+          )
+        })()}
 
         {/* Parcial results — multiple weeks */}
         {results.length > 0 && (
