@@ -117,7 +117,7 @@ export function RendimientoClient({ courses, enrollments, subjects, assignments,
   // KPIs
   const kpis = useMemo(() => {
     let validAvgs = matrixData.filter((m: any) => m.globalAvg !== null).map((m: any) => m.globalAvg as number)
-    const classAvg = validAvgs.length > 0 ? (validAvgs.reduce((a,b)=>a+b,0) / validAvgs.length).toFixed(2) : '--'
+    const classAvg = validAvgs.length > 0 ? (validAvgs.reduce((a: number, b: number) => a + b, 0) / validAvgs.length).toFixed(2) : '--'
     const riskCount = matrixData.filter((m: any) => m.hasRisk).length
     const excelentCount = validAvgs.filter((v: number) => v >= 9).length
     return { classAvg, riskCount, excelentCount }
@@ -257,7 +257,7 @@ export function RendimientoClient({ courses, enrollments, subjects, assignments,
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface2">
-                {filteredMatrix.map((row, idx) => (
+                {filteredMatrix.map((row: any, idx: number) => (
                   <tr key={row.studentId} className={`hover:bg-bg/50 ${idx % 2 === 0 ? '' : 'bg-surface2/10'}`}>
                     <td className="px-4 py-3 font-semibold text-ink whitespace-nowrap sticky left-0 bg-surface z-10 shadow-[1px_0_0_rgba(0,0,0,0.05)]">
                       {row.studentName}
