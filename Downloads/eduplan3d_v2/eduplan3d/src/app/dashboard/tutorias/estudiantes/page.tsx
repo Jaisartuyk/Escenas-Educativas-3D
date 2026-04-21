@@ -65,7 +65,7 @@ export default async function EstudiantesTutorPage() {
     // Join perfiles de estudiantes
     const { data: eData } = await admin
       .from('enrollments')
-      .select('course_id, student:profiles(id, full_name, email, avatar_url)')
+      .select('*, student:profiles(*)')
       .in('course_id', tutoredCourseIds)
     enrollmentsRes = eData || []
   }
