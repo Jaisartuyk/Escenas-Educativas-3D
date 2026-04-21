@@ -10,6 +10,7 @@ export const revalidate = 0
 const Sidebar = nextDynamic(() => import('@/components/layout/Sidebar').then(m => m.Sidebar), { ssr: false })
 const Topbar = nextDynamic(() => import('@/components/layout/Topbar').then(m => m.Topbar), { ssr: false })
 const OnboardingModal = nextDynamic(() => import('@/components/onboarding/OnboardingModal').then(mod => mod.OnboardingModal), { ssr: false })
+const FloatingAura = nextDynamic(() => import('@/components/aura/FloatingAura').then(m => m.FloatingAura), { ssr: false })
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
@@ -56,6 +57,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {children}
         </main>
       </div>
+      {/* Aura — copiloto pedagógico flotante (oculto para horarios_only y estudiantes) */}
+      {profile?.role !== 'horarios_only' && profile?.role !== 'student' && profile?.role !== 'parent' && (
+        <FloatingAura />
+      )}
     </div>
   )
 }
