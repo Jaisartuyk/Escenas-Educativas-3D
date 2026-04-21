@@ -176,7 +176,10 @@ export function FichaEstudianteModal({ student, onClose }: { student: any, onClo
 
           {activeTab !== 'Perfil' && (
             <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-4">
-               {TABS.find(t => t.id === activeTab)?.icon({ size: 48, className: "opacity-20" })}
+               {(() => {
+                 const ContentIcon = TABS.find(t => t.id === activeTab)?.icon
+                 return ContentIcon ? <ContentIcon size={48} className="opacity-20" /> : null
+               })()}
                <p className="font-medium text-lg text-slate-400">Información de {activeTab} aún no registrada por secretaria</p>
                <p className="text-sm text-slate-300">Este bloque solo es de visualización para perfil de Tutoría.</p>
             </div>
