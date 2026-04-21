@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { getMethodology } from '@/lib/pedagogy/methodologies'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -20,7 +21,7 @@ REGLAS DE ORO:
 2. PRIORIDAD CUADERNILLO: La fase de "Aplicacion" debe basarse obligatoriamente en los ejercicios del Cuadernillo de Trabajo cuando se proporcione referencia.
 3. ADAPTACIONES (NEE): Al final de cada tabla, anade siempre una seccion breve para adaptaciones curriculares.
 4. Usa EXCLUSIVAMENTE tablas de Markdown limpias y profesionales.
-5. Los tiempos de cada fase ERCA deben sumar exactamente la duracion total de la clase.`
+5. Los tiempos de cada fase de la estrategia metodologica elegida deben sumar EXACTAMENTE la duracion total de la clase.`
 
 // ── Build prompt for each type ───────────────────────────────────────────────
 function buildPrompt(data: any, contextoExtra: string = ''): string {
@@ -28,9 +29,11 @@ function buildPrompt(data: any, contextoExtra: string = ''): string {
     type, subject, grade, topic, duration, extra,
     trimestre, parcial, semana, eje, cuadernillo,
     periodMinutes, weeklyHours, teacherName, institutionName,
+    methodology: methodologyCode,
   } = data
 
   const ejeTransversal = eje || 'Justicia'
+  const methodology = getMethodology(methodologyCode)
   const cuadernilloRef = cuadernillo ? `\nREFERENCIA CUADERNILLO DE TRABAJO: ${cuadernillo}. OBLIGATORIO: usa estos ejercicios en la fase de Aplicacion.` : ''
   const extraNotes = extra ? `\nNOTAS DEL DOCENTE: ${extra}` : ''
   const ragContext = contextoExtra ? `\nCONTEXTO BIBLIOGRAFICO (biblioteca del docente):\n---\n${contextoExtra}\n---\nBasa el contenido en este material cuando sea relevante.` : ''
@@ -46,6 +49,7 @@ DATOS DEL CONTEXTO:
 - Carga horaria semanal: ${weeklyHours} horas
 - Duracion de esta clase: ${duration}
 - Eje Transversal: ${ejeTransversal}
+- Estrategia metodologica elegida por el docente: ${methodology.name} (${methodology.description})
 ${cuadernilloRef}${extraNotes}${ragContext}`
 
   if (type === 'clase') {
@@ -65,7 +69,7 @@ Tabla con: Institucion, Asignatura, Curso, Docente, Fecha, No. Estudiantes (22),
 ### 2. TABLA PRINCIPAL DE LA CLASE
 Genera UNA SOLA fila con estas columnas EXACTAS (no generes tablas separadas para Recursos ni Evaluacion, todo va aqui):
 
-| DESTREZA CON CRITERIO DE DESEMPENO (DCD) | INDICADOR DE EVALUACION | ESTRATEGIAS METODOLOGICAS (CICLO ERCA) | RECURSOS | EVALUACION |
+| DESTREZA CON CRITERIO DE DESEMPENO (DCD) | INDICADOR DE EVALUACION | ${methodology.columnHeader} | RECURSOS | EVALUACION |
 |---|---|---|---|---|
 
 REGLAS PARA CADA COLUMNA:
@@ -74,8 +78,12 @@ REGLAS PARA CADA COLUMNA:
 
 **INDICADOR**: codigo oficial (ej. I.LL.5.4.1.) + descripcion. Texto breve.
 
-**ESTRATEGIAS METODOLOGICAS (CICLO ERCA)**: las 4 fases con tiempos EXACTOS que sumen ${duration}. Dentro de la misma celda usa la etiqueta <br/> para saltar de linea entre fases (NO uses saltos reales, las tablas markdown no los soportan). Formato:
-**EXPERIENCIA (X min):** actividad de enganche<br/>**REFLEXION (X min):** preguntas guia<br/>**CONCEPTUALIZACION (X min):** desarrollo del contenido<br/>**APLICACION (X min):** ejercicios practicos${cuadernillo ? ' (Cuadernillo pag. indicada)' : ''}
+**${methodology.columnHeader}**: ${methodology.phases.length} fases con tiempos EXACTOS que sumen ${duration}. Dentro de la misma celda usa la etiqueta <br/> para saltar de linea entre fases (NO uses saltos reales, las tablas markdown no los soportan).
+
+${methodology.promptBlock}
+
+Formato sugerido de la celda (ejemplo con las fases de esta metodologia):
+${methodology.phases.map(p => `**${p} (X min):** (actividad concreta)`).join('<br/>')}${cuadernillo ? ' — la ultima fase debe basarse en el Cuadernillo.' : ''}
 
 **RECURSOS**: lista compacta en la misma celda, separada por <br/>. Debe incluir DOS bloques:
 
@@ -278,7 +286,7 @@ export async function POST(request: NextRequest) {
         grade:         body.grade,
         topic:         body.topic,
         duration:      body.duration,
-        methodologies: body.methodologies || [],
+        methodologies: body.methodology ? [body.methodology] : (body.methodologies || []),
         content,
         metadata: {
           trimestre: body.trimestre,
@@ -288,6 +296,7 @@ export async function POST(request: NextRequest) {
           cuadernillo: body.cuadernillo,
           periodMinutes: body.periodMinutes,
           weeklyHours: body.weeklyHours,
+          methodology: body.methodology || 'ERCA',
           generatedAt: new Date().toISOString(),
         },
       })

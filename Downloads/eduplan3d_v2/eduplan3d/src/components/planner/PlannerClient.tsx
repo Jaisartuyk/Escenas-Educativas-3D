@@ -9,6 +9,7 @@ import {
   BookOpen, CalendarDays, Clock, GraduationCap,
   FileText, ClipboardList, Target, Sparkles, Copy, ExternalLink,
 } from 'lucide-react'
+import { METHODOLOGIES, DEFAULT_METHODOLOGY } from '@/lib/pedagogy/methodologies'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TRIMESTRES = [
@@ -59,6 +60,7 @@ export function PlannerClient({
   const [semana,     setSemana]     = useState(1)
   const [topic,      setTopic]      = useState('')
   const [eje,        setEje]        = useState('Justicia')
+  const [methodology, setMethodology] = useState(DEFAULT_METHODOLOGY)
   const [cuadernillo, setCuadernillo] = useState('')
   const [extra,      setExtra]      = useState('')
   const [loading,    setLoading]    = useState(false)
@@ -98,7 +100,8 @@ export function PlannerClient({
         grade: gradeLabel,
         topic,
         duration: classDuration,
-        methodologies: [],
+        methodology,
+        methodologies: [methodology],
         extra,
         // New fields
         trimestre,
@@ -281,6 +284,29 @@ export function PlannerClient({
           </div>
         </div>
 
+        {/* Estrategia metodológica */}
+        {(mode === 'clase' || mode === 'parcial') && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1.5">
+              Estrategia metodológica
+            </label>
+            <select
+              value={methodology}
+              onChange={e => setMethodology(e.target.value)}
+              className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet/50"
+            >
+              {METHODOLOGIES.map(m => (
+                <option key={m.code} value={m.code}>
+                  {m.name} — {m.description}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-ink4 mt-1">
+              Define las fases de las actividades en la clase.
+            </p>
+          </div>
+        )}
+
         {/* Topic */}
         {showTopic && (
           <div>
@@ -378,7 +404,7 @@ export function PlannerClient({
               <div className="w-12 h-12 border-3 border-surface2 rounded-full mx-auto relative" style={{ borderTopColor: '#7C6DFA', animation: 'spin 1s linear infinite' }} />
               <div>
                 <p className="text-sm font-medium text-ink2">Generando planificacion MINEDUC...</p>
-                <p className="text-xs text-ink4 mt-1">Formato ERCA con tiempos calculados</p>
+                <p className="text-xs text-ink4 mt-1">Formato {methodology} con tiempos calculados</p>
               </div>
             </div>
           </div>
