@@ -87,6 +87,7 @@ const NAV_TEACHER: NavNode[] = [
       { href: '/dashboard/tutorias/entregas', icon: '📥', label: 'Deberes'      },
       { href: '/dashboard/tutorias/horarios', icon: '📅', label: 'Horarios'     },
       { href: '/dashboard/tutorias/pensiones', icon: '💰', label: 'Pensiones'    },
+      { href: '/dashboard/tutorias/rendimiento', icon: '📊', label: 'Rendimiento'},
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas'      },
     ]
   },
