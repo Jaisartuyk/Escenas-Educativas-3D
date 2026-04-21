@@ -222,7 +222,7 @@ async function classifyDocuments(
       .join('\n---\n')
 
     const resp = await anthropic.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-haiku-4-5',
       max_tokens: 400,
       system: 'Eres un clasificador breve de documentos educativos. Responde SOLO JSON sin markdown ni explicacion.',
       messages: [{
