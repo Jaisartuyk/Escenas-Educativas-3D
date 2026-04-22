@@ -50,7 +50,15 @@ function buildPrompt(data: any, contextoExtra: string = '', detectedPlanificatio
   const extraNotes = extra ? `\nNOTAS DEL DOCENTE: ${extra}` : ''
   
   // RAG: prioritizing teacher context over official curriculum
-  const ragContext = contextoExtra ? `\n\nCONTENIDO DE REFERENCIA (OBLIGATORIO PRIORIZAR ESTO):\n---\n${contextoExtra}\n---\nINSTRUCCION: Los datos aqui presentes son lo que el docente REALMENTE quiere enseñar. Usa este material por encima de cualquier conocimiento general.` : ''
+  const ragContext = contextoExtra ? `\n\nCONTENIDO DE REFERENCIA (OBLIGATORIO PRIORIZAR ESTO):\n---\n${contextoExtra}\n---
+
+REGLAS OBLIGATORIAS PARA USAR ESTE CONTENIDO:
+1. Si en los documentos aparecen DCDs con codigo (LL.4.x.x, M.4.x.x, CS.4.x.x, CN.4.x.x, EFL.4.x.x, LL.5.x.x, etc.), DEBES usar EXACTAMENTE esos codigos y sus descripciones textuales. NO inventes codigos nuevos ni uses los de otros subniveles.
+2. Si los documentos mencionan un grado/subnivel especifico (ej. "10mo EGB" = codigos .4.x, "1ro BGU" = codigos .5.x), respeta ese subnivel. El subnivel del documento del docente tiene PRIORIDAD sobre cualquier otro.
+3. Los indicadores de evaluacion (I.LL.x.x.x, I.M.x.x.x, etc.) tambien deben extraerse del documento cuando esten presentes.
+4. Si hay un tema especifico o unidad declarada en el documento, mantenla — no la cambies por otra.
+5. NUNCA mezcles codigos de .4.x (EGB Superior) con .5.x (BGU) en la misma planificacion.
+6. Los datos aqui presentes son lo que el docente REALMENTE quiere enseñar. Usa este material por encima de cualquier conocimiento general.` : ''
 
   const planDetectedNote = detectedPlanification
     ? `\n\nIMPORTANTE — SE DETECTO UNA PLANIFICACION YA ELABORADA EN LOS DOCUMENTOS SUBIDOS:

@@ -159,6 +159,7 @@ export function PlannerClient({
       if (mode === 'parcial') {
         // Generate all 6 weeks — multiple calls
         const allResults: Planificacion[] = []
+        let firstRagStats: any = null
         for (let w = 1; w <= 6; w++) {
           const res = await fetch('/api/planificaciones', {
             method: 'POST',
@@ -168,9 +169,22 @@ export function PlannerClient({
           const data = await res.json()
           if (!res.ok) throw new Error(data.error)
           allResults.push(data.planificacion)
+          if (!firstRagStats && data.ragStats) firstRagStats = data.ragStats
         }
         setResults(allResults)
         toast.success(`${allResults.length} planificaciones generadas`)
+        if (firstRagStats) {
+          const rs = firstRagStats as { found: number; parsed: number; skipped: number; reasons: string[] }
+          if (rs.found === 0) {
+            toast('📚 No hay materiales subidos para esta materia. La IA generó sin contexto bibliográfico.', { icon: '⚠️', duration: 7000 })
+          } else if (rs.parsed === 0) {
+            toast.error(`📚 Encontré ${rs.found} material(es) pero no pude leer ninguno.\n${(rs.reasons || []).slice(0, 3).join('\n')}`, { duration: 10000 })
+          } else if (rs.skipped > 0) {
+            toast(`📚 Usé ${rs.parsed} de ${rs.found} materiales. ${rs.skipped} saltado(s):\n${(rs.reasons || []).slice(0, 3).join('\n')}`, { icon: 'ℹ️', duration: 8000 })
+          } else {
+            toast.success(`📚 Usando ${rs.parsed} material(es) de tu biblioteca como referencia`, { duration: 4000 })
+          }
+        }
       } else {
         const res = await fetch('/api/planificaciones', {
           method: 'POST',
