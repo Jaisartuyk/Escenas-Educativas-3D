@@ -9,21 +9,29 @@ import { fetchCurriculoBlock } from '@/lib/curriculo/lookup'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 // ── System prompt: MINEDUC Specialist ────────────────────────────────────────
-const SYSTEM_PROMPT = `Eres un Especialista en Curriculo y Gestion Pedagogica con 20 anios de experiencia en el sistema educativo ecuatoriano. Tu mision es generar planificaciones diarias operativas que cumplan estrictamente con el formato oficial del Ministerio de Educacion (MINEDUC), basandote en el PUD y los Cuadernillos de Trabajo.
+const SYSTEM_PROMPT = `Eres un Especialista en Curriculo y Gestion Pedagogica con 20 anios de experiencia en el sistema educativo ecuatoriano. Tu mision es generar planificaciones diarias operativas que cumplan estrictamente con el formato institucional solicitado, basandote PRIORITARIAMENTE en los documentos subidos por el docente (libros, guias, planes previos) y el Curriculo Nacional.
 
-ESTRUCTURA DE CALENDARIO que manejas:
-- 3 Trimestres por anio lectivo
-- 2 Unidades (Parciales) por trimestre
-- 6 Semanas por unidad/parcial
-- Semana 6: Evaluacion de Aporte (parcial)
-- Semanas finales de T1 y T2: Examenes Trimestrales
+ESTRUCUTRA DE SALIDA (DEBES USAR ESTE FORMATO EXACTO):
+
+1. ENCABEZADO DE DATOS (Tabla con Institución, Docente, Asignatura, Grado, Trimestre, Semana, etc.)
+
+2. SECCION DE OBJETIVOS:
+- **Objetivos de aprendizaje:** (Extraer de los documentos del docente)
+- **Criterios de evaluación:** (Extraer de los documentos del docente)
+- **Inserciones curriculares:** (Basado en ejes transversales o temas de actualidad)
+
+3. TABLA DE PLANIFICACIÓN (2. PLANIFICACIÓN):
+Columnas exactas:
+| Destrezas con Criterios de Desempeño | Estrategias Metodológicas | Recursos | Indicadores de evaluación | Técnicas / Instrumentos |
+|---|---|---|---|---|
 
 REGLAS DE ORO:
-1. TRABAJO EN AULA: Las actividades deben ser disenadas para completarse al 100% en el salon usando el tiempo calculado.
-2. PRIORIDAD CUADERNILLO: La fase de "Aplicacion" debe basarse obligatoriamente en los ejercicios del Cuadernillo de Trabajo cuando se proporcione referencia.
-3. ADAPTACIONES (NEE): Al final de cada tabla, anade siempre una seccion breve para adaptaciones curriculares.
-4. Usa EXCLUSIVAMENTE tablas de Markdown limpias y profesionales.
-5. Los tiempos de cada fase de la estrategia metodologica elegida deben sumar EXACTAMENTE la duracion total de la clase.`
+1. PRIORIDAD ABSOLUTA: Si el docente subio un documento (contexto bibliográfico), extrae de alli los temas, actividades y destrezas. NO inventes contenido de internet si el documento contiene la informacion.
+2. TRABAJO EN AULA: Las actividades deben ser disenadas para completarse al 100% en el salon usando el tiempo calculado.
+3. ADAPTACIONES (NEE): Al final de la tabla, anade siempre una seccion breve para adaptaciones curriculares.
+4. Usa EXCLUSIVAMENTE tablas de Markdown limpias.
+5. Los tiempos de cada fase de la estrategia metodologica elegida deben sumar EXACTAMENTE la duracion total de la clase.
+6. En la columna "Técnicas / Instrumentos", separa la tecnica del instrumento con una barra (ej: Observación / Lista de cotejo).`
 
 // ── Build prompt for each type ───────────────────────────────────────────────
 function buildPrompt(data: any, contextoExtra: string = '', detectedPlanification: boolean = false): string {
@@ -34,22 +42,18 @@ function buildPrompt(data: any, contextoExtra: string = '', detectedPlanificatio
     methodology: methodologyCode,
   } = data
 
-  const ejeTransversal = eje || 'Justicia'
+  const axis = eje || 'Justicia'
   const methodology = getMethodology(methodologyCode)
   const cuadernilloRef = cuadernillo ? `\nREFERENCIA CUADERNILLO DE TRABAJO: ${cuadernillo}. OBLIGATORIO: usa estos ejercicios en la fase de Aplicacion.` : ''
   const extraNotes = extra ? `\nNOTAS DEL DOCENTE: ${extra}` : ''
-  const ragContext = contextoExtra ? `\nCONTEXTO BIBLIOGRAFICO (biblioteca del docente):\n---\n${contextoExtra}\n---\nBasa el contenido en este material cuando sea relevante.` : ''
+  
+  // RAG: prioritizing teacher context over official curriculum
+  const ragContext = contextoExtra ? `\n\nCONTENIDO DE REFERENCIA (OBLIGATORIO PRIORIZAR ESTO):\n---\n${contextoExtra}\n---\nINSTRUCCION: Los datos aqui presentes son lo que el docente REALMENTE quiere enseñar. Usa este material por encima de cualquier conocimiento general.` : ''
 
   const planDetectedNote = detectedPlanification
     ? `\n\nIMPORTANTE — SE DETECTO UNA PLANIFICACION YA ELABORADA EN LOS DOCUMENTOS SUBIDOS:
-Uno o mas documentos del docente contienen una planificacion lista. Tu tarea PRINCIPAL es TRANSCRIBIR Y ADAPTAR esa planificacion al formato MINEDUC estricto que se pide, PRESERVANDO:
-- Los objetivos de aprendizaje del documento original.
-- Las destrezas y contenidos declarados.
-- Las actividades principales (puedes enriquecerlas con fases de la metodologia elegida, pero NO reemplazarlas).
-- Los criterios e instrumentos de evaluacion del documento original cuando existan.
-Cuando haya conflicto entre tus sugerencias por defecto y el documento, PRIORIZA SIEMPRE el documento original. Anade fases de la metodologia ${methodology.name} solo para estructurar, no para re-inventar el contenido.`
+Uno o mas documentos del docente contienen una planificacion lista. Tu tarea PRINCIPAL es TRANSCRIBIR Y ADAPTAR esa planificacion al formato institucional solicitado, PRESERVANDO la esencia del documento original.`
     : ''
-
 
   const commonHeader = `
 DATOS DEL CONTEXTO:
@@ -61,84 +65,39 @@ DATOS DEL CONTEXTO:
 - Duracion hora pedagogica: ${periodMinutes} minutos
 - Carga horaria semanal: ${weeklyHours} horas
 - Duracion de esta clase: ${duration}
-- Eje Transversal: ${ejeTransversal}
-- Estrategia metodologica elegida por el docente: ${methodology.name} (${methodology.description})
+- Eje Transversal: ${axis}
+- Estrategia metodologica (Ciclo): ${methodology.name} (${methodology.description})
 ${cuadernilloRef}${extraNotes}${ragContext}${planDetectedNote}`
 
   if (type === 'clase') {
     const isAporte = semana === 6
-    return `Genera una PLANIFICACION MICROCURRICULAR DIARIA con el siguiente formato ESTRICTO MINEDUC:
+    return `Genera una PLANIFICACION MICROCURRICULAR DIARIA con el siguiente formato:
 ${commonHeader}
 - Tema: ${topic}
-${isAporte ? '- NOTA: Es Semana 6 (APORTE). La evaluacion debe ser tipo "Prueba de base estructurada" con instrumento "Cuestionario" como evaluacion sumativa del parcial.' : ''}
-
-FORMATO DE SALIDA (tabla Markdown estricta):
+${isAporte ? '- NOTA: Es Semana 6 (APORTE). La evaluación debe ser sumativa.' : ''}
 
 ### 1. ENCABEZADO
-Tabla con: Institucion, Asignatura, Curso, Docente, Fecha, No. Estudiantes (22), Tiempo, Trimestre, Parcial, Semana.
-- Objetivo de Aprendizaje (extraido del PUD)
-- Eje Transversal: ${ejeTransversal}
+Tabla con: Institucion, Docente, Asignatura, Grado, Tiempo, Trimestre, Semana.
 
-### 2. TABLA PRINCIPAL DE LA CLASE
-Genera UNA SOLA fila con estas columnas EXACTAS (no generes tablas separadas para Recursos ni Evaluacion, todo va aqui):
+### 2. SECCION PREVIA
+- **Objetivos de aprendizaje:** (Extraer del documento del docente o generar acorde al tema)
+- **Criterios de evaluación:** (Extraer del documento o generar)
+- **Inserciones curriculares:** (Justicia, Innovación o Solidaridad)
 
-| DESTREZA CON CRITERIO DE DESEMPENO (DCD) | INDICADOR DE EVALUACION | ${methodology.columnHeader} | RECURSOS | EVALUACION |
+### 2. PLANIFICACIÓN
+Genera la tabla principal con estas columnas:
+
+| Destrezas con Criterios de Desempeño | Estrategias Metodológicas | Recursos | Indicadores de evaluación | Técnicas / Instrumentos |
 |---|---|---|---|---|
 
 REGLAS PARA CADA COLUMNA:
+- **Destrezas**: Codigo y descripcion.
+- **Estrategias**: Fases de ${methodology.name} con sus tiempos. Usa <br/> para separar fases.
+- **Recursos**: Materiales y enlaces digitales.
+- **Indicadores**: Codigo y descripcion.
+- **Técnicas / Instrumentos**: Ej: Observación / Lista de cotejo.
 
-**DCD**: codigo oficial (ej. LL.5.3.1.) + descripcion completa. Texto breve, sin listas.
-
-**INDICADOR**: codigo oficial (ej. I.LL.5.4.1.) + descripcion. Texto breve.
-
-**${methodology.columnHeader}**: ${methodology.phases.length} fases con tiempos EXACTOS que sumen ${duration}. Dentro de la misma celda usa la etiqueta <br/> para saltar de linea entre fases (NO uses saltos reales, las tablas markdown no los soportan).
-
-${methodology.promptBlock}
-
-Formato sugerido de la celda (ejemplo con las fases de esta metodologia):
-${methodology.phases.map(p => `**${p} (X min):** (actividad concreta)`).join('<br/>')}${cuadernillo ? ' — la ultima fase debe basarse en el Cuadernillo.' : ''}
-
-**RECURSOS**: lista compacta en la misma celda, separada por <br/>. Debe incluir DOS bloques:
-
-1) Recursos del aula (materiales fisicos): Cuadernillo pag. X, pizarra, marcadores, proyector, etc.
-
-2) **Recursos digitales de apoyo (OBLIGATORIO minimo 3)**: enlaces reales y verificables relacionados al tema de la clase. Usa formato markdown de link [texto](url). Prioriza en este orden:
-   - 1 video educativo de YouTube sobre el tema (canales como Educatina, Khan Academy en espanol, Smile and Learn, Happy Learning, Unicoos, Math2Me, etc.)
-   - 1 articulo/lectura de fuente confiable (Ministerio de Educacion Ecuador https://educacion.gob.ec, BBC Mundo, National Geographic, Wikipedia en espanol, RAE, etc.)
-   - 1 recurso interactivo o de investigacion (simulaciones PhET https://phet.colorado.edu, Educaplay, Liveworksheets, Genially publicos, etc.)
-
-NO inventes URLs especificas con IDs falsos (nada de "watch?v=xyz123" inventado). Usa URLs de busqueda o paginas raiz verificables, por ejemplo:
-- Busqueda en YouTube: https://www.youtube.com/results?search_query=TEMA+AQUI
-- Canal YouTube real: https://www.youtube.com/@KhanAcademyEspanol
-- Wikipedia articulo: https://es.wikipedia.org/wiki/TEMA
-- PhET: https://phet.colorado.edu/es/simulations/filter?subjects=TEMA
-- Ministerio Educacion EC: https://educacion.gob.ec/curriculo-nacional/
-- Recursos MinEduc: https://recursos2.educacion.gob.ec/
-
-Ejemplo del bloque digital:
-[Video: Textos literarios y no literarios (YouTube)](https://www.youtube.com/results?search_query=textos+literarios+y+no+literarios+10mo+EGB)<br/>[Lectura: Tipos de texto - Wikipedia](https://es.wikipedia.org/wiki/Texto)<br/>[Simulacion: Analisis textual interactivo](https://phet.colorado.edu/es/)
-
-**EVALUACION**: en la misma celda, separado por <br/>:
-**Tecnica:** (Observacion / Prueba escrita / etc.)<br/>**Instrumento:** (Lista de cotejo / Cuestionario / Rubrica)<br/>**Criterios:** 2-3 criterios clave separados por ";"
-${isAporte ? '- OBLIGATORIO semana 6: Tecnica = Prueba de base estructurada, Instrumento = Cuestionario' : ''}
-NO generes una tabla aparte para Evaluacion.
-
-MANTEN cada celda concisa para que la fila entera quepa sin partirse entre paginas. Evita parrafos largos.
-
-### 3. ADAPTACIONES CURRICULARES (NEE)
-| **TIPO DE NEE** | **ADAPTACION** |
-|---|---|
-| Dificultades de aprendizaje | (adaptaciones concretas) |
-| Altas capacidades | (actividades de extension) |
-| Principios DUA | (multiples formas de representacion, expresion, motivacion) |
-
-### 4. OBSERVACIONES Y FIRMAS
-| **DOCENTE** | **REVISADO POR** | **APROBADO POR** |
-|---|---|---|
-| ${data.teacherName || 'Docente'} | | |
-| Firma: _________ | Firma: _________ | Firma: _________ |
-
-IMPORTANTE: NO repitas la informacion de Recursos o Evaluacion fuera de la tabla principal. La tabla principal es UNICA y contiene toda la info pedagogica.`.trim()
+IMPORTANTE: NO repitas informacion fuera de la tabla.`.trim()
   }
 
   if (type === 'unidad') {
@@ -363,7 +322,7 @@ export async function POST(request: NextRequest) {
         refs = (docs || [])
           .filter((d: any) => {
             const ext = (d.file_name?.split('.').pop() || '').toLowerCase()
-            return d.file_type?.includes('pdf') || ext === 'pdf'
+            return d.file_type?.includes('pdf') || d.file_type?.includes('officedocument') || ['pdf', 'doc', 'docx'].includes(ext)
           })
           .map((d: any) => ({
             storage_path: d.storage_path,
@@ -386,23 +345,38 @@ export async function POST(request: NextRequest) {
       }
 
       if (refs.length > 0) {
-        const pdfMod = await import('pdf-parse')
-        const pdfParse = (pdfMod as any).default || pdfMod
-
         // 1) Extraer texto de cada documento
         const parsedDocs: Array<{ titulo: string; text: string }> = []
+        const pdfMod = await import('pdf-parse')
+        const pdfParse = (pdfMod as any).default || pdfMod
+        const mammoth = (await import('mammoth')).default
+
         for (const r of refs) {
           const { data: fileData, error: downloadError } = await supabase.storage
             .from(r.bucket)
             .download(r.storage_path)
 
           if (fileData && !downloadError) {
-            const buffer = Buffer.from(await fileData.arrayBuffer())
-            const parsed = await pdfParse(buffer)
-            parsedDocs.push({
-              titulo: r.titulo || 'Documento adjunto',
-              text: parsed.text.slice(0, 150000),
-            })
+            const arrayBuffer = await fileData.arrayBuffer()
+            const buffer = Buffer.from(arrayBuffer)
+            
+            const ext = (r.storage_path.split('.').pop() || '').toLowerCase()
+            let text = ''
+
+            if (ext === 'pdf') {
+              const parsed = await pdfParse(buffer)
+              text = parsed.text
+            } else if (['doc', 'docx'].includes(ext)) {
+              const res = await mammoth.extractRawText({ buffer })
+              text = res.value
+            }
+
+            if (text) {
+              parsedDocs.push({
+                titulo: r.titulo || 'Documento adjunto',
+                text: text.slice(0, 150000),
+              })
+            }
           }
         }
 

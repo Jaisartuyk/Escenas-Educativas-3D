@@ -68,7 +68,7 @@ export function FichaEstudianteModal({ student, onClose }: { student: any, onClo
         <div className="flex-1 overflow-y-auto p-6 lg:p-8 bg-white custom-scrollbar">
           
           {activeTab === 'Perfil' && (
-            <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex flex-col lg:flex-row gap-8 animate-fade-in">
               {/* Columna Izquierda: Foto y Código */}
               <div className="flex-none flex flex-col items-center w-full lg:w-48 space-y-3">
                 <div className="w-48 h-48 rounded-lg overflow-hidden border-2 border-slate-200 bg-slate-50 relative p-1 shadow-sm">
@@ -82,7 +82,7 @@ export function FichaEstudianteModal({ student, onClose }: { student: any, onClo
                   )}
                 </div>
                 <div className="w-full bg-emerald-100 border border-emerald-200 text-emerald-700 py-2 rounded-lg font-bold text-center text-sm shadow-inner flex items-center justify-center gap-2">
-                  <GraduationCap size={14} /> {student.student_code || 'N/A'}
+                  <GraduationCap size={14} /> {student.student_code || '26EGB4A'}
                 </div>
               </div>
 
@@ -91,107 +91,130 @@ export function FichaEstudianteModal({ student, onClose }: { student: any, onClo
                 {/* Nombre Principal */}
                 <div className="flex flex-wrap items-center gap-3">
                   <h1 className="font-display text-2xl lg:text-3xl text-slate-700 uppercase tracking-tight">{student.full_name}</h1>
-                  {student.username && (
-                     <span className="bg-[#2D7A31] text-white text-xs font-bold px-3 py-1 rounded-full uppercase">
-                       {student.username}
-                     </span>
-                  )}
+                  <span className="bg-[#2D7A31] text-white text-xs font-bold px-3 py-1 rounded-full uppercase">
+                    {student.username || student.email?.split('@')[0] || 'estudiante'}
+                  </span>
                 </div>
 
                 {/* Grid Form Field (Solo Lectura) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-12 text-sm">
                   
                   {/* Left Data Column */}
                   <div className="space-y-4">
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">N° Documento</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.dni || student.document_number || 'No registrado'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">T. Documento</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.document_type || 'Cédula'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">País nacimiento</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.birth_country || 'Ecuador'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">C. Nacimiento</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.birth_city || 'No registrada'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">F. Nacimiento</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.birth_date || 'No registrada'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">Edad</span>
-                       <span className="text-slate-700 font-medium col-span-2">{calcularEdad(student.birth_date)}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">Género</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.gender || 'No especificado'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">Etnia</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.ethnicity || 'Mestizo'}</span>
-                    </div>
+                    <Field label="N° Documento" value={student.dni} />
+                    <Field label="T. Documento" value={student.document_type || 'Cédula'} />
+                    <Field label="País nacimiento" value={student.birth_country || 'Ecuador'} />
+                    <Field label="C. Nacimiento" value={student.birth_city || 'No registrada'} />
+                    <Field label="F. Nacimiento" value={student.birth_date || 'No registrada'} />
+                    <Field label="Edad" value={calcularEdad(student.birth_date)} />
+                    <Field label="Género" value={student.gender || 'No especificado'} />
+                    <Field label="Etnia" value={student.ethnicity || 'Mestizo'} />
                   </div>
 
                   {/* Right Data Column */}
                   <div className="space-y-4">
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">País</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.current_country || 'Ecuador'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">Ciudad</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.current_city || 'No registrada'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">Parroquia</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.parish || 'No registrada'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">Dirección</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.address || 'No registrada'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">Código único eléctrico</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.cuel || 'No aplica'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">Celular / Teléfono</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.phone || 'No registrado'}</span>
-                    </div>
-                    <div className="grid grid-cols-3 border-b border-slate-100 pb-2">
-                       <span className="text-slate-400 font-semibold text-xs col-span-1 flex items-center">Correo</span>
-                       <span className="text-slate-700 font-medium col-span-2">{student.email || 'No registrado'}</span>
-                    </div>
+                    <Field label="País" value={student.current_country || 'Ecuador'} />
+                    <Field label="Ciudad" value={student.current_city || 'No registrada'} />
+                    <Field label="Parroquia" value={student.parish || 'No registrada'} />
+                    <Field label="Dirección" value={student.address || 'No registrada'} />
+                    <Field label="Código único eléctrico" value={student.cuel || 'No aplica'} />
+                    <Field label="Celular / Teléfono" value={student.phone || 'No registrado'} />
+                    <Field label="Correo" value={student.email} />
                   </div>
-
                 </div>
               </div>
             </div>
           )}
 
-          {activeTab !== 'Perfil' && (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-4">
-               {(() => {
-                 const ContentIcon = TABS.find(t => t.id === activeTab)?.icon
-                 return ContentIcon ? <ContentIcon size={48} className="opacity-20" /> : null
-               })()}
-               <p className="font-medium text-lg text-slate-400">Información de {activeTab} aún no registrada por secretaria</p>
-               <p className="text-sm text-slate-300">Este bloque solo es de visualización para perfil de Tutoría.</p>
+          {activeTab === 'Datos Familiares' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 animate-fade-in">
+               <div className="space-y-6">
+                 <h3 className="text-sm font-bold text-teal flex items-center gap-2 border-b border-teal/10 pb-2 uppercase tracking-wider">Datos de la Madre</h3>
+                 <div className="space-y-4">
+                   <Field label="Nombres Completos" value={student.mother_name} />
+                   <Field label="Teléfono" value={student.mother_phone} />
+                   <Field label="Email" value={student.mother_email} />
+                 </div>
+               </div>
+               <div className="space-y-6">
+                 <h3 className="text-sm font-bold text-[#F8D25A] flex items-center gap-2 border-b border-yellow-500/10 pb-2 uppercase tracking-wider">Datos del Padre</h3>
+                 <div className="space-y-4">
+                   <Field label="Nombres Completos" value={student.father_name} />
+                   <Field label="Teléfono" value={student.father_phone} />
+                   <Field label="Email" value={student.father_email} />
+                 </div>
+               </div>
             </div>
           )}
 
+          {activeTab === 'Representante' && (
+            <div className="max-w-2xl animate-fade-in space-y-8">
+               <h3 className="text-sm font-bold text-violet2 flex items-center gap-2 border-b border-violet2/10 pb-2 uppercase tracking-wider">Representación y Emergencia</h3>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                 <Field label="Representante oficial" value={student.representative || 'No definido'} />
+                 <Field label="Teléfono de Emergencia" value={student.emergency_phone} />
+                 {student.representative === 'OTRO' && (
+                   <Field label="Nombre del Tutor Alterno" value={student.other_representative_name} />
+                 )}
+               </div>
+               <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Observación de Seguridad</p>
+                  <p className="text-slate-600 text-sm leading-relaxed">
+                    Solo el representante oficial está facultado para retirar al estudiante o firmar actas compromisorias. En caso de emergencia, llamar prioritariamente al número indicado.
+                  </p>
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'Médicos' && (
+            <div className="space-y-8 animate-fade-in">
+              <h3 className="text-sm font-bold text-rose-500 flex items-center gap-2 border-b border-rose-500/10 pb-2 uppercase tracking-wider">Información de Salud</h3>
+              <div className="bg-rose-50 border border-rose-100 rounded-2xl p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center flex-none">
+                    <HeartPulse size={24} className="text-rose-500" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-rose-800 uppercase tracking-widest">Notas Médicas / Alergias</p>
+                    <p className="text-slate-700 text-base leading-relaxed italic">
+                      {student.medical_notes || student.address || 'No se han registrado alergias o condiciones médicas especiales para este estudiante.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {['Físicos', 'Socio-Económicos', 'Académicos'].includes(activeTab) && (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-4 animate-fade-in">
+               {(() => {
+                 const ContentIcon = TABS.find(t => t.id === activeTab)?.icon
+                 return ContentIcon ? <ContentIcon size={56} className="opacity-10" /> : null
+               })()}
+               <div className="text-center">
+                 <p className="font-bold text-slate-400">Expediente de {activeTab}</p>
+                 <p className="text-sm text-slate-300 max-w-xs mt-1">Esta sección contiene documentos sensibles manejados directamente por Rectorado y Secretaría.</p>
+               </div>
+            </div>
+          )}
         </div>
         
         {/* Footer info (optional reference) */}
-        <div className="px-6 py-3 bg-[rgba(0,0,0,0.02)] border-t border-[rgba(0,0,0,0.05)] text-center text-xs text-slate-400 font-semibold tracking-wider uppercase">
-          Documento Privado · {new Date().getFullYear()} · Sistema Admin
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-bold tracking-widest uppercase">
+          <span>Documento Privado · {new Date().getFullYear()} · Sistema Admin</span>
+          <span>ClassNova Institution Management</span>
         </div>
       </div>
     </div>
   )
 }
+
+function Field({ label, value }: { label: string, value: string | undefined }) {
+  return (
+    <div className="grid grid-cols-3 md:grid-cols-4 border-b border-slate-50 pb-2 group">
+      <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider col-span-1 flex items-center">{label}</span>
+      <span className="text-slate-700 font-semibold col-span-2 md:col-span-3 text-sm">{value || 'No registrado'}</span>
+    </div>
+  )
+}
+
