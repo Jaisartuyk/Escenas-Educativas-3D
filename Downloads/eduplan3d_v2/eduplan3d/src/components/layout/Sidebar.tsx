@@ -67,6 +67,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
     color: 'from-violet/15 to-teal/10',
     items: [
       { href: '/dashboard/secretaria',   icon: '💼', label: 'Secretaría' },
+      { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes' },
       { href: '/dashboard/historial',    icon: '📂', label: 'Historial' },
       { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración' },
     ],
@@ -78,6 +79,7 @@ const NAV_TEACHER: NavNode[] = [
   { href: '/dashboard/docente',      icon: '📝', label: 'Panel Docente' },
   { href: '/dashboard/planificador', icon: '📋', label: 'Planificador'  },
   { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca'    },
+  { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes'      },
   {
     title: 'Tutorías',
     icon: '👥',
@@ -100,6 +102,7 @@ const NAV_STUDENT: NavItem[] = [
   { href: '/dashboard/alumno',       icon: '🎒', label: 'Mi Panel'     },
   { href: '/dashboard/notas',        icon: '📊', label: 'Mis Notas'    },
   { href: '/dashboard/libretas',     icon: '📓', label: 'Libreta'      },
+  { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes'     },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
 
