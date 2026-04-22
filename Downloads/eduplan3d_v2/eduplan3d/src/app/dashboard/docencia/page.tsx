@@ -21,7 +21,7 @@ export default async function DocenciaPage() {
     .single()
 
   // Only admin/assistant can access supervision
-  if (!profile || !['admin', 'assistant'].includes(profile.role)) {
+  if (!profile || !['admin', 'assistant', 'supervisor'].includes(profile.role)) {
     redirect('/dashboard')
   }
 
@@ -117,6 +117,7 @@ export default async function DocenciaPage() {
         behaviors={behaviors}
         parcialesCount={(scheduleConfig as any)?.parciales_count || 2}
         submissions={submissions}
+        role={profile.role}
       />
     </div>
   )

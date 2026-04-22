@@ -23,6 +23,9 @@ export default async function InstitucionPage() {
 
   if (!profile?.institution_id) redirect('/dashboard')
 
+  const isAdmin = ['admin', 'assistant', 'secretary'].includes(profile.role)
+  if (!isAdmin) redirect('/dashboard')
+
   const { data: institution } = await (supabase as any)
     .from('institutions')
     .select('*')

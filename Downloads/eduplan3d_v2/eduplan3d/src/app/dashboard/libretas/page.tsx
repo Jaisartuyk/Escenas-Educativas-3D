@@ -40,8 +40,10 @@ export default async function LibretasPage() {
   ])
 
   // For teachers: only show the course(s) they are tutor of
+  // For teachers: only show the course(s) they are tutor of
   const tutores: Record<string, string> = (scheduleConfig as any)?.tutores || {}
   const isTeacher = profile.role === 'teacher'
+  const isSupervisor = ['admin', 'assistant', 'supervisor'].includes(profile.role)
 
   let filteredCourses = courses || []
   if (isTeacher) {

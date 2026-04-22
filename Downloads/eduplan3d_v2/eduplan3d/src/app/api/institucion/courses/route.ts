@@ -23,7 +23,7 @@ async function isAdminOrAssistant(userId: string): Promise<boolean> {
     .eq('id', userId)
     .single()
   const role = (data as any)?.role
-  return role === 'admin' || role === 'assistant'
+  return role === 'admin' || role === 'assistant' || role === 'secretary'
 }
 
 export async function POST(req: NextRequest) {

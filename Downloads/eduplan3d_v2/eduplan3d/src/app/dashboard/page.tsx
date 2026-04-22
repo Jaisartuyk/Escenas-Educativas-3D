@@ -41,12 +41,11 @@ export default async function DashboardPage() {
   const superAdminEmail = process.env.SUPERADMIN_EMAIL
   if (superAdminEmail && user.email === superAdminEmail) redirect('/superadmin')
 
-  // ── Redirigir docente externo (planner_solo) ─────────────────────────────
+  // ── Redirigir según rol específico ─────────────────────────────
   if (plan === 'planner_solo') redirect('/dashboard/planificador')
-
-  // ── Redirigir docentes y estudiantes a su página principal ───────────────
   if (role === 'teacher') redirect('/dashboard/docente')
   if (role === 'student') redirect('/dashboard/alumno')
+  if (role === 'secretary') redirect('/dashboard/secretaria')
 
   const hour     = new Date().getUTCHours() - 5
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
@@ -332,10 +331,7 @@ export default async function DashboardPage() {
   }
 
   // ════════════════════════════════════════════════════════════════════════
-  // DASHBOARD ADMIN (original, mejorado con adminClient)
-  // ════════════════════════════════════════════════════════════════════════
-  // ════════════════════════════════════════════════════════════════════════
-  // DASHBOARD ADMIN (Profesionalizado con estadísticas)
+  // DASHBOARD ADMIN & SUPERVISOR (Estadísticas Universitarias)
   // ════════════════════════════════════════════════════════════════════════
   const startOfPeriod = new Date();
   startOfPeriod.setDate(startOfPeriod.getDate() - 14);
@@ -470,7 +466,9 @@ export default async function DashboardPage() {
             <strong className="text-sm font-bold block">{institution.name}</strong>
             <span className="text-xs text-ink3">Código de invitación: <code className="text-teal font-mono font-bold">{institution.join_code}</code></span>
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg bg-[rgba(38,215,180,0.15)] text-teal">Panel Administrativo</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg bg-[rgba(38,215,180,0.15)] text-teal">
+            {role === 'supervisor' ? 'Supervisión Académica' : 'Panel Administrativo'}
+          </span>
         </div>
       )}
 
@@ -539,26 +537,28 @@ export default async function DashboardPage() {
         </div>
 
         {/* Acciones */}
-        <div>
-          <h2 className="font-display text-lg font-bold tracking-tight mb-5">Gestión Institucional</h2>
-          <div className="flex flex-col gap-3">
-            {[
-              { icon: '👥', title: 'Gestionar Miembros',   sub: 'Docentes y alumnos',      href: '/dashboard/institucion',     bg: 'bg-violet/15'              },
-              { icon: '📅', title: 'Horarios Escolares',   sub: 'Configuración de clases', href: '/dashboard/horarios',        bg: 'bg-[rgba(38,215,180,0.15)]'  },
-              { icon: '📚', title: 'Biblioteca de Recursos', sub: 'Material compartido',      href: '/dashboard/biblioteca',      bg: 'bg-[rgba(255,179,71,0.15)]' },
-              { icon: '⚙️', title: 'Configuración',        sub: 'Ajustes de la cuenta',    href: '/dashboard/configuracion',   bg: 'bg-surface'                },
-            ].map(a => (
-              <Link key={a.title} href={a.href} className="card-hover p-4 flex items-center gap-4 group">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${a.bg}`}>{a.icon}</div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">{a.title}</p>
-                  <p className="text-xs text-ink3 mt-0.5">{a.sub}</p>
-                </div>
-                <span className="text-ink3 group-hover:text-violet2 transition-colors text-lg">→</span>
-              </Link>
-            ))}
+        {role !== 'supervisor' && (
+          <div>
+            <h2 className="font-display text-lg font-bold tracking-tight mb-5">Gestión Institucional</h2>
+            <div className="flex flex-col gap-3">
+              {[
+                { icon: '👥', title: 'Gestionar Miembros',   sub: 'Docentes y alumnos',      href: '/dashboard/institucion',     bg: 'bg-violet/15'              },
+                { icon: '📅', title: 'Horarios Escolares',   sub: 'Configuración de clases', href: '/dashboard/horarios',        bg: 'bg-[rgba(38,215,180,0.15)]'  },
+                { icon: '📚', title: 'Biblioteca de Recursos', sub: 'Material compartido',      href: '/dashboard/biblioteca',      bg: 'bg-[rgba(255,179,71,0.15)]' },
+                { icon: '⚙️', title: 'Configuración',        sub: 'Ajustes de la cuenta',    href: '/dashboard/configuracion',   bg: 'bg-surface'                },
+              ].map(a => (
+                <Link key={a.title} href={a.href} className="card-hover p-4 flex items-center gap-4 group">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${a.bg}`}>{a.icon}</div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold">{a.title}</p>
+                    <p className="text-xs text-ink3 mt-0.5">{a.sub}</p>
+                  </div>
+                  <span className="text-ink3 group-hover:text-violet2 transition-colors text-lg">→</span>
+                </Link>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

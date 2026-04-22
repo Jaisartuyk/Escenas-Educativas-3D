@@ -20,14 +20,14 @@ export default async function EntregasPage() {
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['admin', 'assistant', 'teacher'].includes(profile.role)) {
+  if (!profile || !['admin', 'assistant', 'teacher', 'supervisor'].includes(profile.role)) {
     redirect('/dashboard')
   }
 
   // Materias (Subjects)
   let mySubjects: any[] = []
-  if (['admin', 'assistant'].includes(profile.role)) {
-    // Admin sees all subjects in the institution
+  if (['admin', 'assistant', 'supervisor'].includes(profile.role)) {
+    // Admin/Supervisor sees all subjects in the institution
     const { data } = await admin
       .from('subjects')
       .select('*, course:courses(id, name, parallel, level, shift)')

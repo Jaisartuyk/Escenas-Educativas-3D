@@ -23,7 +23,7 @@ interface SubjectOption {
   course: { id: string; name: string; parallel: string; level: string } | null
 }
 
-export function BibliotecaClient({ subjects }: { subjects: SubjectOption[] }) {
+export function BibliotecaClient({ subjects, role }: { subjects: SubjectOption[], role?: string }) {
   const [docs, setDocs] = useState<Documento[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -164,16 +164,18 @@ export function BibliotecaClient({ subjects }: { subjects: SubjectOption[] }) {
           </div>
         </div>
 
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="btn-primary px-5 py-2.5 text-sm flex items-center gap-2 whitespace-nowrap"
-        >
-          {showForm ? (
-            <>Cancelar</>
-          ) : (
-            <><Upload className="w-4 h-4" /> Subir Documento PDF</>
-          )}
-        </button>
+        {role !== 'supervisor' && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="btn-primary px-5 py-2.5 text-sm flex items-center gap-2 whitespace-nowrap"
+          >
+            {showForm ? (
+              <>Cancelar</>
+            ) : (
+              <><Upload className="w-4 h-4" /> Subir Documento PDF</>
+            )}
+          </button>
+        )}
       </div>
 
       {/* ── Upload Form ─────────────────────────────────────────── */}
@@ -300,13 +302,15 @@ export function BibliotecaClient({ subjects }: { subjects: SubjectOption[] }) {
                 <span className="bg-[rgba(124,109,250,0.15)] text-violet2 text-[10px] font-black px-2.5 py-1 rounded-md uppercase tracking-widest">
                   {d.asignatura}
                 </span>
-                <button
-                  onClick={() => handleDelete(d.id, d.storage_path)}
-                  className="text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 p-1 rounded hover:bg-rose-50"
-                  title="Eliminar documento"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {role !== 'supervisor' && (
+                  <button
+                    onClick={() => handleDelete(d.id, d.storage_path)}
+                    className="text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10 p-1 rounded hover:bg-rose-50"
+                    title="Eliminar documento"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
               <h3 className="font-bold text-md text-ink mb-1 truncate" title={d.titulo}>

@@ -19,9 +19,11 @@ type TabKey = 'biblioteca' | 'planificaciones'
 export function BibliotecaTabsClient({
   subjects,
   standalone = false,
+  role,
 }: {
   subjects: SubjectOption[]
   standalone?: boolean
+  role?: string
 }) {
   const [tab, setTab] = useState<TabKey>('planificaciones')
 
@@ -75,7 +77,7 @@ export function BibliotecaTabsClient({
       </p>
 
       {/* ── Tab content ──────────────────────────────────────────────── */}
-      {tab === 'biblioteca' && <BibliotecaClient subjects={subjects} />}
+      {tab === 'biblioteca' && <BibliotecaClient subjects={subjects} role={role} />}
       {tab === 'planificaciones' && <PlanificacionesDocsClient subjects={subjects} />}
     </div>
   )

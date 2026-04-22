@@ -107,8 +107,35 @@ const NAV_STUDENT: NavItem[] = [
 ]
 
 // ─── Nav secretaria ──────────────────────────────────────────────────────────
-const NAV_SECRETARY: NavItem[] = [
+const NAV_SECRETARY: NavNode[] = [
   { href: '/dashboard/secretaria',   icon: '💼', label: 'Secretaría'   },
+  {
+    title: 'Gestión Institucional',
+    icon: '👥',
+    color: 'from-teal/20 to-teal/5',
+    items: [
+      { href: '/dashboard/academico',    icon: '🎓', label: 'Académico' },
+      { href: '/dashboard/institucion',  icon: '🏢', label: 'Institución' },
+    ],
+  },
+  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
+]
+
+// ─── Nav supervisor ──────────────────────────────────────────────────────────
+const NAV_SUPERVISOR: NavNode[] = [
+  { href: '/dashboard',              icon: '📊', label: 'Resumen' },
+  { href: '/dashboard/biblioteca',   icon: '📋', label: 'Planificaciones' },
+  {
+    title: 'Supervisión',
+    icon: '📚',
+    color: 'from-amber/20 to-amber/5',
+    items: [
+      { href: '/dashboard/docencia',      icon: '📝', label: 'Docencia' },
+      { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas' },
+      { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
+      { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes' },
+    ],
+  },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
 
@@ -173,6 +200,7 @@ export function Sidebar({
       case 'teacher':       return NAV_TEACHER
       case 'student':       return NAV_STUDENT
       case 'secretary':     return NAV_SECRETARY
+      case 'supervisor':    return NAV_SUPERVISOR
       case 'horarios_only': return NAV_HORARIOS
       default:              return []
     }

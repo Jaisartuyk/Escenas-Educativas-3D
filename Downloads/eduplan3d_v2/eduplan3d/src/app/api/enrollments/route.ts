@@ -7,7 +7,7 @@ import { getProfile } from '@/lib/auth/ownership'
 // DELETE /api/enrollments?student_id=X&course_id=Y       → delete enrollment + related payments
 
 // Roles autorizados a matricular/desmatricular alumnos
-const ENROLL_ROLES = new Set(['admin', 'assistant'])
+const ENROLL_ROLES = new Set(['admin', 'assistant', 'secretary'])
 
 export async function POST(req: Request) {
   const supabase = createClient()

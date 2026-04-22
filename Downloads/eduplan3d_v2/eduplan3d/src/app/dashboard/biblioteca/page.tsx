@@ -22,7 +22,7 @@ export default async function BibliotecaPage() {
     .eq('id', user.id)
     .single()
 
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'assistant'
+  const isAdmin = ['admin', 'assistant', 'supervisor'].includes(profile?.role)
   const instId  = profile?.institution_id
   const isPlannerSolo = (profile as any)?.plan === 'planner_solo'
 
@@ -93,7 +93,7 @@ export default async function BibliotecaPage() {
           Recursos curriculares y planificaciones organizadas por materia y curso.
         </p>
       </div>
-      <BibliotecaTabsClient subjects={subjects || []} />
+      <BibliotecaTabsClient subjects={subjects || []} role={profile?.role} />
     </div>
   )
 }

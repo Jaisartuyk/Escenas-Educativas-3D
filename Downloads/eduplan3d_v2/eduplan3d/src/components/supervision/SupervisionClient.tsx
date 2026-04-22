@@ -17,6 +17,7 @@ interface Props {
   behaviors: any[]
   parcialesCount: number
   submissions?: any[]
+  role?: string
 }
 
 type TabKey = 'resumen' | 'tareas' | 'calificaciones' | 'asistencia' | 'comportamiento'
@@ -30,7 +31,7 @@ function cualitativo(score: number) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
-export function SupervisionClient({ teachers, courses, subjects, enrollments, assignments, grades, categories, attendance, behaviors, parcialesCount, submissions = [] }: Props) {
+export function SupervisionClient({ teachers, courses, subjects, enrollments, assignments, grades, categories, attendance, behaviors, parcialesCount, submissions = [], role }: Props) {
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>('')
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('')
   const [activeTab, setActiveTab] = useState<TabKey>('resumen')
@@ -269,6 +270,7 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
                   <AsistenciaTab
                     attendance={subjectAttendance}
                     students={subjectStudents}
+                    role={role}
                   />
                 )}
                 {activeTab === 'comportamiento' && (
@@ -672,7 +674,7 @@ function CalificacionesTab({ assignments, grades, students, categories, filterTr
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB: Asistencia
 // ═══════════════════════════════════════════════════════════════════════════════
-function AsistenciaTab({ attendance, students }: any) {
+function AsistenciaTab({ attendance, students, role }: any) {
   const [expandedJustification, setExpandedJustification] = useState<string | null>(null)
   // Local status overrides for optimistic UI updates: id → new status
   const [localStatuses, setLocalStatuses] = useState<Record<string, string>>({})
@@ -908,7 +910,7 @@ function AsistenciaTab({ attendance, students }: any) {
                       )}
 
                       {/* ── Approve / Reject Actions ── */}
-                      {isPending && (
+                      {isPending && role !== 'supervisor' && (
                         <div className="flex items-center gap-2 pt-1 border-t border-[rgba(0,0,0,0.05)]">
                           <span className="text-[10px] text-ink4 font-semibold flex-1">Resolución:</span>
                           <button
