@@ -21,7 +21,7 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
     dni: '',
     email: '',
     password: '',
-    role: 'student' as 'student' | 'teacher',
+    role: 'student' as 'student' | 'teacher' | 'secretary' | 'supervisor',
     course_id: ''
   })
 
@@ -48,7 +48,11 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
     if (res.error) {
       toast.error(res.error)
     } else {
-      toast.success(formData.role === 'student' ? `Estudiante creado${formData.course_id ? ' y matriculado' : ''} exitosamente` : 'Docente creado exitosamente')
+      const msg = formData.role === 'student' ? 'Estudiante creado/matriculado' : 
+                  formData.role === 'teacher' ? 'Docente creado' :
+                  formData.role === 'secretary' ? 'Secretaría creada' : 'Supervisor creado'
+      
+      toast.success(`${msg} exitosamente`)
       setFormData({ full_name: '', dni: '', email: '', password: '', role: 'student', course_id: '' })
       setShowRegistrarForm(false) // Close form on success
       // Next JS router refresh is handled by the server action's revalidatePath
@@ -107,6 +111,8 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
               <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as any})} className="input-base">
                 <option value="student">Estudiante</option>
                 <option value="teacher">Profesor (Docente)</option>
+                <option value="secretary">Secretaría / Administrativo</option>
+                <option value="supervisor">Supervisor / Inspector</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -159,7 +165,7 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-bg border border-surface rounded-2xl p-5">
-           <h4 className="font-bold mb-4">Directorio de Docentes ({teachers.length})</h4>
+           <h4 className="font-bold mb-4 text-violet2 uppercase text-xs tracking-wider">Personal de la Institución ({teachers.length})</h4>
            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
              {teachers.map(t => {
                const meta = localMetaData[t.id] || {}

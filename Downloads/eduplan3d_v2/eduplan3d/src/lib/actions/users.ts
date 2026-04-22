@@ -8,7 +8,7 @@ export async function createInstitutionUser(data: {
   password: string
   full_name: string
   dni: string
-  role: 'student' | 'teacher' | 'secretary'
+  role: 'student' | 'teacher' | 'secretary' | 'supervisor'
   institution_id: string
   course_id?: string  // Optional: auto-enroll student to this course
 }) {

@@ -94,7 +94,11 @@ export function ProfileDetailsPanel({
               <input type="file" ref={fileRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
             </div>
             <h3 className="font-bold text-lg text-center">{user.full_name}</h3>
-            <p className="text-xs text-ink3 uppercase tracking-wider font-bold">{isStudent ? 'Estudiante' : 'Docente'}</p>
+            <p className="text-xs text-ink3 uppercase tracking-wider font-bold">
+              {user.role === 'student' ? 'Estudiante' : 
+               user.role === 'teacher' ? 'Docente' :
+               user.role === 'secretary' ? 'Secretaría' : 'Supervisor'}
+            </p>
           </div>
 
           {/* Form Section */}

@@ -44,7 +44,7 @@ export default async function AcademicoPage() {
       admin.from('profiles' as any)
         .select('*')
         .eq('institution_id', instId)
-        .eq('role', 'teacher')
+        .in('role', ['teacher', 'secretary', 'supervisor'])
         .order('full_name', { ascending: true }),
 
       admin.from('subjects' as any)
