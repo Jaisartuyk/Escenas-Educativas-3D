@@ -412,8 +412,32 @@ export async function POST(request: NextRequest) {
             let text = ''
 
             if (ext === 'pdf') {
-              const parsed = await pdfParse(buffer)
-              text = parsed.text
+              // Intento 1: pdf-parse (rapido, funciona con la mayoria de PDFs)
+              try {
+                const parsed = await pdfParse(buffer)
+                text = parsed?.text || ''
+              } catch (e1: any) {
+                console.warn('[RAG] pdf-parse fallo, intentando pdfjs-dist:', label, e1?.message)
+              }
+              // Intento 2 (fallback): pdfjs-dist si pdf-parse no sacó nada
+              if (!text || !text.trim()) {
+                try {
+                  const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs')
+                  const uint8 = new Uint8Array(buffer)
+                  const doc = await pdfjs.getDocument({ data: uint8, useSystemFonts: true, disableFontFace: true }).promise
+                  const chunks: string[] = []
+                  for (let i = 1; i <= doc.numPages; i++) {
+                    const page = await doc.getPage(i)
+                    const content = await page.getTextContent()
+                    const pageText = (content.items || []).map((it: any) => it.str || '').join(' ')
+                    if (pageText.trim()) chunks.push(pageText)
+                  }
+                  text = chunks.join('\n\n')
+                  if (text.trim()) console.log('[RAG] pdfjs-dist rescató texto de', label, `(${text.length} chars)`)
+                } catch (e2: any) {
+                  console.error('[RAG] pdfjs-dist tambien fallo:', label, e2?.message)
+                }
+              }
             } else if (['doc', 'docx'].includes(ext)) {
               const res = await mammoth.extractRawText({ buffer })
               text = res.value
