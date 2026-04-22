@@ -310,6 +310,12 @@ export async function POST(request: NextRequest) {
     // ── RAG: extract PDFs from teacher library ──
     let contextoExtra = ''
     let detectedPlanification = false
+    const ragStats: {
+      found: number
+      parsed: number
+      skipped: number
+      reasons: string[]
+    } = { found: 0, parsed: 0, skipped: 0, reasons: [] }
     try {
       let refs: Array<{ storage_path: string; bucket: string; titulo?: string }> = []
 
@@ -332,36 +338,68 @@ export async function POST(request: NextRequest) {
             titulo: d.titulo,
           }))
       } else {
-        // Docente institucional: fuente legacy
-        const { data: docs } = await (supabase as any)
-          .from('documentos')
-          .select('storage_path')
-          .eq('user_id', user.id)
-          .eq('asignatura', body.subject)
-          .eq('grado', body.grade)
+        // Docente institucional: dos fuentes posibles
+        //   a) tabla `documentos` (BibliotecaClient legacy) — bucket 'submissions'
+        //   b) tabla `planner_reference_docs` (MateriaDocsModal) — bucket 'submissions'
+        const [{ data: docsLegacy }, { data: docsByMateria }] = await Promise.all([
+          (supabase as any)
+            .from('documentos')
+            .select('storage_path, titulo')
+            .eq('user_id', user.id)
+            .eq('asignatura', body.subject)
+            .eq('grado', body.grade),
+          body.subjectId
+            ? (supabase as any)
+                .from('planner_reference_docs')
+                .select('storage_path, titulo, file_type, file_name')
+                .eq('user_id', user.id)
+                .eq('planner_subject_id', body.subjectId)
+            : Promise.resolve({ data: [] as any[] }),
+        ])
 
-        refs = (docs || []).map((d: any) => ({
-          storage_path: d.storage_path,
-          bucket: 'biblioteca',
-        }))
+        refs = [
+          ...((docsLegacy || []) as any[]).map((d: any) => ({
+            storage_path: d.storage_path,
+            bucket: 'submissions',
+            titulo: d.titulo || 'Documento adjunto',
+          })),
+          ...((docsByMateria || []) as any[])
+            .filter((d: any) => {
+              const ext = (d.file_name?.split('.').pop() || '').toLowerCase()
+              return d.file_type?.includes('pdf') || d.file_type?.includes('officedocument') || ['pdf', 'doc', 'docx'].includes(ext)
+            })
+            .map((d: any) => ({
+              storage_path: d.storage_path,
+              bucket: 'submissions',
+              titulo: d.titulo,
+            })),
+        ]
       }
 
+      ragStats.found = refs.length
       if (refs.length > 0) {
-        // 1) Extraer texto de cada documento
+        // 1) Extraer texto de cada documento (con try/catch por doc: un PDF roto
+        //    no debe tumbar el resto).
         const parsedDocs: Array<{ titulo: string; text: string }> = []
         const pdfMod = await import('pdf-parse')
         const pdfParse = (pdfMod as any).default || pdfMod
         const mammoth = (await import('mammoth')).default
 
         for (const r of refs) {
-          const { data: fileData, error: downloadError } = await supabase.storage
-            .from(r.bucket)
-            .download(r.storage_path)
+          const label = (r as any).titulo || r.storage_path.split('/').pop() || 'doc'
+          try {
+            const { data: fileData, error: downloadError } = await supabase.storage
+              .from(r.bucket)
+              .download(r.storage_path)
 
-          if (fileData && !downloadError) {
+            if (!fileData || downloadError) {
+              ragStats.skipped++
+              ragStats.reasons.push(`${label}: no se pudo descargar (bucket=${r.bucket})`)
+              continue
+            }
+
             const arrayBuffer = await fileData.arrayBuffer()
             const buffer = Buffer.from(arrayBuffer)
-            
             const ext = (r.storage_path.split('.').pop() || '').toLowerCase()
             let text = ''
 
@@ -371,14 +409,27 @@ export async function POST(request: NextRequest) {
             } else if (['doc', 'docx'].includes(ext)) {
               const res = await mammoth.extractRawText({ buffer })
               text = res.value
+            } else {
+              ragStats.skipped++
+              ragStats.reasons.push(`${label}: extension no soportada (.${ext})`)
+              continue
             }
 
-            if (text) {
-              parsedDocs.push({
-                titulo: r.titulo || 'Documento adjunto',
-                text: text.slice(0, 150000),
-              })
+            if (!text || !text.trim()) {
+              ragStats.skipped++
+              ragStats.reasons.push(`${label}: archivo vacio o sin texto extraible`)
+              continue
             }
+
+            parsedDocs.push({
+              titulo: (r as any).titulo || 'Documento adjunto',
+              text: text.slice(0, 150000),
+            })
+            ragStats.parsed++
+          } catch (docErr: any) {
+            ragStats.skipped++
+            ragStats.reasons.push(`${label}: error al parsear (${docErr?.message?.slice(0, 120) || 'desconocido'})`)
+            console.error('[RAG per-doc error]', label, docErr)
           }
         }
 
@@ -557,6 +608,7 @@ export async function POST(request: NextRequest) {
       planificacion: saved,
       variants,
       detectedPlanification,
+      ragStats,
     })
   } catch (err: any) {
     console.error('[POST /api/planificaciones]', err)

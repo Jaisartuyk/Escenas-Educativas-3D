@@ -192,6 +192,25 @@ export function PlannerClient({
         if (data.detectedPlanification) {
           toast('📄 Se detecto una planificacion en tus documentos y se adapto al formato institucional', { duration: 6000 })
         }
+        // Diagnóstico RAG: avisar al docente qué pasó con sus materiales
+        const rs = data.ragStats as { found: number; parsed: number; skipped: number; reasons: string[] } | undefined
+        if (rs) {
+          if (rs.found === 0) {
+            toast('📚 No hay materiales subidos para esta materia. La IA generó sin contexto bibliográfico.', { icon: '⚠️', duration: 7000 })
+          } else if (rs.parsed === 0) {
+            toast.error(
+              `📚 Encontré ${rs.found} material(es) pero no pude leer ninguno.\n${(rs.reasons || []).slice(0, 3).join('\n')}`,
+              { duration: 10000 }
+            )
+          } else if (rs.skipped > 0) {
+            toast(
+              `📚 Usé ${rs.parsed} de ${rs.found} materiales. ${rs.skipped} saltado(s):\n${(rs.reasons || []).slice(0, 3).join('\n')}`,
+              { icon: 'ℹ️', duration: 8000 }
+            )
+          } else {
+            toast.success(`📚 Usando ${rs.parsed} material(es) de tu biblioteca como referencia`, { duration: 4000 })
+          }
+        }
       }
     } catch (err: any) {
       toast.error(err.message ?? 'Error al generar')
