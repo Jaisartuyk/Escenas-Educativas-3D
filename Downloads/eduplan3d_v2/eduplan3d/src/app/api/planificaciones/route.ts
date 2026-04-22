@@ -26,12 +26,14 @@ Columnas exactas:
 |---|---|---|---|---|
 
 REGLAS DE ORO:
-1. PRIORIDAD ABSOLUTA: Si el docente subio un documento (contexto bibliográfico), extrae de alli los temas, actividades y destrezas. NO inventes contenido de internet si el documento contiene la informacion.
-2. TRABAJO EN AULA: Las actividades deben ser disenadas para completarse al 100% en el salon usando el tiempo calculado.
-3. ADAPTACIONES (NEE): Al final de la tabla, anade siempre una seccion breve para adaptaciones curriculares.
+1. PRIORIDAD ABSOLUTA: Si el docente subió un documento (contexto bibliográfico), extrae de allí los temas, actividades, destrezas, objetivos y criterios de evaluación. NO inventes contenido de internet ni uses la base de datos oficial si el documento ya contiene la información específica. El documento del docente es la VERDAD ÚNICA para esta planificación.
+2. TRABAJO EN AULA: Las actividades deben ser diseñadas para completarse al 100% en el salón usando el tiempo calculado.
+3. ADAPTACIONES (NEE): Al final de la tabla, añade siempre una sección breve para adaptaciones curriculares.
 4. Usa EXCLUSIVAMENTE tablas de Markdown limpias.
-5. Los tiempos de cada fase de la estrategia metodologica elegida deben sumar EXACTAMENTE la duracion total de la clase.
-6. En la columna "Técnicas / Instrumentos", separa la tecnica del instrumento con una barra (ej: Observación / Lista de cotejo).`
+5. Los tiempos de cada fase de la estrategia metodológica elegida deben sumar EXACTAMENTE la duración total de la clase.
+6. En la columna "Técnicas / Instrumentos", separa la técnica del instrumento con una barra (ej: Observación / Lista de cotejo).
+7. Si el currículo oficial ( MinEduc) contradice al documento del docente, HAZ CASO AL DOCENTE. El currículo oficial es solo una guía para códigos y nombres de destrezas.`
+
 
 // ── Build prompt for each type ───────────────────────────────────────────────
 function buildPrompt(data: any, contextoExtra: string = '', detectedPlanification: boolean = false): string {
@@ -405,7 +407,8 @@ export async function POST(request: NextRequest) {
         tema: body.topic,
       })
       if (curriculoBlock) {
-        contextoExtra = `${curriculoBlock}\n${contextoExtra}`
+        // Ponemos el currículo DESPUÉS de los documentos del docente para que estos tengan prioridad de lectura
+        contextoExtra = `${contextoExtra}\n\n${curriculoBlock}`
       }
     } catch (err) {
       console.error('[Curriculo Lookup Error]', err)
