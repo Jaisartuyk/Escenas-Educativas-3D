@@ -109,6 +109,7 @@ export function MensajesClient({ me, institutionName, broadcastCourses }: Props)
   const [messages, setMessages] = useState<Message[]>([])
   const [receipts, setReceipts] = useState<Record<string, string[]>>({})
   const [loadingMsgs, setLoadingMsgs] = useState(false)
+  const [msgsError, setMsgsError] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [search, setSearch] = useState('')
@@ -139,11 +140,24 @@ export function MensajesClient({ me, institutionName, broadcastCourses }: Props)
 
   async function loadMessages(conversationId: string) {
     setLoadingMsgs(true)
-    const res = await fetch(`/api/mensajes/conversations/${conversationId}/messages`)
-    const json = await res.json()
-    setMessages(json.messages || [])
-    setReceipts(json.receipts || {})
-    setLoadingMsgs(false)
+    setMsgsError(null)
+    try {
+      const res = await fetch(`/api/mensajes/conversations/${conversationId}/messages`)
+      const json = await res.json()
+      if (!res.ok) {
+        setMsgsError(json?.error || `Error ${res.status}`)
+        setMessages([])
+        setReceipts({})
+      } else {
+        setMessages(json.messages || [])
+        setReceipts(json.receipts || {})
+      }
+    } catch (e: any) {
+      setMsgsError(e?.message || 'Error de red')
+      setMessages([])
+    } finally {
+      setLoadingMsgs(false)
+    }
     // Marcar leído
     fetch(`/api/mensajes/conversations/${conversationId}/read`, { method: 'POST' })
       .then(() => loadConversations())
@@ -384,6 +398,11 @@ export function MensajesClient({ me, institutionName, broadcastCourses }: Props)
               {loadingMsgs ? (
                 <div className="flex justify-center py-6">
                   <div className="w-6 h-6 rounded-full border-2 border-violet2 border-t-transparent animate-spin" />
+                </div>
+              ) : msgsError ? (
+                <div className="mx-auto max-w-md text-center py-10 px-4 rounded-2xl bg-rose-50 border border-rose-200">
+                  <p className="text-rose-700 text-sm font-semibold mb-1">No se pudieron cargar los mensajes</p>
+                  <p className="text-rose-600 text-xs break-words">{msgsError}</p>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="text-center text-ink4 text-sm py-10">

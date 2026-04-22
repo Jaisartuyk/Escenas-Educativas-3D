@@ -31,8 +31,15 @@ export async function GET(_req: NextRequest) {
   // Participantes (para mostrar "con quién hablo")
   const { data: allParts } = await (admin as any)
     .from('conversation_participants')
-    .select('conversation_id, user_id, role, user:profiles(id, full_name, role)')
+    .select('conversation_id, user_id, role')
     .in('conversation_id', convIds)
+  const partUserIds = Array.from(new Set(((allParts || []) as any[]).map((p: any) => p.user_id)))
+  const userMap: Record<string, { full_name: string | null; role: string | null }> = {}
+  if (partUserIds.length > 0) {
+    const { data: profs } = await (admin as any)
+      .from('profiles').select('id, full_name, role').in('id', partUserIds)
+    for (const p of ((profs || []) as any[])) userMap[p.id] = { full_name: p.full_name, role: p.role }
+  }
 
   // Unread count por conversación
   const unread: Record<string, number> = {}
@@ -49,7 +56,7 @@ export async function GET(_req: NextRequest) {
   const byConv = new Map<string, any[]>()
   for (const p of (allParts || []) as any[]) {
     const list = byConv.get(p.conversation_id) || []
-    const u = Array.isArray(p.user) ? p.user[0] : p.user
+    const u = userMap[p.user_id]
     list.push({ user_id: p.user_id, role: p.role, full_name: u?.full_name || '', user_role: u?.role || '' })
     byConv.set(p.conversation_id, list)
   }

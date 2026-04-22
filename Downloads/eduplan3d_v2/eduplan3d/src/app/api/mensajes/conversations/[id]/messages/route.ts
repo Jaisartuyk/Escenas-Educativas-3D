@@ -20,16 +20,26 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const before = req.nextUrl.searchParams.get('before')
   let q = (admin as any).from('messages')
-    .select('id, conversation_id, sender_id, body, kind, metadata, created_at, edited_at, sender:profiles(id, full_name, role)')
+    .select('id, conversation_id, sender_id, body, kind, metadata, created_at, edited_at')
     .eq('conversation_id', params.id)
     .order('created_at', { ascending: false })
     .limit(50)
   if (before) q = q.lt('created_at', before)
-  const { data: rows } = await q
-  const messages = ((rows || []) as any[]).map((m: any) => {
-    const s = Array.isArray(m.sender) ? m.sender[0] : m.sender
-    return { ...m, sender: s ? { id: s.id, full_name: s.full_name, role: s.role } : null }
-  }).reverse()
+  const { data: rows, error: msgErr } = await q
+  if (msgErr) return NextResponse.json({ error: msgErr.message, messages: [], receipts: {} }, { status: 500 })
+
+  // Hidratar sender por separado (evita depender del join embebido de PostgREST)
+  const senderIds = Array.from(new Set(((rows || []) as any[]).map((m: any) => m.sender_id).filter(Boolean)))
+  const senderMap: Record<string, { id: string; full_name: string | null; role: string | null }> = {}
+  if (senderIds.length > 0) {
+    const { data: profs } = await (admin as any)
+      .from('profiles').select('id, full_name, role').in('id', senderIds)
+    for (const p of ((profs || []) as any[])) senderMap[p.id] = { id: p.id, full_name: p.full_name, role: p.role }
+  }
+  const messages = ((rows || []) as any[]).map((m: any) => ({
+    ...m,
+    sender: senderMap[m.sender_id] || null,
+  })).reverse()
 
   // Acuses por mensaje (para boletines)
   const bulletinIds = messages.filter((m: any) => m.kind === 'bulletin').map((m: any) => m.id)
