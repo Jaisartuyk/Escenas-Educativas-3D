@@ -387,12 +387,7 @@ export async function POST(request: NextRequest) {
 
       ragStats.found = refs.length
       if (refs.length > 0) {
-        // 1) Extraer texto de cada documento (con try/catch por doc: un PDF roto
-        //    no debe tumbar el resto).
         const parsedDocs: Array<{ titulo: string; text: string }> = []
-        const pdfMod = await import('pdf-parse')
-        const pdfParse = (pdfMod as any).default || pdfMod
-        const mammoth = (await import('mammoth')).default
 
         for (const r of refs) {
           const label = (r as any).titulo || r.storage_path.split('/').pop() || 'doc'
@@ -413,43 +408,28 @@ export async function POST(request: NextRequest) {
             let text = ''
 
             if (ext === 'pdf') {
-              // Intento 1: pdf-parse (rapido, funciona con la mayoria de PDFs)
+              // Importar pdf-parse SOLO aquí (evita crash DOMMatrix en Vercel para DOCX)
               try {
+                const pdfMod = await import('pdf-parse')
+                const pdfParse = (pdfMod as any).default || pdfMod
                 const parsed = await pdfParse(buffer)
                 text = parsed?.text || ''
               } catch (e1: any) {
-                console.warn('[RAG] pdf-parse fallo, intentando pdfjs-dist:', label, e1?.message)
-              }
-              // Intento 2 (fallback): pdfjs-dist si pdf-parse no sacó nada
-              if (!text || !text.trim()) {
-                try {
-                  const pdfjs: any = await import('pdfjs-dist/legacy/build/pdf.mjs')
-                  const uint8 = new Uint8Array(buffer)
-                  const doc = await pdfjs.getDocument({ data: uint8, useSystemFonts: true, disableFontFace: true }).promise
-                  const chunks: string[] = []
-                  for (let i = 1; i <= doc.numPages; i++) {
-                    const page = await doc.getPage(i)
-                    const content = await page.getTextContent()
-                    const pageText = (content.items || []).map((it: any) => it.str || '').join(' ')
-                    if (pageText.trim()) chunks.push(pageText)
-                  }
-                  text = chunks.join('\n\n')
-                  if (text.trim()) console.log('[RAG] pdfjs-dist rescató texto de', label, `(${text.length} chars)`)
-                } catch (e2: any) {
-                  console.error('[RAG] pdfjs-dist tambien fallo:', label, e2?.message)
-                }
+                console.warn('[RAG] pdf-parse fallo:', label, e1?.message)
               }
             } else if (['doc', 'docx'].includes(ext)) {
               console.log('[RAG] Procesando DOCX:', label, `(${buffer.length} bytes)`)
-              // Capa 1: mammoth (rápido, funciona con docs simples)
+              // Capa 1: mammoth
               try {
+                const mammothMod = await import('mammoth')
+                const mammoth = mammothMod.default || mammothMod
                 const res = await mammoth.extractRawText({ buffer })
                 text = res.value || ''
                 console.log('[RAG] mammoth resultado:', label, `(${text.length} chars)`)
               } catch (e1: any) {
                 console.warn('[RAG] mammoth falló para', label, e1?.message)
               }
-              // Capa 2 (fallback): XML directo — para tablas complejas donde mammoth falla
+              // Capa 2 (fallback): XML directo para tablas complejas
               if (!text || !text.trim()) {
                 console.log('[RAG] mammoth devolvió vacío, intentando extractDocxRaw para', label)
                 try {
@@ -483,12 +463,12 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // 2) Clasificar: ¿cada doc es "referencia" o "planificacion" ya elaborada?
+        // Clasificar: ¿cada doc es "referencia" o "planificacion" ya elaborada?
         const classifications = await classifyDocuments(parsedDocs)
         detectedPlanification = classifications.some(c => c.kind === 'planificacion')
 
-        // 3) Construir el contextoExtra etiquetando cada doc según su tipo
-        parsedDocs.forEach((d, i) => {
+        // Construir el contextoExtra etiquetando cada doc según su tipo
+        parsedDocs.forEach((d: { titulo: string; text: string }, i: number) => {
           const cls = classifications[i]?.kind || 'referencia'
           const badge = cls === 'planificacion'
             ? '[TIPO: PLANIFICACION YA ELABORADA — ADAPTAR AL FORMATO, no re-inventar]'
