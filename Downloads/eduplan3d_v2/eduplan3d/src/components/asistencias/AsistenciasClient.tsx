@@ -2,14 +2,16 @@
 
 import { useState, useMemo } from 'react'
 import { TomaAsistencia } from './TomaAsistencia'
+import { JustificacionesPanel } from './JustificacionesPanel'
 import { Users, AlertTriangle, Clock as ClockIcon, ChevronDown } from 'lucide-react'
 
 const REPORT_TYPES = [
   'Listado estudiantes',
-  'Toma de asistencia'
+  'Toma de asistencia',
+  'Justificaciones',
 ]
 
-export function AsistenciasClient({ tutoredCourses = [], enrollments = [], attendanceGlobal = [] }: any) {
+export function AsistenciasClient({ tutoredCourses = [], enrollments = [], attendanceGlobal = [], justifications = [] }: any) {
   const [reportType, setReportType] = useState<string>(REPORT_TYPES[0])
   const [selectedCourse, setSelectedCourse] = useState(tutoredCourses[0]?.id || '')
 
@@ -65,6 +67,8 @@ export function AsistenciasClient({ tutoredCourses = [], enrollments = [], atten
       {/* ── Vista Dinámica ── */}
       {reportType === 'Toma de asistencia' ? (
         <TomaAsistencia />
+      ) : reportType === 'Justificaciones' ? (
+        <JustificacionesPanel justifications={justifications} />
       ) : (
         <div className="space-y-4">
            {tutoredCourses.length > 0 ? (

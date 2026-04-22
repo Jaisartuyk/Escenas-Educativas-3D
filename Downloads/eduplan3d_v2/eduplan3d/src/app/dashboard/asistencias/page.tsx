@@ -49,11 +49,12 @@ export default async function AsistenciasPage() {
   let tutoredCourses: any[] = []
   let enrollmentsRes: any[] = []
   let attendanceGlobal: any[] = []
+  let justifications: any[] = []
 
   if (instId && tutoredCourseNames.length > 0) {
     const { data: allCourses } = await admin.from('courses').select('id, name, parallel').eq('institution_id', instId)
     const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-    
+
     const tutoredNormalized = tutoredCourseNames.map(normalize)
     tutoredCourses = (allCourses || []).filter(c => tutoredNormalized.includes(normalize(c.name)) || tutoredNormalized.includes(normalize(`${c.name} ${c.parallel || ''}`)))
     const tutoredCourseIds = tutoredCourses.map(c => c.id)
@@ -66,13 +67,41 @@ export default async function AsistenciasPage() {
       if (studentIds.length > 0) {
         const { data: attData } = await admin.from('attendance').select('student_id, status').in('student_id', studentIds)
         attendanceGlobal = attData || []
+
+        // Traer justificaciones de los estudiantes tutorados (con nombre + materia)
+        const { data: justData } = await admin
+          .from('attendance')
+          .select('id, student_id, subject_id, status, date, justification_status, justification_text, justification_file_url')
+          .in('student_id', studentIds)
+          .not('justification_status', 'is', null)
+          .order('date', { ascending: false })
+
+        // Enriquecer con nombre del estudiante + nombre de la materia
+        const subjIds = Array.from(new Set((justData || []).map((j: any) => j.subject_id).filter(Boolean)))
+        let subjMap = new Map<string, string>()
+        if (subjIds.length > 0) {
+          const { data: subj } = await admin
+            .from('subjects')
+            .select('id, name')
+            .in('id', subjIds)
+          subjMap = new Map<string, string>(((subj || []) as any[]).map(s => [s.id as string, (s.name as string) || '']))
+        }
+        const studMap = new Map<string, string>(
+          enrollmentsRes.map((e: any) => [e.student_id, e.student?.full_name || 'Alumno'])
+        )
+        justifications = (justData || []).map((j: any) => ({
+          ...j,
+          student_name: studMap.get(j.student_id) || 'Alumno',
+          subject_name: subjMap.get(j.subject_id) || 'Materia',
+        }))
       }
     }
   }
 
-  return <AsistenciasClient 
+  return <AsistenciasClient
     tutoredCourses={tutoredCourses}
     enrollments={enrollmentsRes}
     attendanceGlobal={attendanceGlobal}
+    justifications={justifications}
   />
 }

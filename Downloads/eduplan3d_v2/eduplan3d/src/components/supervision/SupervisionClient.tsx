@@ -682,14 +682,18 @@ function AsistenciaTab({ attendance, students }: any) {
 
   async function handleJustificationAction(id: string, action: 'approved' | 'rejected') {
     setUpdatingId(id)
-    const { error } = await (supabase as any)
-      .from('attendance')
-      .update({ justification_status: action })
-      .eq('id', id)
-    if (!error) {
-      setLocalStatuses(prev => ({ ...prev, [id]: action }))
+    try {
+      const res = await fetch('/api/attendance/justifications/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendanceId: id, action }),
+      })
+      if (res.ok) {
+        setLocalStatuses(prev => ({ ...prev, [id]: action }))
+      }
+    } finally {
+      setUpdatingId(null)
     }
-    setUpdatingId(null)
   }
 
   // Get unique dates sorted
