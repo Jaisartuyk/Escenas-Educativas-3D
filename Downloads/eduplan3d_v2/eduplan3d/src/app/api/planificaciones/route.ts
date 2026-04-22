@@ -439,8 +439,23 @@ export async function POST(request: NextRequest) {
                 }
               }
             } else if (['doc', 'docx'].includes(ext)) {
-              const res = await mammoth.extractRawText({ buffer })
-              text = res.value
+              // Capa 1: mammoth (rápido, funciona con docs simples)
+              try {
+                const res = await mammoth.extractRawText({ buffer })
+                text = res.value || ''
+              } catch (e1: any) {
+                console.warn('[RAG] mammoth falló para', label, e1?.message)
+              }
+              // Capa 2 (fallback): XML directo — para tablas complejas donde mammoth falla
+              if (!text || !text.trim()) {
+                try {
+                  const { extractDocxRaw } = await import('@/lib/extract/extractDocxRaw')
+                  text = await extractDocxRaw(buffer)
+                  if (text.trim()) console.log('[RAG] extractDocxRaw rescató texto de', label, `(${text.length} chars)`)
+                } catch (e2: any) {
+                  console.error('[RAG] extractDocxRaw también falló:', label, e2?.message)
+                }
+              }
             } else {
               ragStats.skipped++
               ragStats.reasons.push(`${label}: extension no soportada (.${ext})`)
