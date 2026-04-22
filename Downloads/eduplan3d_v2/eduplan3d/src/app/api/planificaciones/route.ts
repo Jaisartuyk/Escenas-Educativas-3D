@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getMethodology } from '@/lib/pedagogy/methodologies'
 import { buildNeePromptBlock, getNeeType } from '@/lib/pedagogy/nee'
 import { fetchCurriculoBlock } from '@/lib/curriculo/lookup'
+import { extractDocxRaw } from '@/lib/extract/extractDocxRaw'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -439,19 +440,21 @@ export async function POST(request: NextRequest) {
                 }
               }
             } else if (['doc', 'docx'].includes(ext)) {
+              console.log('[RAG] Procesando DOCX:', label, `(${buffer.length} bytes)`)
               // Capa 1: mammoth (rápido, funciona con docs simples)
               try {
                 const res = await mammoth.extractRawText({ buffer })
                 text = res.value || ''
+                console.log('[RAG] mammoth resultado:', label, `(${text.length} chars)`)
               } catch (e1: any) {
                 console.warn('[RAG] mammoth falló para', label, e1?.message)
               }
               // Capa 2 (fallback): XML directo — para tablas complejas donde mammoth falla
               if (!text || !text.trim()) {
+                console.log('[RAG] mammoth devolvió vacío, intentando extractDocxRaw para', label)
                 try {
-                  const { extractDocxRaw } = await import('@/lib/extract/extractDocxRaw')
                   text = await extractDocxRaw(buffer)
-                  if (text.trim()) console.log('[RAG] extractDocxRaw rescató texto de', label, `(${text.length} chars)`)
+                  console.log('[RAG] extractDocxRaw resultado:', label, `(${text.length} chars)`)
                 } catch (e2: any) {
                   console.error('[RAG] extractDocxRaw también falló:', label, e2?.message)
                 }
