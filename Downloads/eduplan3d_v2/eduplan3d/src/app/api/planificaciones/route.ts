@@ -6,6 +6,7 @@ import { getMethodology } from '@/lib/pedagogy/methodologies'
 import { buildNeePromptBlock, getNeeType } from '@/lib/pedagogy/nee'
 import { fetchCurriculoBlock } from '@/lib/curriculo/lookup'
 import { extractDocxRaw } from '@/lib/extract/extractDocxRaw'
+import { resolveYearContext } from '@/lib/academic-year/server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -299,6 +300,15 @@ export async function POST(request: NextRequest) {
 
     const isPlannerSolo = profile?.plan === 'planner_solo'
 
+    // Resolver año lectivo visible; bloquear si esta en modo historico
+    const ycx = await resolveYearContext(user.id)
+    if (ycx.hasInstitution && ycx.isReadOnly) {
+      return NextResponse.json(
+        { error: 'No puedes crear planificaciones en un año lectivo histórico. Vuelve al año actual.' },
+        { status: 403 }
+      )
+    }
+
     if (profile?.plan === 'free') {
       const { count } = await (supabase as any)
         .from('planificaciones')
@@ -524,6 +534,7 @@ export async function POST(request: NextRequest) {
         methodologies: body.methodology ? [body.methodology] : (body.methodologies || []),
         content,
         tipo_documento: 'regular',
+        academic_year_id: ycx.currentYearId,
         metadata: {
           trimestre: body.trimestre,
           parcial:   body.parcial,
@@ -595,6 +606,7 @@ export async function POST(request: NextRequest) {
           tipo_documento: kind,
           parent_planificacion_id: saved.id,
           nee_tipos: neeCodes,
+          academic_year_id: ycx.currentYearId,
           ...extraFields,
           metadata: {
             ...saved.metadata,

@@ -1,12 +1,22 @@
 // src/app/api/planificaciones/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { resolveYearContext } from '@/lib/academic-year/server'
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+  // Bloquear si el usuario está viendo un año histórico
+  const ycx = await resolveYearContext(user.id)
+  if (ycx.hasInstitution && ycx.isReadOnly) {
+    return NextResponse.json(
+      { error: 'No puedes eliminar en un año histórico. Vuelve al año actual.' },
+      { status: 403 }
+    )
+  }
 
   const { error } = await (supabase as any)
     .from('planificaciones')
@@ -24,6 +34,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+  // Bloquear edicion en año historico
+  const ycx = await resolveYearContext(user.id)
+  if (ycx.hasInstitution && ycx.isReadOnly) {
+    return NextResponse.json(
+      { error: 'No puedes editar en un año histórico. Vuelve al año actual.' },
+      { status: 403 }
+    )
+  }
 
   const body = await req.json()
   const { content } = body

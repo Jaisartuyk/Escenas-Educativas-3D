@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getEmptyConfig, DEFAULT_HORAS } from '@/types/horarios'
+import { resolveYearContext } from '@/lib/academic-year/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -290,6 +291,15 @@ export async function POST(req: Request) {
   const userRole = (profile as any)?.role
   if (userRole !== 'admin' && userRole !== 'assistant' && userRole !== 'horarios_only') {
     return NextResponse.json({ error: 'Sin permiso para modificar horarios' }, { status: 403 })
+  }
+
+  // Bloquear escritura en año historico
+  const ycx = await resolveYearContext(user.id)
+  if (ycx.hasInstitution && ycx.isReadOnly) {
+    return NextResponse.json(
+      { error: 'No puedes modificar horarios en un año histórico. Vuelve al año actual.' },
+      { status: 403 }
+    )
   }
 
   const instId = (profile as any).institution_id
