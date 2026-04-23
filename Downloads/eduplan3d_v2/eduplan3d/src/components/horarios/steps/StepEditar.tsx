@@ -3,8 +3,8 @@
 
 import { useState, useMemo } from 'react'
 import type { HorariosState, HorarioGrid, Dia } from '@/types/horarios'
-import { DIAS } from '@/types/horarios'
-import { detectConflictos, getDocForMateria } from '@/lib/horarios/generator'
+import { DIAS, getCursoStructure } from '@/types/horarios'
+import { detectConflictosPorHora, getDocForMateria } from '@/lib/horarios/generator'
 
 interface Props {
   state: HorariosState
@@ -26,7 +26,10 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
     return ['', ...Array.from(materias).sort(), 'ACOMPAÑAMIENTO', 'SALIDA']
   }, [horasPorCurso])
 
-  const conflictos = detectConflictos(horario, docentes, config.nPeriodos, config.jornada, config.nivel, state.docentePorCurso)
+  // Usa detectConflictosPorHora (compara por hora real) para soportar cursos
+  // con estructuras distintas (cursosCustom). Si no hay overrides, equivale
+  // al detector anterior.
+  const conflictos = detectConflictosPorHora(horario, config, docentes, state.docentePorCurso)
   const conflictoSet = new Set(
     conflictos.map(c => `${c.curso}|${c.dia}|${c.periodo}`)
   )
@@ -37,26 +40,49 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
     onChange(nuevo)
   }
 
-  // Vista por docente
-  function buildVistaDocente() {
-    const result: Record<string, Record<Dia, string[]>> = {}
+  // Vista por docente — agrupada por HORA REAL (label). Soporta cursos con
+  // estructuras distintas (cursosCustom): cada fila = una hora única, las
+  // clases de cualquier curso a esa hora caen en esa fila.
+  // result: doc → horaLabel → { dia → string } ; además devolvemos las horas únicas ordenadas.
+  function buildVistaDocente(): {
+    byDoc: Record<string, Record<string, Partial<Record<Dia, string>>>>
+    labels: Array<{ label: string; isReceso: boolean }>
+  } {
+    const byDoc: Record<string, Record<string, Partial<Record<Dia, string>>>> = {}
+    // Recoger labels únicos (ordenados por hora de inicio, alfabético funciona con "HH:MM-HH:MM")
+    const labelSet = new Map<string, boolean>() // label → isReceso en al menos un curso
     config.cursos.forEach(c => {
+      const { horarios: h, recesos: r } = getCursoStructure(config, c)
+      h.forEach((label, idx) => {
+        const wasReceso = r.includes(idx)
+        labelSet.set(label, (labelSet.get(label) ?? true) && wasReceso)
+      })
+    })
+    const labels = Array.from(labelSet.entries())
+      .map(([label, isReceso]) => ({ label, isReceso }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+
+    config.cursos.forEach(c => {
+      const { horarios: hCurso } = getCursoStructure(config, c)
       DIAS.forEach(d => {
         horario[c]?.[d]?.forEach((m, p) => {
           if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO' || m === 'SALIDA') return
           const doc = getDocForMateria(m, docentes, config.jornada, config.nivel, state.docentePorCurso, c)
           if (doc === '—') return
-          if (!result[doc]) result[doc] = {} as any
-          if (!result[doc][d]) result[doc][d] = Array(config.nPeriodos).fill('')
-          const existing = result[doc][d][p]
-          result[doc][d][p] = existing ? `${existing}\n${m} (${c})` : `${m} (${c})`
+          const label = hCurso[p] ?? String(p)
+          if (!byDoc[doc]) byDoc[doc] = {}
+          if (!byDoc[doc][label]) byDoc[doc][label] = {}
+          const existing = byDoc[doc][label][d]
+          byDoc[doc][label][d] = existing ? `${existing}\n${m} (${c})` : `${m} (${c})`
         })
       })
     })
-    return result
+    return { byDoc, labels }
   }
 
   const datos = horario[cursoActivo]
+  // Estructura del curso activo (override si existe, si no la global)
+  const estrActivo = getCursoStructure(config, cursoActivo)
 
   return (
     <div>
@@ -118,8 +144,8 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
               <tbody>
                 {(() => {
                   let classNum = 0
-                  return config.horarios.map((hora, pi) => {
-                  const isReceso = (config.recesos || [4]).includes(pi)
+                  return estrActivo.horarios.map((hora, pi) => {
+                  const isReceso = (estrActivo.recesos || []).includes(pi)
                   if (!isReceso) classNum++
                   return (
                     <tr key={pi}>
@@ -212,47 +238,51 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
         </>
       ) : (
         /* ── VISTA DOCENTE ── */
-        <div>
-          {Object.entries(buildVistaDocente()).map(([doc, diasDoc]) => (
-            <div key={doc} className="card p-5 mb-4">
-              <h3 className="font-display text-sm font-bold mb-3 text-violet2">👤 {doc}</h3>
-              <div className="overflow-x-auto">
-                <table className="border-collapse w-full" style={{ minWidth: 500 }}>
-                  <thead>
-                    <tr>
-                      <th className="w-8 text-[11px] text-ink3 font-semibold bg-surface border border-[rgba(120,100,255,0.14)] px-2 py-1.5">N°</th>
-                      <th className="w-20 text-[11px] text-ink3 font-semibold bg-surface border border-[rgba(120,100,255,0.14)] px-2 py-1.5">Hora</th>
-                      {DIAS.map(d => <th key={d} className="text-[11px] text-white font-semibold bg-[#2E5090] border border-[rgba(120,100,255,0.14)] px-2 py-1.5">{d}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      let cn2 = 0
-                      return config.horarios.map((hora, pi) => {
-                      const isR = (config.recesos || [4]).includes(pi)
-                      if (!isR) cn2++
-                      return (
-                      <tr key={pi}>
-                        <td className="text-center text-[11px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{isR ? 'R' : cn2}</td>
-                        <td className="text-center text-[10px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{hora}</td>
-                        {DIAS.map(d => {
-                          const v = diasDoc[d]?.[pi] ?? ''
-                          return (
-                            <td key={d} className={`text-center text-[11px] border border-[rgba(120,100,255,0.14)] px-1 py-1 ${isR ? 'bg-[rgba(38,215,180,0.12)] text-teal' : v ? 'bg-[rgba(124,109,250,0.06)] text-ink font-medium' : 'text-ink3'}`}>
-                              {isR ? 'RECESO' : (v || '—')}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    )
-                    })
-                    })()}
-                  </tbody>
-                </table>
-              </div>
+        (() => {
+          const { byDoc, labels } = buildVistaDocente()
+          return (
+            <div>
+              {Object.entries(byDoc).map(([doc, byLabel]) => (
+                <div key={doc} className="card p-5 mb-4">
+                  <h3 className="font-display text-sm font-bold mb-3 text-violet2">👤 {doc}</h3>
+                  <div className="overflow-x-auto">
+                    <table className="border-collapse w-full" style={{ minWidth: 500 }}>
+                      <thead>
+                        <tr>
+                          <th className="w-8 text-[11px] text-ink3 font-semibold bg-surface border border-[rgba(120,100,255,0.14)] px-2 py-1.5">N°</th>
+                          <th className="w-20 text-[11px] text-ink3 font-semibold bg-surface border border-[rgba(120,100,255,0.14)] px-2 py-1.5">Hora</th>
+                          {DIAS.map(d => <th key={d} className="text-[11px] text-white font-semibold bg-[#2E5090] border border-[rgba(120,100,255,0.14)] px-2 py-1.5">{d}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          let cn2 = 0
+                          return labels.map(({ label, isReceso: isR }, pi) => {
+                            if (!isR) cn2++
+                            return (
+                              <tr key={label}>
+                                <td className="text-center text-[11px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{isR ? 'R' : cn2}</td>
+                                <td className="text-center text-[10px] border border-[rgba(120,100,255,0.14)] bg-surface text-ink3 px-1">{label}</td>
+                                {DIAS.map(d => {
+                                  const v = byLabel[label]?.[d] ?? ''
+                                  return (
+                                    <td key={d} className={`text-center text-[11px] border border-[rgba(120,100,255,0.14)] px-1 py-1 ${isR ? 'bg-[rgba(38,215,180,0.12)] text-teal' : v ? 'bg-[rgba(124,109,250,0.06)] text-ink font-medium' : 'text-ink3'}`}>
+                                      {isR ? 'RECESO' : (v || '—')}
+                                    </td>
+                                  )
+                                })}
+                              </tr>
+                            )
+                          })
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )
+        })()
       )}
 
       <div className="flex gap-3 mt-5">
