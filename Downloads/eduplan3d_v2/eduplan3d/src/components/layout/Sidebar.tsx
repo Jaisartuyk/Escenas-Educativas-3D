@@ -168,7 +168,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname()
   const isPlannerSolo = plan === 'planner_solo'
-  const isAdmin = !isPlannerSolo && (role === 'admin' || role === 'assistant')
+  const isAdmin = !isPlannerSolo && (role === 'admin' || role === 'assistant' || role === 'rector')
   const [open, setOpen] = useState(false)
 
   // Track which groups are expanded (admin only)
@@ -197,7 +197,7 @@ export function Sidebar({
   // Get nav structure for current role
   function getNav(): NavNode[] {
     if (isPlannerSolo) return NAV_PLANNER_SOLO
-    if (isAdmin) return NAV_ADMIN_GROUPED
+    if (isAdmin || role === 'rector') return NAV_ADMIN_GROUPED
     switch (role) {
       case 'teacher':       return NAV_TEACHER
       case 'student':       return NAV_STUDENT
