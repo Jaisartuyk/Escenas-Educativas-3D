@@ -21,7 +21,7 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
     dni: '',
     email: '',
     password: '',
-    role: 'student' as 'student' | 'teacher' | 'secretary' | 'supervisor',
+    role: 'student' as 'student' | 'teacher' | 'secretary' | 'supervisor' | 'rector',
     course_id: ''
   })
 
@@ -50,7 +50,8 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
     } else {
       const msg = formData.role === 'student' ? 'Estudiante creado/matriculado' : 
                   formData.role === 'teacher' ? 'Docente creado' :
-                  formData.role === 'secretary' ? 'Secretaría creada' : 'Supervisor creado'
+                  formData.role === 'secretary' ? 'Secretaría creada' : 
+                  formData.role === 'supervisor' ? 'Supervisor creado' : 'Rector creado'
       
       toast.success(`${msg} exitosamente`)
       setFormData({ full_name: '', dni: '', email: '', password: '', role: 'student', course_id: '' })
@@ -113,6 +114,7 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
                 <option value="teacher">Profesor (Docente)</option>
                 <option value="secretary">Secretaría / Administrativo</option>
                 <option value="supervisor">Supervisor / Inspector</option>
+                <option value="rector">Rector / Autoridad</option>
               </select>
             </div>
             <div className="space-y-1">

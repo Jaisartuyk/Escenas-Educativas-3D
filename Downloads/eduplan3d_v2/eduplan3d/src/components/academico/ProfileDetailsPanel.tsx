@@ -97,7 +97,8 @@ export function ProfileDetailsPanel({
             <p className="text-xs text-ink3 uppercase tracking-wider font-bold">
               {user.role === 'student' ? 'Estudiante' : 
                user.role === 'teacher' ? 'Docente' :
-               user.role === 'secretary' ? 'Secretaría' : 'Supervisor'}
+               user.role === 'secretary' ? 'Secretaría' : 
+               user.role === 'supervisor' ? 'Supervisor' : 'Rector'}
             </p>
           </div>
 
