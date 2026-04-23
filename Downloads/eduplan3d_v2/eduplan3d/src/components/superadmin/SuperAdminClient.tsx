@@ -6,8 +6,11 @@ import Link from 'next/link'
 import {
   Building2, Users, Zap, FileText, TrendingUp,
   Search, LogOut, RefreshCw, ChevronRight, Calendar,
-  Shield, X
+  Shield, X, Settings2, CheckCircle2, Sparkles
 } from 'lucide-react'
+import { updateUserPlan } from '@/lib/actions/users'
+import { createClient } from '@/lib/supabase/client'
+import toast from 'react-hot-toast'
 
 interface Stats {
   totalInstitutions: number
@@ -58,9 +61,76 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
   const [search, setSearch]     = useState('')
   const [refreshing, setRefresh] = useState(false)
 
+  // Member management
+  const [viewingInst, setViewingInst] = useState<Institution | null>(null)
+  const [members, setMembers] = useState<any[]>([])
+  const [loadingMembers, setLoadingMembers] = useState(false)
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
+
+  const supabase = createClient()
+
   function refresh() {
     setRefresh(true)
     window.location.reload()
+  }
+
+  async function openMembers(inst: Institution) {
+    setViewingInst(inst)
+    setLoadingMembers(true)
+    setMembers([])
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, role, plan, created_at')
+        .eq('institution_id', inst.id)
+        .order('role', { ascending: true })
+        .order('full_name', { ascending: true })
+
+      if (error) throw error
+      setMembers(data || [])
+    } catch (err: any) {
+      toast.error('Error al cargar miembros: ' + err.message)
+    } finally {
+      setLoadingMembers(false)
+    }
+  }
+
+  async function togglePlan(user: any) {
+    const newPlan = user.plan === 'institucion_premium' ? 'institucion' : 'institucion_premium'
+    setUpdatingUserId(user.id)
+    try {
+      const res = await updateUserPlan(user.id, newPlan)
+      if (res.error) throw new Error(res.error)
+      
+      setMembers(prev => prev.map(m => m.id === user.id ? { ...m, plan: newPlan } : m))
+      toast.success(`Plan actualizado para ${user.full_name}`)
+    } catch (err: any) {
+      toast.error('Error: ' + err.message)
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
+
+  async function bulkUpdatePlan(premium: boolean) {
+    if (!viewingInst) return
+    const newPlan = premium ? 'institucion_premium' : 'institucion'
+    const teachers = members.filter(m => m.role === 'teacher')
+    if (teachers.length === 0) return toast.error('No hay docentes para actualizar')
+
+    if (!confirm(`¿${premium ? 'Habilitar' : 'Deshabilitar'} el planificador para los ${teachers.length} docentes?`)) return
+
+    setLoadingMembers(true)
+    try {
+      for (const t of teachers) {
+        await updateUserPlan(t.id, newPlan)
+      }
+      setMembers(prev => prev.map(m => m.role === 'teacher' ? { ...m, plan: newPlan } : m))
+      toast.success(`Plan actualizado masivamente`)
+    } catch (err: any) {
+      toast.error('Error en actualización masiva')
+    } finally {
+      setLoadingMembers(false)
+    }
   }
 
   const filteredInst = institutions.filter(i =>
@@ -274,7 +344,11 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
               {/* Rows */}
               <div className="divide-y divide-white/[0.04]">
                 {filteredInst.map(i => (
-                  <div key={i.id} className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors items-center">
+                  <div 
+                    key={i.id} 
+                    className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors items-center cursor-pointer group"
+                    onClick={() => openMembers(i)}
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center text-sm flex-shrink-0">🏫</div>
                       <span className="text-sm font-medium truncate">{i.name}</span>
@@ -284,6 +358,9 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
                     <div className="flex items-center gap-1.5 text-xs text-white/30">
                       <Calendar size={11} />
                       {fmt(i.created_at)}
+                    </div>
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ChevronRight size={16} className="text-white/20" />
                     </div>
                   </div>
                 ))}
@@ -361,6 +438,135 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
           </div>
         )}
       </div>
+
+      {/* ── Modal: Gestión de Miembros ────────────────────────────────── */}
+      {viewingInst && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#12121e] border border-white/10 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-fade-in">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center text-2xl">🏫</div>
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight">{viewingInst?.name || 'Institución'}</h2>
+                  <p className="text-white/40 text-xs mt-0.5">
+                    Gestión de personal y accesos premium · {members.length} miembros
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setViewingInst(null)}
+                className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Bulk Actions Bar */}
+            <div className="px-6 py-3 bg-white/[0.01] border-b border-white/5 flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Acciones masivas de Institución:</span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => bulkUpdatePlan(true)}
+                  disabled={loadingMembers}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-violet-500/20 text-violet-400 border border-violet-500/20 hover:bg-violet-500/30 transition-all disabled:opacity-50"
+                >
+                  <Sparkles size={12} /> Habilitar Planificador (Todos)
+                </button>
+                <button 
+                  onClick={() => bulkUpdatePlan(false)}
+                  disabled={loadingMembers}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
+                >
+                  <X size={12} /> Deshabilitar Todo
+                </button>
+              </div>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+              {loadingMembers ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="w-10 h-10 border-2 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
+                  <p className="text-xs text-white/40 animate-pulse">Cargando base de miembros...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {members.map(u => {
+                    const isPremium = u.plan === 'institucion_premium'
+                    const isTeacher = u.role === 'teacher'
+                    const isUpdating = updatingUserId === u.id
+
+                    return (
+                      <div key={u.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.1] transition-all">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0 ${
+                          u.role === 'admin' || u.role === 'rector' ? 'bg-red-500/10 text-red-400' :
+                          u.role === 'teacher' ? 'bg-violet-500/10 text-violet-400' :
+                          'bg-teal-500/10 text-teal-400'
+                        }`}>
+                          {u.full_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold truncate leading-tight">{u.full_name}</p>
+                          <p className="text-[10px] text-white/30 truncate mb-1">{u.role.toUpperCase()} · {u.email}</p>
+                          
+                          {/* Plan Status Badge */}
+                          <div className="flex items-center gap-2">
+                             <div className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                               isPremium 
+                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' 
+                                : 'bg-white/5 text-white/30'
+                             }`}>
+                               {isPremium ? <><CheckCircle2 size={10} /> Planificador Pro</> : 'Plan Estándar'}
+                             </div>
+                             {isPremium && (
+                               <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
+                                 <Zap size={8} /> Activo
+                               </span>
+                             )}
+                          </div>
+                        </div>
+
+                        {/* Toggle Button (only for teachers, as they use the planner) */}
+                        {isTeacher && (
+                          <button
+                            onClick={() => togglePlan(u)}
+                            disabled={isUpdating}
+                            className={`p-2.5 rounded-xl transition-all ${
+                              isPremium
+                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'
+                                : 'bg-white/5 text-white/30 border border-white/5 hover:border-white/10 hover:text-white'
+                            }`}
+                            title={isPremium ? 'Desactivar Planificador' : 'Activar Planificador'}
+                          >
+                            {isUpdating ? (
+                              <RefreshCw size={16} className="animate-spin" />
+                            ) : isPremium ? (
+                              <Zap size={16} />
+                            ) : (
+                              <Settings2 size={16} />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-white/5 bg-white/[0.01] flex justify-end">
+              <button 
+                onClick={() => setViewingInst(null)}
+                className="px-6 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-bold transition-all"
+              >
+                Cerrar Gestión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

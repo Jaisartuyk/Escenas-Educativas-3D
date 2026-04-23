@@ -113,3 +113,23 @@ export async function updateProfileMetadata(institutionId: string, userId: strin
   revalidatePath('/dashboard/academico')
   return { success: true }
 }
+
+export async function updateUserPlan(userId: string, newPlan: string) {
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  const { error } = await supabaseAdmin
+    .from('profiles')
+    .update({ plan: newPlan })
+    .eq('id', userId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/planificador')
+  revalidatePath('/superadmin')
+  
+  return { success: true }
+}

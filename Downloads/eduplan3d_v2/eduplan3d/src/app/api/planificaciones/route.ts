@@ -309,16 +309,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (profile?.plan === 'free') {
+    if (profile?.plan === 'free' || profile?.plan === 'institucion') {
       const { count } = await (supabase as any)
         .from('planificaciones')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
 
-      if ((count ?? 0) >= 10) {
+      const limit = profile.plan === 'free' ? 5 : 10 // Let's say 5 for free and 10 for standard inst
+      
+      if ((count ?? 0) >= limit) {
         return NextResponse.json(
-          { error: 'Limite del plan Starter alcanzado (10/mes). Actualiza a Pro para planificaciones ilimitadas.' },
+          { error: `Límite del plan ${profile.plan === 'free' ? 'Básico' : 'Institucional Estándar'} alcanzado (${count}/${limit}). El Planificador IA es un servicio adicional.` },
           { status: 403 }
         )
       }
