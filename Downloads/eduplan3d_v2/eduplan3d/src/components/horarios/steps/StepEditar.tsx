@@ -23,7 +23,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
     Object.values(horasPorCurso).forEach(curso => {
       Object.keys(curso).forEach(m => materias.add(m))
     })
-    return ['', ...Array.from(materias).sort(), 'ACOMPAÑAMIENTO']
+    return ['', ...Array.from(materias).sort(), 'ACOMPAÑAMIENTO', 'SALIDA']
   }, [horasPorCurso])
 
   const conflictos = detectConflictos(horario, docentes, config.nPeriodos, config.jornada, config.nivel, state.docentePorCurso)
@@ -43,7 +43,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
     config.cursos.forEach(c => {
       DIAS.forEach(d => {
         horario[c]?.[d]?.forEach((m, p) => {
-          if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO') return
+          if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO' || m === 'SALIDA') return
           const doc = getDocForMateria(m, docentes, config.jornada, config.nivel, state.docentePorCurso, c)
           if (doc === '—') return
           if (!result[doc]) result[doc] = {} as any
@@ -140,7 +140,8 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                         const val = datos?.[d]?.[pi] ?? ''
                         const isConflict = conflictoSet.has(`${cursoActivo}|${d}|${pi}`)
                         const isAcomp = val === 'ACOMPAÑAMIENTO'
-                        const doc = val && !isAcomp ? getDocForMateria(val, docentes, config.jornada, config.nivel, state.docentePorCurso, cursoActivo) : ''
+                        const isSalida = val === 'SALIDA'
+                        const doc = val && !isAcomp && !isSalida ? getDocForMateria(val, docentes, config.jornada, config.nivel, state.docentePorCurso, cursoActivo) : ''
 
                         return (
                           <td
@@ -148,6 +149,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                             className={`border border-[rgba(120,100,255,0.14)] p-0 align-top ${
                               isConflict ? 'bg-[rgba(240,98,146,0.15)]' :
                               isAcomp    ? 'bg-[rgba(255,179,71,0.2)]' :
+                              isSalida   ? 'bg-[rgba(148,163,184,0.18)]' :
                               pi % 2 === 0 ? 'bg-[rgba(124,109,250,0.03)]' : 'bg-[rgba(0,0,0,0)]'
                             }`}
                           >
@@ -155,7 +157,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                               value={val}
                               onChange={e => updateCell(cursoActivo, d, pi, e.target.value)}
                               className={`w-full border-none bg-transparent text-[11px] py-1 px-1 cursor-pointer focus:outline-none font-medium ${
-                                isConflict ? 'text-rose' : isAcomp ? 'text-amber' : val ? 'text-ink' : 'text-ink3'
+                                isConflict ? 'text-rose' : isAcomp ? 'text-amber' : isSalida ? 'text-ink3 italic' : val ? 'text-ink' : 'text-ink3'
                               }`}
                               style={{ minHeight: 28 }}
                             >
@@ -201,6 +203,10 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
             <span className="flex items-center gap-1.5 text-[11px]">
               <span className="w-3 h-3 rounded bg-[rgba(240,98,146,0.2)] inline-block" />
               <span className="text-ink3">Conflicto de docente</span>
+            </span>
+            <span className="flex items-center gap-1.5 text-[11px]">
+              <span className="w-3 h-3 rounded bg-[rgba(148,163,184,0.25)] inline-block" />
+              <span className="text-ink3">Salida (fin de jornada)</span>
             </span>
           </div>
         </>

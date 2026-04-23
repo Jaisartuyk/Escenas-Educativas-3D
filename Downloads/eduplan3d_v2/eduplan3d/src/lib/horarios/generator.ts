@@ -76,7 +76,7 @@ export function generarHorario(
       let colocadas = 0
       let intentos = 0
 
-      // Construir lista de slots disponibles y mezclar
+      // Construir lista de slots disponibles
       const available: { d: Dia; p: number }[] = []
       DIAS.forEach(d => {
         validPeriods.forEach(p => {
@@ -88,12 +88,13 @@ export function generarHorario(
         })
       })
 
-      // Fisher-Yates shuffle determinista con seed por materia
-      const shuffled = [...available]
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor((materia.charCodeAt(0) * 31 + i * 17) % (i + 1))
-        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-      }
+      // Orden determinista: empacar clases en los primeros periodos del dia,
+      // repartidas entre los dias (periodo asc, dia asc). Esto deja los huecos
+      // naturalmente al final del dia para marcarlos como SALIDA despues.
+      const shuffled = [...available].sort((a, b) => {
+        if (a.p !== b.p) return a.p - b.p
+        return DIAS.indexOf(a.d) - DIAS.indexOf(b.d)
+      })
 
       // Distribuir evitando más de 2 horas seguidas de la misma materia por día
       const usoPorDia: Record<string, number> = {}
@@ -124,6 +125,29 @@ export function generarHorario(
     })
   })
 
+  // Pasada final: marcar huecos al final del dia como 'SALIDA'.
+  // Regla: por cada curso y dia, encontrar el ultimo periodo con clase real
+  // (no vacio y no RECESO). Todo lo que venga despues (vacio o RECESO trailing)
+  // se marca SALIDA. Asi los niños no vuelven despues de haberse ido.
+  cursos.forEach(c => {
+    DIAS.forEach(d => {
+      const row = horario[c][d]
+      // Buscar el indice del ultimo periodo con contenido real de clase/actividad
+      let lastClass = -1
+      for (let p = nPeriodos - 1; p >= 0; p--) {
+        const v = row[p]
+        if (v && v !== 'RECESO' && v !== '') {
+          lastClass = p
+          break
+        }
+      }
+      // Todo despues de lastClass se marca SALIDA (sobreescribe RECESOs finales)
+      for (let p = lastClass + 1; p < nPeriodos; p++) {
+        row[p] = 'SALIDA'
+      }
+    })
+  })
+
   return horario
 }
 
@@ -143,7 +167,7 @@ export function detectConflictos(
       const ocupado: Record<string, string[]> = {}
       cursos.forEach(c => {
         const m = horario[c]?.[d]?.[p]
-        if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO') return
+        if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO' || m === 'SALIDA') return
         const doc = getDocForMateria(m, docentes, jornada, nivel, docentePorCurso, c)
         if (doc === '—') return
         if (!ocupado[doc]) ocupado[doc] = []

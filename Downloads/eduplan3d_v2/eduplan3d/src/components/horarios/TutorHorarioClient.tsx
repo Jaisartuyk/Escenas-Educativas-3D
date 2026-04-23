@@ -94,12 +94,14 @@ export function TutorHorarioClient({ schedules }: { schedules: ScheduleData[] })
                           const materiaInfo = schedule.horarioGrid?.[d]?.[pi]
                           const materia = typeof materiaInfo === 'string' ? materiaInfo : (materiaInfo?.materia || '')
                           const isAcomp = materia === 'ACOMPAÑAMIENTO'
-                          
+                          const isSalida = materia === 'SALIDA'
+
                           return (
                             <td
                               key={d}
                               className={`border border-[rgba(0,0,0,0.04)] p-2 align-middle text-center min-h-[50px] ${
-                                isAcomp ? 'bg-[rgba(255,179,71,0.05)] text-amber' : 
+                                isAcomp ? 'bg-[rgba(255,179,71,0.05)] text-amber' :
+                                isSalida ? 'bg-[rgba(148,163,184,0.15)] text-ink3 italic' :
                                 materia ? 'bg-[rgba(124,109,250,0.03)] text-ink' : 'text-ink4'
                               }`}
                             >

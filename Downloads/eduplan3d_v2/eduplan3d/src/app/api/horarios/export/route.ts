@@ -97,8 +97,11 @@ export async function POST(req: NextRequest) {
       } else {
         DIAS.forEach((dia, di) => {
           const mat = horario[curso]?.[dia]?.[pi] || ''
-          const bg = mat === 'ACOMPAÑAMIENTO' ? 'FFFF00' : (pi % 2 === 0 ? 'F7FAFF' : 'FFFFFF')
-          sc(ws1.getCell(row, 3 + di), false, 9, '000000', bg)
+          const isSalida = mat === 'SALIDA'
+          const bg = mat === 'ACOMPAÑAMIENTO' ? 'FFFF00'
+                   : isSalida ? 'E5E7EB'
+                   : (pi % 2 === 0 ? 'F7FAFF' : 'FFFFFF')
+          sc(ws1.getCell(row, 3 + di), isSalida, 9, isSalida ? '6B7280' : '000000', bg)
           ws1.getCell(row, 3 + di).value = mat
         })
         ws1.getRow(row).height = 20
@@ -124,7 +127,7 @@ export async function POST(req: NextRequest) {
   Object.entries(horario).forEach(([curso, dias]) => {
     Object.entries(dias).forEach(([dia, pers]) => {
       pers.forEach((mat, pi) => {
-        if (!mat || mat === 'RECESO' || mat === 'ACOMPAÑAMIENTO') return
+        if (!mat || mat === 'RECESO' || mat === 'ACOMPAÑAMIENTO' || mat === 'SALIDA') return
         const docName = getDoc(mat)
         if (docName === '—') return
         
