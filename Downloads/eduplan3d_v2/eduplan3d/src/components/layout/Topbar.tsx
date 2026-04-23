@@ -5,9 +5,10 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { signOut } from '@/lib/actions/auth'
 import type { Profile } from '@/types/supabase'
+import { AcademicYearSelector } from './AcademicYearSelector'
 
-interface Props { 
-  profile: Profile | null 
+interface Props {
+  profile: Profile | null
   institutionName?: string
 }
 
@@ -42,6 +43,9 @@ export function Topbar({ profile, institutionName }: Props) {
             <span className="w-1.5 h-1.5 rounded-full bg-teal animate-pulse" />
           </div>
         )}
+
+        {/* Selector de año lectivo (oculto para estudiantes y usuarios sin institución) */}
+        <AcademicYearSelector role={(profile as any)?.role ?? null} />
       </div>
 
       {/* Mobile: spacer for hamburger */}
