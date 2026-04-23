@@ -93,14 +93,6 @@ export default async function EntregasPage() {
       submissions = data || []
     }
   }
-  console.log('[entregas] diagnostic:', {
-    role: profile.role,
-    institution_id: profile.institution_id,
-    subjects: mySubjects.length,
-    assignments: assignments.length,
-    submissions: submissions.length,
-  })
-  
   // Grades (Calificaciones)
   let grades: any[] = []
   if (assignmentIds.length > 0) {
@@ -111,57 +103,13 @@ export default async function EntregasPage() {
     grades = data || []
   }
 
-  // Diagnóstico extendido: conteo global de assignment_submissions y muestra.
-  let totalSubsGlobal: number | string = '?'
-  let sampleSubs: any[] = []
-  let subsProbeError: string | null = null
-  {
-    const { count, error: ce } = await admin
-      .from('assignment_submissions')
-      .select('*', { count: 'exact', head: true })
-    if (ce) subsProbeError = ce.message
-    else totalSubsGlobal = count ?? 0
-    const { data: sample } = await admin
-      .from('assignment_submissions')
-      .select('id, assignment_id, student_id, submitted_at')
-      .order('submitted_at', { ascending: false })
-      .limit(3)
-    sampleSubs = sample || []
-  }
-  const assignmentIdsShown = assignments.map((a: any) => a.id).slice(0, 3)
-
-  // Diagnóstico visible (temporal) — para depurar por qué no se ven entregas.
-  const showDiag = ['admin', 'assistant', 'supervisor'].includes(profile.role)
-
   return (
-    <>
-      {showDiag && (
-        <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          <b>[diag entregas]</b> role=<code>{profile.role}</code>
-          {' · '}institution_id=<code>{profile.institution_id || 'NULL'}</code>
-          {' · '}subjects=<b>{mySubjects.length}</b>
-          {' · '}assignments=<b>{assignments.length}</b>
-          {' · '}submissions=<b>{submissions.length}</b>
-          {' · '}grades=<b>{grades.length}</b>
-          <div className="mt-1">
-            total_subs_global=<b>{String(totalSubsGlobal)}</b>
-            {subsProbeError && <span> · err=<code>{subsProbeError}</code></span>}
-            {' · '}assignment_ids_buscados=<code>{JSON.stringify(assignmentIdsShown)}</code>
-          </div>
-          {sampleSubs.length > 0 && (
-            <div className="mt-1">
-              sample_subs=<code>{JSON.stringify(sampleSubs)}</code>
-            </div>
-          )}
-        </div>
-      )}
-      <EntregasClient
-        profile={profile}
-        subjects={mySubjects}
-        assignments={assignments}
-        submissions={submissions}
-        grades={grades}
-      />
-    </>
+    <EntregasClient
+      profile={profile}
+      subjects={mySubjects}
+      assignments={assignments}
+      submissions={submissions}
+      grades={grades}
+    />
   )
 }
