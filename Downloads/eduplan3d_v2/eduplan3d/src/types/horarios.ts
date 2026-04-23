@@ -11,6 +11,19 @@ export interface Docente {
   nivel?:   'Escuela' | 'Colegio' | 'AMBOS'
 }
 
+/**
+ * Override por-curso del timing del horario. Cuando un curso tiene un entry
+ * en `InstitucionConfig.cursosCustom`, el generador y el editor usan ESTA
+ * estructura en vez de la global (nPeriodos/horarios/recesos del slot).
+ * Úsese cuando un curso tiene recesos o jornada distinta (ej: 1RO BÁSICA
+ * en Letamendi no comparte receso con los grandes).
+ */
+export interface CursoHorarioOverride {
+  nPeriodos: number
+  horarios:  string[]   // labels de cada período, misma longitud que nPeriodos
+  recesos:   number[]   // índices de receso dentro de este override
+}
+
 export interface InstitucionConfig {
   nombre:    string
   anio:      string
@@ -21,6 +34,34 @@ export interface InstitucionConfig {
   horarios:  string[]   // label de cada período, ej. "07:00-07:45"
   recesos:   number[]   // array of indexes that are breaks (e.g. [4])
   tutores:   Record<string, string>  // curso → nombre tutor
+  /**
+   * Overrides opcionales por curso. Si un curso no está en este map, usa la
+   * estructura global (nPeriodos/horarios/recesos). Si está, ignora lo global.
+   */
+  cursosCustom?: Record<string, CursoHorarioOverride>
+}
+
+/**
+ * Devuelve la estructura de tiempos (períodos/recesos) para un curso:
+ * override si existe en `cursosCustom`, si no, la global del config.
+ */
+export function getCursoStructure(
+  config: InstitucionConfig,
+  curso: string
+): { nPeriodos: number; horarios: string[]; recesos: number[] } {
+  const override = config.cursosCustom?.[curso]
+  if (override) {
+    return {
+      nPeriodos: override.nPeriodos,
+      horarios:  override.horarios,
+      recesos:   override.recesos || [],
+    }
+  }
+  return {
+    nPeriodos: config.nPeriodos,
+    horarios:  config.horarios,
+    recesos:   config.recesos || [],
+  }
 }
 
 // { curso → { materia → horas_semanales } }

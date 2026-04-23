@@ -1,6 +1,6 @@
 // src/lib/horarios/generator.ts
 import type { HorarioGrid, HorasPorCurso, Docente, InstitucionConfig, Dia } from '@/types/horarios'
-import { DIAS } from '@/types/horarios'
+import { DIAS, getCursoStructure } from '@/types/horarios'
 
 export function getDocForMateria(
   materia: string,
@@ -34,37 +34,37 @@ export function generarHorario(
   horasPorCurso: HorasPorCurso,
   docentePorCurso?: Record<string, Record<string, string>>
 ): HorarioGrid {
-  const { cursos, nPeriodos } = config
+  const { cursos } = config
   const horario: HorarioGrid = {}
 
-  // Inicializar grid vacío
+  // Inicializar grid vacío (longitud por-curso: respeta override si existe)
   cursos.forEach(c => {
+    const { nPeriodos: np } = getCursoStructure(config, c)
     horario[c] = {} as Record<Dia, string[]>
-    DIAS.forEach(d => { horario[c][d] = Array(nPeriodos).fill('') })
+    DIAS.forEach(d => { horario[c][d] = Array(np).fill('') })
   })
 
-  // Marcar receso y acompañamiento
-  const recesos = config.recesos || [4]; // Fallback to 4 for old configs
+  // Marcar receso y acompañamiento (recesos también por-curso)
   cursos.forEach(c => {
-    DIAS.forEach(d => { 
+    const { nPeriodos: np, recesos } = getCursoStructure(config, c)
+    DIAS.forEach(d => {
       recesos.forEach(r => {
-        if (r < nPeriodos) horario[c][d][r] = 'RECESO' 
+        if (r < np) horario[c][d][r] = 'RECESO'
       })
     })
     horario[c]['Lunes'][0] = 'ACOMPAÑAMIENTO'
   })
 
-  // Rastrear ocupación docente: [dia][periodo] → Set<docente>
-  const docOcupado: Record<string, Record<number, Set<string>>> = {}
-  DIAS.forEach(d => {
-    docOcupado[d] = {}
-    for (let p = 0; p < nPeriodos; p++) docOcupado[d][p] = new Set()
-  })
+  // Ocupación docente comparada por HORA REAL (start time) en vez de índice.
+  // Clave: `${dia}|${horaLabel}` → Set<docente>. Así un docente que da en dos
+  // cursos con estructuras distintas aún se detecta como ocupado correctamente.
+  const docOcupado: Record<string, Set<string>> = {}
+  const keyOf = (d: Dia, horaLabel: string) => `${d}|${horaLabel}`
 
-  // Generamos todos los slots validos que no son recesos
-  const validPeriods = Array.from({ length: nPeriodos }, (_, i) => i).filter(i => !recesos.includes(i))
   cursos.forEach(c => {
     const hm = horasPorCurso[c] ?? {}
+    const { nPeriodos: np, horarios: horasLabels, recesos } = getCursoStructure(config, c)
+    const validPeriods = Array.from({ length: np }, (_, i) => i).filter(i => !recesos.includes(i))
     // Ordenar materias: más horas primero para mejorar distribución
     const pool = Object.entries(hm)
       .filter(([, h]) => h > 0)
@@ -76,13 +76,28 @@ export function generarHorario(
       let colocadas = 0
       let intentos = 0
 
+      // Helper: está el docente ocupado a esta hora real?
+      const isDocBusy = (d: Dia, p: number): boolean => {
+        if (doc === '—') return false
+        const label = horasLabels[p] ?? String(p)
+        const set = docOcupado[keyOf(d, label)]
+        return !!set && set.has(doc)
+      }
+      const markDocBusy = (d: Dia, p: number) => {
+        if (doc === '—') return
+        const label = horasLabels[p] ?? String(p)
+        const k = keyOf(d, label)
+        if (!docOcupado[k]) docOcupado[k] = new Set()
+        docOcupado[k].add(doc)
+      }
+
       // Construir lista de slots disponibles
       const available: { d: Dia; p: number }[] = []
       DIAS.forEach(d => {
         validPeriods.forEach(p => {
           // El slot 0 del Lunes está de acompañamiento
           if (d === 'Lunes' && p === 0) return
-          if (!horario[c][d][p] && (doc === '—' || !docOcupado[d][p].has(doc))) {
+          if (!horario[c][d][p] && !isDocBusy(d, p)) {
             available.push({ d, p })
           }
         })
@@ -103,9 +118,9 @@ export function generarHorario(
       for (const { d, p } of shuffled) {
         if (colocadas >= horas || intentos > 200) break
         intentos++
-        if (!horario[c][d][p] && (doc === '—' || !docOcupado[d][p].has(doc)) && usoPorDia[d] < 2) {
+        if (!horario[c][d][p] && !isDocBusy(d, p) && usoPorDia[d] < 2) {
           horario[c][d][p] = materia
-          if (doc !== '—') docOcupado[d][p].add(doc)
+          markDocBusy(d, p)
           usoPorDia[d]++
           colocadas++
         }
@@ -115,9 +130,9 @@ export function generarHorario(
       if (colocadas < horas) {
         for (const { d, p } of shuffled) {
           if (colocadas >= horas) break
-          if (!horario[c][d][p] && (doc === '—' || !docOcupado[d][p].has(doc))) {
+          if (!horario[c][d][p] && !isDocBusy(d, p)) {
             horario[c][d][p] = materia
-            if (doc !== '—') docOcupado[d][p].add(doc)
+            markDocBusy(d, p)
             colocadas++
           }
         }
@@ -130,11 +145,12 @@ export function generarHorario(
   // (no vacio y no RECESO). Todo lo que venga despues (vacio o RECESO trailing)
   // se marca SALIDA. Asi los niños no vuelven despues de haberse ido.
   cursos.forEach(c => {
+    const { nPeriodos: np } = getCursoStructure(config, c)
     DIAS.forEach(d => {
       const row = horario[c][d]
       // Buscar el indice del ultimo periodo con contenido real de clase/actividad
       let lastClass = -1
-      for (let p = nPeriodos - 1; p >= 0; p--) {
+      for (let p = np - 1; p >= 0; p--) {
         const v = row[p]
         if (v && v !== 'RECESO' && v !== '') {
           lastClass = p
@@ -142,7 +158,7 @@ export function generarHorario(
         }
       }
       // Todo despues de lastClass se marca SALIDA (sobreescribe RECESOs finales)
-      for (let p = lastClass + 1; p < nPeriodos; p++) {
+      for (let p = lastClass + 1; p < np; p++) {
         row[p] = 'SALIDA'
       }
     })
@@ -151,6 +167,12 @@ export function generarHorario(
   return horario
 }
 
+/**
+ * Detecta conflictos de docentes cuando los cursos comparten la misma
+ * estructura de períodos (compara por índice). Mantenido por compat.
+ * Para configs con cursosCustom (estructura distinta por curso), usar
+ * `detectConflictosPorHora` que compara por hora real.
+ */
 export function detectConflictos(
   horario: HorarioGrid,
   docentes: Docente[],
@@ -181,6 +203,65 @@ export function detectConflictos(
         }
       })
     }
+  })
+
+  return conflictos
+}
+
+/**
+ * Detecta cruces docentes comparando por HORA REAL (label del período) en vez
+ * de índice. Necesario cuando distintos cursos tienen estructuras de horario
+ * distintas (via cursosCustom): dos cursos pueden chocar en hora real aunque
+ * estén en índices de período distintos.
+ *
+ * Requiere `config` para resolver la estructura (horarios/recesos) de cada
+ * curso via `getCursoStructure`.
+ */
+export function detectConflictosPorHora(
+  horario: HorarioGrid,
+  config: InstitucionConfig,
+  docentes: Docente[],
+  docentePorCurso?: Record<string, Record<string, string>>
+): { curso: string; dia: Dia; periodo: number; materia: string; docente: string; horaLabel: string }[] {
+  const conflictos: { curso: string; dia: Dia; periodo: number; materia: string; docente: string; horaLabel: string }[] = []
+  const cursos = Object.keys(horario)
+
+  // Agrupar slots ocupados por (dia, horaLabel) → { doc → [{curso, periodo, materia}] }
+  const buckets: Record<string, Record<string, { curso: string; periodo: number; materia: string }[]>> = {}
+
+  cursos.forEach(c => {
+    const { nPeriodos: np, horarios: horas } = getCursoStructure(config, c)
+    DIAS.forEach(d => {
+      for (let p = 0; p < np; p++) {
+        const m = horario[c]?.[d]?.[p]
+        if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO' || m === 'SALIDA') continue
+        const doc = getDocForMateria(m, docentes, config.jornada, config.nivel, docentePorCurso, c)
+        if (doc === '—') continue
+        const label = horas[p] ?? String(p)
+        const bKey = `${d}|${label}`
+        if (!buckets[bKey]) buckets[bKey] = {}
+        if (!buckets[bKey][doc]) buckets[bKey][doc] = []
+        buckets[bKey][doc].push({ curso: c, periodo: p, materia: m })
+      }
+    })
+  })
+
+  Object.entries(buckets).forEach(([bKey, perDoc]) => {
+    const [dia, label] = bKey.split('|') as [Dia, string]
+    Object.entries(perDoc).forEach(([doc, entries]) => {
+      if (entries.length > 1) {
+        entries.forEach(e => {
+          conflictos.push({
+            curso: e.curso,
+            dia,
+            periodo: e.periodo,
+            materia: e.materia,
+            docente: doc,
+            horaLabel: label,
+          })
+        })
+      }
+    })
   })
 
   return conflictos
