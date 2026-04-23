@@ -239,6 +239,42 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   }, [tableData])
 
   // ── Actions ──────────────────────────────────────────────────────────────
+  function handleCellClick(studentId: string, type: 'matricula' | 'pension', month?: string) {
+    if (isTutorMode) return
+    
+    setSelectedStudent(studentId)
+    setNewType(type)
+    
+    const student = students.find((s: any) => s.id === studentId)
+    const stuCIds = studentCourses[studentId] || []
+    const stuCourse = stuCIds.length > 0 ? coursesById[stuCIds[0]] : null
+    const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
+
+    if (type === 'matricula') {
+      setNewAmount('35')
+      setNewDesc(`Matricula ${new Date().getFullYear()}${courseLabel ? ` — ${courseLabel}` : ''}`)
+      const today = new Date()
+      setNewDueDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15).toISOString().split('T')[0])
+    } else if (type === 'pension' && month) {
+      setNewAmount('60')
+      const monthIdx = MESES.indexOf(month)
+      const academicMonths = [4, 5, 6, 7, 8, 9, 10, 11, 0, 1]
+      const targetMonth = academicMonths[monthIdx]
+      const year = new Date().getFullYear()
+      const pensionYear = targetMonth < 4 ? year + 1 : year
+      const due = new Date(pensionYear, targetMonth, 5)
+      
+      setNewDesc(`Pension ${due.toLocaleString('es-ES', { month: 'long' })} ${pensionYear}${courseLabel ? ` — ${courseLabel}` : ''}`)
+      setNewDueDate(due.toISOString().split('T')[0])
+    }
+    
+    setShowForm(true)
+    // Scroll to form
+    setTimeout(() => {
+      window.scrollTo({ top: 300, behavior: 'smooth' })
+    }, 100)
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!selectedStudent || !newAmount) return toast.error('Completa los campos obligatorios')
@@ -678,13 +714,29 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                  formatMoney(row.matricula.amount).replace('$', '').trim()}
                               </button>
                             ) : (
-                              <span className="text-ink4">—</span>
+                              <button 
+                                onClick={() => handleCellClick(row.studentId, 'matricula')}
+                                className="text-ink4 hover:text-violet transition-colors font-bold text-lg"
+                                title="Crear cobro de matrícula"
+                              >
+                                —
+                              </button>
                             )}
                           </td>
                           {MESES.map(m => {
                             const payment = row.monthPayments[m]
                             if (!payment) {
-                              return <td key={m} className="px-2 py-2.5 text-center text-ink4">—</td>
+                              return (
+                                <td key={m} className="px-2 py-2.5 text-center">
+                                  <button 
+                                    onClick={() => handleCellClick(row.studentId, 'pension', m)}
+                                    className="text-ink4 hover:text-violet transition-colors font-bold text-lg"
+                                    title={`Crear pensión de ${m}`}
+                                  >
+                                    —
+                                  </button>
+                                </td>
+                              )
                             }
                             const status = getPaymentStatus(payment)
                             return (

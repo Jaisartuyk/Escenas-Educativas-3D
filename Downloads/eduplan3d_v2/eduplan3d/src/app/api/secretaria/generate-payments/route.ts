@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient }      from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
@@ -34,7 +34,7 @@ export async function POST() {
   if (courseIds.length === 0) return NextResponse.json({ generated: 0 })
 
   const coursesById: Record<string, any> = {}
-  ;(courses || []).forEach((c: any) => { coursesById[c.id] = c })
+    ; (courses || []).forEach((c: any) => { coursesById[c.id] = c })
 
   const { data: enrollments } = await admin
     .from('enrollments')
@@ -43,13 +43,11 @@ export async function POST() {
 
   if (!enrollments || enrollments.length === 0) return NextResponse.json({ generated: 0 })
 
-  // Get existing payments per student
-  const studentIds = Array.from(new Set(enrollments.map((e: any) => e.student_id as string)))
+  // Get all existing payments per student to check for gaps
   const { data: existingPayments } = await admin
     .from('payments' as any)
-    .select('student_id')
+    .select('student_id, type, description')
     .eq('institution_id', instId)
-    .in('student_id', studentIds)
 
   const studentsWithPayments = new Set((existingPayments || []).map((p: any) => p.student_id))
 
