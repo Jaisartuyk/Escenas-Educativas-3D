@@ -49,49 +49,70 @@ export async function POST() {
     .select('student_id, type, description')
     .eq('institution_id', instId)
 
-  const studentsWithPayments = new Set((existingPayments || []).map((p: any) => p.student_id))
+  const paymentsByStudent: Record<string, any[]> = {}
+  ;(existingPayments || []).forEach((p: any) => {
+    if (!paymentsByStudent[p.student_id]) paymentsByStudent[p.student_id] = []
+    paymentsByStudent[p.student_id].push(p)
+  })
 
   // Generate payments only for students who don't have any
   const now = new Date()
   const year = now.getFullYear()
-  const pensionMonths = [4, 5, 6, 7, 8, 9, 10, 11, 0, 1]
-
+  const pensionMonths = [
+    { idx: 4, name: 'mayo' },
+    { idx: 5, name: 'junio' },
+    { idx: 6, name: 'julio' },
+    { idx: 7, name: 'agosto' },
+    { idx: 8, name: 'septiembre' },
+    { idx: 9, name: 'octubre' },
+    { idx: 10, name: 'noviembre' },
+    { idx: 11, name: 'diciembre' },
+    { idx: 0, name: 'enero' },
+    { idx: 1, name: 'febrero' },
+  ]
   const allPayments: any[] = []
 
   for (const enr of enrollments) {
-    if (studentsWithPayments.has(enr.student_id)) continue
-
+    const studentPayments = paymentsByStudent[enr.student_id] || []
     const course = coursesById[enr.course_id]
     const courseName = course ? `${course.name} ${course.parallel || ''}`.trim() : ''
 
-    // Matrícula
-    const matriculaDue = new Date(year, now.getMonth(), now.getDate() + 30)
-    allPayments.push({
-      institution_id: instId,
-      student_id: enr.student_id,
-      amount: 35,
-      description: `Matricula ${year} — ${courseName}`,
-      type: 'matricula',
-      status: 'pendiente',
-      due_date: matriculaDue.toISOString().split('T')[0],
-    })
-
-    // 10 pensiones
-    pensionMonths.forEach((month) => {
-      const pensionYear = month < 4 ? year + 1 : year
-      const due = new Date(pensionYear, month, 5)
+    // 1. Check Matrícula
+    const hasMatricula = studentPayments.some(p => p.type === 'matricula')
+    if (!hasMatricula) {
+      const matriculaDue = new Date(year, now.getMonth(), now.getDate() + 15)
       allPayments.push({
         institution_id: instId,
         student_id: enr.student_id,
-        amount: 60,
-        description: `Pension ${due.toLocaleString('es', { month: 'long' })} ${pensionYear} — ${courseName}`,
-        type: 'pension',
+        amount: 35,
+        description: `Matricula ${year} — ${courseName}`,
+        type: 'matricula',
         status: 'pendiente',
-        due_date: due.toISOString().split('T')[0],
+        due_date: matriculaDue.toISOString().split('T')[0],
       })
-    })
+    }
 
-    studentsWithPayments.add(enr.student_id) // mark so we don't duplicate for multi-course students
+    // 2. Check each Pension
+    pensionMonths.forEach((mObj) => {
+      const pensionYear = mObj.idx < 4 ? year + 1 : year
+      const due = new Date(pensionYear, mObj.idx, 5)
+      
+      const hasThisPension = studentPayments.some(p => 
+        p.type === 'pension' && (p.description || '').toLowerCase().includes(mObj.name)
+      )
+
+      if (!hasThisPension) {
+        allPayments.push({
+          institution_id: instId,
+          student_id: enr.student_id,
+          amount: 60,
+          description: `Pension ${mObj.name.charAt(0).toUpperCase() + mObj.name.slice(1)} ${pensionYear} — ${courseName}`,
+          type: 'pension',
+          status: 'pendiente',
+          due_date: due.toISOString().split('T')[0],
+        })
+      }
+    })
   }
 
   if (allPayments.length > 0) {
