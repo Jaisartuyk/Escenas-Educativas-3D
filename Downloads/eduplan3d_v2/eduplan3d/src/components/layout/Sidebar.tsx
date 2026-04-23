@@ -51,6 +51,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
       { href: '/dashboard/docencia',      icon: '📝', label: 'Docencia' },
       { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas' },
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
+      { href: '/dashboard/supervision-tutores', icon: '👨‍🏫', label: 'Supervisión Tutores' },
     ],
   },
   {
@@ -133,6 +134,7 @@ const NAV_SUPERVISOR: NavNode[] = [
       { href: '/dashboard/docencia',      icon: '📝', label: 'Docencia' },
       { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas' },
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
+      { href: '/dashboard/supervision-tutores', icon: '👨‍🏫', label: 'Supervisión Tutores' },
       { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes' },
     ],
   },

@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { ChevronDown, BookOpen, ClipboardCheck, Users, AlertTriangle, CheckCircle, Clock, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { cualitativo } from '@/lib/utils'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Props {
@@ -22,13 +23,6 @@ interface Props {
 
 type TabKey = 'resumen' | 'tareas' | 'calificaciones' | 'asistencia' | 'comportamiento'
 
-// ─── Helper: MINEDUC qualitative scale ──────────────────────────────────────
-function cualitativo(score: number) {
-  if (score >= 9) return { label: 'DAR', color: 'text-emerald-400' }
-  if (score >= 7) return { label: 'AAR', color: 'text-blue-400' }
-  if (score >= 4.01) return { label: 'PAR', color: 'text-amber-400' }
-  return { label: 'NAAR', color: 'text-rose-400' }
-}
 
 // ─── Component ──────────────────────────────────────────────────────────────
 export function SupervisionClient({ teachers, courses, subjects, enrollments, assignments, grades, categories, attendance, behaviors, parcialesCount, submissions = [], role }: Props) {
