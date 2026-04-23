@@ -133,3 +133,29 @@ export async function updateUserPlan(userId: string, newPlan: string) {
   
   return { success: true }
 }
+
+export async function deleteInstitutionUser(userId: string) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  if (!supabaseKey) {
+    return { error: 'Falta la clave de servicio para eliminar usuarios.' }
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  })
+
+  // Al eliminar de auth.users, el trigger on delete cascade se encarga de profiles
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
+
+  if (error) {
+    console.error("Error al eliminar usuario:", error)
+    return { error: error.message }
+  }
+
+  revalidatePath('/dashboard/academico')
+  revalidatePath('/dashboard/secretaria')
+  
+  return { success: true }
+}

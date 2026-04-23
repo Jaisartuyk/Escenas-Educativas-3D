@@ -6,9 +6,9 @@ import Link from 'next/link'
 import {
   Building2, Users, Zap, FileText, TrendingUp,
   Search, LogOut, RefreshCw, ChevronRight, Calendar,
-  Shield, X, Settings2, CheckCircle2, Sparkles
+  Shield, X, Settings2, CheckCircle2, Sparkles, Trash2
 } from 'lucide-react'
-import { updateUserPlan } from '@/lib/actions/users'
+import { updateUserPlan, deleteInstitutionUser } from '@/lib/actions/users'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
@@ -66,6 +66,7 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
   const [members, setMembers] = useState<any[]>([])
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null)
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -130,6 +131,23 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
       toast.error('Error en actualización masiva')
     } finally {
       setLoadingMembers(false)
+    }
+  }
+
+  async function handleDeleteUser(user: any) {
+    if (!confirm(`¿Estás seguro de eliminar permanentemente a ${user.full_name}?\nEsta acción no se puede deshacer.`)) return
+    
+    setDeletingUserId(user.id)
+    try {
+      const res = await deleteInstitutionUser(user.id)
+      if (res.error) throw new Error(res.error)
+      
+      setMembers(prev => prev.filter(m => m.id !== user.id))
+      toast.success('Usuario eliminado del sistema')
+    } catch (err: any) {
+      toast.error('Error al eliminar: ' + err.message)
+    } finally {
+      setDeletingUserId(null)
     }
   }
 
@@ -548,6 +566,20 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
                             )}
                           </button>
                         )}
+
+                        {/* Delete Button for SuperAdmin */}
+                        <button
+                          onClick={() => handleDeleteUser(u)}
+                          disabled={deletingUserId === u.id}
+                          className="p-2.5 rounded-xl border border-white/5 hover:bg-red-500/10 hover:text-red-500 transition-all text-white/20"
+                          title="Eliminar usuario definitivamente"
+                        >
+                          {deletingUserId === u.id ? (
+                            <RefreshCw size={16} className="animate-spin text-red-500" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                        </button>
                       </div>
                     )
                   })}

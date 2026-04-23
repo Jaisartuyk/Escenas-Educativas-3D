@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { X, Camera, Phone, Mail, User2, Save } from 'lucide-react'
+import { X, Camera, Phone, Mail, User2, Save, Trash2, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { updateProfileMetadata } from '@/lib/actions/users'
+import { updateProfileMetadata, deleteInstitutionUser } from '@/lib/actions/users'
 import { createClient } from '@/lib/supabase/client'
 
 export function ProfileDetailsPanel({ 
@@ -20,6 +20,7 @@ export function ProfileDetailsPanel({
   onUpdate: (meta: any) => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const [data, setData] = useState(metadata || {})
   const [avatarUrl, setAvatarUrl] = useState(metadata?.avatar_url || null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -39,6 +40,19 @@ export function ProfileDetailsPanel({
       onClose() // Auto-close modal
     }
     setLoading(false)
+  }
+
+  const handleDelete = async () => {
+    setLoading(true)
+    const res = await deleteInstitutionUser(user.id)
+    if (res.error) {
+      toast.error(res.error)
+      setLoading(false)
+    } else {
+      toast.success('Miembro eliminado permanentemente')
+      onClose()
+      window.location.reload() // Hard refresh to update lists in parent
+    }
   }
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,10 +208,52 @@ export function ProfileDetailsPanel({
           </div>
         </div>
 
-        <div className="p-5 border-t border-[rgba(0,0,0,0.05)]">
-          <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3 flex justify-center items-center gap-2">
-            {loading ? 'Guardando...' : <><Save size={18}/> Guardar Perfil</>}
-          </button>
+        <div className="p-5 border-t border-[rgba(0,0,0,0.05)] space-y-3">
+          {!showConfirmDelete ? (
+            <>
+              <button onClick={handleSave} disabled={loading} className="btn-primary w-full py-3 flex justify-center items-center gap-2">
+                {loading ? 'Guardando...' : <><Save size={18}/> Guardar Perfil</>}
+              </button>
+              
+              <div className="pt-4 border-t border-dashed border-[rgba(0,0,0,0.05)]">
+                <button 
+                  onClick={() => setShowConfirmDelete(true)} 
+                  disabled={loading}
+                  className="w-full py-2.5 text-xs font-bold text-red-500/60 hover:text-red-500 flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Trash2 size={14} /> Eliminar Miembro del Sistema
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex flex-col gap-3 animate-fade-in">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-red-100 text-red-500 rounded-lg">
+                  <AlertTriangle size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-red-700 leading-tight">¿Eliminar permanentemente?</p>
+                  <p className="text-[11px] text-red-600 mt-0.5">Se borrará su acceso, perfil, pagos y planificaciones. Esta acción no se puede deshacer.</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleDelete} 
+                  disabled={loading}
+                  className="flex-1 bg-red-500 text-white text-xs font-bold py-2.5 rounded-xl hover:bg-red-600 transition-colors"
+                >
+                  {loading ? 'Eliminando...' : 'Sí, eliminar'}
+                </button>
+                <button 
+                  onClick={() => setShowConfirmDelete(false)} 
+                  disabled={loading}
+                  className="px-4 bg-white text-ink3 text-xs font-bold py-2.5 rounded-xl border border-red-200 hover:bg-red-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
