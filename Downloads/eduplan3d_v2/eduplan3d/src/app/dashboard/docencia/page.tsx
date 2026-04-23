@@ -21,7 +21,7 @@ export default async function DocenciaPage() {
     .single()
 
   // Only admin/assistant can access supervision
-  if (!profile || !['admin', 'assistant', 'supervisor'].includes(profile.role)) {
+  if (!profile || !['admin', 'assistant', 'supervisor', 'rector'].includes(profile.role)) {
     redirect('/dashboard')
   }
 

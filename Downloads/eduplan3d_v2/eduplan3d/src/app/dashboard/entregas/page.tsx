@@ -20,7 +20,7 @@ export default async function EntregasPage() {
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['admin', 'assistant', 'teacher', 'supervisor'].includes(profile.role)) {
+  if (!profile || !['admin', 'assistant', 'teacher', 'supervisor', 'rector'].includes(profile.role)) {
     redirect('/dashboard')
   }
 

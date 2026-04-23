@@ -35,7 +35,7 @@ export default async function MensajesPage() {
       seen.add(s.courseId)
       broadcastCourses.push({ id: s.courseId, name: s.courseName, parallel: null })
     }
-  } else if (profile.role === 'admin' || profile.role === 'assistant') {
+  } else if (profile.role === 'admin' || profile.role === 'assistant' || profile.role === 'rector') {
     const { data: courses } = await admin
       .from('courses')
       .select('id, name, parallel')

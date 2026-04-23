@@ -21,7 +21,7 @@ export default async function SecretariaPage() {
     .single()
 
   if (!profile?.institution_id) redirect('/dashboard')
-  if (profile.role !== 'admin' && profile.role !== 'secretary') redirect('/dashboard')
+  if (profile.role !== 'admin' && profile.role !== 'secretary' && profile.role !== 'rector') redirect('/dashboard')
 
   const instId = profile.institution_id
 

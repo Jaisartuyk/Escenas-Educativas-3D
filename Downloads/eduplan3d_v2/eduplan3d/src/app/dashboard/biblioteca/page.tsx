@@ -22,7 +22,7 @@ export default async function BibliotecaPage() {
     .eq('id', user.id)
     .single()
 
-  const isAdmin = ['admin', 'assistant', 'supervisor'].includes(profile?.role)
+  const isAdmin = ['admin', 'assistant', 'supervisor', 'rector'].includes(profile?.role)
   const instId  = profile?.institution_id
   const isPlannerSolo = (profile as any)?.plan === 'planner_solo'
 

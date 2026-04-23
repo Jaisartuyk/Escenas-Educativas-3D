@@ -21,7 +21,7 @@ export default async function SupervisionTutoresPage() {
     .single()
 
   // Only admin/assistant/supervisor can access
-  if (!profile || !['admin', 'assistant', 'supervisor'].includes(profile.role)) {
+  if (!profile || !['admin', 'assistant', 'supervisor', 'rector'].includes(profile.role)) {
     redirect('/dashboard')
   }
 

@@ -20,7 +20,7 @@ export default async function AcademicoPage() {
     .single()
 
   if (!profile || !profile.institution_id) redirect('/dashboard')
-  const isAdmin = ['admin', 'assistant', 'secretary'].includes(profile.role)
+  const isAdmin = ['admin', 'assistant', 'secretary', 'rector'].includes(profile.role)
   if (!isAdmin) redirect('/dashboard')
 
   const admin = createAdminClient()
