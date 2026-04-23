@@ -111,6 +111,25 @@ export default async function EntregasPage() {
     grades = data || []
   }
 
+  // Diagnóstico extendido: conteo global de assignment_submissions y muestra.
+  let totalSubsGlobal: number | string = '?'
+  let sampleSubs: any[] = []
+  let subsProbeError: string | null = null
+  {
+    const { count, error: ce } = await admin
+      .from('assignment_submissions')
+      .select('*', { count: 'exact', head: true })
+    if (ce) subsProbeError = ce.message
+    else totalSubsGlobal = count ?? 0
+    const { data: sample } = await admin
+      .from('assignment_submissions')
+      .select('id, assignment_id, student_id, submitted_at')
+      .order('submitted_at', { ascending: false })
+      .limit(3)
+    sampleSubs = sample || []
+  }
+  const assignmentIdsShown = assignments.map((a: any) => a.id).slice(0, 3)
+
   // Diagnóstico visible (temporal) — para depurar por qué no se ven entregas.
   const showDiag = ['admin', 'assistant', 'supervisor'].includes(profile.role)
 
@@ -124,6 +143,16 @@ export default async function EntregasPage() {
           {' · '}assignments=<b>{assignments.length}</b>
           {' · '}submissions=<b>{submissions.length}</b>
           {' · '}grades=<b>{grades.length}</b>
+          <div className="mt-1">
+            total_subs_global=<b>{String(totalSubsGlobal)}</b>
+            {subsProbeError && <span> · err=<code>{subsProbeError}</code></span>}
+            {' · '}assignment_ids_buscados=<code>{JSON.stringify(assignmentIdsShown)}</code>
+          </div>
+          {sampleSubs.length > 0 && (
+            <div className="mt-1">
+              sample_subs=<code>{JSON.stringify(sampleSubs)}</code>
+            </div>
+          )}
         </div>
       )}
       <EntregasClient
