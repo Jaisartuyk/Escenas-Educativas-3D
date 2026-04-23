@@ -27,15 +27,16 @@ export default async function EntregasPage() {
   // Materias (Subjects)
   let mySubjects: any[] = []
   if (['admin', 'assistant', 'supervisor'].includes(profile.role)) {
-    // Admin/Supervisor sees all subjects in the institution
-    const { data } = await admin
+    // Admin/Supervisor sees all subjects in the institution.
+    // Use !inner so the course filter actually restricts parent rows
+    // (sin !inner, PostgREST solo nullifica el join y puede dejar subjects huérfanas).
+    const { data, error } = await admin
       .from('subjects')
-      .select('*, course:courses(id, name, parallel, level, shift)')
+      .select('*, course:courses!inner(id, name, parallel, level, shift, institution_id)')
       .eq('course.institution_id', profile.institution_id)
       .order('name', { ascending: true })
-    if (data) {
-      mySubjects = data.filter((s:any) => s.course) // Only subjects linked to institution courses
-    }
+    if (error) console.error('[entregas] subjects query error:', error)
+    mySubjects = data || []
   } else {
     // Teacher sees their assigned subjects
     const { data } = await admin
@@ -63,13 +64,42 @@ export default async function EntregasPage() {
   let submissions: any[] = []
   const assignmentIds = assignments.map((a: any) => a.id)
   if (assignmentIds.length > 0) {
-    const { data } = await admin
+    // Intentamos embebido con FK declarada; si no hay FK, hacemos fallback manual.
+    const { data, error } = await admin
       .from('assignment_submissions')
       .select('*, student:profiles(id, full_name, email)')
       .in('assignment_id', assignmentIds)
       .order('submitted_at', { ascending: false })
-    submissions = data || []
+
+    if (error) {
+      console.error('[entregas] submissions embed failed, trying fallback:', error.message)
+      const { data: subs, error: err2 } = await admin
+        .from('assignment_submissions')
+        .select('*')
+        .in('assignment_id', assignmentIds)
+        .order('submitted_at', { ascending: false })
+      if (err2) {
+        console.error('[entregas] submissions fallback error:', err2)
+      } else if (subs && subs.length > 0) {
+        const studentIds = Array.from(new Set(subs.map((s: any) => s.student_id).filter(Boolean)))
+        const { data: students } = await admin
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', studentIds)
+        const byId = new Map((students || []).map((p: any) => [p.id, p]))
+        submissions = subs.map((s: any) => ({ ...s, student: byId.get(s.student_id) || null }))
+      }
+    } else {
+      submissions = data || []
+    }
   }
+  console.log('[entregas] diagnostic:', {
+    role: profile.role,
+    institution_id: profile.institution_id,
+    subjects: mySubjects.length,
+    assignments: assignments.length,
+    submissions: submissions.length,
+  })
   
   // Grades (Calificaciones)
   let grades: any[] = []
@@ -81,13 +111,28 @@ export default async function EntregasPage() {
     grades = data || []
   }
 
+  // Diagnóstico visible (temporal) — para depurar por qué no se ven entregas.
+  const showDiag = ['admin', 'assistant', 'supervisor'].includes(profile.role)
+
   return (
-    <EntregasClient
-      profile={profile}
-      subjects={mySubjects}
-      assignments={assignments}
-      submissions={submissions}
-      grades={grades}
-    />
+    <>
+      {showDiag && (
+        <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <b>[diag entregas]</b> role=<code>{profile.role}</code>
+          {' · '}institution_id=<code>{profile.institution_id || 'NULL'}</code>
+          {' · '}subjects=<b>{mySubjects.length}</b>
+          {' · '}assignments=<b>{assignments.length}</b>
+          {' · '}submissions=<b>{submissions.length}</b>
+          {' · '}grades=<b>{grades.length}</b>
+        </div>
+      )}
+      <EntregasClient
+        profile={profile}
+        subjects={mySubjects}
+        assignments={assignments}
+        submissions={submissions}
+        grades={grades}
+      />
+    </>
   )
 }
