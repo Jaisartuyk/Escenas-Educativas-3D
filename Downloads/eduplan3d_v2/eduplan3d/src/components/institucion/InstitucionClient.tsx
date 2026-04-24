@@ -717,75 +717,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
             </div>
           )}
 
-          {/* Edit subject inline */}
-          {editingSubject && (
-            <div className="card p-5 mb-5 border border-amber-300 bg-amber-50/30">
-              <h3 className="font-bold text-sm mb-4">Editar Materia</h3>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="col-span-2">
-                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nombre</label>
-                  <input
-                    value={editingSubject.name}
-                    onChange={e => setEditingSubject({ ...editingSubject, name: e.target.value })}
-                    className="input-base w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Horas semanales</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={editingSubject.weekly_hours}
-                    onChange={e => setEditingSubject({ ...editingSubject, weekly_hours: parseInt(e.target.value) || 1 })}
-                    className="input-base w-full"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Docente</label>
-                  {(() => {
-                    const { associated, recommended, others } = getTeachersForSubject(editingSubject.name, editingSubject.course_id)
-                    return (
-                      <select
-                        value={editingSubject.teacher_id || ''}
-                        onChange={e => setEditingSubject({ ...editingSubject, teacher_id: e.target.value || null })}
-                        className="input-base w-full"
-                      >
-                        <option value="">Sin asignar</option>
-                        {associated.length > 0 && (
-                          <optgroup label="✓ Ya asignado en este curso">
-                            {associated.map(t => (
-                              <option key={t.id} value={t.id}>⭐ {t.full_name || t.email}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {recommended.length > 0 && (
-                          <optgroup label="💡 Sugerido (enseña esta materia en otros cursos)">
-                            {recommended.map(t => (
-                              <option key={t.id} value={t.id}>✨ {t.full_name || t.email}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                        <optgroup label="Todos los demás docentes">
-                          {others.map(t => (
-                            <option key={t.id} value={t.id}>{t.full_name || t.email}</option>
-                          ))}
-                        </optgroup>
-                      </select>
-                    )
-                  })()}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={updateSubject} disabled={savingSubject} className="btn-primary text-sm px-6 py-2">
-                  {savingSubject ? 'Guardando...' : 'Guardar cambios'}
-                </button>
-                <button onClick={() => setEditingSubject(null)} className="btn-secondary text-sm px-4 py-2">
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
+          {/* El formulario de edición antiguo ha sido eliminado para usar edición inline en la tabla abajo */}
 
           {/* Summary per course */}
           {filterCourseId !== 'all' && filteredSubjects.length > 0 && (
@@ -832,34 +764,110 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                         </tr>
                       </thead>
                       <tbody>
-                        {courseSubjects.map((s, i) => (
-                          <tr key={s.id} className={`border-t border-[rgba(0,0,0,0.04)] ${i % 2 === 0 ? '' : 'bg-[rgba(0,0,0,0.015)]'} hover:bg-[rgba(124,109,250,0.04)] transition-colors`}>
-                            <td className="px-4 py-3 font-medium">{s.name}</td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-violet-50 text-violet-700 text-xs font-bold">
-                                {s.weekly_hours}
-                              </span>
+                        {courseSubjects.map((s, i) => {
+                          const isEditing = editingSubject?.id === s.id
+                          return (
+                          <tr key={s.id} className={`border-t border-[rgba(0,0,0,0.04)] ${i % 2 === 0 ? '' : 'bg-[rgba(0,0,0,0.015)]'} ${isEditing ? 'bg-[rgba(255,179,71,0.05)] border-amber-200' : 'hover:bg-[rgba(124,109,250,0.04)]'} transition-colors`}>
+                            <td className="px-4 py-3 font-medium">
+                              {isEditing ? (
+                                <input
+                                  value={editingSubject.name}
+                                  onChange={e => setEditingSubject({ ...editingSubject, name: e.target.value })}
+                                  className="input-base text-sm py-1 h-8 w-full"
+                                  autoFocus
+                                />
+                              ) : s.name}
                             </td>
-                            <td className="px-4 py-3 text-ink3">{getTeacherName(s.teacher_id)}</td>
+                            <td className="px-4 py-3 text-center">
+                              {isEditing ? (
+                                <input
+                                  type="number"
+                                  min={1} max={20}
+                                  value={editingSubject.weekly_hours}
+                                  onChange={e => setEditingSubject({ ...editingSubject, weekly_hours: parseInt(e.target.value) || 1 })}
+                                  className="input-base text-sm py-1 h-8 w-16 text-center mx-auto"
+                                />
+                              ) : (
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-violet-50 text-violet-700 text-xs font-bold">
+                                  {s.weekly_hours}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-ink3">
+                              {isEditing ? (
+                                (() => {
+                                  const { associated, recommended, others } = getTeachersForSubject(editingSubject.name, editingSubject.course_id)
+                                  return (
+                                    <select
+                                      value={editingSubject.teacher_id || ''}
+                                      onChange={e => setEditingSubject({ ...editingSubject, teacher_id: e.target.value || null })}
+                                      className="input-base text-xs py-1 h-8 w-full"
+                                    >
+                                      <option value="">Sin asignar</option>
+                                      {associated.length > 0 && (
+                                        <optgroup label="✓ Ya asignados">
+                                          {associated.map(t => (
+                                            <option key={t.id} value={t.id}>⭐ {t.full_name}</option>
+                                          ))}
+                                        </optgroup>
+                                      )}
+                                      {recommended.length > 0 && (
+                                        <optgroup label="💡 Sugeridos">
+                                          {recommended.map(t => (
+                                            <option key={t.id} value={t.id}>✨ {t.full_name}</option>
+                                          ))}
+                                        </optgroup>
+                                      )}
+                                      <optgroup label="Otros">
+                                        {others.map(t => (
+                                          <option key={t.id} value={t.id}>{t.full_name}</option>
+                                        ))}
+                                      </optgroup>
+                                    </select>
+                                  )
+                                })()
+                              ) : getTeacherName(s.teacher_id)}
+                            </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => { setEditingSubject(s); setShowAddSubject(false) }}
-                                  className="text-xs px-2.5 py-1 rounded-lg text-violet-600 hover:bg-violet-50 transition-colors font-semibold"
-                                >
-                                  Editar
-                                </button>
-                                <button
-                                  onClick={() => deleteSubject(s.id, s.name)}
-                                  disabled={deletingSubjectId === s.id}
-                                  className="text-xs px-2.5 py-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors font-semibold"
-                                >
-                                  {deletingSubjectId === s.id ? '...' : 'Eliminar'}
-                                </button>
+                                {isEditing ? (
+                                  <>
+                                    <button
+                                      onClick={updateSubject}
+                                      disabled={savingSubject}
+                                      className="text-xs px-2.5 py-1 rounded-lg bg-teal-500 text-white hover:bg-teal-600 transition-colors font-semibold"
+                                    >
+                                      {savingSubject ? '...' : 'Guardar'}
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingSubject(null)}
+                                      className="text-xs px-2.5 py-1 rounded-lg text-ink3 hover:bg-surface transition-colors font-semibold"
+                                    >
+                                      ✕
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => { setEditingSubject(s); setShowAddSubject(false) }}
+                                      className="text-xs px-2.5 py-1 rounded-lg text-violet-600 hover:bg-violet-50 transition-colors font-semibold"
+                                    >
+                                      Editar
+                                    </button>
+                                    <button
+                                      onClick={() => deleteSubject(s.id, s.name)}
+                                      disabled={deletingSubjectId === s.id}
+                                      className="text-xs px-2.5 py-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors font-semibold"
+                                    >
+                                      {deletingSubjectId === s.id ? '...' : 'Eliminar'}
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>

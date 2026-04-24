@@ -1,0 +1,1697 @@
+{
+  "teachers": {
+    "f3aaca50-1601-4616-8202-4a2853f18379": {
+      "name": "DIAZ CARCELEN MARCOS DAVID",
+      "totalHours": 37,
+      "assignments": [
+        {
+          "name": "ECA",
+          "course": "8VO"
+        },
+        {
+          "name": "ECA",
+          "course": "9NO"
+        },
+        {
+          "name": "ECA",
+          "course": "7MO BÁSICA"
+        },
+        {
+          "name": "ECA",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "ECA",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "ECA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "COMPRENSION Y EXPRESION ARTISTICA",
+          "course": "1RO BÁSICA"
+        },
+        {
+          "name": "ECA",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "ECA",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "ECA",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "course": "9NO"
+        },
+        {
+          "name": "ECA",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "ECA",
+          "course": "10MO"
+        }
+      ]
+    },
+    "67a90fdc-73e0-41a8-a438-e3ff2cdc8ba2": {
+      "name": "Kimberly Giovanna Cáceres Herrera",
+      "totalHours": 19,
+      "assignments": [
+        {
+          "name": "INGLES",
+          "course": "8VO"
+        },
+        {
+          "name": "INGLES",
+          "course": "10MO"
+        },
+        {
+          "name": "INGLES",
+          "course": "9NO"
+        },
+        {
+          "name": "INGLES",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "INGLES",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "course": "8VO"
+        },
+        {
+          "name": "INGLES",
+          "course": "2DO BGU"
+        }
+      ]
+    },
+    "5d3cf345-dc29-416d-9825-0188fb5651f7": {
+      "name": "MALDONADO RODRIGUEZ MAYERLY BRIGGITH",
+      "totalHours": 24,
+      "assignments": [
+        {
+          "name": "DESCUBRIMIENTO Y COMPRENSION DEL MEDIO NATURAL Y CULTURAL",
+          "course": "1RO BÁSICA"
+        },
+        {
+          "name": "COMPRENSION Y EXPRESION ORAL Y ESCRITA",
+          "course": "1RO BÁSICA"
+        },
+        {
+          "name": "CONVIVENCIA",
+          "course": "1RO BÁSICA"
+        },
+        {
+          "name": "IDENTIDAD Y AUTONOMIA",
+          "course": "1RO BÁSICA"
+        },
+        {
+          "name": "RELACIONES LOCO-MATEMÁTICAS",
+          "course": "1RO BÁSICA"
+        }
+      ]
+    },
+    "48fb0f1f-051f-4000-be4c-581264bd8e5b": {
+      "name": "NOBOA CRUZ JUAN ALFREDO",
+      "totalHours": 9,
+      "assignments": [
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "8VO"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "10MO"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "9NO"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "2DO BGU"
+        }
+      ]
+    },
+    "8ed96248-75ca-41fd-b54e-30f7f7945813": {
+      "name": "NOEMI MERA",
+      "totalHours": 20,
+      "assignments": [
+        {
+          "name": "INGLES",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "INGLES",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "INGLES",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "INGLES",
+          "course": "1RO BÁSICA"
+        },
+        {
+          "name": "INGLES",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "INGLES",
+          "course": "7MO BÁSICA"
+        },
+        {
+          "name": "INGLES",
+          "course": "4TO BÁSICA"
+        }
+      ]
+    },
+    "bc10f594-92bc-45f0-973a-f7c81735a96e": {
+      "name": "SONIA CEDEÑO CRUZ",
+      "totalHours": 50,
+      "assignments": [
+        {
+          "name": "CC.NN",
+          "course": "8VO"
+        },
+        {
+          "name": "CC.NN",
+          "course": "9NO"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "course": "7MO BÁSICA"
+        },
+        {
+          "name": "CC.NN",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "CC.NN",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "LABORATORIO",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "CC.NN",
+          "course": "10MO"
+        },
+        {
+          "name": "LABORATORIO",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "CC.NN",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "QUIMICA",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "BIOLOGIA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "QUIMICA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "LABORATORIO",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "BIOLOGIA",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "QUIMICA",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "CC.NN",
+          "course": "7MO BÁSICA"
+        },
+        {
+          "name": "BIOLOGIA",
+          "course": "1ERO BGU"
+        }
+      ]
+    },
+    "2f83f729-f04c-46ec-9a98-071d221f7c53": {
+      "name": "URDANIGO RAMIREZ MONICA PATRICIA",
+      "totalHours": 25,
+      "assignments": [
+        {
+          "name": "LENGUA",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "LENGUA",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "LENGUA",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "LENGUA",
+          "course": "7MO BÁSICA"
+        }
+      ]
+    },
+    "88f1227c-ab65-4932-8e0a-66fc8e09e241": {
+      "name": "BORBOR SOTAMINGA HERBERT ENRIQUE",
+      "totalHours": 7,
+      "assignments": [
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "1RO BÁSICA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "7MO BÁSICA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "course": "2DO BÁSICA"
+        }
+      ]
+    },
+    "6f18cce6-c3a8-47b6-9f07-8d496d773fa4": {
+      "name": "CELLERY RUIZ MARIA ISABEL",
+      "totalHours": 18,
+      "assignments": [
+        {
+          "name": "ED. CIUDADANIA",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "ED. CIUDADANIA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "HISTORIA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "HISTORIA",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "FILOSOFIA",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "HISTORIA",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "FILOSOFIA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "FILOSOFIA",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "ED. CIUDADANIA",
+          "course": "2DO BGU"
+        }
+      ]
+    },
+    "5a4ad5f3-a6b6-49b1-bc33-4243e4f647b9": {
+      "name": "CRUZ CARDENAS MICHELL VANESSA",
+      "totalHours": 23,
+      "assignments": [
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "CC.NN",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "LENGUA",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "EE.SS",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "course": "2DO BÁSICA"
+        }
+      ]
+    },
+    "c6c0b438-5565-424d-9dfc-56ac38be54cd": {
+      "name": "Génesis Noemí Macías Solórzano",
+      "totalHours": 31,
+      "assignments": [
+        {
+          "name": "FISICA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "MATEMATICA",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "course": "10MO"
+        },
+        {
+          "name": "MATEMATICA",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "FISICA",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "course": "9NO"
+        },
+        {
+          "name": "MATEMATICA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "course": "10MO"
+        },
+        {
+          "name": "FISICA",
+          "course": "2DO BGU"
+        }
+      ]
+    },
+    "7c36b1b0-fcd3-4499-9547-739f404eccb8": {
+      "name": "MARURI VERA LADY SHIRLEY",
+      "totalHours": 17,
+      "assignments": [
+        {
+          "name": "IDENTIDAD Y AUTONOMÍA",
+          "course": "INICIAL 2 A"
+        },
+        {
+          "name": "COMPRENSIÓN Y EXPRESIÓN DEL LENGUAJE",
+          "course": "INICIAL 2 A"
+        },
+        {
+          "name": "EXPRESIÓN ARTÍSTICA",
+          "course": "INICIAL 2 A"
+        },
+        {
+          "name": "RELACIONES CON EL MEDIO NATURAL Y CULTURAL",
+          "course": "INICIAL 2 A"
+        },
+        {
+          "name": "RELACIONES LÓGICO - MATEMÁTICAS",
+          "course": "INICIAL 2 A"
+        },
+        {
+          "name": "CONVIVENCIA",
+          "course": "INICIAL 2 A"
+        },
+        {
+          "name": "CÍVICA Y ACOMPAÑAMIENTO INTEGRAL",
+          "course": "INICIAL 2 A"
+        },
+        {
+          "name": "EXPRESIÓN CORPORAL Y MOTRICIDAD",
+          "course": "INICIAL 2 A"
+        }
+      ]
+    },
+    "63065296-28ab-48d0-a2dc-b153727cdcc4": {
+      "name": "QUIMIS CALLE MARIA FERNANDA",
+      "totalHours": 41,
+      "assignments": [
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "CIVICA",
+          "course": "1RO BÁSICA"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "course": "8VO"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "7MO BÁSICA"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "8VO"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "course": "10MO"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "9NO"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "course": "9NO"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "course": "10MO"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "course": "7MO BÁSICA"
+        }
+      ]
+    },
+    "ffac6133-646a-4b4f-84c4-a289d8c0e476": {
+      "name": "RIVADENEIRA BAJAÑA MARIO ENRIQUE",
+      "totalHours": 43,
+      "assignments": [
+        {
+          "name": "MATEMÁTICA",
+          "course": "8VO"
+        },
+        {
+          "name": "EMPRENDIMIENTO",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "EMPRENDIMIENTO",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "EMPRENDIMIENTO",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "course": "7MO BÁSICA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "course": "6TO BÁSICA"
+        }
+      ]
+    },
+    "4570ad44-a17e-4523-be18-1fd056dc7ade": {
+      "name": "VALLE REZABALA LOURDES YESENIA",
+      "totalHours": 49,
+      "assignments": [
+        {
+          "name": "LENGUA",
+          "course": "8VO"
+        },
+        {
+          "name": "LENGUA",
+          "course": "9NO"
+        },
+        {
+          "name": "LENGUA",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "CC.NN",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "LENGUA",
+          "course": "10MO"
+        },
+        {
+          "name": "LENGUA",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "LENGUA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "ECA",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "LENGUA",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "EE.SS",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "course": "3RO BÁSICA"
+        }
+      ]
+    },
+    "fe2a11db-5199-448b-8dec-8f0af2fcf005": {
+      "name": "ZAMBRANO NUÑEZ ANDY JAVIER",
+      "totalHours": 54,
+      "assignments": [
+        {
+          "name": "ED. FÍSICA",
+          "course": "8VO"
+        },
+        {
+          "name": "EE.SS",
+          "course": "8VO"
+        },
+        {
+          "name": "EE.SS",
+          "course": "9NO"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "EE.SS",
+          "course": "10MO"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "9NO"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "EE.SS",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "1RO BÁSICA"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "10MO"
+        },
+        {
+          "name": "EE.SS",
+          "course": "5TO BÁSICA"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "1ERO BGU"
+        },
+        {
+          "name": "EE.SS",
+          "course": "6TO BÁSICA"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "4TO BÁSICA"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "2DO BGU"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "3ERO BGU"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "3RO BÁSICA"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "7MO BÁSICA"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "course": "2DO BÁSICA"
+        },
+        {
+          "name": "EE.SS",
+          "course": "7MO BÁSICA"
+        }
+      ]
+    }
+  },
+  "courses": {
+    "b1062ff4-03f3-4186-a628-33fd3ccfafcc": {
+      "name": "INICIAL 2 A",
+      "totalHours": 17,
+      "subjects": [
+        {
+          "name": "IDENTIDAD Y AUTONOMÍA",
+          "hours": 1,
+          "teacher": "MARURI VERA LADY SHIRLEY"
+        },
+        {
+          "name": "COMPRENSIÓN Y EXPRESIÓN DEL LENGUAJE",
+          "hours": 3,
+          "teacher": "MARURI VERA LADY SHIRLEY"
+        },
+        {
+          "name": "EXPRESIÓN ARTÍSTICA",
+          "hours": 2,
+          "teacher": "MARURI VERA LADY SHIRLEY"
+        },
+        {
+          "name": "RELACIONES CON EL MEDIO NATURAL Y CULTURAL",
+          "hours": 2,
+          "teacher": "MARURI VERA LADY SHIRLEY"
+        },
+        {
+          "name": "RELACIONES LÓGICO - MATEMÁTICAS",
+          "hours": 3,
+          "teacher": "MARURI VERA LADY SHIRLEY"
+        },
+        {
+          "name": "CONVIVENCIA",
+          "hours": 1,
+          "teacher": "MARURI VERA LADY SHIRLEY"
+        },
+        {
+          "name": "CÍVICA Y ACOMPAÑAMIENTO INTEGRAL",
+          "hours": 2,
+          "teacher": "MARURI VERA LADY SHIRLEY"
+        },
+        {
+          "name": "EXPRESIÓN CORPORAL Y MOTRICIDAD",
+          "hours": 3,
+          "teacher": "MARURI VERA LADY SHIRLEY"
+        }
+      ]
+    },
+    "131cddde-62c7-4f71-8ae9-83a28ddf8fa3": {
+      "name": "5TO BÁSICA",
+      "totalHours": 35,
+      "subjects": [
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 6,
+          "teacher": "URDANIGO RAMIREZ MONICA PATRICIA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "hours": 6,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "CC.NN",
+          "hours": 4,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "NOEMI MERA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "BORBOR SOTAMINGA HERBERT ENRIQUE"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "EE.SS",
+          "hours": 4,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "hours": 1,
+          "teacher": "UNASSIGNED"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "hours": 1,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        }
+      ]
+    },
+    "9491da9a-353b-40d8-beba-d1ebf3663ac5": {
+      "name": "1RO BÁSICA",
+      "totalHours": 34,
+      "subjects": [
+        {
+          "name": "CIVICA",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "DESCUBRIMIENTO Y COMPRENSION DEL MEDIO NATURAL Y CULTURAL",
+          "hours": 4,
+          "teacher": "MALDONADO RODRIGUEZ MAYERLY BRIGGITH"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "COMPRENSION Y EXPRESION ORAL Y ESCRITA",
+          "hours": 6,
+          "teacher": "MALDONADO RODRIGUEZ MAYERLY BRIGGITH"
+        },
+        {
+          "name": "CONVIVENCIA",
+          "hours": 4,
+          "teacher": "MALDONADO RODRIGUEZ MAYERLY BRIGGITH"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "BORBOR SOTAMINGA HERBERT ENRIQUE"
+        },
+        {
+          "name": "COMPRENSION Y EXPRESION ARTISTICA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        },
+        {
+          "name": "INGLES",
+          "hours": 2,
+          "teacher": "NOEMI MERA"
+        },
+        {
+          "name": "IDENTIDAD Y AUTONOMIA",
+          "hours": 4,
+          "teacher": "MALDONADO RODRIGUEZ MAYERLY BRIGGITH"
+        },
+        {
+          "name": "RELACIONES LOCO-MATEMÁTICAS",
+          "hours": 6,
+          "teacher": "MALDONADO RODRIGUEZ MAYERLY BRIGGITH"
+        }
+      ]
+    },
+    "028be720-9a56-43a8-b878-dfbfa1cb1b04": {
+      "name": "3RO BÁSICA",
+      "totalHours": 35,
+      "subjects": [
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "NOEMI MERA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "BORBOR SOTAMINGA HERBERT ENRIQUE"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 6,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "CC.NN",
+          "hours": 4,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "hours": 6,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "EE.SS",
+          "hours": 4,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "hours": 1,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "hours": 1,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        }
+      ]
+    },
+    "ce42d533-499b-4390-a3a7-b2fccfee0b9f": {
+      "name": "4TO BÁSICA",
+      "totalHours": 35,
+      "subjects": [
+        {
+          "name": "DES. SOSTENIBLE",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "EE.SS",
+          "hours": 4,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "BORBOR SOTAMINGA HERBERT ENRIQUE"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "hours": 1,
+          "teacher": "URDANIGO RAMIREZ MONICA PATRICIA"
+        },
+        {
+          "name": "CC.NN",
+          "hours": 4,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 6,
+          "teacher": "URDANIGO RAMIREZ MONICA PATRICIA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "hours": 6,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "NOEMI MERA"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "hours": 1,
+          "teacher": "UNASSIGNED"
+        }
+      ]
+    },
+    "d28b1bea-8945-4f90-aa3f-4fd8b0cd6e21": {
+      "name": "2DO BÁSICA",
+      "totalHours": 35,
+      "subjects": [
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "hours": 2,
+          "teacher": "CRUZ CARDENAS MICHELL VANESSA"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "hours": 1,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "NOEMI MERA"
+        },
+        {
+          "name": "CC.NN",
+          "hours": 4,
+          "teacher": "CRUZ CARDENAS MICHELL VANESSA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "hours": 6,
+          "teacher": "CRUZ CARDENAS MICHELL VANESSA"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 6,
+          "teacher": "CRUZ CARDENAS MICHELL VANESSA"
+        },
+        {
+          "name": "EE.SS",
+          "hours": 4,
+          "teacher": "CRUZ CARDENAS MICHELL VANESSA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "hours": 1,
+          "teacher": "CRUZ CARDENAS MICHELL VANESSA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "BORBOR SOTAMINGA HERBERT ENRIQUE"
+        }
+      ]
+    },
+    "a4731e1c-a654-421d-af91-471cf3ab9be8": {
+      "name": "6TO BÁSICA",
+      "totalHours": 35,
+      "subjects": [
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "NOEMI MERA"
+        },
+        {
+          "name": "CC.NN",
+          "hours": 4,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "hours": 6,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 6,
+          "teacher": "URDANIGO RAMIREZ MONICA PATRICIA"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "BORBOR SOTAMINGA HERBERT ENRIQUE"
+        },
+        {
+          "name": "EE.SS",
+          "hours": 4,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "hours": 1,
+          "teacher": "UNASSIGNED"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "hours": 1,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        }
+      ]
+    },
+    "cf6f1a99-5707-402d-acb6-cb4281f41295": {
+      "name": "7MO BÁSICA",
+      "totalHours": 35,
+      "subjects": [
+        {
+          "name": "ATENCION A PADRES",
+          "hours": 1,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "hours": 6,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 6,
+          "teacher": "URDANIGO RAMIREZ MONICA PATRICIA"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "NOEMI MERA"
+        },
+        {
+          "name": "EE.SS",
+          "hours": 4,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "BORBOR SOTAMINGA HERBERT ENRIQUE"
+        },
+        {
+          "name": "CC.NN",
+          "hours": 4,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "hours": 1,
+          "teacher": "UNASSIGNED"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        }
+      ]
+    },
+    "46337fc2-03ff-474c-b3b0-f20605695ae0": {
+      "name": "8VO",
+      "totalHours": 33,
+      "subjects": [
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "NOBOA CRUZ JUAN ALFREDO"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "Kimberly Giovanna Cáceres Herrera"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "hours": 6,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "CC.NN",
+          "hours": 4,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 6,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "EE.SS",
+          "hours": 4,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "hours": 1,
+          "teacher": "UNASSIGNED"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "hours": 1,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "hours": 1,
+          "teacher": "Kimberly Giovanna Cáceres Herrera"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 1,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        }
+      ]
+    },
+    "fc88bde9-7d46-4f31-98f5-fb504effadaa": {
+      "name": "9NO",
+      "totalHours": 35,
+      "subjects": [
+        {
+          "name": "CC.NN",
+          "hours": 4,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "EE.SS",
+          "hours": 4,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "NOBOA CRUZ JUAN ALFREDO"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "Kimberly Giovanna Cáceres Herrera"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 6,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "hours": 6,
+          "teacher": "Génesis Noemí Macías Solórzano"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 3,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "hours": 1,
+          "teacher": "UNASSIGNED"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "hours": 1,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "hours": 1,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        }
+      ]
+    },
+    "15c617eb-a402-4590-aad7-23fdae482bc6": {
+      "name": "10MO",
+      "totalHours": 34,
+      "subjects": [
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 1,
+          "teacher": "NOBOA CRUZ JUAN ALFREDO"
+        },
+        {
+          "name": "EE.SS",
+          "hours": 4,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "Kimberly Giovanna Cáceres Herrera"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "CC.NN",
+          "hours": 4,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 6,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "MATEMÁTICA",
+          "hours": 6,
+          "teacher": "Génesis Noemí Macías Solórzano"
+        },
+        {
+          "name": "DES. SOSTENIBLE",
+          "hours": 1,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ATENCION A PADRES",
+          "hours": 1,
+          "teacher": "Génesis Noemí Macías Solórzano"
+        },
+        {
+          "name": "DESARROLLO SOC.EMOCIONAL",
+          "hours": 1,
+          "teacher": "UNASSIGNED"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        }
+      ]
+    },
+    "a0976a80-92be-4ef2-8a96-827e18c6386d": {
+      "name": "1ERO BGU",
+      "totalHours": 37,
+      "subjects": [
+        {
+          "name": "EMPRENDIMIENTO",
+          "hours": 2,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "LABORATORIO",
+          "hours": 3,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "ED. CIUDADANIA",
+          "hours": 2,
+          "teacher": "CELLERY RUIZ MARIA ISABEL"
+        },
+        {
+          "name": "MATEMATICA",
+          "hours": 4,
+          "teacher": "Génesis Noemí Macías Solórzano"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "Kimberly Giovanna Cáceres Herrera"
+        },
+        {
+          "name": "FILOSOFIA",
+          "hours": 2,
+          "teacher": "CELLERY RUIZ MARIA ISABEL"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 4,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "QUIMICA",
+          "hours": 2,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "HISTORIA",
+          "hours": 2,
+          "teacher": "CELLERY RUIZ MARIA ISABEL"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 2,
+          "teacher": "NOBOA CRUZ JUAN ALFREDO"
+        },
+        {
+          "name": "FISICA",
+          "hours": 2,
+          "teacher": "Génesis Noemí Macías Solórzano"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "BIOLOGIA",
+          "hours": 2,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        }
+      ]
+    },
+    "ec1fc70b-1849-4e12-9462-f78c671df04f": {
+      "name": "2DO BGU",
+      "totalHours": 37,
+      "subjects": [
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "MATEMATICA",
+          "hours": 4,
+          "teacher": "Génesis Noemí Macías Solórzano"
+        },
+        {
+          "name": "HISTORIA",
+          "hours": 2,
+          "teacher": "CELLERY RUIZ MARIA ISABEL"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 2,
+          "teacher": "NOBOA CRUZ JUAN ALFREDO"
+        },
+        {
+          "name": "EMPRENDIMIENTO",
+          "hours": 2,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 4,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "FILOSOFIA",
+          "hours": 2,
+          "teacher": "CELLERY RUIZ MARIA ISABEL"
+        },
+        {
+          "name": "ED. CIUDADANIA",
+          "hours": 2,
+          "teacher": "CELLERY RUIZ MARIA ISABEL"
+        },
+        {
+          "name": "LABORATORIO",
+          "hours": 3,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "BIOLOGIA",
+          "hours": 2,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "QUIMICA",
+          "hours": 2,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "Kimberly Giovanna Cáceres Herrera"
+        },
+        {
+          "name": "FISICA",
+          "hours": 2,
+          "teacher": "Génesis Noemí Macías Solórzano"
+        }
+      ]
+    },
+    "4846e066-1c7f-415c-a26e-85e04fca802e": {
+      "name": "3ERO BGU",
+      "totalHours": 37,
+      "subjects": [
+        {
+          "name": "INGLES",
+          "hours": 3,
+          "teacher": "Kimberly Giovanna Cáceres Herrera"
+        },
+        {
+          "name": "FISICA",
+          "hours": 2,
+          "teacher": "Génesis Noemí Macías Solórzano"
+        },
+        {
+          "name": "LABORATORIO",
+          "hours": 3,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "CIVICA Y PATRIO",
+          "hours": 2,
+          "teacher": "QUIMIS CALLE MARIA FERNANDA"
+        },
+        {
+          "name": "ED. CIUDADANIA",
+          "hours": 2,
+          "teacher": "CELLERY RUIZ MARIA ISABEL"
+        },
+        {
+          "name": "HISTORIA",
+          "hours": 2,
+          "teacher": "CELLERY RUIZ MARIA ISABEL"
+        },
+        {
+          "name": "INSTRUCCION MILITAR",
+          "hours": 2,
+          "teacher": "NOBOA CRUZ JUAN ALFREDO"
+        },
+        {
+          "name": "EMPRENDIMIENTO",
+          "hours": 2,
+          "teacher": "RIVADENEIRA BAJAÑA MARIO ENRIQUE"
+        },
+        {
+          "name": "MATEMATICA",
+          "hours": 4,
+          "teacher": "Génesis Noemí Macías Solórzano"
+        },
+        {
+          "name": "ECA",
+          "hours": 3,
+          "teacher": "DIAZ CARCELEN MARCOS DAVID"
+        },
+        {
+          "name": "LENGUA",
+          "hours": 4,
+          "teacher": "VALLE REZABALA LOURDES YESENIA"
+        },
+        {
+          "name": "BIOLOGIA",
+          "hours": 2,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "QUIMICA",
+          "hours": 2,
+          "teacher": "SONIA CEDEÑO CRUZ"
+        },
+        {
+          "name": "FILOSOFIA",
+          "hours": 2,
+          "teacher": "CELLERY RUIZ MARIA ISABEL"
+        },
+        {
+          "name": "ED. FÍSICA",
+          "hours": 2,
+          "teacher": "ZAMBRANO NUÑEZ ANDY JAVIER"
+        }
+      ]
+    }
+  }
+}
