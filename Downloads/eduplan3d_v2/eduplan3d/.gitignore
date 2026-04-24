@@ -27,3 +27,6 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# PDFs del currículo priorizado MinEduc (descargables desde educacion.gob.ec)
+/curriculo-pdfs/

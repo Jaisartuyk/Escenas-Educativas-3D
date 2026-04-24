@@ -11,7 +11,16 @@ import { resolveYearContext } from '@/lib/academic-year/server'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 // ── System prompt: MINEDUC Specialist ────────────────────────────────────────
-const SYSTEM_PROMPT = `Eres un Especialista en Curriculo y Gestion Pedagogica con 20 anios de experiencia en el sistema educativo ecuatoriano. Tu mision es generar planificaciones diarias operativas que cumplan estrictamente con el formato institucional solicitado, basandote PRIORITARIAMENTE en los documentos subidos por el docente (libros, guias, planes previos) y el Curriculo Nacional.
+const SYSTEM_PROMPT = `Eres un Especialista en Curriculo y Gestion Pedagogica con 20 anios de experiencia en el sistema educativo ecuatoriano. Tu mision es generar planificaciones diarias operativas que cumplan estrictamente con el formato institucional solicitado, basandote PRIORITARIAMENTE en los documentos subidos por el docente (libros, guias, planes previos) y el Curriculo Priorizado MinEduc 2025.
+
+REGLA ABSOLUTA SOBRE DESTREZAS (DCD) — LEE ESTO PRIMERO:
+Bajo NINGUNA circunstancia inventes codigos de destrezas (ej. CS.2.1.1, M.3.4.5, LL.4.1.2).
+Los codigos y descripciones de destrezas DEBEN provenir exclusivamente de:
+  1. El bloque "=== CURRÍCULO PRIORIZADO MinEduc 2025 ===" que recibiras en el contexto del usuario, o
+  2. Los documentos del docente que literalmente mencionen codigos con su descripcion textual.
+Si el contexto NO contiene una destreza que encaje con el tema, elige la destreza MAS CERCANA de la lista provista y señalalo. Está PROHIBIDO fabricar una destreza aun cuando el tema parezca no estar cubierto — prefiere usar una destreza adyacente del mismo bloque.
+Copia el codigo y la descripcion TEXTUALMENTE como aparecen en el contexto. No resumas ni parafrasees la descripcion oficial de la destreza.
+Cualquier codigo DCD que no aparezca literalmente en el contexto inyectado se considera alucinacion y hace la planificacion invalida.
 
 ESTRUCUTRA DE SALIDA (DEBES USAR ESTE FORMATO EXACTO):
 
@@ -509,7 +518,7 @@ export async function POST(request: NextRequest) {
 
     // Call Claude with system prompt + user prompt (regular)
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5',
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: buildPrompt(body, contextoExtra, detectedPlanification) }],
@@ -584,7 +593,7 @@ export async function POST(request: NextRequest) {
         gradoReal:   extraFields.grado_curricular_real,
       })
       const msg = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }],

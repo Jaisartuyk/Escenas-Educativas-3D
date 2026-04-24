@@ -49,16 +49,36 @@ export function normalizeAsignatura(input?: string | null): string | null {
   if (/matem/.test(s)) return 'matematica'
   if (/lengua|literatura/.test(s)) return 'lengua_literatura'
   if (/ciencias\s+naturales|natural/.test(s)) return 'ciencias_naturales'
-  if (/ciencias\s+sociales|sociales|estudios\s+sociales/.test(s)) return 'ciencias_sociales'
+  // Nuestra ingesta usa 'estudios_sociales' (no 'ciencias_sociales')
+  if (/ciencias\s+sociales|sociales|estudios\s+sociales/.test(s)) return 'estudios_sociales'
   if (/ingl[eé]s|english|efl/.test(s)) return 'ingles'
   if (/educaci[oó]n\s+f[ií]sica|ef\b/.test(s)) return 'educacion_fisica'
-  if (/educaci[oó]n\s+cultural|arte|cultural/.test(s)) return 'educacion_cultural'
+  // Nuestra ingesta usa 'educacion_cultural_artistica'
+  if (/educaci[oó]n\s+cultural|arte|cultural|eca\b/.test(s)) return 'educacion_cultural_artistica'
   if (/qu[ií]mica/.test(s)) return 'quimica'
   if (/f[ií]sica/.test(s)) return 'fisica'
   if (/biolog[ií]a/.test(s)) return 'biologia'
   if (/historia/.test(s)) return 'historia'
   if (/filosof[ií]a/.test(s)) return 'filosofia'
+  if (/ciudadan/.test(s)) return 'educacion_ciudadania'
+  if (/emprend|gesti[oó]n/.test(s)) return 'emprendimiento_gestion'
   return s.replace(/\s+/g, '_')
+}
+
+/**
+ * Mapea un grado específico al subnivel MinEduc correspondiente.
+ * El currículo priorizado se almacena por subnivel (no por grado individual).
+ */
+export function gradoToSubnivel(grado?: string | null): string | null {
+  if (!grado) return null
+  const g = grado.toLowerCase()
+  if (/inicial/.test(g)) return 'inicial'
+  if (/preparatoria|^1ro_egb|^1_egb/.test(g)) return 'preparatoria'
+  if (/^(2do|3ro|4to)_egb/.test(g)) return 'elemental'
+  if (/^(5to|6to|7mo)_egb/.test(g)) return 'media'
+  if (/^(8vo|9no|10mo)_egb/.test(g)) return 'superior'
+  if (/bgu|bachillerato/.test(g)) return 'bgu'
+  return null
 }
 
 /**
@@ -71,17 +91,19 @@ export async function fetchCurriculoBlock(
   opts: { grado?: string | null; asignatura?: string | null; tema?: string | null; limit?: number }
 ): Promise<string> {
   const grado = normalizeGrado(opts.grado)
+  const subnivel = gradoToSubnivel(grado)
   const asignatura = normalizeAsignatura(opts.asignatura)
-  if (!grado && !asignatura) return ''
+  if (!subnivel && !asignatura) return ''
 
-  const limit = opts.limit ?? 15
+  const limit = opts.limit ?? 25
 
   let query = (supabase as any)
     .from('curriculo_priorizado')
-    .select('destreza_codigo, destreza_descripcion, indicador_codigo, indicador_descripcion, contenidos, unidad, bloque_curricular')
+    .select('destreza_codigo, destreza_descripcion, indicador_codigo, indicador_descripcion, contenidos, unidad, bloque_curricular, subnivel, grado')
     .limit(limit)
 
-  if (grado)      query = query.eq('grado', grado)
+  // El currículo priorizado 2025 agrupa por subnivel, no por grado individual
+  if (subnivel) query = query.eq('subnivel', subnivel)
   if (asignatura) query = query.eq('asignatura', asignatura)
 
   if (opts.tema && opts.tema.trim()) {
@@ -99,11 +121,15 @@ export async function fetchCurriculoBlock(
 
   const rows = data as CurriculoRow[]
   const lines: string[] = [
-    '=== CURRÍCULO PRIORIZADO MinEduc (referencia oficial) ===',
-    `Grado: ${grado ?? '—'}  ·  Asignatura: ${asignatura ?? '—'}`,
+    '=== CURRÍCULO PRIORIZADO MinEduc 2025 (FUENTE OFICIAL — OBLIGATORIA) ===',
+    `Subnivel: ${subnivel ?? '—'}  ·  Grado consultado: ${grado ?? '—'}  ·  Asignatura: ${asignatura ?? '—'}`,
+    `Total destrezas disponibles para este filtro: ${rows.length}`,
     '',
-    'Usa EXCLUSIVAMENTE estos códigos y descripciones de destrezas/indicadores',
-    'cuando aplique al tema. NO inventes códigos nuevos.',
+    'REGLA CRÍTICA: DEBES elegir la destreza para la planificación ÚNICAMENTE',
+    'de la lista siguiente. Está PROHIBIDO inventar códigos (ej. CS.2.1.1 con descripción',
+    'que no coincida) o usar códigos memorizados de tu entrenamiento. Si ninguna destreza',
+    'de la lista encaja con el tema, elige la MÁS CERCANA y explícalo; NO fabriques una nueva.',
+    'Copia el código y la descripción TEXTUALMENTE como aparecen abajo.',
     '',
   ]
   rows.forEach((r, i) => {
