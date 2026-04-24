@@ -28,6 +28,26 @@ export function getDocForMateria(
   return d ? `${d.titulo} ${d.nombre}`.trim() : '—'
 }
 
+/**
+ * Genera horario usando BACKTRACKING con best-effort partial.
+ *
+ * Estrategia:
+ * 1. Construye la lista de clases a colocar (una entrada por hora de cada
+ *    materia en cada curso). Cada entrada conoce sus días permitidos,
+ *    períodos válidos y docente asignado.
+ * 2. Ordena las entradas por dificultad (MCV = Most Constrained Variable):
+ *    materias con pocos días permitidos primero, luego agrupadas por
+ *    curso-materia para respetar el límite de 2h/día.
+ * 3. Backtracking recursivo: intenta colocar cada entrada en un slot válido.
+ *    Si la recursión falla (ninguna asignación subsiguiente funciona),
+ *    deshace y prueba otro slot. Si ningún slot funciona, intenta saltar
+ *    esta entrada (best-effort) y continúa.
+ * 4. Snapshot: durante la exploración guarda la mejor solución parcial vista
+ *    (mayor número de clases colocadas). Si el backtracking completo no
+ *    termina dentro del presupuesto de iteraciones, se devuelve la mejor
+ *    parcial encontrada — garantiza progreso vs la versión greedy.
+ * 5. Pasada final marca huecos al fin del día como SALIDA.
+ */
 export function generarHorario(
   config: InstitucionConfig,
   docentes: Docente[],
@@ -35,144 +55,172 @@ export function generarHorario(
   docentePorCurso?: Record<string, Record<string, string>>
 ): HorarioGrid {
   const { cursos } = config
-  const horario: HorarioGrid = {}
-
-  // Inicializar grid vacío (longitud por-curso: respeta override si existe)
-  cursos.forEach(c => {
-    const { nPeriodos: np } = getCursoStructure(config, c)
-    horario[c] = {} as Record<Dia, string[]>
-    DIAS.forEach(d => { horario[c][d] = Array(np).fill('') })
-  })
-
-  // Marcar receso y (opcionalmente) acompañamiento del lunes a 1era hora.
-  // Si config.acompanamiento === false, el slot queda libre para una materia.
   const useAcomp = config.acompanamiento !== false
-  cursos.forEach(c => {
-    const { nPeriodos: np, recesos } = getCursoStructure(config, c)
-    DIAS.forEach(d => {
-      recesos.forEach(r => {
-        if (r < np) horario[c][d][r] = 'RECESO'
+
+  // ─── Inicializar horario con recesos y ACOMPAÑAMIENTO ───
+  function initHorario(): HorarioGrid {
+    const h: HorarioGrid = {}
+    cursos.forEach(c => {
+      const { nPeriodos: np, recesos } = getCursoStructure(config, c)
+      h[c] = {} as Record<Dia, string[]>
+      DIAS.forEach(d => {
+        h[c][d] = Array(np).fill('')
+        recesos.forEach(r => { if (r < np) h[c][d][r] = 'RECESO' })
       })
+      if (useAcomp) h[c]['Lunes'][0] = 'ACOMPAÑAMIENTO'
     })
-    if (useAcomp) horario[c]['Lunes'][0] = 'ACOMPAÑAMIENTO'
-  })
+    return h
+  }
 
-  // Ocupación docente comparada por HORA REAL (start time) en vez de índice.
-  // Clave: `${dia}|${horaLabel}` → Set<docente>. Así un docente que da en dos
-  // cursos con estructuras distintas aún se detecta como ocupado correctamente.
-  const docOcupado: Record<string, Set<string>> = {}
-  const keyOf = (d: Dia, horaLabel: string) => `${d}|${horaLabel}`
-
+  // ─── Construir lista de entradas (una por hora-clase a colocar) ───
+  type Entry = {
+    curso: string
+    materia: string
+    doc: string
+    diasPermitidos: Dia[]
+    validPeriods: number[]
+    horasLabels: string[]
+  }
+  const entries: Entry[] = []
   cursos.forEach(c => {
-    const hm = horasPorCurso[c] ?? {}
     const { nPeriodos: np, horarios: horasLabels, recesos } = getCursoStructure(config, c)
     const validPeriods = Array.from({ length: np }, (_, i) => i).filter(i => !recesos.includes(i))
-    // Ordenar materias: más horas primero para mejorar distribución
-    const pool = Object.entries(hm)
+    const hm = horasPorCurso[c] ?? {}
+    Object.entries(hm)
       .filter(([, h]) => h > 0)
+      // Orden interno: materias con más horas primero (mejora heurística de
+      // colocación temprana cuando hay empates de dificultad)
       .sort(([, a], [, b]) => b - a)
-
-    pool.forEach(([materia, horas]) => {
-      const doc = getDocForMateria(materia, docentes, config.jornada, config.nivel, docentePorCurso, c)
-      console.log(`Generando para ${c} -> ${materia} (${horas}h) Docente: ${doc}`)
-      let colocadas = 0
-      let intentos = 0
-
-      // Helper: está el docente ocupado a esta hora real?
-      const isDocBusy = (d: Dia, p: number): boolean => {
-        if (doc === '—') return false
-        const label = horasLabels[p] ?? String(p)
-        const set = docOcupado[keyOf(d, label)]
-        return !!set && set.has(doc)
-      }
-      const markDocBusy = (d: Dia, p: number) => {
-        if (doc === '—') return
-        const label = horasLabels[p] ?? String(p)
-        const k = keyOf(d, label)
-        if (!docOcupado[k]) docOcupado[k] = new Set()
-        docOcupado[k].add(doc)
-      }
-
-      // Restricción de días por materia (si existe)
-      const diasPermitidos = config.diasPorMateria?.[materia]
-      const dayAllowed = (d: Dia) =>
-        !diasPermitidos || diasPermitidos.length === 0 || diasPermitidos.includes(d)
-
-      // Construir lista de slots disponibles
-      const available: { d: Dia; p: number }[] = []
-      DIAS.forEach(d => {
-        if (!dayAllowed(d)) return
-        validPeriods.forEach(p => {
-          // Si acompañamiento está activo, el slot 0 del lunes está reservado
-          if (useAcomp && d === 'Lunes' && p === 0) return
-          if (!horario[c][d][p] && !isDocBusy(d, p)) {
-            available.push({ d, p })
-          }
-        })
-      })
-
-      // Orden determinista: empacar clases en los primeros periodos del dia,
-      // repartidas entre los dias (periodo asc, dia asc). Esto deja los huecos
-      // naturalmente al final del dia para marcarlos como SALIDA despues.
-      const shuffled = [...available].sort((a, b) => {
-        if (a.p !== b.p) return a.p - b.p
-        return DIAS.indexOf(a.d) - DIAS.indexOf(b.d)
-      })
-
-      // Distribuir evitando más de 2 horas seguidas de la misma materia por día
-      const usoPorDia: Record<string, number> = {}
-      DIAS.forEach(d => { usoPorDia[d] = 0 })
-
-      for (const { d, p } of shuffled) {
-        if (colocadas >= horas || intentos > 200) break
-        intentos++
-        if (!horario[c][d][p] && !isDocBusy(d, p) && usoPorDia[d] < 2) {
-          horario[c][d][p] = materia
-          markDocBusy(d, p)
-          usoPorDia[d]++
-          colocadas++
+      .forEach(([materia, horas]) => {
+        const doc = getDocForMateria(materia, docentes, config.jornada, config.nivel, docentePorCurso, c)
+        const restringidos = config.diasPorMateria?.[materia]
+        const diasPermitidos: Dia[] = (restringidos && restringidos.length > 0) ? restringidos : DIAS
+        for (let i = 0; i < horas; i++) {
+          entries.push({ curso: c, materia, doc, diasPermitidos, validPeriods, horasLabels })
         }
-      }
-
-      // Segunda pasada sin restricción de días si faltan horas
-      if (colocadas < horas) {
-        for (const { d, p } of shuffled) {
-          if (colocadas >= horas) break
-          if (!horario[c][d][p] && !isDocBusy(d, p)) {
-            horario[c][d][p] = materia
-            markDocBusy(d, p)
-            colocadas++
-          }
-        }
-      }
-    })
+      })
   })
 
-  // Pasada final: marcar huecos al final del dia como 'SALIDA'.
-  // Regla: por cada curso y dia, encontrar el ultimo periodo con clase real
-  // (no vacio y no RECESO). Todo lo que venga despues (vacio o RECESO trailing)
-  // se marca SALIDA. Asi los niños no vuelven despues de haberse ido.
+  // MCV: menos días permitidos = más difícil, va primero.
+  // Para igualdad, agrupa por curso-materia (sirve al límite 2h/día).
+  entries.sort((a, b) => {
+    if (a.diasPermitidos.length !== b.diasPermitidos.length) {
+      return a.diasPermitidos.length - b.diasPermitidos.length
+    }
+    const ak = `${a.curso}|${a.materia}`
+    const bk = `${b.curso}|${b.materia}`
+    return ak.localeCompare(bk)
+  })
+
+  // ─── Estado mutable del backtracking ───
+  const horario = initHorario()
+  const docBusy: Record<string, Set<string>> = {} // "dia|horaLabel" → Set<docente>
+  const usoPorDia: Record<string, number> = {}    // "curso|materia|dia" → count
+  let placedCount = 0
+
+  // Snapshot de mejor parcial
+  let bestHorario: HorarioGrid | null = null
+  let bestPlaced = -1
+  function snapshot() {
+    if (placedCount > bestPlaced) {
+      bestPlaced = placedCount
+      bestHorario = JSON.parse(JSON.stringify(horario))
+    }
+  }
+
+  const MAX_ITERATIONS = 200000
+  let iterations = 0
+
+  function canPlace(e: Entry, d: Dia, p: number): boolean {
+    if (horario[e.curso][d][p]) return false // ocupado (materia/RECESO/ACOMP)
+    if (useAcomp && d === 'Lunes' && p === 0) return false
+    const kDia = `${e.curso}|${e.materia}|${d}`
+    if ((usoPorDia[kDia] ?? 0) >= 2) return false
+    if (e.doc !== '—') {
+      const label = e.horasLabels[p] ?? String(p)
+      const set = docBusy[`${d}|${label}`]
+      if (set && set.has(e.doc)) return false
+    }
+    return true
+  }
+  function doPlace(e: Entry, d: Dia, p: number) {
+    horario[e.curso][d][p] = e.materia
+    const kDia = `${e.curso}|${e.materia}|${d}`
+    usoPorDia[kDia] = (usoPorDia[kDia] ?? 0) + 1
+    if (e.doc !== '—') {
+      const label = e.horasLabels[p] ?? String(p)
+      const bk = `${d}|${label}`
+      if (!docBusy[bk]) docBusy[bk] = new Set()
+      docBusy[bk].add(e.doc)
+    }
+    placedCount++
+  }
+  function undoPlace(e: Entry, d: Dia, p: number) {
+    horario[e.curso][d][p] = ''
+    const kDia = `${e.curso}|${e.materia}|${d}`
+    usoPorDia[kDia] = (usoPorDia[kDia] ?? 0) - 1
+    if (e.doc !== '—') {
+      const label = e.horasLabels[p] ?? String(p)
+      docBusy[`${d}|${label}`]?.delete(e.doc)
+    }
+    placedCount--
+  }
+
+  function backtrack(idx: number): boolean {
+    if (iterations++ > MAX_ITERATIONS) return false
+    snapshot()
+    if (idx >= entries.length) return true
+
+    const e = entries[idx]
+    // Construir candidatos válidos
+    const candidates: { d: Dia; p: number }[] = []
+    for (const d of e.diasPermitidos) {
+      for (const p of e.validPeriods) {
+        if (canPlace(e, d, p)) candidates.push({ d, p })
+      }
+    }
+    // Heurística: empaca en períodos tempranos, reparte entre días
+    candidates.sort((a, b) => {
+      if (a.p !== b.p) return a.p - b.p
+      return DIAS.indexOf(a.d) - DIAS.indexOf(b.d)
+    })
+
+    for (const { d, p } of candidates) {
+      doPlace(e, d, p)
+      if (backtrack(idx + 1)) return true
+      undoPlace(e, d, p)
+      if (iterations > MAX_ITERATIONS) return false
+    }
+
+    // No se pudo colocar con ningún slot: saltar esta entrada (best-effort)
+    // y continuar con el resto para maximizar colocación global.
+    return backtrack(idx + 1)
+  }
+
+  backtrack(0)
+
+  // Usa la mejor parcial si el backtracking no completó
+  const result = bestHorario ?? horario
+
+  // ─── Pasada final: marcar huecos al fin del día como SALIDA ───
   cursos.forEach(c => {
     const { nPeriodos: np } = getCursoStructure(config, c)
     DIAS.forEach(d => {
-      const row = horario[c][d]
-      // Buscar el indice del ultimo periodo con contenido real de clase/actividad
+      const row = result[c][d]
       let lastClass = -1
       for (let p = np - 1; p >= 0; p--) {
         const v = row[p]
-        if (v && v !== 'RECESO' && v !== '') {
-          lastClass = p
-          break
-        }
+        if (v && v !== 'RECESO' && v !== '') { lastClass = p; break }
       }
-      // Todo despues de lastClass se marca SALIDA (sobreescribe RECESOs finales)
-      for (let p = lastClass + 1; p < np; p++) {
-        row[p] = 'SALIDA'
-      }
+      for (let p = lastClass + 1; p < np; p++) row[p] = 'SALIDA'
     })
   })
 
-  return horario
+  if (placedCount < entries.length || bestPlaced < entries.length) {
+    console.warn(`[horarios] backtracking colocó ${bestPlaced}/${entries.length} clases (iteraciones: ${iterations})`)
+  }
+
+  return result
 }
 
 /**
