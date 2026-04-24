@@ -835,7 +835,7 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
                                     <button
                                       onClick={updateSubject}
                                       disabled={savingSubject}
-                                      className="text-xs px-2.5 py-1 rounded-lg bg-teal-500 text-white hover:bg-teal-600 transition-colors font-semibold"
+                                      className="text-xs px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-all font-bold shadow-sm active:scale-95"
                                     >
                                       {savingSubject ? '...' : 'Guardar'}
                                     </button>
