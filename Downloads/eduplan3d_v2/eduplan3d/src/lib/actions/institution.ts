@@ -68,3 +68,28 @@ export async function joinInstitution(code: string): Promise<{ error?: string }>
   revalidatePath('/dashboard', 'layout')
   return {}
 }
+
+export async function updateInstitutionFinancial(id: string, financial: any): Promise<{ error?: string }> {
+  const supabase = createClient()
+  
+  // 1. Get current settings
+  const { data: inst } = await (supabase as any)
+    .from('institutions')
+    .select('settings')
+    .eq('id', id)
+    .single()
+    
+  const oldSettings = inst?.settings || {}
+  const newSettings = { ...oldSettings, financial }
+  
+  // 2. Update
+  const { error } = await (supabase as any)
+    .from('institutions')
+    .update({ settings: newSettings })
+    .eq('id', id)
+    
+  if (error) return { error: error.message }
+  
+  revalidatePath('/dashboard/secretaria')
+  return {}
+}

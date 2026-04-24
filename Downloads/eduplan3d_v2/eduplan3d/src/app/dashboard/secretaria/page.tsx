@@ -26,12 +26,15 @@ export default async function SecretariaPage() {
   const instId = profile.institution_id
 
   // Cargar datos en paralelo con adminClient
-  const [studentsRes, coursesRes, enrollsRes, paymentsRes] = await Promise.all([
+  const [studentsRes, coursesRes, enrollsRes, paymentsRes, instRes] = await Promise.all([
     admin.from('profiles').select('id, full_name, email').eq('institution_id', instId).eq('role', 'student').order('full_name'),
     admin.from('courses').select('id, name, parallel, level, shift').eq('institution_id', instId),
     admin.from('enrollments').select('course_id, student_id'),
     admin.from('payments' as any).select('*').eq('institution_id', instId).order('created_at', { ascending: false }),
+    admin.from('institutions').select('settings').eq('id', instId).single(),
   ])
+
+  const instSettings = (instRes.data as any)?.settings || {}
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
@@ -45,6 +48,7 @@ export default async function SecretariaPage() {
         courses={coursesRes.data || []}
         enrollments={enrollsRes.data || []}
         initialPayments={paymentsRes.data || []}
+        financialSettings={instSettings.financial || {}}
       />
     </div>
   )

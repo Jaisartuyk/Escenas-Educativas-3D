@@ -7,8 +7,9 @@ import {
   Plus, Check, Clock, AlertTriangle, X, Search,
   DollarSign, Users, TrendingUp, CalendarDays,
   ChevronDown, Filter, Trash2, CreditCard, GraduationCap,
-  Pencil, Save, Table as TableIcon, LayoutList,
+  Pencil, Save, Table as TableIcon, LayoutList, Settings,
 } from 'lucide-react'
+import { updateInstitutionFinancial } from '@/lib/actions/institution'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function getPaymentStatus(p: any): 'pagado' | 'atrasado' | 'proximo' | 'pendiente' {
@@ -51,7 +52,7 @@ const STATUS_CELL: Record<string, string> = {
 }
 
 // ─── Componente principal ────────────────────────────────────────────────────
-export function SecretariaClient({ institutionId, students, courses, enrollments, initialPayments, isTutorMode }: any) {
+export function SecretariaClient({ institutionId, students, courses, enrollments, initialPayments, isTutorMode, financialSettings }: any) {
   const [payments, setPayments]        = useState<any[]>(initialPayments || [])
   const [showForm, setShowForm]        = useState(false)
   const [viewMode, setViewMode]        = useState<'tabla' | 'lista'>('tabla')
@@ -69,6 +70,11 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const [newDesc, setNewDesc]         = useState('')
   const [newDueDate, setNewDueDate]   = useState('')
   const [saving, setSaving]           = useState(false)
+  const [showConfig, setShowConfig]   = useState(false)
+  const [finConfig, setFinConfig]     = useState({
+    matutina:   { matricula: 35, pension: 60, ...financialSettings?.matutina },
+    vespertina: { matricula: 35, pension: 60, ...financialSettings?.vespertina },
+  })
 
   // Inline editing
   const [editingId, setEditingId]     = useState<string | null>(null)
@@ -249,14 +255,16 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     const stuCIds = studentCourses[studentId] || []
     const stuCourse = stuCIds.length > 0 ? coursesById[stuCIds[0]] : null
     const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
+    const shift = (stuCourse?.shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina') as 'matutina' | 'vespertina'
+    const prices = finConfig[shift]
 
     if (type === 'matricula') {
-      setNewAmount('35')
+      setNewAmount(String(prices.matricula))
       setNewDesc(`Matricula ${new Date().getFullYear()}${courseLabel ? ` — ${courseLabel}` : ''}`)
       const today = new Date()
       setNewDueDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15).toISOString().split('T')[0])
     } else if (type === 'pension' && month) {
-      setNewAmount('60')
+      setNewAmount(String(prices.pension))
       const monthIdx = MESES.indexOf(month)
       const academicMonths = [4, 5, 6, 7, 8, 9, 10, 11, 0, 1]
       const targetMonth = academicMonths[monthIdx]
@@ -388,6 +396,17 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     finally { setGenerating(false) }
   }
 
+  async function handleSaveConfig() {
+    setSaving(true)
+    const res = await updateInstitutionFinancial(institutionId, finConfig)
+    setSaving(false)
+    if (res.error) toast.error('Error al guardar configuración')
+    else {
+      toast.success('Configuración financiera guardada')
+      setShowConfig(false)
+    }
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -503,15 +522,24 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               {!isTutorMode && (
                 <>
                   <button
+                    onClick={() => setShowConfig(!showConfig)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors flex-shrink-0 ${
+                      showConfig ? 'bg-violet-100 text-violet-700 border-violet-200' : 'border-surface2 text-ink3 hover:bg-surface2'
+                    }`}
+                  >
+                    <Settings size={14} />
+                    Configurar Valores
+                  </button>
+                  <button
                     onClick={generateMissing}
                     disabled={generating}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-surface2 text-ink3 hover:bg-surface2 transition-colors disabled:opacity-50 flex-shrink-0"
                   >
                     <CalendarDays size={14} />
-                    {generating ? 'Generando...' : 'Generar cobros pendientes'}
+                    {generating ? 'Generando...' : 'Generar cobros'}
                   </button>
                   <button
-                    onClick={() => setShowForm(!showForm)}
+                    onClick={() => { setShowForm(!showForm); setShowConfig(false) }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg flex-shrink-0"
                     style={{ backgroundColor: '#7C6DFA' }}
                   >
@@ -637,6 +665,114 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               </button>
             </div>
           </form>
+        )}
+
+        {/* ── Configuration panel ─────────────────────────────────────────── */}
+        {showConfig && (
+          <div className="p-6 border-b border-surface2 bg-bg space-y-6 animate-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm text-ink flex items-center gap-2">
+                  <Settings size={16} className="text-violet" />
+                  Configuración de Valores por Jornada
+                </h3>
+                <p className="text-xs text-ink3 mt-0.5">Define los precios base para matrículas y pensiones de cada turno.</p>
+              </div>
+              <button 
+                onClick={() => setShowConfig(false)} 
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-ink4 hover:bg-surface2 hover:text-ink transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Matutina */}
+              <div className="space-y-4 p-5 rounded-2xl bg-amber-50/40 border border-amber-100/50 shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-lg">🌅</div>
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-800">Jornada Matutina</span>
+                    <p className="text-[10px] text-amber-600 font-medium">Turnos de la mañana</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold uppercase text-ink4 tracking-wider">Matrícula</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink4 text-xs">$</span>
+                      <input
+                        type="number"
+                        value={finConfig.matutina.matricula}
+                        onChange={e => setFinConfig({ ...finConfig, matutina: { ...finConfig.matutina, matricula: parseFloat(e.target.value) || 0 } })}
+                        className="w-full bg-surface border border-surface2 rounded-xl pl-6 pr-3 py-2 text-sm font-semibold focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold uppercase text-ink4 tracking-wider">Pensión</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink4 text-xs">$</span>
+                      <input
+                        type="number"
+                        value={finConfig.matutina.pension}
+                        onChange={e => setFinConfig({ ...finConfig, matutina: { ...finConfig.matutina, pension: parseFloat(e.target.value) || 0 } })}
+                        className="w-full bg-surface border border-surface2 rounded-xl pl-6 pr-3 py-2 text-sm font-semibold focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vespertina */}
+              <div className="space-y-4 p-5 rounded-2xl bg-blue-50/40 border border-blue-100/50 shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-lg">🌇</div>
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-blue-800">Jornada Vespertina</span>
+                    <p className="text-[10px] text-blue-600 font-medium">Turnos de la tarde</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold uppercase text-ink4 tracking-wider">Matrícula</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink4 text-xs">$</span>
+                      <input
+                        type="number"
+                        value={finConfig.vespertina.matricula}
+                        onChange={e => setFinConfig({ ...finConfig, vespertina: { ...finConfig.vespertina, matricula: parseFloat(e.target.value) || 0 } })}
+                        className="w-full bg-surface border border-surface2 rounded-xl pl-6 pr-3 py-2 text-sm font-semibold focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold uppercase text-ink4 tracking-wider">Pensión</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink4 text-xs">$</span>
+                      <input
+                        type="number"
+                        value={finConfig.vespertina.pension}
+                        onChange={e => setFinConfig({ ...finConfig, vespertina: { ...finConfig.vespertina, pension: parseFloat(e.target.value) || 0 } })}
+                        className="w-full bg-surface border border-surface2 rounded-xl pl-6 pr-3 py-2 text-sm font-semibold focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-surface2/50">
+              <button
+                onClick={handleSaveConfig}
+                disabled={saving}
+                className="flex items-center gap-2 px-8 py-2.5 rounded-xl text-sm font-semibold text-white shadow-lg shadow-violet/20 active:scale-95 transition-all disabled:opacity-50"
+                style={{ backgroundColor: '#7C6DFA' }}
+              >
+                {saving ? 'Guardando...' : <><Save size={16} /> Guardar Configuración</>}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* ══════════════════════════════════════════════════════════════════

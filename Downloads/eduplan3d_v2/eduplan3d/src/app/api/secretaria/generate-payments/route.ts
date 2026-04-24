@@ -24,11 +24,14 @@ export async function POST() {
 
   const instId = profile.institution_id
 
-  // Get all enrollments with course info
-  const { data: courses } = await admin
-    .from('courses')
-    .select('id, name, parallel')
-    .eq('institution_id', instId)
+  // Get all enrollments with course info and financial settings
+  const [coursesRes, instRes] = await Promise.all([
+    admin.from('courses').select('id, name, parallel, shift').eq('institution_id', instId),
+    admin.from('institutions').select('settings').eq('id', instId).single()
+  ])
+
+  const courses = coursesRes.data || []
+  const financial = (instRes.data as any)?.settings?.financial || {}
 
   const courseIds = (courses || []).map((c: any) => c.id)
   if (courseIds.length === 0) return NextResponse.json({ generated: 0 })
@@ -79,12 +82,15 @@ export async function POST() {
 
     // 1. Check Matrícula
     const hasMatricula = studentPayments.some(p => p.type === 'matricula')
+    const shift = (course?.shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina') as 'matutina' | 'vespertina'
+    const prices = financial[shift] || { matricula: 35, pension: 60 }
+
     if (!hasMatricula) {
       const matriculaDue = new Date(year, now.getMonth(), now.getDate() + 15)
       allPayments.push({
         institution_id: instId,
         student_id: enr.student_id,
-        amount: 35,
+        amount: prices.matricula || 35,
         description: `Matricula ${year} — ${courseName}`,
         type: 'matricula',
         status: 'pendiente',
@@ -105,7 +111,7 @@ export async function POST() {
         allPayments.push({
           institution_id: instId,
           student_id: enr.student_id,
-          amount: 60,
+          amount: prices.pension || 60,
           description: `Pension ${mObj.name.charAt(0).toUpperCase() + mObj.name.slice(1)} ${pensionYear} — ${courseName}`,
           type: 'pension',
           status: 'pendiente',
