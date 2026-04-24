@@ -402,8 +402,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     setSaving(false)
     if (res.error) toast.error('Error al guardar configuración')
     else {
-      toast.success('Configuración financiera guardada')
+      toast.success('Configuración guardada y cobros sincronizados')
       setShowConfig(false)
+      window.location.reload()
     }
   }
 

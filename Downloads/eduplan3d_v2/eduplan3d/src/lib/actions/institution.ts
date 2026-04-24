@@ -119,9 +119,12 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
     .select('id, shift')
     .eq('institution_id', institutionId)
     
+  const courseIds = courses?.map((c: any) => c.id) || []
+  
   const { data: enrollments } = await (admin as any)
     .from('enrollments')
     .select('student_id, course_id')
+    .in('course_id', courseIds)
     
   const shiftsByStudent: Record<string, string> = {}
   const coursesById: Record<string, any> = {}
