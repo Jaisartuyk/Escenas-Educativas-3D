@@ -157,6 +157,23 @@ export function StepInstitucion({ config, onChange, onNext, docentes = [] }: Pro
           </div>
         </div>
 
+        {/* Toggle Acompañamiento */}
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-[rgba(255,179,71,0.04)] border border-[rgba(255,179,71,0.15)] mb-2">
+          <input
+            type="checkbox"
+            id="toggle-acomp"
+            checked={config.acompanamiento !== false}
+            onChange={e => set('acompanamiento', e.target.checked)}
+            className="w-4 h-4 cursor-pointer"
+          />
+          <label htmlFor="toggle-acomp" className="text-sm text-ink2 cursor-pointer select-none flex-1">
+            <span className="font-semibold">Bloque ACOMPAÑAMIENTO</span> los lunes a primera hora
+          </label>
+          <span className="text-[10px] text-ink4">
+            Desactívalo si no aplica en esta institución
+          </span>
+        </div>
+
         {/* Horarios por período */}
         <div>
           <div className="flex items-center justify-between mb-3 border-t border-[rgba(0,0,0,0.05)] pt-4 mt-2">

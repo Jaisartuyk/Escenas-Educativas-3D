@@ -44,7 +44,9 @@ export function generarHorario(
     DIAS.forEach(d => { horario[c][d] = Array(np).fill('') })
   })
 
-  // Marcar receso y acompañamiento (recesos también por-curso)
+  // Marcar receso y (opcionalmente) acompañamiento del lunes a 1era hora.
+  // Si config.acompanamiento === false, el slot queda libre para una materia.
+  const useAcomp = config.acompanamiento !== false
   cursos.forEach(c => {
     const { nPeriodos: np, recesos } = getCursoStructure(config, c)
     DIAS.forEach(d => {
@@ -52,7 +54,7 @@ export function generarHorario(
         if (r < np) horario[c][d][r] = 'RECESO'
       })
     })
-    horario[c]['Lunes'][0] = 'ACOMPAÑAMIENTO'
+    if (useAcomp) horario[c]['Lunes'][0] = 'ACOMPAÑAMIENTO'
   })
 
   // Ocupación docente comparada por HORA REAL (start time) en vez de índice.
@@ -95,8 +97,8 @@ export function generarHorario(
       const available: { d: Dia; p: number }[] = []
       DIAS.forEach(d => {
         validPeriods.forEach(p => {
-          // El slot 0 del Lunes está de acompañamiento
-          if (d === 'Lunes' && p === 0) return
+          // Si acompañamiento está activo, el slot 0 del lunes está reservado
+          if (useAcomp && d === 'Lunes' && p === 0) return
           if (!horario[c][d][p] && !isDocBusy(d, p)) {
             available.push({ d, p })
           }

@@ -39,6 +39,12 @@ export interface InstitucionConfig {
    * estructura global (nPeriodos/horarios/recesos). Si está, ignora lo global.
    */
   cursosCustom?: Record<string, CursoHorarioOverride>
+  /**
+   * Activa el bloque de ACOMPAÑAMIENTO del lunes a primera hora para todos
+   * los cursos. Default: true (backward compat). Si es false, ese slot queda
+   * libre para colocar una materia normal.
+   */
+  acompanamiento?: boolean
 }
 
 /**
