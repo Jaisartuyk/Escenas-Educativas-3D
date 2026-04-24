@@ -166,10 +166,18 @@ export function generarHorario(
     placedCount--
   }
 
-  function backtrack(idx: number): boolean {
-    if (iterations++ > MAX_ITERATIONS) return false
+  // Backtracking real con branch-and-bound: explora todos los subárboles
+  // hasta encontrar óptimo o agotar el presupuesto. Snapshot captura mejor
+  // parcial. Corto circuito: si bestPlaced alcanza entries.length terminamos.
+  // Pruning: si el máximo alcanzable desde aquí no supera bestPlaced, corta.
+  function backtrack(idx: number): void {
+    if (iterations++ > MAX_ITERATIONS) return
     snapshot()
-    if (idx >= entries.length) return true
+    if (bestPlaced === entries.length) return
+    if (idx >= entries.length) return
+    // Podado: aunque coloquemos todas las entradas restantes, ¿superamos el best?
+    const maxPossible = placedCount + (entries.length - idx)
+    if (maxPossible <= bestPlaced) return
 
     const e = entries[idx]
     // Construir candidatos válidos
@@ -185,16 +193,19 @@ export function generarHorario(
       return DIAS.indexOf(a.d) - DIAS.indexOf(b.d)
     })
 
+    // Explora cada candidato
     for (const { d, p } of candidates) {
       doPlace(e, d, p)
-      if (backtrack(idx + 1)) return true
+      backtrack(idx + 1)
       undoPlace(e, d, p)
-      if (iterations > MAX_ITERATIONS) return false
+      if (iterations > MAX_ITERATIONS) return
+      if (bestPlaced === entries.length) return
     }
 
-    // No se pudo colocar con ningún slot: saltar esta entrada (best-effort)
-    // y continuar con el resto para maximizar colocación global.
-    return backtrack(idx + 1)
+    // También explora saltar esta entrada (best-effort partial): permite
+    // encontrar soluciones donde una entrada imposible se omite pero el
+    // resto se coloca. Snapshot capturará el mejor subárbol.
+    backtrack(idx + 1)
   }
 
   backtrack(0)
