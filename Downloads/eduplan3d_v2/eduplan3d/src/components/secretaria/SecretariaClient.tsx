@@ -9,7 +9,7 @@ import {
   ChevronDown, Filter, Trash2, CreditCard, GraduationCap,
   Pencil, Save, Table as TableIcon, LayoutList, Settings,
 } from 'lucide-react'
-import { updateInstitutionFinancial } from '@/lib/actions/institution'
+import { updateInstitutionFinancial, syncPendingPayments } from '@/lib/actions/institution'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function getPaymentStatus(p: any): 'pagado' | 'atrasado' | 'proximo' | 'pendiente' {
@@ -407,6 +407,21 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     }
   }
 
+  async function handleSyncPayments() {
+    if (!confirm('¿Deseas actualizar todos los cobros PENDIENTES con los montos actuales de la configuración? Esto no afectará a los ya pagados.')) return
+    
+    setSaving(true)
+    const res = await syncPendingPayments(institutionId)
+    setSaving(false)
+    
+    if (res.error) toast.error(res.error)
+    else {
+      toast.success(`${res.updated} cobros actualizados`)
+      // Refetch payments or reload
+      window.location.reload()
+    }
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -762,7 +777,15 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-surface2/50">
+            <div className="flex justify-between items-center pt-2 border-t border-surface2/50">
+              <button
+                onClick={handleSyncPayments}
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all disabled:opacity-50"
+              >
+                <TrendingUp size={14} /> Sincronizar cobros existentes
+              </button>
+              
               <button
                 onClick={handleSaveConfig}
                 disabled={saving}
