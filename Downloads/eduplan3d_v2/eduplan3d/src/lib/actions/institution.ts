@@ -2,6 +2,7 @@
 
 // src/lib/actions/institution.ts
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 function generateJoinCode() {
@@ -70,10 +71,10 @@ export async function joinInstitution(code: string): Promise<{ error?: string }>
 }
 
 export async function updateInstitutionFinancial(id: string, financial: any): Promise<{ error?: string }> {
-  const supabase = createClient()
+  const admin = createAdminClient()
   
   // 1. Get current settings
-  const { data: inst } = await (supabase as any)
+  const { data: inst } = await (admin as any)
     .from('institutions')
     .select('settings')
     .eq('id', id)
@@ -83,7 +84,7 @@ export async function updateInstitutionFinancial(id: string, financial: any): Pr
   const newSettings = { ...oldSettings, financial }
   
   // 2. Update
-  const { error } = await (supabase as any)
+  const { error } = await (admin as any)
     .from('institutions')
     .update({ settings: newSettings })
     .eq('id', id)
@@ -98,10 +99,10 @@ export async function updateInstitutionFinancial(id: string, financial: any): Pr
 }
 
 export async function syncPendingPayments(institutionId: string): Promise<{ updated?: number, error?: string }> {
-  const supabase = createClient()
+  const admin = createAdminClient()
   
   // 1. Get settings
-  const { data: inst } = await (supabase as any)
+  const { data: inst } = await (admin as any)
     .from('institutions')
     .select('settings')
     .eq('id', institutionId)
@@ -113,12 +114,12 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
   }
   
   // 2. Get students and their shifts
-  const { data: courses } = await (supabase as any)
+  const { data: courses } = await (admin as any)
     .from('courses')
     .select('id, shift')
     .eq('institution_id', institutionId)
     
-  const { data: enrollments } = await (supabase as any)
+  const { data: enrollments } = await (admin as any)
     .from('enrollments')
     .select('student_id, course_id')
     
@@ -132,7 +133,7 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
   })
   
   // 3. Get pending payments (only matricula and pension)
-  const { data: pending } = await (supabase as any)
+  const { data: pending } = await (admin as any)
     .from('payments')
     .select('id, student_id, type, amount')
     .eq('institution_id', institutionId)
@@ -157,7 +158,7 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
   
   // 4. Batch update
   if (updates.length > 0) {
-    const { error } = await (supabase as any)
+    const { error } = await (admin as any)
       .from('payments')
       .upsert(updates.map(u => ({ 
         id: u.id, 
