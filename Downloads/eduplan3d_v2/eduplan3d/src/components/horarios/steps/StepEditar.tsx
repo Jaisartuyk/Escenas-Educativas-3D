@@ -17,6 +17,53 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
   const { config, docentes, horario, horasPorCurso } = state
   const [cursoActivo, setCursoActivo] = useState(config.cursos[0] ?? '')
   const [vistaDoc, setVistaDoc] = useState(false)
+  const [vistaCarga, setVistaCarga] = useState(false)
+
+  // Carga docente: suma horas semanales asignadas a cada docente (según docentePorCurso
+  // + horasPorCurso) y detecta sobrecargas en materias con días restringidos.
+  const cargaDocente = useMemo(() => {
+    type MateriaRow = { materia: string; curso: string; horas: number; diasRestringidos?: Dia[] }
+    const byDoc: Record<string, { total: number; rows: MateriaRow[] }> = {}
+    const dpc = state.docentePorCurso ?? {}
+    Object.entries(horasPorCurso).forEach(([curso, mats]) => {
+      Object.entries(mats).forEach(([materia, horas]) => {
+        if (!horas || horas <= 0) return
+        const doc = dpc[curso]?.[materia]
+        if (!doc || doc === '—') return
+        const diasRestringidos = config.diasPorMateria?.[materia]
+        if (!byDoc[doc]) byDoc[doc] = { total: 0, rows: [] }
+        byDoc[doc].total += horas
+        byDoc[doc].rows.push({ materia, curso, horas, diasRestringidos })
+      })
+    })
+    // Slots útiles por día (promedio): usa la estructura global como referencia
+    const slotsPorDiaGlobal = Math.max(1, config.nPeriodos - (config.recesos?.length ?? 0))
+    const list = Object.entries(byDoc)
+      .map(([doc, { total, rows }]) => {
+        // Detectar sobrecarga por días restringidos: agrupar rows por materia con dias
+        const porMateriaRestringida: Record<string, { horas: number; dias: Dia[] }> = {}
+        rows.forEach(r => {
+          if (r.diasRestringidos && r.diasRestringidos.length > 0) {
+            if (!porMateriaRestringida[r.materia]) {
+              porMateriaRestringida[r.materia] = { horas: 0, dias: r.diasRestringidos }
+            }
+            porMateriaRestringida[r.materia].horas += r.horas
+          }
+        })
+        const alertas: string[] = []
+        Object.entries(porMateriaRestringida).forEach(([mat, info]) => {
+          const slotsDisponibles = info.dias.length * slotsPorDiaGlobal
+          if (info.horas > slotsDisponibles) {
+            alertas.push(
+              `${mat}: ${info.horas}h necesita ${slotsDisponibles} slots disponibles (${info.dias.join('+')})`
+            )
+          }
+        })
+        return { doc, total, rows, alertas }
+      })
+      .sort((a, b) => b.total - a.total)
+    return list
+  }, [horasPorCurso, state.docentePorCurso, config])
 
   const OPCIONES_CELDA = useMemo(() => {
     const materias = new Set<string>()
@@ -101,7 +148,13 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setVistaDoc(v => !v)}
+            onClick={() => { setVistaCarga(v => !v); setVistaDoc(false) }}
+            className="btn-secondary text-sm px-4 py-2"
+          >
+            {vistaCarga ? '📋 Volver al horario' : '📊 Carga docente'}
+          </button>
+          <button
+            onClick={() => { setVistaDoc(v => !v); setVistaCarga(false) }}
             className="btn-secondary text-sm px-4 py-2"
           >
             {vistaDoc ? '📋 Vista por curso' : '👤 Vista por docente'}
@@ -112,7 +165,66 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
         </div>
       </div>
 
-      {!vistaDoc ? (
+      {vistaCarga && (
+        <div className="card p-5 mb-4">
+          <h3 className="font-display text-sm font-bold mb-1 text-violet2">📊 Carga horaria de docentes</h3>
+          <p className="text-[11px] text-ink3 mb-3">
+            Suma de horas semanales asignadas por docente (según materias × cursos).
+            Las alertas marcan materias con días restringidos donde la carga supera los slots disponibles.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead>
+                <tr>
+                  <th className="text-left px-2 py-1.5 bg-surface border border-[rgba(120,100,255,0.14)] text-ink3 font-semibold">Docente</th>
+                  <th className="text-center px-2 py-1.5 bg-surface border border-[rgba(120,100,255,0.14)] text-ink3 font-semibold w-20">Total h/sem</th>
+                  <th className="text-left px-2 py-1.5 bg-surface border border-[rgba(120,100,255,0.14)] text-ink3 font-semibold">Desglose (materia × curso)</th>
+                  <th className="text-left px-2 py-1.5 bg-surface border border-[rgba(120,100,255,0.14)] text-ink3 font-semibold">Alertas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cargaDocente.map(({ doc, total, rows, alertas }) => {
+                  const overloaded = total > 30 || alertas.length > 0
+                  return (
+                    <tr key={doc} className={overloaded ? 'bg-[rgba(240,98,146,0.08)]' : ''}>
+                      <td className="px-2 py-1.5 border border-[rgba(120,100,255,0.14)] text-ink font-medium">{doc}</td>
+                      <td className={`text-center px-2 py-1.5 border border-[rgba(120,100,255,0.14)] font-bold ${
+                        total > 35 ? 'text-rose' : total > 30 ? 'text-amber' : 'text-teal'
+                      }`}>{total}h</td>
+                      <td className="px-2 py-1.5 border border-[rgba(120,100,255,0.14)] text-ink2 text-[11px]">
+                        {rows.map((r, i) => (
+                          <div key={i} className="leading-tight">
+                            <span className={r.diasRestringidos ? 'text-amber' : ''}>{r.materia}</span>
+                            {' '}×{r.horas}h
+                            {' '}<span className="text-ink3">({r.curso}{r.diasRestringidos ? ` · ${r.diasRestringidos.map(d => d[0]).join('')}` : ''})</span>
+                          </div>
+                        ))}
+                      </td>
+                      <td className="px-2 py-1.5 border border-[rgba(120,100,255,0.14)] text-[11px]">
+                        {alertas.length === 0 ? (
+                          <span className="text-ink3">—</span>
+                        ) : (
+                          alertas.map((a, i) => (
+                            <div key={i} className="text-rose leading-tight">⚠ {a}</div>
+                          ))
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center gap-4 mt-3 flex-wrap text-[11px]">
+            <span className="text-ink3">Referencia:</span>
+            <span className="text-teal">≤30h saludable</span>
+            <span className="text-amber">31-35h alta</span>
+            <span className="text-rose">&gt;35h imposible en una jornada</span>
+          </div>
+        </div>
+      )}
+
+      {!vistaCarga && !vistaDoc ? (
         <>
           {/* Tabs cursos */}
           <div className="flex flex-wrap gap-2 mb-4">
@@ -236,7 +348,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
             </span>
           </div>
         </>
-      ) : (
+      ) : vistaDoc ? (
         /* ── VISTA DOCENTE ── */
         (() => {
           const { byDoc, labels } = buildVistaDocente()
@@ -283,7 +395,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
             </div>
           )
         })()
-      )}
+      ) : null}
 
       <div className="flex gap-3 mt-5">
         <button onClick={onBack} className="btn-secondary px-6 py-2.5">← Regenerar</button>
