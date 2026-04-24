@@ -89,6 +89,9 @@ export async function updateInstitutionFinancial(id: string, financial: any): Pr
     .eq('id', id)
     
   if (error) return { error: error.message }
+
+  // 3. Auto-sync pending payments
+  await syncPendingPayments(id)
   
   revalidatePath('/dashboard/secretaria')
   return {}
@@ -154,11 +157,13 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
   
   // 4. Batch update
   if (updates.length > 0) {
-    // Supabase JS doesn't support batch update with different values easily without multiple calls
-    // but we can use upsert if we provide the full keys
     const { error } = await (supabase as any)
       .from('payments')
-      .upsert(updates.map(u => ({ id: u.id, amount: u.amount })), { onConflict: 'id' })
+      .upsert(updates.map(u => ({ 
+        id: u.id, 
+        amount: u.amount,
+        institution_id: institutionId 
+      })), { onConflict: 'id' })
       
     if (error) return { error: error.message }
   }
