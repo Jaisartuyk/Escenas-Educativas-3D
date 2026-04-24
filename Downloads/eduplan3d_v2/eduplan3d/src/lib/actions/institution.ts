@@ -104,8 +104,10 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
     .eq('id', institutionId)
     .single()
     
-  const financial = inst?.settings?.financial
-  if (!financial) return { error: 'No hay configuración financiera definida' }
+  const financial = inst?.settings?.financial || {
+    matutina:   { matricula: 35, pension: 60 },
+    vespertina: { matricula: 35, pension: 60 }
+  }
   
   // 2. Get students and their shifts
   const { data: courses } = await (supabase as any)
