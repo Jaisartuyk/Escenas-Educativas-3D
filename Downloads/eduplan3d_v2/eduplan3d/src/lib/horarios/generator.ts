@@ -101,117 +101,136 @@ export function generarHorario(
       })
   })
 
-  // MCV: menos días permitidos = más difícil, va primero.
-  // Para igualdad, agrupa por curso-materia (sirve al límite 2h/día).
-  entries.sort((a, b) => {
-    if (a.diasPermitidos.length !== b.diasPermitidos.length) {
-      return a.diasPermitidos.length - b.diasPermitidos.length
+  // ─── RNG seedeado simple (Mulberry32) para reinicios determinísticos ───
+  function makeRng(seed: number) {
+    let s = seed >>> 0
+    return () => {
+      s = (s + 0x6D2B79F5) >>> 0
+      let t = s
+      t = Math.imul(t ^ (t >>> 15), t | 1)
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
     }
-    const ak = `${a.curso}|${a.materia}`
-    const bk = `${b.curso}|${b.materia}`
-    return ak.localeCompare(bk)
-  })
+  }
 
-  // ─── Estado mutable del backtracking ───
-  const horario = initHorario()
-  const docBusy: Record<string, Set<string>> = {} // "dia|horaLabel" → Set<docente>
-  const usoPorDia: Record<string, number> = {}    // "curso|materia|dia" → count
-  let placedCount = 0
-
-  // Snapshot de mejor parcial
+  // Snapshot global (persiste entre reinicios)
   let bestHorario: HorarioGrid | null = null
   let bestPlaced = -1
-  function snapshot() {
-    if (placedCount > bestPlaced) {
-      bestPlaced = placedCount
-      bestHorario = JSON.parse(JSON.stringify(horario))
-    }
-  }
+  const totalEntries = entries.length
 
-  const MAX_ITERATIONS = 200000
-  let iterations = 0
-
-  function canPlace(e: Entry, d: Dia, p: number): boolean {
-    if (horario[e.curso][d][p]) return false // ocupado (materia/RECESO/ACOMP)
-    if (useAcomp && d === 'Lunes' && p === 0) return false
-    const kDia = `${e.curso}|${e.materia}|${d}`
-    if ((usoPorDia[kDia] ?? 0) >= 2) return false
-    if (e.doc !== '—') {
-      const label = e.horasLabels[p] ?? String(p)
-      const set = docBusy[`${d}|${label}`]
-      if (set && set.has(e.doc)) return false
-    }
-    return true
-  }
-  function doPlace(e: Entry, d: Dia, p: number) {
-    horario[e.curso][d][p] = e.materia
-    const kDia = `${e.curso}|${e.materia}|${d}`
-    usoPorDia[kDia] = (usoPorDia[kDia] ?? 0) + 1
-    if (e.doc !== '—') {
-      const label = e.horasLabels[p] ?? String(p)
-      const bk = `${d}|${label}`
-      if (!docBusy[bk]) docBusy[bk] = new Set()
-      docBusy[bk].add(e.doc)
-    }
-    placedCount++
-  }
-  function undoPlace(e: Entry, d: Dia, p: number) {
-    horario[e.curso][d][p] = ''
-    const kDia = `${e.curso}|${e.materia}|${d}`
-    usoPorDia[kDia] = (usoPorDia[kDia] ?? 0) - 1
-    if (e.doc !== '—') {
-      const label = e.horasLabels[p] ?? String(p)
-      docBusy[`${d}|${label}`]?.delete(e.doc)
-    }
-    placedCount--
-  }
-
-  // Backtracking real con branch-and-bound: explora todos los subárboles
-  // hasta encontrar óptimo o agotar el presupuesto. Snapshot captura mejor
-  // parcial. Corto circuito: si bestPlaced alcanza entries.length terminamos.
-  // Pruning: si el máximo alcanzable desde aquí no supera bestPlaced, corta.
-  function backtrack(idx: number): void {
-    if (iterations++ > MAX_ITERATIONS) return
-    snapshot()
-    if (bestPlaced === entries.length) return
-    if (idx >= entries.length) return
-    // Podado: aunque coloquemos todas las entradas restantes, ¿superamos el best?
-    const maxPossible = placedCount + (entries.length - idx)
-    if (maxPossible <= bestPlaced) return
-
-    const e = entries[idx]
-    // Construir candidatos válidos
-    const candidates: { d: Dia; p: number }[] = []
-    for (const d of e.diasPermitidos) {
-      for (const p of e.validPeriods) {
-        if (canPlace(e, d, p)) candidates.push({ d, p })
+  // Un intento completo de backtracking con un orden semilleado.
+  // Devuelve placed count de este intento (por si quieres medir convergencia).
+  function runAttempt(seed: number, iterBudget: number): void {
+    const rng = makeRng(seed)
+    // Orden MCV + desempate aleatorio seedeado (varía entre reinicios)
+    const attemptEntries = entries.slice().sort((a, b) => {
+      if (a.diasPermitidos.length !== b.diasPermitidos.length) {
+        return a.diasPermitidos.length - b.diasPermitidos.length
       }
-    }
-    // Heurística: empaca en períodos tempranos, reparte entre días
-    candidates.sort((a, b) => {
-      if (a.p !== b.p) return a.p - b.p
-      return DIAS.indexOf(a.d) - DIAS.indexOf(b.d)
+      const ak = `${a.curso}|${a.materia}`
+      const bk = `${b.curso}|${b.materia}`
+      if (ak !== bk) return ak.localeCompare(bk)
+      return rng() - 0.5
     })
 
-    // Explora cada candidato
-    for (const { d, p } of candidates) {
-      doPlace(e, d, p)
-      backtrack(idx + 1)
-      undoPlace(e, d, p)
-      if (iterations > MAX_ITERATIONS) return
-      if (bestPlaced === entries.length) return
+    // Estado de este intento
+    const horario = initHorario()
+    const docBusy: Record<string, Set<string>> = {}
+    const usoPorDia: Record<string, number> = {}
+    let placedCount = 0
+    let iterations = 0
+
+    function snapshot() {
+      if (placedCount > bestPlaced) {
+        bestPlaced = placedCount
+        bestHorario = JSON.parse(JSON.stringify(horario))
+      }
+    }
+    function canPlace(e: Entry, d: Dia, p: number): boolean {
+      if (horario[e.curso][d][p]) return false
+      if (useAcomp && d === 'Lunes' && p === 0) return false
+      const kDia = `${e.curso}|${e.materia}|${d}`
+      if ((usoPorDia[kDia] ?? 0) >= 2) return false
+      if (e.doc !== '—') {
+        const label = e.horasLabels[p] ?? String(p)
+        const set = docBusy[`${d}|${label}`]
+        if (set && set.has(e.doc)) return false
+      }
+      return true
+    }
+    function doPlace(e: Entry, d: Dia, p: number) {
+      horario[e.curso][d][p] = e.materia
+      const kDia = `${e.curso}|${e.materia}|${d}`
+      usoPorDia[kDia] = (usoPorDia[kDia] ?? 0) + 1
+      if (e.doc !== '—') {
+        const label = e.horasLabels[p] ?? String(p)
+        const bk = `${d}|${label}`
+        if (!docBusy[bk]) docBusy[bk] = new Set()
+        docBusy[bk].add(e.doc)
+      }
+      placedCount++
+    }
+    function undoPlace(e: Entry, d: Dia, p: number) {
+      horario[e.curso][d][p] = ''
+      const kDia = `${e.curso}|${e.materia}|${d}`
+      usoPorDia[kDia] = (usoPorDia[kDia] ?? 0) - 1
+      if (e.doc !== '—') {
+        const label = e.horasLabels[p] ?? String(p)
+        docBusy[`${d}|${label}`]?.delete(e.doc)
+      }
+      placedCount--
     }
 
-    // También explora saltar esta entrada (best-effort partial): permite
-    // encontrar soluciones donde una entrada imposible se omite pero el
-    // resto se coloca. Snapshot capturará el mejor subárbol.
-    backtrack(idx + 1)
+    function backtrack(idx: number): void {
+      if (iterations++ > iterBudget) return
+      snapshot()
+      if (bestPlaced === totalEntries) return
+      if (idx >= attemptEntries.length) return
+      const maxPossible = placedCount + (attemptEntries.length - idx)
+      if (maxPossible <= bestPlaced) return
+
+      const e = attemptEntries[idx]
+      const candidates: { d: Dia; p: number }[] = []
+      for (const d of e.diasPermitidos) {
+        for (const p of e.validPeriods) {
+          if (canPlace(e, d, p)) candidates.push({ d, p })
+        }
+      }
+      // Heurística: empaca en períodos tempranos (ordena por p asc), y para
+      // los días usa un orden aleatorio seedeado para variar la búsqueda
+      // entre reinicios (un día que bloqueaba antes se prueba después).
+      const diasShuffled = DIAS.slice().sort(() => rng() - 0.5)
+      candidates.sort((a, b) => {
+        if (a.p !== b.p) return a.p - b.p
+        return diasShuffled.indexOf(a.d) - diasShuffled.indexOf(b.d)
+      })
+
+      for (const { d, p } of candidates) {
+        doPlace(e, d, p)
+        backtrack(idx + 1)
+        undoPlace(e, d, p)
+        if (iterations > iterBudget) return
+        if (bestPlaced === totalEntries) return
+      }
+      // Rama skip (best-effort partial)
+      backtrack(idx + 1)
+    }
+
+    backtrack(0)
   }
 
-  backtrack(0)
+  // ─── Ejecutar múltiples reinicios ───
+  // Presupuesto por intento reducido para que quepan varios en total.
+  const TOTAL_BUDGET = 600000
+  const NUM_ATTEMPTS = 8
+  const BUDGET_PER_ATTEMPT = Math.floor(TOTAL_BUDGET / NUM_ATTEMPTS)
+  for (let s = 0; s < NUM_ATTEMPTS; s++) {
+    runAttempt(s * 1337 + 42, BUDGET_PER_ATTEMPT)
+    if (bestPlaced === totalEntries) break // óptimo encontrado
+  }
 
-  // Usa la mejor parcial si el backtracking no completó
-  const result = bestHorario ?? horario
+  // Usa la mejor parcial si ningún intento completó
+  const result = bestHorario ?? initHorario()
 
   // ─── Pasada final: marcar huecos al fin del día como SALIDA ───
   cursos.forEach(c => {
@@ -227,8 +246,8 @@ export function generarHorario(
     })
   })
 
-  if (placedCount < entries.length || bestPlaced < entries.length) {
-    console.warn(`[horarios] backtracking colocó ${bestPlaced}/${entries.length} clases (iteraciones: ${iterations})`)
+  if (bestPlaced < totalEntries) {
+    console.warn(`[horarios] backtracking colocó ${bestPlaced}/${totalEntries} clases (${NUM_ATTEMPTS} reinicios, budget ${TOTAL_BUDGET})`)
   }
 
   return result
