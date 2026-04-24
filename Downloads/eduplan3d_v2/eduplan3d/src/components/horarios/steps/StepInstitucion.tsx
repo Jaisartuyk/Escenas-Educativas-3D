@@ -1,18 +1,20 @@
 'use client'
 // src/components/horarios/steps/StepInstitucion.tsx
 
-import { useState } from 'react'
-import type { InstitucionConfig, CursoHorarioOverride } from '@/types/horarios'
+import { useState, useMemo } from 'react'
+import type { InstitucionConfig, CursoHorarioOverride, Dia, HorasPorCurso } from '@/types/horarios'
 import type { Docente } from '@/types/horarios'
+import { DIAS } from '@/types/horarios'
 
 interface Props {
   config: InstitucionConfig
   onChange: (c: InstitucionConfig) => void
   onNext: () => void
   docentes?: Docente[]
+  horasPorCurso?: HorasPorCurso
 }
 
-export function StepInstitucion({ config, onChange, onNext, docentes = [] }: Props) {
+export function StepInstitucion({ config, onChange, onNext, docentes = [], horasPorCurso = {} }: Props) {
   function set<K extends keyof InstitucionConfig>(key: K, val: InstitucionConfig[K]) {
     onChange({ ...config, [key]: val })
   }
@@ -108,6 +110,32 @@ export function StepInstitucion({ config, onChange, onNext, docentes = [] }: Pro
       ? ov.recesos.filter(r => r !== i)
       : [...ov.recesos, i].sort((a, b) => a - b)
     updateOverride(curso, { recesos })
+  }
+
+  // ─── Restricciones de días por materia (diasPorMateria) ──────────────
+  function toggleDiaMateria(materia: string, dia: Dia) {
+    const current = config.diasPorMateria?.[materia] || []
+    const next = current.includes(dia)
+      ? current.filter(d => d !== dia)
+      : [...current, dia]
+    const nuevoMap = { ...(config.diasPorMateria || {}) }
+    if (next.length === 0) {
+      delete nuevoMap[materia]
+    } else {
+      nuevoMap[materia] = next
+    }
+    onChange({
+      ...config,
+      diasPorMateria: Object.keys(nuevoMap).length ? nuevoMap : undefined,
+    })
+  }
+  function clearDiasMateria(materia: string) {
+    const nuevoMap = { ...(config.diasPorMateria || {}) }
+    delete nuevoMap[materia]
+    onChange({
+      ...config,
+      diasPorMateria: Object.keys(nuevoMap).length ? nuevoMap : undefined,
+    })
   }
 
   return (
@@ -213,6 +241,14 @@ export function StepInstitucion({ config, onChange, onNext, docentes = [] }: Pro
         </div>
       </div>
 
+      {/* Restricciones de días por materia */}
+      <DiasMateriaCard
+        config={config}
+        horasPorCurso={horasPorCurso}
+        onToggle={toggleDiaMateria}
+        onClear={clearDiasMateria}
+      />
+
       {/* Horarios personalizados por curso */}
       <CursosCustomCard
         config={config}
@@ -272,6 +308,133 @@ export function StepInstitucion({ config, onChange, onNext, docentes = [] }: Pro
       </div>
 
       <button onClick={onNext} className="btn-primary px-8 py-3">Continuar →</button>
+    </div>
+  )
+}
+
+// ─── Sub-componente: Restricciones de días por materia ──────────────────
+function DiasMateriaCard({
+  config,
+  horasPorCurso,
+  onToggle,
+  onClear,
+}: {
+  config: InstitucionConfig
+  horasPorCurso: HorasPorCurso
+  onToggle: (materia: string, dia: Dia) => void
+  onClear: (materia: string) => void
+}) {
+  const [showAll, setShowAll] = useState(false)
+
+  // Materias únicas (agregadas con horas totales para ordenar y filtrar)
+  const materias = useMemo(() => {
+    const map: Record<string, number> = {}
+    Object.values(horasPorCurso).forEach(curso => {
+      Object.entries(curso).forEach(([m, h]) => {
+        if (h > 0) map[m] = (map[m] || 0) + h
+      })
+    })
+    return Object.entries(map)
+      .map(([name, totalHoras]) => ({ name, totalHoras }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [horasPorCurso])
+
+  const restringidas = new Set(Object.keys(config.diasPorMateria || {}))
+  const visibles = showAll ? materias : materias.filter(m => restringidas.has(m.name))
+
+  return (
+    <div className="card p-6 mb-4">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="font-display text-base font-bold tracking-tight">
+          Restricciones por materia (días permitidos)
+        </h2>
+        {restringidas.size > 0 && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(255,179,71,0.12)] text-amber font-semibold">
+            {restringidas.size} con restricción
+          </span>
+        )}
+      </div>
+      <p className="text-[11px] text-ink4 mb-4">
+        Para materias con profesor compartido o que requieren cancha/laboratorio, limita los días donde se puede colocar. Ej: ED. FÍSICA solo Martes y Jueves, INST. MILITAR solo Miércoles. Si no marcas ningún día, la materia puede ir cualquier día (sin restricción).
+      </p>
+
+      {materias.length === 0 ? (
+        <p className="text-[11px] text-ink4 italic">
+          Aún no hay materias cargadas. Vuelve a este paso después de definir las horas por curso.
+        </p>
+      ) : (
+        <>
+          <div className="flex items-center gap-3 mb-3">
+            <button
+              onClick={() => setShowAll(s => !s)}
+              className="text-[11px] text-violet2 hover:underline"
+            >
+              {showAll
+                ? `Ocultar materias sin restricción (${materias.length - restringidas.size})`
+                : `Mostrar todas las materias (${materias.length})`}
+            </button>
+          </div>
+
+          {visibles.length === 0 ? (
+            <p className="text-[11px] text-ink4 italic">
+              Ninguna materia tiene restricción. Click en "Mostrar todas" arriba para agregar.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {visibles.map(({ name, totalHoras }) => {
+                const dias = config.diasPorMateria?.[name] || []
+                const isRestringida = dias.length > 0
+                return (
+                  <div
+                    key={name}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl border ${
+                      isRestringida
+                        ? 'border-[rgba(255,179,71,0.3)] bg-[rgba(255,179,71,0.04)]'
+                        : 'border-[rgba(120,100,255,0.14)] bg-transparent'
+                    }`}
+                  >
+                    <span className="text-xs font-semibold text-ink min-w-[180px]">
+                      {name}
+                      <span className="text-[10px] text-ink4 ml-1.5 font-normal">
+                        ({totalHoras}h tot.)
+                      </span>
+                    </span>
+                    <div className="flex gap-1 flex-1">
+                      {DIAS.map(d => {
+                        const abbr = d === 'Miércoles' ? 'X' : d[0]
+                        const active = dias.includes(d)
+                        return (
+                          <button
+                            key={d}
+                            onClick={() => onToggle(name, d)}
+                            title={d}
+                            className={`w-9 h-7 rounded-md text-[11px] font-semibold border transition-colors ${
+                              active
+                                ? 'bg-[rgba(38,215,180,0.15)] text-teal border-[rgba(38,215,180,0.4)]'
+                                : 'bg-surface2 text-ink3 border-transparent hover:bg-[rgba(124,109,250,0.08)]'
+                            }`}
+                          >
+                            {abbr}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {isRestringida && (
+                      <button
+                        onClick={() => onClear(name)}
+                        className="text-[10px] text-ink4 hover:text-rose px-2"
+                        title="Quitar restricción (cualquier día)"
+                      >
+                        Limpiar
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

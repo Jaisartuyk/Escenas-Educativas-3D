@@ -45,6 +45,13 @@ export interface InstitucionConfig {
    * libre para colocar una materia normal.
    */
   acompanamiento?: boolean
+  /**
+   * Restricción de días por materia. Si una materia aparece en este map,
+   * solo puede colocarse en los días listados. Si no aparece, puede ir
+   * cualquier día (como antes).
+   * Ej: { 'ED. FISICA': ['Martes', 'Jueves'], 'INSTRUCCION MILITAR': ['Miércoles'] }
+   */
+  diasPorMateria?: Record<string, Dia[]>
 }
 
 /**

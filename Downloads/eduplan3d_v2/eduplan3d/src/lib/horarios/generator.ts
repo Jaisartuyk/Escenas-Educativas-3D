@@ -93,9 +93,15 @@ export function generarHorario(
         docOcupado[k].add(doc)
       }
 
+      // Restricción de días por materia (si existe)
+      const diasPermitidos = config.diasPorMateria?.[materia]
+      const dayAllowed = (d: Dia) =>
+        !diasPermitidos || diasPermitidos.length === 0 || diasPermitidos.includes(d)
+
       // Construir lista de slots disponibles
       const available: { d: Dia; p: number }[] = []
       DIAS.forEach(d => {
+        if (!dayAllowed(d)) return
         validPeriods.forEach(p => {
           // Si acompañamiento está activo, el slot 0 del lunes está reservado
           if (useAcomp && d === 'Lunes' && p === 0) return
