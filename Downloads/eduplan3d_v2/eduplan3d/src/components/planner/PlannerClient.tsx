@@ -1,7 +1,7 @@
 // src/components/planner/PlannerClient.tsx
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import type { Planificacion } from '@/types/supabase'
@@ -87,15 +87,41 @@ export function PlannerClient({
     )
   }
 
+  // Override editable de horas/min (por planificación, defaults vienen del subject)
+  const [editedWeeklyHours,   setEditedWeeklyHours]   = useState<number | null>(null)
+  const [editedPeriodMinutes, setEditedPeriodMinutes] = useState<number | null>(null)
+  const [showHoursEditor,     setShowHoursEditor]     = useState(false)
+
+  // Reset overrides al cambiar de materia
+  useEffect(() => {
+    setEditedWeeklyHours(null)
+    setEditedPeriodMinutes(null)
+    setShowHoursEditor(false)
+  }, [subjectId])
+
   // Derived
   const selectedSubject = subjects.find((s: any) => s.id === subjectId)
   const courseName  = selectedSubject?.course?.name || ''
   const courseLevel  = selectedSubject?.course?.level || ''
   const courseParallel = selectedSubject?.course?.parallel || ''
-  const weeklyHours = selectedSubject?.weekly_hours || 0
+  const subjectWeeklyHours = selectedSubject?.weekly_hours ?? 4
+  // Para institucional usa periodMinutes prop (de schedule_configs); para externos
+  // viene en el propio subject.
+  const subjectPeriodMinutes = selectedSubject?.period_minutes ?? periodMinutes ?? 45
+  const isPlannerSoloSubject = !!selectedSubject?.is_planner_solo
+
+  // Valores efectivos (override del docente o defaults guardados)
+  const weeklyHours  = editedWeeklyHours   ?? subjectWeeklyHours
+  const minutesHora  = editedPeriodMinutes ?? subjectPeriodMinutes
+  const totalMinutes = weeklyHours * minutesHora
+
   const subjectName = selectedSubject?.name || ''
   const gradeLabel  = `${courseName} ${courseParallel}`.trim()
-  const classDuration = `${periodMinutes * (weeklyHours > 0 ? Math.min(weeklyHours, 2) : 1)} minutos`
+  // Sin cap: la duración total es horas × min/hora (real, no Math.min)
+  const classDuration =
+    weeklyHours > 1
+      ? `${totalMinutes} minutos (${weeklyHours} sesiones de ${minutesHora} min)`
+      : `${minutesHora} minutos`
 
   // Unique subjects for dropdown (group by name + course)
   const subjectOptions = subjects.map((s: any) => ({
@@ -144,8 +170,12 @@ export function PlannerClient({
         semana,
         eje,
         cuadernillo,
-        periodMinutes,
+        periodMinutes: minutesHora,
         weeklyHours,
+        totalWeeklyMinutes: totalMinutes,
+        // Si el docente editó los valores, persistirlos en su materia
+        persistHoursConfig: editedWeeklyHours !== null || editedPeriodMinutes !== null,
+        isPlannerSoloSubject,
         teacherName,
         institutionName,
         subjectId,
@@ -295,16 +325,87 @@ export function PlannerClient({
             ))}
           </select>
           {selectedSubject && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface2 text-ink3">
-                <Clock size={10} className="inline mr-0.5" /> {weeklyHours}h/sem
-              </span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface2 text-ink3">
-                {periodMinutes} min/periodo
-              </span>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface2 text-ink3">
-                {classDuration}/clase
-              </span>
+            <div className="mt-2">
+              {!showHoursEditor ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface2 text-ink3">
+                    <Clock size={10} className="inline mr-0.5" /> {weeklyHours} h/sem
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface2 text-ink3">
+                    {minutesHora} min/hora
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-violet/10 text-violet">
+                    Total semanal: {totalMinutes} min
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowHoursEditor(true)}
+                    className="text-[10px] font-semibold text-violet underline ml-1"
+                  >
+                    Cambiar
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-violet/30 bg-violet/5 p-2 space-y-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-violet">
+                    Configurar carga semanal
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block">
+                      <span className="block text-[10px] text-ink3 mb-0.5">Horas / semana</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={weeklyHours}
+                        onChange={e =>
+                          setEditedWeeklyHours(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
+                        }
+                        className="w-full bg-white border border-surface2 rounded-md px-2 py-1 text-xs"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="block text-[10px] text-ink3 mb-0.5">Min / hora pedagógica</span>
+                      <select
+                        value={minutesHora}
+                        onChange={e => setEditedPeriodMinutes(Number(e.target.value))}
+                        className="w-full bg-white border border-surface2 rounded-md px-2 py-1 text-xs"
+                      >
+                        <option value={40}>40 min</option>
+                        <option value={45}>45 min</option>
+                        <option value={50}>50 min</option>
+                        <option value={60}>60 min</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="text-[10px] text-ink3">
+                    Total semanal: <strong>{totalMinutes} min</strong> ({weeklyHours} sesiones de {minutesHora} min)
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditedWeeklyHours(null)
+                        setEditedPeriodMinutes(null)
+                        setShowHoursEditor(false)
+                      }}
+                      className="text-[10px] font-semibold text-ink3 underline"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowHoursEditor(false)}
+                      className="px-2 py-1 rounded-md text-[10px] font-bold bg-violet text-white"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
+                  <div className="text-[9px] text-ink3 italic leading-tight">
+                    Se guardará como predeterminado para esta materia.
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

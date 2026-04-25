@@ -345,6 +345,24 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
+    // ── Persistir horas/min editados (B con memoria) ──
+    if (body.persistHoursConfig && body.subjectId) {
+      const wh = Number(body.weeklyHours)
+      const pm = Number(body.periodMinutes)
+      const validWh = Number.isFinite(wh) && wh >= 1 && wh <= 20 ? wh : null
+      const validPm = Number.isFinite(pm) && [40, 45, 50, 60].includes(pm) ? pm : null
+      if (validWh !== null && validPm !== null) {
+        const table = body.isPlannerSoloSubject ? 'planner_subjects' : 'subjects'
+        const patch: any = body.isPlannerSoloSubject
+          ? { weekly_hours: validWh, period_minutes: validPm }
+          : { weekly_hours: validWh }   // institucional: period_minutes vive en schedule_configs (institución)
+        await (supabase as any)
+          .from(table)
+          .update(patch)
+          .eq('id', body.subjectId)
+      }
+    }
+
     // ── RAG: extract PDFs from teacher library ──
     let contextoExtra = ''
     let detectedPlanification = false
@@ -562,6 +580,7 @@ export async function POST(request: NextRequest) {
           cuadernillo: body.cuadernillo,
           periodMinutes: body.periodMinutes,
           weeklyHours: body.weeklyHours,
+          totalWeeklyMinutes: body.totalWeeklyMinutes ?? ((Number(body.periodMinutes) * Number(body.weeklyHours)) || null),
           methodology: body.methodology || 'ERCA',
           generatedAt: new Date().toISOString(),
         },
