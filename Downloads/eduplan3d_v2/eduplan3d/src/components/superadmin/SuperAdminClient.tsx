@@ -143,15 +143,30 @@ export function SuperAdminClient({ stats, institutions, plannerUsers, teacherSub
     const teachers = members.filter(m => m.role === 'teacher')
     if (teachers.length === 0) return toast.error('No hay docentes para actualizar')
 
-    if (!confirm(`¿${premium ? 'Habilitar' : 'Deshabilitar'} el planificador para los ${teachers.length} docentes?`)) return
+    const verb = premium ? 'Habilitar' : 'Deshabilitar'
+    const extraMsg = premium
+      ? 'Quedan habilitados para usar el planificador.'
+      : 'NO podrán usar el planificador hasta volver a habilitarlos o registrar un pago.'
+    if (!confirm(`¿${verb} el planificador para los ${teachers.length} docentes?\n\n${extraMsg}`)) return
 
     setLoadingMembers(true)
     try {
       for (const t of teachers) {
+        // Cambia el plan
         await updateUserPlan(t.id, newPlan)
+        // Y aplica el bloqueo duro: deshabilitar = suspended true; habilitar = suspended false
+        await setPlannerSuspended(t.id, !premium)
       }
-      setMembers(prev => prev.map(m => m.role === 'teacher' ? { ...m, plan: newPlan } : m))
-      toast.success(`Plan actualizado masivamente`)
+      setMembers(prev =>
+        prev.map(m =>
+          m.role === 'teacher' ? { ...m, plan: newPlan, planner_suspended: !premium } : m
+        )
+      )
+      toast.success(
+        premium
+          ? `Planificador habilitado para ${teachers.length} docentes`
+          : `Planificador deshabilitado para ${teachers.length} docentes`
+      )
     } catch (err: any) {
       toast.error('Error en actualización masiva')
     } finally {

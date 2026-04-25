@@ -376,19 +376,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (profile?.plan === 'free' || profile?.plan === 'institucion') {
+    // ── Trial gratuito: 6 planificaciones lifetime para todos ─────────────
+    // Ilimitado solo si tiene suscripción activa al planificador.
+    const FREE_TRIAL_LIMIT = 6
+    const { data: activeSub } = await (supabase as any)
+      .from('planner_subscriptions')
+      .select('status, current_period_end')
+      .eq('user_id', user.id)
+      .maybeSingle() as { data: { status: string; current_period_end: string } | null }
+
+    const hasActiveSubscription =
+      activeSub?.status === 'active' &&
+      activeSub.current_period_end &&
+      new Date(activeSub.current_period_end) > new Date()
+
+    if (!hasActiveSubscription) {
       const { count } = await (supabase as any)
         .from('planificaciones')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
-        .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
 
-      const limit = profile.plan === 'free' ? 5 : 10 // Let's say 5 for free and 10 for standard inst
-      
-      if ((count ?? 0) >= limit) {
+      if ((count ?? 0) >= FREE_TRIAL_LIMIT) {
         return NextResponse.json(
-          { error: `Límite del plan ${profile.plan === 'free' ? 'Básico' : 'Institucional Estándar'} alcanzado (${count}/${limit}). El Planificador IA es un servicio adicional.` },
-          { status: 403 }
+          {
+            error:
+              `Llegaste al límite gratuito de ${FREE_TRIAL_LIMIT} planificaciones (${count}/${FREE_TRIAL_LIMIT}). ` +
+              `Para seguir usando el planificador necesitas activar tu suscripción mensual ($20/mes). ` +
+              `Comunícate con el administrador para registrar el pago.`,
+            code: 'TRIAL_EXHAUSTED',
+            count,
+            limit: FREE_TRIAL_LIMIT,
+          },
+          { status: 402 }   // 402 Payment Required
         )
       }
     }
