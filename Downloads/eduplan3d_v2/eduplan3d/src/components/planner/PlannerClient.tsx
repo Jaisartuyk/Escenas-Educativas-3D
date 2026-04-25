@@ -87,15 +87,17 @@ export function PlannerClient({
     )
   }
 
-  // Override editable de horas/min (por planificación, defaults vienen del subject)
+  // Override editable de horas/min/días (por planificación, defaults vienen del subject)
   const [editedWeeklyHours,   setEditedWeeklyHours]   = useState<number | null>(null)
   const [editedPeriodMinutes, setEditedPeriodMinutes] = useState<number | null>(null)
+  const [editedDaysOfWeek,    setEditedDaysOfWeek]    = useState<number[] | null>(null)
   const [showHoursEditor,     setShowHoursEditor]     = useState(false)
 
   // Reset overrides al cambiar de materia
   useEffect(() => {
     setEditedWeeklyHours(null)
     setEditedPeriodMinutes(null)
+    setEditedDaysOfWeek(null)
     setShowHoursEditor(false)
   }, [subjectId])
 
@@ -114,6 +116,8 @@ export function PlannerClient({
   const weeklyHours  = editedWeeklyHours   ?? subjectWeeklyHours
   const minutesHora  = editedPeriodMinutes ?? subjectPeriodMinutes
   const totalMinutes = weeklyHours * minutesHora
+  const subjectDaysOfWeek: number[] | null = selectedSubject?.days_of_week ?? null
+  const daysOfWeek: number[] = editedDaysOfWeek ?? subjectDaysOfWeek ?? []
 
   const subjectName = selectedSubject?.name || ''
   const gradeLabel  = `${courseName} ${courseParallel}`.trim()
@@ -173,8 +177,12 @@ export function PlannerClient({
         periodMinutes: minutesHora,
         weeklyHours,
         totalWeeklyMinutes: totalMinutes,
+        daysOfWeek,
         // Si el docente editó los valores, persistirlos en su materia
-        persistHoursConfig: editedWeeklyHours !== null || editedPeriodMinutes !== null,
+        persistHoursConfig:
+          editedWeeklyHours !== null ||
+          editedPeriodMinutes !== null ||
+          editedDaysOfWeek !== null,
         isPlannerSoloSubject,
         teacherName,
         institutionName,
@@ -337,6 +345,11 @@ export function PlannerClient({
                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-violet/10 text-violet">
                     Total semanal: {totalMinutes} min
                   </span>
+                  {daysOfWeek.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface2 text-ink3">
+                      {daysOfWeek.map(d => ['L','M','X','J','V','S','D'][d-1]).join(' ')}
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowHoursEditor(true)}
@@ -381,12 +394,58 @@ export function PlannerClient({
                   <div className="text-[10px] text-ink3">
                     Total semanal: <strong>{totalMinutes} min</strong> ({weeklyHours} sesiones de {minutesHora} min)
                   </div>
+
+                  {/* ── Días de la semana ────────────────────────────────────────────── */}
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-violet mb-1">
+                      Días que dictas esta materia
+                    </div>
+                    <div className="flex gap-1">
+                      {[
+                        { v: 1, l: 'L' },
+                        { v: 2, l: 'M' },
+                        { v: 3, l: 'X' },
+                        { v: 4, l: 'J' },
+                        { v: 5, l: 'V' },
+                        { v: 6, l: 'S' },
+                        { v: 7, l: 'D' },
+                      ].map(d => {
+                        const active = daysOfWeek.includes(d.v)
+                        return (
+                          <button
+                            key={d.v}
+                            type="button"
+                            onClick={() => {
+                              const current = daysOfWeek
+                              const next = active
+                                ? current.filter(x => x !== d.v)
+                                : [...current, d.v].sort()
+                              setEditedDaysOfWeek(next)
+                            }}
+                            className={`flex-1 text-xs font-bold py-1 rounded-md border transition-all ${
+                              active
+                                ? 'bg-violet text-white border-violet'
+                                : 'bg-white text-ink3 border-surface2 hover:border-violet/50'
+                            }`}
+                          >
+                            {d.l}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {daysOfWeek.length > 0 && daysOfWeek.length !== weeklyHours && (
+                      <div className="text-[9px] text-amber mt-1">
+                        ⚠ Marcaste {daysOfWeek.length} día{daysOfWeek.length > 1 ? 's' : ''} pero la materia tiene {weeklyHours} sesión{weeklyHours > 1 ? 'es' : ''}/semana.
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-2 justify-end">
                     <button
                       type="button"
                       onClick={() => {
                         setEditedWeeklyHours(null)
                         setEditedPeriodMinutes(null)
+                        setEditedDaysOfWeek(null)
                         setShowHoursEditor(false)
                       }}
                       className="text-[10px] font-semibold text-ink3 underline"

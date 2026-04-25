@@ -30,7 +30,7 @@ export default async function PlanificadorPage() {
     // Docente externo: materias creadas por él mismo en Mis Materias
     const { data: plannerSubjects } = await admin
       .from('planner_subjects' as any)
-      .select('id, materia, curso, paralelo, nivel, weekly_hours, period_minutes')
+      .select('id, materia, curso, paralelo, nivel, weekly_hours, period_minutes, days_of_week')
       .eq('user_id', user.id)
       .order('materia', { ascending: true })
 
@@ -41,6 +41,7 @@ export default async function PlanificadorPage() {
       course_id: null,
       weekly_hours: s.weekly_hours ?? 4,
       period_minutes: s.period_minutes ?? 45,
+      days_of_week: s.days_of_week ?? null,
       is_planner_solo: true,
       course: {
         id: null,
@@ -53,7 +54,7 @@ export default async function PlanificadorPage() {
   } else {
     const { data } = await admin
       .from('subjects' as any)
-      .select('id, name, course_id, weekly_hours, course:courses(id, name, parallel, level, shift)')
+      .select('id, name, course_id, weekly_hours, days_of_week, course:courses(id, name, parallel, level, shift)')
       .eq('teacher_id', user.id)
       .order('name', { ascending: true })
     subjects = data || []

@@ -51,9 +51,13 @@ function buildPrompt(data: any, contextoExtra: string = '', detectedPlanificatio
   const {
     type, subject, grade, topic, duration, extra,
     trimestre, parcial, semana, eje, cuadernillo,
-    periodMinutes, weeklyHours, teacherName, institutionName,
+    periodMinutes, weeklyHours, totalWeeklyMinutes,
+    teacherName, institutionName,
     methodology: methodologyCode,
   } = data
+  const numSesiones = Math.max(1, Number(weeklyHours) || 1)
+  const minPorSesion = Number(periodMinutes) || 45
+  const totalMin = Number(totalWeeklyMinutes) || (numSesiones * minPorSesion)
 
   const axis = eje || 'Justicia'
   const methodology = getMethodology(methodologyCode)
@@ -92,9 +96,55 @@ ${cuadernilloRef}${extraNotes}${ragContext}${planDetectedNote}`
 
   if (type === 'clase') {
     const isAporte = semana === 6
+    const esSemanal = numSesiones > 1
+
+    if (esSemanal) {
+      // ── Modo semanal: N sesiones cubriendo el total semanal ────────────────
+      return `Genera una PLANIFICACION SEMANAL MICROCURRICULAR distribuida en ${numSesiones} sesiones secuenciales:
+${commonHeader}
+- Tema central de la semana: ${topic}
+- Total semanal: ${totalMin} minutos (${numSesiones} sesiones de ${minPorSesion} min cada una)
+${isAporte ? '- NOTA: Es Semana 6 (APORTE). La última sesión debe contener evaluación sumativa.' : ''}
+
+### 1. ENCABEZADO COMÚN
+Tabla con: Institucion, Docente, Asignatura, Grado, Trimestre, Parcial, Semana, Total semanal (${totalMin} min en ${numSesiones} sesiones).
+
+### 2. SECCIÓN PREVIA (común a las ${numSesiones} sesiones)
+- **Objetivos de aprendizaje de la semana:** (extraer del documento o generar)
+- **Criterios de evaluación:** (extraer del documento o generar)
+- **Inserciones curriculares:** (Justicia, Innovación o Solidaridad)
+
+### 3. SESIONES DE LA SEMANA — OBLIGATORIO
+
+Genera EXACTAMENTE ${numSesiones} bloques con el ENCABEZADO LITERAL "## Sesión N: <subtema>" (donde N va de 1 a ${numSesiones}).
+
+CADA SESIÓN debe contener:
+
+## Sesión N: <subtema específico de esa sesión>
+**Duración:** ${minPorSesion} minutos
+**Subtema:** <descripción concisa del foco de esta sesión>
+
+| Destrezas con Criterios de Desempeño | Estrategias Metodológicas | Recursos | Indicadores de evaluación | Técnicas / Instrumentos |
+|---|---|---|---|---|
+| ... | Fases de ${methodology.name} sumando exactamente ${minPorSesion} min | ... | ... | ... |
+
+REGLAS DE SECUENCIA:
+- Las ${numSesiones} sesiones deben tener PROGRESIÓN PEDAGÓGICA: la sesión 2 retoma la 1, la 3 profundiza, etc.
+- Cada sesión es un bloque autocontenido de ${minPorSesion} min. La suma de tiempos de las fases dentro de UNA sesión = ${minPorSesion} min (no el total semanal).
+- Subtemas distintos por sesión (no copies el mismo título N veces).
+- Si Semana 6 (Aporte), la última sesión incluye instrumento de evaluación sumativa.
+
+### 4. ADAPTACIONES CURRICULARES (NEE)
+Sección común al final, breve.
+
+IMPORTANTE: usa EXACTAMENTE el formato de encabezado "## Sesión N:" (con doble almohadilla y dos puntos) — el sistema lo parsea para distribuir las sesiones en el calendario semanal.`.trim()
+    }
+
+    // ── Modo sesión única (1 sola hora pedagógica) ──────────────────────────
     return `Genera una PLANIFICACION MICROCURRICULAR DIARIA con el siguiente formato:
 ${commonHeader}
 - Tema: ${topic}
+- Duración: ${minPorSesion} minutos (1 sesión)
 ${isAporte ? '- NOTA: Es Semana 6 (APORTE). La evaluación debe ser sumativa.' : ''}
 
 ### 1. ENCABEZADO
@@ -105,7 +155,7 @@ Tabla con: Institucion, Docente, Asignatura, Grado, Tiempo, Trimestre, Semana.
 - **Criterios de evaluación:** (Extraer del documento o generar)
 - **Inserciones curriculares:** (Justicia, Innovación o Solidaridad)
 
-### 2. PLANIFICACIÓN
+### 3. PLANIFICACIÓN
 Genera la tabla principal con estas columnas:
 
 | Destrezas con Criterios de Desempeño | Estrategias Metodológicas | Recursos | Indicadores de evaluación | Técnicas / Instrumentos |
@@ -113,7 +163,7 @@ Genera la tabla principal con estas columnas:
 
 REGLAS PARA CADA COLUMNA:
 - **Destrezas**: Codigo y descripcion.
-- **Estrategias**: Fases de ${methodology.name} con sus tiempos. Usa <br/> para separar fases.
+- **Estrategias**: Fases de ${methodology.name} con sus tiempos sumando ${minPorSesion} min. Usa <br/> para separar fases.
 - **Recursos**: Materiales y enlaces digitales.
 - **Indicadores**: Codigo y descripcion.
 - **Técnicas / Instrumentos**: Ej: Observación / Lista de cotejo.
@@ -345,17 +395,22 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
-    // ── Persistir horas/min editados (B con memoria) ──
+    // ── Persistir horas/min/días editados (B con memoria) ──
     if (body.persistHoursConfig && body.subjectId) {
       const wh = Number(body.weeklyHours)
       const pm = Number(body.periodMinutes)
       const validWh = Number.isFinite(wh) && wh >= 1 && wh <= 20 ? wh : null
       const validPm = Number.isFinite(pm) && [40, 45, 50, 60].includes(pm) ? pm : null
-      if (validWh !== null && validPm !== null) {
+      const rawDays = Array.isArray(body.daysOfWeek) ? body.daysOfWeek : null
+      const validDays = rawDays
+        ? Array.from(new Set(rawDays.map((n: any) => Number(n)).filter((n: number) => n >= 1 && n <= 7))).sort()
+        : null
+      const patch: any = {}
+      if (validWh !== null) patch.weekly_hours = validWh
+      if (body.isPlannerSoloSubject && validPm !== null) patch.period_minutes = validPm
+      if (validDays && validDays.length > 0) patch.days_of_week = validDays
+      if (Object.keys(patch).length > 0) {
         const table = body.isPlannerSoloSubject ? 'planner_subjects' : 'subjects'
-        const patch: any = body.isPlannerSoloSubject
-          ? { weekly_hours: validWh, period_minutes: validPm }
-          : { weekly_hours: validWh }   // institucional: period_minutes vive en schedule_configs (institución)
         await (supabase as any)
           .from(table)
           .update(patch)
@@ -552,6 +607,25 @@ export async function POST(request: NextRequest) {
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
 
+    // ── Parsear sesiones del markdown si aplica (modo semanal) ──
+    // Formato esperado: "## Sesión N: <subtema>"
+    // Acepta variantes: "## Sesion N:", con o sin tilde.
+    const sesiones: Array<{ numero: number; tema: string; duracion_min: number }> = []
+    const sesionRegex = /^##\s+Sesi[oó]n\s+(\d+)\s*:\s*(.+?)\s*$/gim
+    let m: RegExpExecArray | null
+    while ((m = sesionRegex.exec(content)) !== null) {
+      const numero = parseInt(m[1], 10)
+      const tema = (m[2] || '').trim().slice(0, 200)
+      if (numero > 0 && tema && !sesiones.some(s => s.numero === numero)) {
+        sesiones.push({
+          numero,
+          tema,
+          duracion_min: Number(body.periodMinutes) || 45,
+        })
+      }
+    }
+    sesiones.sort((a, b) => a.numero - b.numero)
+
     // Auto-generate title
     const trimLabel = `T${body.trimestre || 1}-P${body.parcial || 1}`
     const semLabel = body.semana ? `-S${body.semana}` : ''
@@ -581,6 +655,8 @@ export async function POST(request: NextRequest) {
           periodMinutes: body.periodMinutes,
           weeklyHours: body.weeklyHours,
           totalWeeklyMinutes: body.totalWeeklyMinutes ?? ((Number(body.periodMinutes) * Number(body.weeklyHours)) || null),
+          daysOfWeek: Array.isArray(body.daysOfWeek) && body.daysOfWeek.length > 0 ? body.daysOfWeek : null,
+          sesiones: sesiones.length > 0 ? sesiones : null,
           methodology: body.methodology || 'ERCA',
           generatedAt: new Date().toISOString(),
         },
