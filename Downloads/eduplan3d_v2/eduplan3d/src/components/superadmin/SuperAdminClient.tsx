@@ -6,9 +6,11 @@ import Link from 'next/link'
 import {
   Building2, Users, Zap, FileText, TrendingUp,
   Search, LogOut, RefreshCw, ChevronRight, Calendar,
-  Shield, X, Settings2, CheckCircle2, Sparkles, Trash2
+  Shield, X, Settings2, CheckCircle2, Sparkles, Trash2,
+  DollarSign, Lock, Unlock, AlertTriangle
 } from 'lucide-react'
 import { updateUserPlan, deleteInstitutionUser } from '@/lib/actions/users'
+import { recordPlannerPayment, setPlannerSuspended } from '@/lib/actions/subscriptions'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
@@ -36,13 +38,36 @@ interface PlannerUser {
   created_at: string
 }
 
+interface TeacherSub {
+  id: string
+  full_name: string
+  email: string
+  plan: string
+  role: string
+  planner_suspended: boolean
+  institution_id: string | null
+  institution_name: string
+  current_period_end: string | null
+  sub_status: 'active' | 'expired' | 'suspended' | 'cancelled' | 'never'
+  monthly_amount: number
+}
+
+interface PaymentStats {
+  activeCount: number
+  expiredCount: number
+  monthRevenue: number
+  totalTeachers: number
+}
+
 interface Props {
   stats:        Stats
   institutions: Institution[]
   plannerUsers: PlannerUser[]
+  teacherSubs?: TeacherSub[]
+  paymentStats?: PaymentStats
 }
 
-type Tab = 'overview' | 'institutions' | 'planner'
+type Tab = 'overview' | 'institutions' | 'planner' | 'payments'
 
 const STAT_CARDS = (s: Stats) => [
   { icon: Building2, label: 'Instituciones',       value: s.totalInstitutions, color: 'text-violet-400',  bg: 'bg-violet-500/10'  },
@@ -56,7 +81,7 @@ function fmt(d: string) {
   return new Date(d).toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
+export function SuperAdminClient({ stats, institutions, plannerUsers, teacherSubs = [], paymentStats }: Props) {
   const [tab, setTab]           = useState<Tab>('overview')
   const [search, setSearch]     = useState('')
   const [refreshing, setRefresh] = useState(false)
@@ -223,6 +248,7 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
             { key: 'overview',     label: 'Resumen'             },
             { key: 'institutions', label: `Instituciones (${institutions.length})` },
             { key: 'planner',      label: `Docentes externos (${plannerUsers.length})` },
+            { key: 'payments',     label: `Pagos (${teacherSubs.length})` },
           ] as { key: Tab; label: string }[]).map(t => (
             <button
               key={t.key}
@@ -455,6 +481,16 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
             <p className="text-xs text-white/20 mt-3 text-right">{filteredPlanner.length} de {plannerUsers.length} docentes externos</p>
           </div>
         )}
+
+        {/* ── TAB: Payments / Suscripciones ─────────────────────────────── */}
+        {tab === 'payments' && (
+          <PaymentsTab
+            teacherSubs={teacherSubs}
+            paymentStats={paymentStats}
+            search={search}
+            setSearch={setSearch}
+          />
+        )}
       </div>
 
       {/* ── Modal: Gestión de Miembros ────────────────────────────────── */}
@@ -594,6 +630,302 @@ export function SuperAdminClient({ stats, institutions, plannerUsers }: Props) {
                 className="px-6 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-sm font-bold transition-all"
               >
                 Cerrar Gestión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// PaymentsTab: gestión de suscripciones y pagos del planificador IA
+// ────────────────────────────────────────────────────────────────────────────
+
+function PaymentsTab({
+  teacherSubs,
+  paymentStats,
+  search,
+  setSearch,
+}: {
+  teacherSubs: TeacherSub[]
+  paymentStats?: PaymentStats
+  search: string
+  setSearch: (s: string) => void
+}) {
+  const [filter, setFilter] = useState<'all' | 'active' | 'expired' | 'never'>('all')
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [list, setList] = useState(teacherSubs)
+  const [payModal, setPayModal] = useState<TeacherSub | null>(null)
+  const [payAmount, setPayAmount] = useState(20)
+  const [payMethod, setPayMethod] = useState<'efectivo' | 'transferencia' | 'deposito' | 'otro'>('efectivo')
+  const [payNotes, setPayNotes] = useState('')
+
+  const now = Date.now()
+  const sevenDays = 7 * 24 * 60 * 60 * 1000
+
+  const enriched = list.map(t => {
+    const end = t.current_period_end ? new Date(t.current_period_end).getTime() : null
+    const daysLeft = end ? Math.round((end - now) / (24 * 60 * 60 * 1000)) : null
+    let computedStatus: 'active' | 'expiring' | 'expired' | 'suspended' | 'never'
+    if (t.planner_suspended) computedStatus = 'suspended'
+    else if (!end) computedStatus = 'never'
+    else if (end < now) computedStatus = 'expired'
+    else if (end - now < sevenDays) computedStatus = 'expiring'
+    else computedStatus = 'active'
+    return { ...t, daysLeft, computedStatus }
+  })
+
+  const filtered = enriched
+    .filter(t => {
+      if (filter === 'active' && t.computedStatus !== 'active' && t.computedStatus !== 'expiring') return false
+      if (filter === 'expired' && t.computedStatus !== 'expired' && t.computedStatus !== 'suspended') return false
+      if (filter === 'never' && t.computedStatus !== 'never') return false
+      return true
+    })
+    .filter(t => {
+      if (!search) return true
+      const s = search.toLowerCase()
+      return t.full_name?.toLowerCase().includes(s) ||
+             t.email?.toLowerCase().includes(s) ||
+             t.institution_name?.toLowerCase().includes(s)
+    })
+
+  async function handleSuspend(t: TeacherSub, suspended: boolean) {
+    setBusyId(t.id)
+    try {
+      const res = await setPlannerSuspended(t.id, suspended)
+      if ((res as any).error) throw new Error((res as any).error)
+      setList(prev => prev.map(x => x.id === t.id ? { ...x, planner_suspended: suspended, sub_status: suspended ? 'suspended' : x.sub_status } : x))
+      toast.success(suspended ? 'Docente suspendido' : 'Docente reactivado')
+    } catch (err: any) {
+      toast.error('Error: ' + err.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleRecordPayment() {
+    if (!payModal) return
+    setBusyId(payModal.id)
+    try {
+      const res = await recordPlannerPayment({
+        userId: payModal.id,
+        amount: payAmount,
+        method: payMethod,
+        notes: payNotes || undefined,
+      })
+      if ((res as any).error) throw new Error((res as any).error)
+      const newEnd = (res as any).period_end as string
+      setList(prev => prev.map(x => x.id === payModal.id ? {
+        ...x,
+        planner_suspended: false,
+        sub_status: 'active' as const,
+        current_period_end: newEnd,
+      } : x))
+      toast.success('Pago de $' + payAmount + ' registrado · vence ' + new Date(newEnd).toLocaleDateString('es-EC'))
+      setPayModal(null)
+      setPayNotes('')
+    } catch (err: any) {
+      toast.error('Error: ' + err.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const STATUS_BADGES: Record<string, { label: string; cls: string }> = {
+    active:    { label: 'Al día',     cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+    expiring:  { label: 'Por vencer', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+    expired:   { label: 'Vencido',    cls: 'bg-red-500/15 text-red-400 border-red-500/30' },
+    suspended: { label: 'Suspendido', cls: 'bg-red-500/20 text-red-400 border-red-500/40' },
+    never:     { label: 'Sin pago',   cls: 'bg-white/5 text-white/40 border-white/10' },
+  }
+
+  return (
+    <div>
+      {paymentStats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle2 size={16} className="text-emerald-400" />
+              <span className="text-[11px] uppercase tracking-widest text-white/40 font-bold">Activos</span>
+            </div>
+            <p className="text-2xl font-black text-emerald-400">{paymentStats.activeCount}</p>
+          </div>
+          <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle size={16} className="text-red-400" />
+              <span className="text-[11px] uppercase tracking-widest text-white/40 font-bold">Vencidos / Suspendidos</span>
+            </div>
+            <p className="text-2xl font-black text-red-400">{paymentStats.expiredCount}</p>
+          </div>
+          <div className="bg-violet-500/5 border border-violet-500/20 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign size={16} className="text-violet-400" />
+              <span className="text-[11px] uppercase tracking-widest text-white/40 font-bold">Cobrado este mes</span>
+            </div>
+            <p className="text-2xl font-black text-violet-400">${paymentStats.monthRevenue.toFixed(2)}</p>
+          </div>
+          <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Users size={16} className="text-white/60" />
+              <span className="text-[11px] uppercase tracking-widest text-white/40 font-bold">Total docentes</span>
+            </div>
+            <p className="text-2xl font-black text-white/80">{paymentStats.totalTeachers}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <div className="relative flex-1 min-w-[280px] max-w-md">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+          <input
+            type="text"
+            placeholder="Buscar docente, email o institución…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.05] border border-white/[0.1] text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50"
+          />
+        </div>
+        <div className="flex items-center gap-1 text-xs">
+          {(['all', 'active', 'expired', 'never'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={'px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider transition-all ' + (filter === f ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'text-white/40 hover:text-white/70 border border-transparent')}
+            >
+              {f === 'all' ? 'Todos' : f === 'active' ? 'Activos' : f === 'expired' ? 'Vencidos' : 'Sin pago'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl overflow-hidden">
+        <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1.5fr] gap-3 px-5 py-3 border-b border-white/[0.07] text-[11px] font-bold uppercase tracking-widest text-white/30">
+          <span>Docente</span>
+          <span>Institución</span>
+          <span>Estado</span>
+          <span>Vence</span>
+          <span className="text-right">Acciones</span>
+        </div>
+        <div className="divide-y divide-white/[0.04] max-h-[600px] overflow-y-auto">
+          {filtered.map(t => {
+            const badge = STATUS_BADGES[t.computedStatus]
+            return (
+              <div key={t.id} className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1.5fr] gap-3 px-5 py-3 items-center hover:bg-white/[0.02]">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{t.full_name || '(Sin nombre)'}</p>
+                  <p className="text-[11px] text-white/30 truncate">{t.email}</p>
+                </div>
+                <span className="text-xs text-white/60 truncate">{t.institution_name}</span>
+                <span className={'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border w-fit ' + badge.cls}>
+                  {badge.label}
+                </span>
+                <span className="text-xs text-white/50">
+                  {t.current_period_end
+                    ? fmt(t.current_period_end) + (t.daysLeft != null && t.daysLeft >= 0 ? ' (' + t.daysLeft + 'd)' : '')
+                    : '—'}
+                </span>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => { setPayModal(t); setPayAmount(t.monthly_amount || 20) }}
+                    disabled={busyId === t.id}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 text-xs font-bold transition-all disabled:opacity-40"
+                  >
+                    <DollarSign size={12} />
+                    Pago
+                  </button>
+                  {t.planner_suspended ? (
+                    <button
+                      onClick={() => handleSuspend(t, false)}
+                      disabled={busyId === t.id}
+                      className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-all disabled:opacity-40"
+                      title="Reactivar"
+                    >
+                      <Unlock size={14} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleSuspend(t, true)}
+                      disabled={busyId === t.id}
+                      className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all disabled:opacity-40"
+                      title="Suspender"
+                    >
+                      <Lock size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+          {filtered.length === 0 && (
+            <p className="text-xs text-white/30 text-center py-12">Sin docentes con esos filtros.</p>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-white/20 mt-3 text-right">{filtered.length} de {teacherSubs.length} docentes</p>
+
+      {payModal && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4" onClick={() => setPayModal(null)}>
+          <div className="bg-[#12121e] border border-white/10 rounded-3xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold mb-1">Registrar pago</h3>
+            <p className="text-xs text-white/50 mb-5">{payModal.full_name} · {payModal.email}</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-widest text-white/40 mb-2">Monto (USD)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={payAmount}
+                  onChange={e => setPayAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.1] text-sm text-white focus:outline-none focus:border-violet-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-widest text-white/40 mb-2">Método</label>
+                <select
+                  value={payMethod}
+                  onChange={e => setPayMethod(e.target.value as any)}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.1] text-sm text-white focus:outline-none focus:border-violet-500/50"
+                >
+                  <option value="efectivo">Efectivo</option>
+                  <option value="transferencia">Transferencia</option>
+                  <option value="deposito">Depósito</option>
+                  <option value="otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-widest text-white/40 mb-2">Notas (opcional)</label>
+                <textarea
+                  rows={3}
+                  value={payNotes}
+                  onChange={e => setPayNotes(e.target.value)}
+                  placeholder="Ref. transferencia, fecha, etc."
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.1] text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 resize-none"
+                />
+              </div>
+
+              <div className="text-[11px] text-white/40 bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5">
+                Al registrar este pago, la suscripción se renueva por <span className="text-white font-bold">30 días</span> y se reactiva el acceso al planificador.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 mt-6">
+              <button
+                onClick={() => setPayModal(null)}
+                disabled={busyId === payModal.id}
+                className="px-4 py-2 rounded-xl text-sm text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-all disabled:opacity-40"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRecordPayment}
+                disabled={busyId === payModal.id || payAmount <= 0}
+                className="px-5 py-2 rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 text-sm font-bold transition-all disabled:opacity-40"
+              >
+                {busyId === payModal.id ? 'Guardando…' : 'Registrar $' + payAmount.toFixed(2)}
               </button>
             </div>
           </div>

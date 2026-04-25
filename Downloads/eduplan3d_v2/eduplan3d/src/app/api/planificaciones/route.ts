@@ -305,9 +305,17 @@ export async function POST(request: NextRequest) {
 
     // Verificar limite del plan free
     const { data: profile } = await (supabase as any)
-      .from('profiles').select('plan').eq('id', user.id).single() as { data: { plan: string } | null }
+      .from('profiles').select('plan, planner_suspended').eq('id', user.id).single() as { data: { plan: string; planner_suspended?: boolean } | null }
 
     const isPlannerSolo = profile?.plan === 'planner_solo'
+
+    // Bloqueo duro por suscripcion vencida o suspendida manualmente
+    if (profile?.planner_suspended === true) {
+      return NextResponse.json(
+        { error: 'Tu suscripción al planificador está suspendida. Comunícate con el administrador para renovar el pago mensual.' },
+        { status: 403 }
+      )
+    }
 
     // Resolver año lectivo visible; bloquear si esta en modo historico
     const ycx = await resolveYearContext(user.id)
