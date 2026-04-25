@@ -17,11 +17,13 @@ const STORAGE_KEY = 'aura_chat_v1'
 const MAX_STORED = 40 // se guardan como máximo 40 mensajes
 
 const QUICK_PROMPTS: { label: string; prompt: string }[] = [
+  { label: '✨ Actividad didáctica',    prompt: 'Diseña una actividad didáctica completa lista para imprimir y entregar a estudiantes. Incluye: objetivo, tiempo, materiales, instrucciones paso a paso para el docente, hoja de trabajo para el estudiante (con espacios para responder), y rúbrica corta. Dime: tema / asignatura / grado / sesión:' },
+  { label: '📄 Hoja de trabajo',        prompt: 'Crea una hoja de trabajo (worksheet) imprimible para estudiantes sobre un tema. Debe tener encabezado con espacio para nombre/curso/fecha, instrucciones claras, ejercicios variados y una sección de autoevaluación. Dime el tema, asignatura y grado:' },
+  { label: '🎲 Juego educativo',        prompt: 'Diseña un juego educativo (en aula o digital) para reforzar un tema. Incluye reglas, materiales, número de jugadores, duración y cómo evaluar el aprendizaje. Te paso el tema y grado:' },
+  { label: '📝 Preguntas de examen',    prompt: 'Necesito 10 preguntas (mezcla de opción múltiple, respuesta corta y desarrollo) sobre un tema, con respuestas modelo. Te paso el tema y grado:' },
+  { label: '♿ Adaptar a NEE',          prompt: 'Quiero adaptar una actividad para un estudiante con NEE. Dame el tipo de necesidad y la actividad original.' },
+  { label: '🎯 Redactar indicador',     prompt: 'Ayúdame a redactar indicadores de evaluación MinEduc-compatibles para una destreza. Te diré la destreza:' },
   { label: '📚 Explícame ERCA',         prompt: 'Explícame brevemente la metodología ERCA y cuándo conviene usarla.' },
-  { label: '✨ Actividades para un tema', prompt: 'Sugiéreme 3 actividades creativas para un tema. Te digo el tema:' },
-  { label: '♿ Adaptar a NEE',           prompt: 'Quiero adaptar una actividad para un estudiante con TDAH. ¿Qué ajustes claves recomiendas?' },
-  { label: '📝 Preguntas de examen',    prompt: 'Necesito 5 preguntas tipo opción múltiple sobre un tema. Te paso el tema:' },
-  { label: '🎯 Redactar indicador',     prompt: 'Ayúdame a redactar un indicador de evaluación para una destreza que te diré.' },
 ]
 
 // Rutas donde Aura está permitida. Aura es un copiloto pedagógico, así que
@@ -30,6 +32,7 @@ const QUICK_PROMPTS: { label: string; prompt: string }[] = [
 const AURA_ALLOWED_PREFIXES = [
   '/dashboard/planificador',
   '/dashboard/historial',
+  '/dashboard/calendario',
 ]
 
 export function FloatingAura() {
@@ -296,23 +299,89 @@ export function FloatingAura() {
               </div>
             )}
 
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+            {messages.map((m, i) => {
+              const isAssistant = m.role === 'assistant'
+              const isSubstantial = isAssistant && m.content && m.content.length > 200
+              return (
                 <div
-                  className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
-                    m.role === 'user'
-                      ? 'text-white rounded-br-sm'
-                      : 'bg-white text-ink border border-[rgba(120,100,255,0.15)] rounded-bl-sm'
-                  }`}
-                  style={m.role === 'user' ? { backgroundColor: '#7C6DFA' } : undefined}
+                  key={i}
+                  className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}
                 >
-                  {m.content}
+                  <div
+                    className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+                      m.role === 'user'
+                        ? 'text-white rounded-br-sm'
+                        : 'bg-white text-ink border border-[rgba(120,100,255,0.15)] rounded-bl-sm'
+                    }`}
+                    style={m.role === 'user' ? { backgroundColor: '#7C6DFA' } : undefined}
+                  >
+                    {m.content}
+                  </div>
+                  {isSubstantial && (
+                    <div className="flex gap-1 mt-1 ml-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(m.content)
+                        }}
+                        className="text-[10px] text-ink3 hover:text-violet flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-violet/5"
+                        title="Copiar texto"
+                      >
+                        📋 Copiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ts = new Date(m.ts).toISOString().slice(0, 10)
+                          descargarMarkdown(m.content, `aura-${ts}-${i}.md`)
+                        }}
+                        className="text-[10px] text-ink3 hover:text-violet flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-violet/5"
+                        title="Descargar como Markdown (.md)"
+                      >
+                        <Download size={10} /> .md
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Imprimir/PDF: abre nueva ventana con el contenido formateado
+                          const w = window.open('', '_blank')
+                          if (!w) return
+                          const safeHtml = m.content
+                            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                            .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
+                            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                            .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                            .replace(/^\- (.+)$/gm, '<li>$1</li>')
+                            .replace(/\n\n/g, '</p><p>')
+                          w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Aura — Material</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:780px;margin:24px auto;padding:24px;color:#111;line-height:1.5}
+  h1,h2,h3,h4{color:#4c1d95;margin-top:1.2em}
+  table{border-collapse:collapse;width:100%;margin:12px 0}
+  th,td{border:1px solid #ddd;padding:6px 8px;font-size:13px;vertical-align:top}
+  th{background:#f3f4f6}
+  li{margin:4px 0}
+  .no-print button{padding:8px 16px;background:#7C6DFA;color:#fff;border:0;border-radius:6px;cursor:pointer;margin-bottom:16px}
+  @media print{.no-print{display:none}@page{margin:14mm}}
+</style></head><body>
+<div class="no-print"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>
+<p>${safeHtml}</p>
+<script>setTimeout(()=>{try{window.print()}catch(e){}},500)</script>
+</body></html>`)
+                          w.document.close()
+                        }}
+                        className="text-[10px] text-ink3 hover:text-violet flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-violet/5"
+                        title="Imprimir o guardar como PDF"
+                      >
+                        🖨️ PDF
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             {loading && (
               <div className="flex justify-start">
