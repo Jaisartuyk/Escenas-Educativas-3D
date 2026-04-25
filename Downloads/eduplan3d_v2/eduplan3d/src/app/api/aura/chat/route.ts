@@ -307,15 +307,20 @@ export async function POST(req: NextRequest) {
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
-      max_tokens: 1024,
+      max_tokens: 4096,
       system,
       messages: trimmed,
     })
 
-    const assistantText = response.content[0]?.type === 'text' ? response.content[0].text : ''
+    let assistantText = response.content[0]?.type === 'text' ? response.content[0].text : ''
+    const wasTruncated = response.stop_reason === 'max_tokens'
+    if (wasTruncated) {
+      assistantText += '\n\n*[⚠️ Respuesta cortada por límite de tokens. Pídeme la continuación o solicita una versión más corta.]*'
+    }
 
     return NextResponse.json({
       message: { role: 'assistant' as const, content: assistantText },
+      truncated: wasTruncated,
       usage: {
         input_tokens:  response.usage?.input_tokens  ?? 0,
         output_tokens: response.usage?.output_tokens ?? 0,

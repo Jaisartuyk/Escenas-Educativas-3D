@@ -46,7 +46,7 @@ function inlineFormat(text: string): string {
   return result
 }
 
-function parseMarkdown(md: string): string {
+export function parseMarkdown(md: string): string {
   const lines = md.split('\n')
   const output: string[] = []
   let i = 0

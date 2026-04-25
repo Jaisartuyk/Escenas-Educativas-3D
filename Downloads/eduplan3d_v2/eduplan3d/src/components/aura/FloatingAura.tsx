@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Sparkles, X, Send, Trash2, Bot, FileText, Download } from 'lucide-react'
 import { NEE_SIN_DISCAPACIDAD, NEE_CON_DISCAPACIDAD } from '@/lib/pedagogy/nee'
+import { parseMarkdown } from '@/components/planner/MarkdownRenderer'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -343,32 +344,35 @@ export function FloatingAura() {
                       <button
                         type="button"
                         onClick={() => {
-                          // Imprimir/PDF: abre nueva ventana con el contenido formateado
+                          // Imprimir/PDF: usa el mismo parseMarkdown del historial
+                          // → tablas, listas, negritas, cursivas y links bien renderizados.
                           const w = window.open('', '_blank')
                           if (!w) return
-                          const safeHtml = m.content
-                            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                            .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
-                            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-                            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-                            .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-                            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/^\- (.+)$/gm, '<li>$1</li>')
-                            .replace(/\n\n/g, '</p><p>')
+                          const html = parseMarkdown(m.content)
                           w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Aura — Material</title>
 <style>
-  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:780px;margin:24px auto;padding:24px;color:#111;line-height:1.5}
-  h1,h2,h3,h4{color:#4c1d95;margin-top:1.2em}
-  table{border-collapse:collapse;width:100%;margin:12px 0}
-  th,td{border:1px solid #ddd;padding:6px 8px;font-size:13px;vertical-align:top}
-  th{background:#f3f4f6}
-  li{margin:4px 0}
-  .no-print button{padding:8px 16px;background:#7C6DFA;color:#fff;border:0;border-radius:6px;cursor:pointer;margin-bottom:16px}
-  @media print{.no-print{display:none}@page{margin:14mm}}
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:780px;margin:24px auto;padding:24px;color:#111;line-height:1.6}
+  h1,h2,h3,h4{color:#4c1d95;margin-top:1.4em;margin-bottom:.5em}
+  h1{font-size:22px;border-bottom:2px solid #ede9fe;padding-bottom:6px}
+  h2{font-size:18px}
+  h3{font-size:15px}
+  h4{font-size:14px}
+  p{margin:.5em 0}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13px}
+  th,td{border:1px solid #d1d5db;padding:6px 8px;vertical-align:top}
+  th{background:#f3f4f6;font-weight:700;text-align:left}
+  ul,ol{margin:.5em 0;padding-left:1.4em}
+  li{margin:3px 0}
+  strong{color:#4c1d95}
+  em{color:#4c1d95}
+  code{background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:12px}
+  a{color:#7c3aed;text-decoration:underline}
+  .no-print button{padding:8px 16px;background:#7C6DFA;color:#fff;border:0;border-radius:6px;cursor:pointer;margin-bottom:16px;font-size:13px}
+  @media print{.no-print{display:none}@page{size:A4;margin:14mm}}
 </style></head><body>
 <div class="no-print"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>
-<p>${safeHtml}</p>
-<script>setTimeout(()=>{try{window.print()}catch(e){}},500)</script>
+${html}
+<script>setTimeout(()=>{try{window.print()}catch(e){}},700)</script>
 </body></html>`)
                           w.document.close()
                         }}
