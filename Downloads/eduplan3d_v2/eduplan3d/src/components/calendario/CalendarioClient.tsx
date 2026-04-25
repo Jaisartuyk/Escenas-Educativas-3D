@@ -271,12 +271,13 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
     return Array.from(s).sort()
   }, [planificaciones, entries])
 
-  // Filtrado del sidebar (solo planificaciones)
+  // Filtrado del sidebar (solo búsqueda + asignatura).
+  // El filtro "Grupo" NO aplica al sidebar — el grupo se asigna por entrada
+  // del calendario, no por planificación. Aplica solo al calendario.
   const planesFiltrados = useMemo(() => {
     const q = search.trim().toLowerCase()
     return planificaciones.filter(p => {
       if (filterSubject && p.subject !== filterSubject) return false
-      if (filterGrupo && p.grupo !== filterGrupo) return false
       if (q) {
         const hay =
           p.title.toLowerCase().includes(q) ||
@@ -286,7 +287,7 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
       }
       return true
     })
-  }, [planificaciones, search, filterSubject, filterGrupo])
+  }, [planificaciones, search, filterSubject])
 
   // Agrupar entradas por fecha
   const entriesByDate = useMemo(() => {
@@ -435,21 +436,11 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
             ))}
           </select>
 
-          {grupos.length > 0 && (
-            <select
-              value={filterGrupo}
-              onChange={e => setFilterGrupo(e.target.value)}
-              className="w-full mb-3 px-2 py-1.5 text-xs border border-line rounded-md bg-white"
-            >
-              <option value="">Todos los grupos</option>
-              {grupos.map(g => (
-                <option key={g} value={g}>{g}</option>
-              ))}
-            </select>
-          )}
-
           <div className="text-[10px] text-ink3 uppercase mb-1">
             {planesFiltrados.length} disponible{planesFiltrados.length !== 1 ? 's' : ''}
+          </div>
+          <div className="text-[10px] text-ink3 italic mb-3 leading-tight">
+            El sidebar muestra todas tus planificaciones. El "grupo" se asigna al arrastrar al calendario.
           </div>
 
           {planesFiltrados.length === 0 ? (
@@ -490,13 +481,28 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
                 {fmtFechaLarga(days[0].date)} — {fmtFechaLarga(days[6].date)}
               </div>
             </div>
-            <button
-              onClick={exportPDF}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-violet text-white hover:bg-violet/90"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Exportar PDF
-            </button>
+            <div className="flex items-center gap-2">
+              {grupos.length > 0 && (
+                <select
+                  value={filterGrupo}
+                  onChange={e => setFilterGrupo(e.target.value)}
+                  className="px-2 py-1.5 text-xs border border-line rounded-md bg-white"
+                  title="Filtrar el calendario por grupo"
+                >
+                  <option value="">Todos los grupos</option>
+                  {grupos.map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                onClick={exportPDF}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md bg-violet text-white hover:bg-violet/90"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Exportar PDF
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-2">
