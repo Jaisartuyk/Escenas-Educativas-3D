@@ -79,6 +79,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
 const NAV_TEACHER: NavNode[] = [
   { href: '/dashboard/docente',      icon: '📝', label: 'Panel Docente' },
   { href: '/dashboard/planificador', icon: '📋', label: 'Planificador'  },
+  { href: '/dashboard/calendario',   icon: '📅', label: 'Calendario'    },
   { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca'    },
   { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes'      },
   {
@@ -151,6 +152,8 @@ const NAV_HORARIOS: NavItem[] = [
 // ─── Nav planner_solo (docente externo sin institución) ──────────────────────
 const NAV_PLANNER_SOLO: NavItem[] = [
   { href: '/dashboard/planificador', icon: '🤖', label: 'Planificador IA' },
+  { href: '/dashboard/calendario',   icon: '📅', label: 'Calendario'      },
+  { href: '/dashboard/historial',    icon: '📂', label: 'Historial'       },
   { href: '/dashboard/biblioteca',   icon: '📚', label: 'Mis Materias'    },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'   },
 ]
