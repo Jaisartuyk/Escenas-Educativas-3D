@@ -24,6 +24,8 @@ import {
   Trash2,
   FileText,
   Printer,
+  Eye,
+  ExternalLink,
 } from 'lucide-react'
 import {
   agendarPlanificacion,
@@ -34,6 +36,8 @@ import {
   actualizarEntrada,
   type AgendaEntryWithPlan,
 } from '@/lib/actions/calendario'
+import { MarkdownRenderer } from '@/components/planner/MarkdownRenderer'
+import Link from 'next/link'
 
 // ─────────────────────────────────────────────────────────────────────────────
 type Sesion = { numero: number; tema: string; duracion_min: number }
@@ -53,6 +57,32 @@ function getSesiones(p: Planificacion | undefined | null): Sesion[] {
   const arr = p?.metadata?.sesiones
   if (!Array.isArray(arr) || arr.length === 0) return []
   return arr.filter((s: any) => s && typeof s.numero === 'number')
+}
+
+/**
+ * Extrae el bloque markdown de la sesión N de un contenido completo.
+ * Busca "## Sesión N: ..." hasta el siguiente "## Sesión M:" o "###" final.
+ * Si no encuentra, devuelve el contenido completo (compat con planes viejos).
+ */
+function extractSesionMarkdown(content: string | null | undefined, numero: number | null): string {
+  if (!content) return ''
+  if (numero == null) return content
+  // Busca "## Sesión N:" tolerando tilde / sin tilde / espacios
+  const startRegex = new RegExp(
+    `^##\\s+Sesi[oó]n\\s+${numero}\\s*:[^\\n]*$`,
+    'im'
+  )
+  const startMatch = startRegex.exec(content)
+  if (!startMatch || startMatch.index == null) return content
+  const startIdx = startMatch.index
+  // Busca siguiente "## Sesión" o "###" o "## " del nivel principal
+  const rest = content.slice(startIdx + startMatch[0].length)
+  const nextRegex = /^##\s+(Sesi[oó]n\s+\d+|\d+\.)/im
+  const nextMatch = nextRegex.exec(rest)
+  const endIdx = nextMatch && nextMatch.index != null
+    ? startIdx + startMatch[0].length + nextMatch.index
+    : content.length
+  return content.slice(startIdx, endIdx).trim()
 }
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -127,10 +157,12 @@ function DraggableEntry({
   entry,
   onDelete,
   onEdit,
+  onView,
 }: {
   entry: AgendaEntryWithPlan
   onDelete: (id: string) => void
   onEdit: (entry: AgendaEntryWithPlan) => void
+  onView: (entry: AgendaEntryWithPlan) => void
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `entry:${entry.id}`,
@@ -148,7 +180,9 @@ function DraggableEntry({
         <div
           {...listeners}
           {...attributes}
+          onDoubleClick={() => onView(entry)}
           className="flex-1 cursor-grab active:cursor-grabbing min-w-0"
+          title="Doble clic para ver detalle"
         >
           {entry.sesion_numero != null && (() => {
             const sesArr = (entry.planificacion?.metadata?.sesiones || []) as Sesion[]
@@ -176,9 +210,16 @@ function DraggableEntry({
         </div>
         <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition">
           <button
+            onClick={() => onView(entry)}
+            className="text-ink3 hover:text-violet p-0.5"
+            title="Ver detalle de la sesión"
+          >
+            <Eye className="w-3 h-3" />
+          </button>
+          <button
             onClick={() => onEdit(entry)}
             className="text-ink3 hover:text-violet p-0.5"
-            title="Editar"
+            title="Editar grupo / notas"
           >
             <FileText className="w-3 h-3" />
           </button>
@@ -204,12 +245,14 @@ function DayCell({
   entries,
   onDelete,
   onEdit,
+  onView,
 }: {
   fecha: string
   nombre: string
   entries: AgendaEntryWithPlan[]
   onDelete: (id: string) => void
   onEdit: (entry: AgendaEntryWithPlan) => void
+  onView: (entry: AgendaEntryWithPlan) => void
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `day:${fecha}`,
@@ -233,7 +276,7 @@ function DayCell({
           </div>
         ) : (
           entries.map(e => (
-            <DraggableEntry key={e.id} entry={e} onDelete={onDelete} onEdit={onEdit} />
+            <DraggableEntry key={e.id} entry={e} onDelete={onDelete} onEdit={onEdit} onView={onView} />
           ))
         )}
       </div>
@@ -258,6 +301,7 @@ export function CalendarioClient({
   const [filterGrupo, setFilterGrupo] = useState<string>('')
   const [activeDrag, setActiveDrag] = useState<any>(null)
   const [editEntry, setEditEntry] = useState<AgendaEntryWithPlan | null>(null)
+  const [viewEntry, setViewEntry] = useState<AgendaEntryWithPlan | null>(null)
   // Modal para asignar las N sesiones de una planificación a días específicos.
   const [sesionesModal, setSesionesModal] = useState<{
     plan: Planificacion
@@ -570,6 +614,7 @@ export function CalendarioClient({
                 entries={entriesByDate.get(d.fecha) || []}
                 onDelete={handleDelete}
                 onEdit={setEditEntry}
+                onView={setViewEntry}
               />
             ))}
           </div>
@@ -591,6 +636,11 @@ export function CalendarioClient({
           </div>
         )}
       </DragOverlay>
+
+      {/* ── Modal: ver detalle de una sesión / planificación ─────────── */}
+      {viewEntry && (
+        <VerSesionModal entry={viewEntry} onClose={() => setViewEntry(null)} />
+      )}
 
       {/* ── Modal: asignar N sesiones a días ──────────────────────────── */}
       {sesionesModal && (
@@ -881,6 +931,83 @@ function AsignarSesionesModal({
           >
             Agendar {sesiones.length} sesiones
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modal: ver detalle de la sesión (markdown extraído de la planificación)
+// ─────────────────────────────────────────────────────────────────────────────
+function VerSesionModal({
+  entry,
+  onClose,
+}: {
+  entry: AgendaEntryWithPlan
+  onClose: () => void
+}) {
+  const plan = entry.planificacion
+  const sesArr = (plan?.metadata?.sesiones || []) as Sesion[]
+  const total = sesArr.length || null
+  const sesActual = entry.sesion_numero != null
+    ? sesArr.find(s => s.numero === entry.sesion_numero)
+    : null
+  // Extraer solo la sección de esta sesión del markdown completo
+  const markdown = extractSesionMarkdown(plan?.content || '', entry.sesion_numero)
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+        <div className="flex items-start justify-between p-5 border-b border-line">
+          <div className="min-w-0 flex-1">
+            {entry.sesion_numero != null && (
+              <div className="inline-block text-[10px] font-bold uppercase bg-violet text-white rounded px-2 py-0.5 mb-1.5">
+                Sesión {entry.sesion_numero}{total ? `/${total}` : ''}
+              </div>
+            )}
+            <h3 className="font-display text-lg font-bold leading-tight">
+              {sesActual?.tema || plan?.title || 'Sin título'}
+            </h3>
+            <div className="text-xs text-ink3 mt-1">
+              {plan?.subject}
+              {plan?.grade ? ` · ${plan.grade}` : ''}
+              {sesActual?.duracion_min ? ` · ${sesActual.duracion_min} min` : ''}
+              {entry.grupo ? ` · Grupo: ${entry.grupo}` : ''}
+            </div>
+            {entry.notas && (
+              <div className="mt-2 text-xs text-ink2 italic bg-amber/10 p-2 rounded-md">
+                Notas: {entry.notas}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 ml-3 shrink-0">
+            {plan?.id && (
+              <Link
+                href={`/dashboard/historial/${plan.id}`}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border border-line hover:bg-bg2"
+                title="Abrir planificación completa"
+              >
+                <ExternalLink className="w-3 h-3" />
+                Ver completa
+              </Link>
+            )}
+            <button onClick={onClose} className="text-ink3 hover:text-ink p-1">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto p-5 flex-1">
+          {markdown ? (
+            <div className="prose prose-sm max-w-none">
+              <MarkdownRenderer content={markdown} />
+            </div>
+          ) : (
+            <div className="text-sm text-ink3 italic">
+              No hay contenido disponible para esta sesión.
+            </div>
+          )}
         </div>
       </div>
     </div>

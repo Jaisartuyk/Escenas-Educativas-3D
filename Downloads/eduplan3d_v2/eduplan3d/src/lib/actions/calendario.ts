@@ -28,6 +28,7 @@ export type AgendaEntryWithPlan = AgendaEntry & {
     type: string
     grupo?: string | null
     metadata?: any
+    content?: string | null
   } | null
 }
 
@@ -219,7 +220,7 @@ export async function listarRango(input: {
     .select(`
       id, user_id, planificacion_id, fecha_inicio, fecha_fin, grupo, notas, sesion_numero, created_at, updated_at,
       planificacion:planificaciones (
-        id, title, subject, grade, topic, type, grupo, metadata
+        id, title, subject, grade, topic, type, grupo, metadata, content
       )
     `)
     .eq('user_id', user.id)
