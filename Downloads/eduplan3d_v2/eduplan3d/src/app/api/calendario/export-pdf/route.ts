@@ -112,16 +112,25 @@ export async function GET(request: NextRequest) {
       ${dayCols.map(c => {
         const items = byDate.get(c.fecha) || []
         if (items.length === 0) return `<td><div class="empty">— sin planificaciones —</div></td>`
-        return `<td>${items.map(e => `
+        return `<td>${items.map(e => {
+          const sesArr: any[] = (e.planificacion?.metadata?.sesiones || []) as any[]
+          const total = sesArr.length || null
+          const ses = e.sesion_numero != null ? sesArr.find((s: any) => s.numero === e.sesion_numero) : null
+          const titleShown = ses?.tema || e.planificacion?.title || 'Sin título'
+          const sesionBadge = e.sesion_numero != null
+            ? `<div style="font-size:9px;background:#7c3aed;color:white;padding:1px 4px;border-radius:3px;display:inline-block;margin-bottom:2px;font-weight:bold;">Sesión ${e.sesion_numero}${total ? '/' + total : ''}</div>`
+            : ''
+          return `
           <div class="entry">
-            <div class="entry-title">${escapeHtml(e.planificacion?.title || 'Sin título')}</div>
+            ${sesionBadge}
+            <div class="entry-title">${escapeHtml(titleShown)}</div>
             <div class="entry-meta">
               ${escapeHtml(e.planificacion?.subject || '')}${e.planificacion?.grade ? ' · ' + escapeHtml(e.planificacion.grade) : ''}
               ${e.grupo ? '<br>Grupo: ' + escapeHtml(e.grupo) : ''}
               ${e.notas ? '<br>' + escapeHtml(e.notas) : ''}
             </div>
           </div>
-        `).join('')}</td>`
+        `}).join('')}</td>`
       }).join('')}
     </tr>
   </tbody>

@@ -15,10 +15,34 @@ export default async function CalendarioPage() {
   // Cargar todas las planificaciones del usuario para el sidebar (drag source).
   const { data: planificaciones } = await (supabase as any)
     .from('planificaciones')
-    .select('id, title, subject, grade, topic, type, grupo, created_at')
+    .select('id, title, subject, grade, topic, type, grupo, metadata, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(200)
+
+  // Cargar days_of_week por materia (para sugerir días al asignar sesiones).
+  // Indexado por nombre de asignatura (subjects.name / planner_subjects.materia).
+  const subjectDaysMap: Record<string, number[]> = {}
+  const [{ data: subj }, { data: psubj }] = await Promise.all([
+    (supabase as any)
+      .from('subjects')
+      .select('name, days_of_week')
+      .eq('teacher_id', user.id),
+    (supabase as any)
+      .from('planner_subjects')
+      .select('materia, days_of_week')
+      .eq('user_id', user.id),
+  ])
+  ;(subj || []).forEach((s: any) => {
+    if (s.name && Array.isArray(s.days_of_week) && s.days_of_week.length > 0) {
+      subjectDaysMap[s.name] = s.days_of_week
+    }
+  })
+  ;(psubj || []).forEach((s: any) => {
+    if (s.materia && Array.isArray(s.days_of_week) && s.days_of_week.length > 0) {
+      subjectDaysMap[s.materia] = s.days_of_week
+    }
+  })
 
   return (
     <div className="animate-fade-in">
@@ -28,7 +52,10 @@ export default async function CalendarioPage() {
           Arrastra tus planificaciones a los días de la semana. Reutiliza la misma planificación en distintos grupos o fechas.
         </p>
       </div>
-      <CalendarioClient planificaciones={planificaciones || []} />
+      <CalendarioClient
+        planificaciones={planificaciones || []}
+        subjectDaysMap={subjectDaysMap}
+      />
     </div>
   )
 }

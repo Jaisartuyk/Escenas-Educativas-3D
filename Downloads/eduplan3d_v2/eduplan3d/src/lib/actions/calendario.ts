@@ -13,6 +13,7 @@ export type AgendaEntry = {
   fecha_fin: string | null
   grupo: string | null
   notas: string | null
+  sesion_numero: number | null
   created_at: string
   updated_at: string
 }
@@ -26,6 +27,7 @@ export type AgendaEntryWithPlan = AgendaEntry & {
     topic: string
     type: string
     grupo?: string | null
+    metadata?: any
   } | null
 }
 
@@ -45,6 +47,7 @@ export async function agendarPlanificacion(input: {
   fechaFin?: string | null
   grupo?: string | null
   notas?: string | null
+  sesionNumero?: number | null
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const sb = createServerClient()
   const { data: { user } } = await sb.auth.getUser()
@@ -69,6 +72,7 @@ export async function agendarPlanificacion(input: {
       fecha_fin: input.fechaFin ?? null,
       grupo: input.grupo ?? null,
       notas: input.notas ?? null,
+      sesion_numero: input.sesionNumero ?? null,
     })
     .select('id')
     .single()
@@ -76,6 +80,53 @@ export async function agendarPlanificacion(input: {
   if (error) return { ok: false, error: error.message }
   revalidatePath('/dashboard/calendario')
   return { ok: true, id: data.id }
+}
+
+/**
+ * Agendar múltiples sesiones de una misma planificación en un solo batch.
+ * Útil al arrastrar una planificación con N sesiones al calendario.
+ */
+export async function agendarSesionesMultiples(input: {
+  planificacionId: string
+  asignaciones: Array<{ sesionNumero: number; fechaInicio: string }>
+  grupo?: string | null
+  notas?: string | null
+}): Promise<{ ok: boolean; ids?: string[]; error?: string }> {
+  const sb = createServerClient()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+
+  if (!Array.isArray(input.asignaciones) || input.asignaciones.length === 0) {
+    return { ok: false, error: 'Sin asignaciones de sesiones' }
+  }
+
+  const { data: plan } = await (sb as any)
+    .from('planificaciones')
+    .select('id, user_id')
+    .eq('id', input.planificacionId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!plan) return { ok: false, error: 'Planificación no encontrada' }
+
+  const rows = input.asignaciones.map(a => ({
+    user_id: user.id,
+    planificacion_id: input.planificacionId,
+    fecha_inicio: a.fechaInicio,
+    fecha_fin: null,
+    grupo: input.grupo ?? null,
+    notas: input.notas ?? null,
+    sesion_numero: a.sesionNumero,
+  }))
+
+  const { data, error } = await (sb as any)
+    .from('planificacion_calendario')
+    .insert(rows)
+    .select('id')
+
+  if (error) return { ok: false, error: error.message }
+  revalidatePath('/dashboard/calendario')
+  return { ok: true, ids: (data || []).map((r: any) => r.id) }
 }
 
 /**
@@ -166,9 +217,9 @@ export async function listarRango(input: {
   let query = (sb as any)
     .from('planificacion_calendario')
     .select(`
-      id, user_id, planificacion_id, fecha_inicio, fecha_fin, grupo, notas, created_at, updated_at,
+      id, user_id, planificacion_id, fecha_inicio, fecha_fin, grupo, notas, sesion_numero, created_at, updated_at,
       planificacion:planificaciones (
-        id, title, subject, grade, topic, type, grupo
+        id, title, subject, grade, topic, type, grupo, metadata
       )
     `)
     .eq('user_id', user.id)

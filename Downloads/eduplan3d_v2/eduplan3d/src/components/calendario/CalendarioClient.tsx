@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import {
   agendarPlanificacion,
+  agendarSesionesMultiples,
   moverEntrada,
   desagendarEntrada,
   listarRango,
@@ -35,6 +36,7 @@ import {
 } from '@/lib/actions/calendario'
 
 // ─────────────────────────────────────────────────────────────────────────────
+type Sesion = { numero: number; tema: string; duracion_min: number }
 type Planificacion = {
   id: string
   title: string
@@ -43,7 +45,14 @@ type Planificacion = {
   topic: string
   type: string
   grupo?: string | null
+  metadata?: any
   created_at: string
+}
+
+function getSesiones(p: Planificacion | undefined | null): Sesion[] {
+  const arr = p?.metadata?.sesiones
+  if (!Array.isArray(arr) || arr.length === 0) return []
+  return arr.filter((s: any) => s && typeof s.numero === 'number')
 }
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -80,6 +89,7 @@ function DraggablePlan({ plan }: { plan: Planificacion }) {
     id: `plan:${plan.id}`,
     data: { type: 'plan', plan },
   })
+  const sesiones = getSesiones(plan)
   return (
     <div
       ref={setNodeRef}
@@ -92,7 +102,14 @@ function DraggablePlan({ plan }: { plan: Planificacion }) {
         ${isDragging ? 'opacity-40' : ''}
       `}
     >
-      <div className="text-sm font-semibold text-ink line-clamp-2">{plan.title}</div>
+      <div className="flex items-start justify-between gap-1">
+        <div className="text-sm font-semibold text-ink line-clamp-2 flex-1">{plan.title}</div>
+        {sesiones.length > 1 && (
+          <span className="shrink-0 text-[9px] font-bold bg-violet/15 text-violet rounded px-1 py-0.5">
+            {sesiones.length} ses
+          </span>
+        )}
+      </div>
       <div className="text-xs text-ink3 mt-1">
         {plan.subject} · {plan.grade}
       </div>
@@ -133,8 +150,24 @@ function DraggableEntry({
           {...attributes}
           className="flex-1 cursor-grab active:cursor-grabbing min-w-0"
         >
+          {entry.sesion_numero != null && (() => {
+            const sesArr = (entry.planificacion?.metadata?.sesiones || []) as Sesion[]
+            const total = sesArr.length || null
+            const sesActual = sesArr.find(s => s.numero === entry.sesion_numero)
+            return (
+              <div className="inline-block text-[9px] font-bold uppercase bg-violet text-white rounded px-1 py-0.5 mb-0.5">
+                Sesión {entry.sesion_numero}{total ? `/${total}` : ''}
+              </div>
+            )
+          })()}
           <div className="text-xs font-semibold text-ink line-clamp-2">
-            {entry.planificacion?.title || 'Sin título'}
+            {(() => {
+              const sesArr = (entry.planificacion?.metadata?.sesiones || []) as Sesion[]
+              const sesActual = entry.sesion_numero != null
+                ? sesArr.find(s => s.numero === entry.sesion_numero)
+                : null
+              return sesActual?.tema || entry.planificacion?.title || 'Sin título'
+            })()}
           </div>
           <div className="text-[10px] text-ink3 mt-0.5">
             {entry.planificacion?.subject}
@@ -211,7 +244,13 @@ function DayCell({
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Client
 // ─────────────────────────────────────────────────────────────────────────────
-export function CalendarioClient({ planificaciones }: { planificaciones: Planificacion[] }) {
+export function CalendarioClient({
+  planificaciones,
+  subjectDaysMap = {},
+}: {
+  planificaciones: Planificacion[]
+  subjectDaysMap?: Record<string, number[]>
+}) {
   const [weekStart, setWeekStart] = useState<Date>(() => getMonday(new Date()))
   const [entries, setEntries] = useState<AgendaEntryWithPlan[]>([])
   const [search, setSearch] = useState('')
@@ -219,6 +258,12 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
   const [filterGrupo, setFilterGrupo] = useState<string>('')
   const [activeDrag, setActiveDrag] = useState<any>(null)
   const [editEntry, setEditEntry] = useState<AgendaEntryWithPlan | null>(null)
+  // Modal para asignar las N sesiones de una planificación a días específicos.
+  const [sesionesModal, setSesionesModal] = useState<{
+    plan: Planificacion
+    sesiones: Sesion[]
+    fechaInicial: string  // día donde se soltó
+  } | null>(null)
   const [_, startTransition] = useTransition()
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
@@ -315,8 +360,16 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
     const fecha = overData.fecha as string
 
     if (activeData?.type === 'plan') {
-      // Optimistic: agregar entrada temporal
       const plan: Planificacion = activeData.plan
+      const sesiones = getSesiones(plan)
+
+      // Si tiene >1 sesiones, abrir modal para distribuir en días
+      if (sesiones.length > 1) {
+        setSesionesModal({ plan, sesiones, fechaInicial: fecha })
+        return
+      }
+
+      // Sesión única (o plan viejo sin sesiones[]): comportamiento directo
       const tempId = `tmp-${Date.now()}`
       setEntries(prev => [
         ...prev,
@@ -328,6 +381,7 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
           fecha_fin: null,
           grupo: plan.grupo ?? null,
           notas: null,
+          sesion_numero: sesiones.length === 1 ? sesiones[0].numero : null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           planificacion: {
@@ -338,6 +392,7 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
             topic: plan.topic,
             type: plan.type,
             grupo: plan.grupo,
+            metadata: plan.metadata,
           },
         },
       ])
@@ -345,6 +400,7 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
         planificacionId: plan.id,
         fechaInicio: fecha,
         grupo: plan.grupo ?? null,
+        sesionNumero: sesiones.length === 1 ? sesiones[0].numero : null,
       })
       if (!res.ok) {
         alert('Error al agendar: ' + (res.error || 'desconocido'))
@@ -536,6 +592,58 @@ export function CalendarioClient({ planificaciones }: { planificaciones: Planifi
         )}
       </DragOverlay>
 
+      {/* ── Modal: asignar N sesiones a días ──────────────────────────── */}
+      {sesionesModal && (
+        <AsignarSesionesModal
+          plan={sesionesModal.plan}
+          sesiones={sesionesModal.sesiones}
+          fechaInicial={sesionesModal.fechaInicial}
+          weekStart={weekStart}
+          subjectDays={subjectDaysMap[sesionesModal.plan.subject] || []}
+          onCancel={() => setSesionesModal(null)}
+          onConfirm={async (asignaciones, grupo) => {
+            const planId = sesionesModal.plan.id
+            const planSnap = sesionesModal.plan
+            setSesionesModal(null)
+            // Optimistic: agregar N entradas temporales
+            const tempEntries: AgendaEntryWithPlan[] = asignaciones.map((a, i) => ({
+              id: `tmp-${Date.now()}-${i}`,
+              user_id: '',
+              planificacion_id: planId,
+              fecha_inicio: a.fechaInicio,
+              fecha_fin: null,
+              grupo: grupo || null,
+              notas: null,
+              sesion_numero: a.sesionNumero,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              planificacion: {
+                id: planSnap.id,
+                title: planSnap.title,
+                subject: planSnap.subject,
+                grade: planSnap.grade,
+                topic: planSnap.topic,
+                type: planSnap.type,
+                grupo: planSnap.grupo,
+                metadata: planSnap.metadata,
+              },
+            }))
+            setEntries(prev => [...prev, ...tempEntries])
+            const res = await agendarSesionesMultiples({
+              planificacionId: planId,
+              asignaciones,
+              grupo: grupo || null,
+            })
+            if (!res.ok) {
+              alert('Error al agendar sesiones: ' + (res.error || ''))
+              setEntries(prev => prev.filter(e => !tempEntries.some(t => t.id === e.id)))
+            } else {
+              startTransition(() => reload())
+            }
+          }}
+        />
+      )}
+
       {/* ── Modal editar entrada ──────────────────────────────────────── */}
       {editEntry && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -604,6 +712,176 @@ function EditEntryForm({
         >
           Guardar
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modal: asignar N sesiones a días específicos de la semana
+// ─────────────────────────────────────────────────────────────────────────────
+function AsignarSesionesModal({
+  plan,
+  sesiones,
+  fechaInicial,
+  weekStart,
+  subjectDays,
+  onCancel,
+  onConfirm,
+}: {
+  plan: Planificacion
+  sesiones: Sesion[]
+  fechaInicial: string  // YYYY-MM-DD del día donde se soltó
+  weekStart: Date
+  subjectDays: number[]  // 1=Lun..7=Dom
+  onCancel: () => void
+  onConfirm: (
+    asignaciones: Array<{ sesionNumero: number; fechaInicio: string }>,
+    grupo: string,
+  ) => void
+}) {
+  // Generar 7 días de la semana actual
+  const days = useMemo(() => {
+    const arr: { fecha: string; label: string; dow: number }[] = []
+    const dnames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart)
+      d.setDate(weekStart.getDate() + i)
+      arr.push({
+        fecha: ymd(d),
+        label: `${dnames[i]} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+        dow: i + 1,
+      })
+    }
+    return arr
+  }, [weekStart])
+
+  // Pre-asignar sesiones a días sugeridos:
+  // 1. Si subjectDays[] tiene exactamente N días, mapear directo en orden.
+  // 2. Si subjectDays tiene más/menos, usar los primeros N o los disponibles.
+  // 3. Si vacío, repartir desde fechaInicial → siguientes días hábiles.
+  const initialAssignments = useMemo(() => {
+    const result: Record<number, string> = {}
+    if (subjectDays.length >= sesiones.length) {
+      // Hay suficientes días configurados — usar los primeros N.
+      const sorted = [...subjectDays].sort()
+      sesiones.forEach((s, i) => {
+        const dow = sorted[i]
+        const day = days.find(d => d.dow === dow)
+        if (day) result[s.numero] = day.fecha
+      })
+    } else if (subjectDays.length > 0) {
+      // Algunos configurados — los primeros van a esos, el resto al día inicial
+      const sorted = [...subjectDays].sort()
+      sesiones.forEach((s, i) => {
+        const dow = sorted[i] ?? 0
+        const day = days.find(d => d.dow === dow) || days.find(d => d.fecha === fechaInicial) || days[0]
+        result[s.numero] = day.fecha
+      })
+    } else {
+      // Sin configuración — empezar en fechaInicial y avanzar día a día (saltando fines de semana si es posible)
+      const startIdx = days.findIndex(d => d.fecha === fechaInicial)
+      const base = startIdx >= 0 ? startIdx : 0
+      sesiones.forEach((s, i) => {
+        let idx = (base + i) % 7
+        // Saltar Sáb/Dom si hay días hábiles disponibles
+        if (sesiones.length <= 5 && (days[idx].dow === 6 || days[idx].dow === 7)) {
+          idx = (idx + (8 - days[idx].dow)) % 7
+        }
+        result[s.numero] = days[idx].fecha
+      })
+    }
+    return result
+  }, [sesiones, subjectDays, days, fechaInicial])
+
+  const [assignments, setAssignments] = useState<Record<number, string>>(initialAssignments)
+  const [grupo, setGrupo] = useState<string>(plan.grupo || '')
+
+  const allAssigned = sesiones.every(s => !!assignments[s.numero])
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-5 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-display text-lg font-bold">
+            Distribuir {sesiones.length} sesiones
+          </h3>
+          <button onClick={onCancel} className="text-ink3 hover:text-ink">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="text-sm text-ink2 mb-1 font-semibold">{plan.title}</div>
+        <div className="text-xs text-ink3 mb-4">
+          {plan.subject} · {plan.grade}
+          {subjectDays.length > 0 && (
+            <span className="ml-2">
+              · Días configurados: {subjectDays.map(d => ['L','M','X','J','V','S','D'][d-1]).join(' ')}
+            </span>
+          )}
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-xs font-semibold text-ink2 mb-1">
+            Grupo / Curso (opcional)
+          </label>
+          <input
+            type="text"
+            value={grupo}
+            onChange={e => setGrupo(e.target.value)}
+            placeholder="Ej: 5to A — Colegio San José"
+            className="w-full px-3 py-2 text-sm border border-line rounded-md"
+          />
+        </div>
+
+        <div className="space-y-2 mb-4">
+          {sesiones.map(s => (
+            <div
+              key={s.numero}
+              className="flex items-center gap-2 p-2 rounded-lg border border-line bg-bg2"
+            >
+              <div className="shrink-0 text-[10px] font-bold bg-violet text-white rounded px-2 py-0.5">
+                Sesión {s.numero}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-ink line-clamp-1">{s.tema}</div>
+                <div className="text-[10px] text-ink3">{s.duracion_min} min</div>
+              </div>
+              <select
+                value={assignments[s.numero] || ''}
+                onChange={e =>
+                  setAssignments(prev => ({ ...prev, [s.numero]: e.target.value }))
+                }
+                className="shrink-0 px-2 py-1 text-xs border border-line rounded-md bg-white"
+              >
+                <option value="">— día —</option>
+                {days.map(d => (
+                  <option key={d.fecha} value={d.fecha}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-2 justify-end pt-2 border-t border-line">
+          <button
+            onClick={onCancel}
+            className="px-3 py-1.5 text-xs border border-line rounded-md hover:bg-bg2"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => {
+              const asignaciones = sesiones
+                .filter(s => assignments[s.numero])
+                .map(s => ({ sesionNumero: s.numero, fechaInicio: assignments[s.numero] }))
+              onConfirm(asignaciones, grupo.trim())
+            }}
+            disabled={!allAssigned}
+            className="px-3 py-1.5 text-xs bg-violet text-white rounded-md hover:bg-violet/90 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Agendar {sesiones.length} sesiones
+          </button>
+        </div>
       </div>
     </div>
   )
