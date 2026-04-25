@@ -31,7 +31,8 @@ export default async function SuperAdminPage() {
     admin.from('institutions').select('*', { count: 'exact', head: true }),
     admin.from('profiles').select('*', { count: 'exact', head: true }),
     admin.from('profiles').select('*', { count: 'exact', head: true }).eq('plan', 'planner_solo'),
-    (admin as any).from('planificacion_docs').select('*', { count: 'exact', head: true }),
+    // Planificaciones generadas por el planificador IA (no docs subidos por docentes)
+    (admin as any).from('planificaciones').select('*', { count: 'exact', head: true }),
     admin
       .from('institutions')
       .select('id, name, join_code, created_at')
