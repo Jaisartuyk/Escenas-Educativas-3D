@@ -244,6 +244,24 @@ export function PlannerClient({
         if (data.detectedPlanification) {
           toast('📄 Se detecto una planificacion en tus documentos y se adapto al formato institucional', { duration: 6000 })
         }
+        // Aviso si la respuesta se cortó por max_tokens
+        if (data.truncated) {
+          toast(
+            `⚠️ La planificación se generó parcialmente (${data.sesionesGeneradas ?? '?'}/${data.sesionesEsperadas ?? '?'} sesiones). ` +
+            `Edita o regenera con menos sesiones.`,
+            { icon: '⚠️', duration: 10000 }
+          )
+        } else if (
+          typeof data.sesionesEsperadas === 'number' &&
+          data.sesionesEsperadas > 1 &&
+          typeof data.sesionesGeneradas === 'number' &&
+          data.sesionesGeneradas < data.sesionesEsperadas
+        ) {
+          toast(
+            `ℹ️ Se generaron ${data.sesionesGeneradas} de ${data.sesionesEsperadas} sesiones. Revisa el contenido.`,
+            { icon: 'ℹ️', duration: 8000 }
+          )
+        }
         // Diagnóstico RAG: avisar al docente qué pasó con sus materiales
         const rs = data.ragStats as { found: number; parsed: number; skipped: number; reasons: string[] } | undefined
         if (rs) {

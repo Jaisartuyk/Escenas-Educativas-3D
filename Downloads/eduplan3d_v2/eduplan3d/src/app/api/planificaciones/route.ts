@@ -616,15 +616,23 @@ export async function POST(request: NextRequest) {
       console.error('[Curriculo Lookup Error]', err)
     }
 
+    // Calcular max_tokens según número de sesiones (cada sesión con tabla ≈ 1500 tok).
+    // Base 4096 para encabezado + secciones previa + NEE; 1800 por sesión adicional.
+    const numSesionesEsperadas = Math.max(1, Number(body.weeklyHours) || 1)
+    const dynamicMaxTokens = body.type === 'clase' && numSesionesEsperadas > 1
+      ? Math.min(16000, 4096 + (numSesionesEsperadas * 1800))
+      : 6000
+
     // Call Claude with system prompt + user prompt (regular)
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-5',
-      max_tokens: 4096,
+      max_tokens: dynamicMaxTokens,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: buildPrompt(body, contextoExtra, detectedPlanification) }],
     })
 
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
+    const wasTruncated = message.stop_reason === 'max_tokens'
 
     // ── Parsear sesiones del markdown si aplica (modo semanal) ──
     // Formato esperado: "## Sesión N: <subtema>"
@@ -716,7 +724,7 @@ export async function POST(request: NextRequest) {
       })
       const msg = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
-        max_tokens: 4096,
+        max_tokens: dynamicMaxTokens,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }],
       })
@@ -784,6 +792,9 @@ export async function POST(request: NextRequest) {
       variants,
       detectedPlanification,
       ragStats,
+      truncated: wasTruncated,
+      sesionesGeneradas: sesiones.length,
+      sesionesEsperadas: numSesionesEsperadas,
     })
   } catch (err: any) {
     console.error('[POST /api/planificaciones]', err)
