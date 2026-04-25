@@ -605,6 +605,39 @@ export function CalendarioClient({
             </div>
           </div>
 
+          {/* ── Tabs por materia ─────────────────────────────────────── */}
+          {subjects.length > 0 && (
+            <div className="mb-3 flex items-center gap-1 overflow-x-auto pb-1 border-b border-line">
+              <button
+                onClick={() => setFilterSubject('')}
+                className={`shrink-0 px-3 py-1.5 text-xs font-semibold rounded-t-md border-b-2 transition ${
+                  filterSubject === ''
+                    ? 'border-violet text-violet bg-violet/5'
+                    : 'border-transparent text-ink3 hover:text-ink hover:bg-bg2'
+                }`}
+              >
+                Todas ({entries.length})
+              </button>
+              {subjects.map(s => {
+                const count = entries.filter(e => e.planificacion?.subject === s).length
+                const active = filterSubject === s
+                return (
+                  <button
+                    key={s}
+                    onClick={() => setFilterSubject(s)}
+                    className={`shrink-0 px-3 py-1.5 text-xs font-semibold rounded-t-md border-b-2 transition ${
+                      active
+                        ? 'border-violet text-violet bg-violet/5'
+                        : 'border-transparent text-ink3 hover:text-ink hover:bg-bg2'
+                    }`}
+                  >
+                    {s} {count > 0 && <span className="opacity-60">({count})</span>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-2">
             {days.map(d => (
               <DayCell
