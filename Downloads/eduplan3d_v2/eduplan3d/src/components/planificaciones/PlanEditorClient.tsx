@@ -121,9 +121,13 @@ export function PlanEditorClient({
       toast.error('Tiempo agotado al guardar. Revisa tu conexión.')
     }, 12000)
     try {
+      // Normalizar el JSON: TipTap/ProseMirror puede devolver objetos con
+      // prototype null que Next.js Server Actions no acepta serializar.
+      // JSON.parse(JSON.stringify(...)) garantiza Object.prototype plano.
+      const safeJson = JSON.parse(JSON.stringify(json))
       const r = await savePlanificacionManual({
         id: plan.id,
-        contentJson: json,
+        contentJson: safeJson,
         contentHtml: html,
       })
       clearTimeout(watchdog)
@@ -150,12 +154,18 @@ export function PlanEditorClient({
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current)
       if (editor && !editor.isDestroyed) {
-        // Best effort: no podemos esperar la promesa al unmount
-        savePlanificacionManual({
-          id: plan.id,
-          contentJson: editor.getJSON(),
-          contentHtml: editor.getHTML(),
-        }).catch(() => {})
+        // Best effort: no podemos esperar la promesa al unmount.
+        // Mismo motivo que en triggerSave: normalizar el JSON.
+        try {
+          const safeJson = JSON.parse(JSON.stringify(editor.getJSON()))
+          savePlanificacionManual({
+            id: plan.id,
+            contentJson: safeJson,
+            contentHtml: editor.getHTML(),
+          }).catch(() => {})
+        } catch {
+          // ignore — best effort
+        }
       }
     }
   }, [editor, plan.id])
