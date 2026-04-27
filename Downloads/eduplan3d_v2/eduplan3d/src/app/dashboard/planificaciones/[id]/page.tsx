@@ -38,7 +38,7 @@ export default async function PlanificacionManualPage({ params }: { params: { id
   // Logo: prioriza settings.logo_url; fallback a hardcoded LETAMENDI o null
   const logoUrl: string | null =
     settings?.logo_url
-      ?? (institutionName.toUpperCase().includes('LETAMENDI') ? '/logo-institucion.png' : null)
+      ?? (institutionName.toUpperCase().includes('LETAMENDI') ? '/icon/logo-institucion.png' : null)
 
   // Datos del docente para el header
   const { data: profile } = await (admin as any)

@@ -80,7 +80,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   // Logo logic: if name matches our known asset, use it
-  const logoUrl = institution?.name?.includes('LETAMENDI') ? '/logo-institucion.png' : null
+  const logoUrl = institution?.name?.includes('LETAMENDI') ? '/icon/logo-institucion.png' : null
 
   return (
     <AcademicYearProvider

@@ -256,7 +256,7 @@ export function LibretasClient({
           <div className="p-6 pb-2 print:p-3">
             <div className="flex items-center gap-4 border-b-2 border-black pb-3 mb-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-institucion.png" alt="Logo" className="w-16 h-16 object-contain print:w-14 print:h-14" />
+              <img src="/icon/logo-institucion.png" alt="Logo" className="w-16 h-16 object-contain print:w-14 print:h-14" />
               <div className="flex-1 text-center">
                 <h2 className="text-sm font-bold uppercase tracking-wider">{institutionName || 'Unidad Educativa'}</h2>
                 <p className="text-[10px] font-semibold tracking-widest text-gray-600 mt-0.5 uppercase">
