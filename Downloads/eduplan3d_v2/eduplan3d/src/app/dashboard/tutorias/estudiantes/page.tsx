@@ -19,7 +19,7 @@ export default async function EstudiantesTutorPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'teacher' && profile?.role !== 'admin') {
+  if (profile?.role !== 'teacher' && profile?.role !== 'admin' && profile?.role !== 'rector') {
     redirect('/dashboard')
   }
 

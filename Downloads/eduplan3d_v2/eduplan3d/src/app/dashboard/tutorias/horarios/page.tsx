@@ -22,7 +22,7 @@ export default async function TutoriasHorariosPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'teacher' && profile?.role !== 'admin') {
+  if (profile?.role !== 'teacher' && profile?.role !== 'admin' && profile?.role !== 'rector') {
     redirect('/dashboard') // Redirigir si no tiene permisos
   }
 

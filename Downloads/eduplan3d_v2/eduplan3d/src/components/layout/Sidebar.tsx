@@ -75,6 +75,22 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
   },
 ]
 
+// ─── Tutorías Group (Reusable) ──────────────────────────────────────────────
+const NAV_TUTORIAS_GROUP: NavGroup = {
+  title: 'Tutorías',
+  icon: '👥',
+  color: 'from-blue/20 to-blue/5',
+  items: [
+    { href: '/dashboard/asistencias',  icon: '✅', label: 'Asistencias' },
+    { href: '/dashboard/tutorias/entregas', icon: '📥', label: 'Deberes'      },
+    { href: '/dashboard/tutorias/horarios', icon: '📅', label: 'Horarios'     },
+    { href: '/dashboard/tutorias/estudiantes', icon: '🧑‍🎓', label: 'Estudiantes'},
+    { href: '/dashboard/tutorias/pensiones', icon: '💰', label: 'Pensiones'    },
+    { href: '/dashboard/tutorias/rendimiento', icon: '📊', label: 'Rendimiento'},
+    { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas'      },
+  ]
+}
+
 // ─── Nav docente ─────────────────────────────────────────────────────────────
 const NAV_TEACHER: NavNode[] = [
   { href: '/dashboard/docente',         icon: '📝', label: 'Panel Docente'   },
@@ -83,20 +99,7 @@ const NAV_TEACHER: NavNode[] = [
   { href: '/dashboard/calendario',      icon: '📅', label: 'Calendario'      },
   { href: '/dashboard/biblioteca',      icon: '📚', label: 'Biblioteca'      },
   { href: '/dashboard/mensajes',        icon: '💬', label: 'Mensajes'        },
-  {
-    title: 'Tutorías',
-    icon: '👥',
-    color: 'from-blue/20 to-blue/5',
-    items: [
-      { href: '/dashboard/asistencias',  icon: '✅', label: 'Asistencias' },
-      { href: '/dashboard/tutorias/entregas', icon: '📥', label: 'Deberes'      },
-      { href: '/dashboard/tutorias/horarios', icon: '📅', label: 'Horarios'     },
-      { href: '/dashboard/tutorias/estudiantes', icon: '🧑‍🎓', label: 'Estudiantes'},
-      { href: '/dashboard/tutorias/pensiones', icon: '💰', label: 'Pensiones'    },
-      { href: '/dashboard/tutorias/rendimiento', icon: '📊', label: 'Rendimiento'},
-      { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas'      },
-    ]
-  },
+  NAV_TUTORIAS_GROUP,
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración' },
 ]
 
@@ -232,7 +235,8 @@ export function Sidebar({
 
   function getNav(): NavNode[] {
     if (isPlannerSolo) return NAV_PLANNER_SOLO
-    if (isAdmin || role === 'rector') return NAV_ADMIN_GROUPED
+    if (role === 'rector') return [...NAV_ADMIN_GROUPED, NAV_TUTORIAS_GROUP]
+    if (isAdmin) return NAV_ADMIN_GROUPED
     let nav: NavNode[]
     switch (role) {
       case 'teacher':       nav = NAV_TEACHER; break
