@@ -78,23 +78,22 @@ export default async function AcademicoPage() {
   const horariosDocentes  = instSettings.horarios?.docentes || []
 
   // Combinar tutores de todas las fuentes:
-  //   1. schedule_configs.tutores (legado, un único horario institucional)
-  //   2. settings.horarios.tutores (jornada principal)
-  //   3. settings.horarios_<slot>.tutores (jornadas adicionales: escuela, colegio,
-  //      matutina/vespertina, etc.)
-  // El último que escribe gana, pero como cada slot suele cubrir cursos distintos
-  // (escuela: 1RO-7MO BÁSICA / colegio: 8VO-BGU) en la práctica no hay colisión.
+  //   1. schedule_configs.tutores (legado, una sola fila por institución)
+  //   2. settings.horarios.config.tutores (legado wizard único)
+  //   3. settings.horarios_<slot>.config.tutores (slots: escuela_matutina,
+  //      colegio_matutina, etc. — el wizard guarda body completo, los tutores
+  //      están dentro de body.config.tutores)
+  //   4. Compatibilidad: también revisar slot.tutores por si hay versión vieja.
+  // Cada slot suele cubrir cursos distintos, así que la mezcla es segura.
   const tutores: Record<string, string> = {}
-  // Fuente 1
   Object.entries(((scheduleRes.data as any)?.tutores || {}) as Record<string, string>)
     .forEach(([k, v]) => { if (v) tutores[k] = v })
-  // Fuente 2 + 3: recorrer todas las claves horarios_* de settings
   Object.entries(instSettings).forEach(([key, slot]: [string, any]) => {
     if (key === 'horarios' || key.startsWith('horarios_')) {
-      const slotTutores = slot?.tutores || {}
-      Object.entries(slotTutores as Record<string, string>).forEach(([k, v]) => {
-        if (v) tutores[k] = v
-      })
+      const fromConfig = slot?.config?.tutores || {}
+      const fromTop    = slot?.tutores || {}
+      Object.entries({ ...fromTop, ...fromConfig } as Record<string, string>)
+        .forEach(([k, v]) => { if (v) tutores[k] = v })
     }
   })
 

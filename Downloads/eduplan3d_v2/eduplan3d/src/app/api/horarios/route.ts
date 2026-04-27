@@ -334,7 +334,26 @@ export async function POST(req: Request) {
   // ── 2. Sincronizar tablas relacionales ──────────────────────────────────────
   try {
     // ── 2a. schedule_configs: recesos, períodos, tutores ────────────────────
+    // schedule_configs tiene UNIQUE(institution_id) → solo una fila por
+    // institución. Si la institución tiene varios slots (escuela + colegio),
+    // necesitamos PRESERVAR los tutores de los otros slots al hacer upsert,
+    // si no, guardar escuela borra los tutores de colegio.
     if (body.config) {
+      const { data: existingConfig } = await admin
+        .from('schedule_configs' as any)
+        .select('tutores')
+        .eq('institution_id', instId)
+        .maybeSingle()
+
+      const mergedTutores: Record<string, string> = {
+        ...(((existingConfig as any)?.tutores || {}) as Record<string, string>),
+        ...((body.config.tutores || {}) as Record<string, string>),
+      }
+      // Limpiar entradas vacías
+      Object.keys(mergedTutores).forEach(k => {
+        if (!mergedTutores[k]) delete mergedTutores[k]
+      })
+
       await admin.from('schedule_configs' as any).upsert(
         {
           institution_id: instId,
@@ -345,7 +364,7 @@ export async function POST(req: Request) {
           n_periodos: body.config.nPeriodos || 8,
           periodos:   body.config.horarios  || [],
           recesos:    body.config.recesos   || [4],
-          tutores:    body.config.tutores   || {},
+          tutores:    mergedTutores,
         },
         { onConflict: 'institution_id' }
       )
