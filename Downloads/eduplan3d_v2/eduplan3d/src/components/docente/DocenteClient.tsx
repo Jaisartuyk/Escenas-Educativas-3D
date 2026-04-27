@@ -82,17 +82,19 @@ export function DocenteClient({
   const supabase = createClient()
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [enrollmentsLoaded, setEnrollmentsLoaded] = useState(false)
+  const [enrollmentsDiag, setEnrollmentsDiag] = useState<{ reason: string; message?: string } | null>(null)
 
   useEffect(() => {
     fetch('/api/docente/students')
       .then(r => r.json())
-      .then(({ data }) => {
+      .then(({ data, diag }) => {
         const mapped = (data || []).map((e: any) => ({
           course_id:  e.course_id,
           student_id: e.student_id,
           student:    e.student ?? { id: e.student_id, full_name: 'Sin perfil', email: '' },
         }))
         setEnrollments(mapped)
+        setEnrollmentsDiag(diag || null)
         setEnrollmentsLoaded(true)
       })
       .catch(() => setEnrollmentsLoaded(true))
@@ -983,8 +985,14 @@ export function DocenteClient({
             </div>
 
             {students.length === 0 ? (
-              <div className="p-10 text-center text-ink4 border border-dashed border-surface2 rounded-2xl">
-                No hay alumnos matriculados en este curso.
+              <div className="p-8 text-center border border-dashed border-amber/40 bg-amber/5 rounded-2xl">
+                <div className="text-amber-700 font-semibold mb-1">No hay alumnos para mostrar</div>
+                <div className="text-sm text-ink3">
+                  {enrollmentsDiag?.message || 'No hay alumnos matriculados en este curso.'}
+                </div>
+                {enrollmentsDiag?.reason && enrollmentsDiag.reason !== 'ok' && (
+                  <div className="text-[11px] text-ink4 mt-2">Diagnóstico: <code>{enrollmentsDiag.reason}</code></div>
+                )}
               </div>
             ) : (
               <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto">
@@ -1429,10 +1437,22 @@ export function DocenteClient({
 
             {/* Tabla de notas */}
             {sortedAssignments.length === 0 || students.length === 0 ? (
-              <div className="p-10 text-center text-ink4 border border-dashed border-surface2 rounded-2xl">
-                {sortedAssignments.length === 0
-                  ? `No hay actividades en T${trimestre} P${parcial}. Crea la primera arriba.`
-                  : 'No hay alumnos matriculados en este curso.'}
+              <div className={`p-8 text-center border border-dashed rounded-2xl ${
+                students.length === 0 ? 'border-amber/40 bg-amber/5' : 'border-surface2 text-ink4'
+              }`}>
+                {sortedAssignments.length === 0 && students.length > 0 ? (
+                  `No hay actividades en T${trimestre} P${parcial}. Crea la primera arriba.`
+                ) : students.length === 0 ? (
+                  <>
+                    <div className="text-amber-700 font-semibold mb-1">No hay alumnos para mostrar</div>
+                    <div className="text-sm text-ink3">
+                      {enrollmentsDiag?.message || 'No hay alumnos matriculados en este curso.'}
+                    </div>
+                    {enrollmentsDiag?.reason && enrollmentsDiag.reason !== 'ok' && (
+                      <div className="text-[11px] text-ink4 mt-2">Diagnóstico: <code>{enrollmentsDiag.reason}</code></div>
+                    )}
+                  </>
+                ) : null}
               </div>
             ) : (
               <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto">

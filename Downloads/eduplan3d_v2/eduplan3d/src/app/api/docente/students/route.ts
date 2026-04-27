@@ -7,43 +7,91 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ data: [] }, { status: 401 })
+  if (!user) return NextResponse.json({ data: [], diag: null }, { status: 401 })
 
   const admin = createAdminClient()
 
-  // Get teacher's subjects → course IDs
+  // 1) Materias del docente
   const { data: subjects } = await admin
     .from('subjects' as any)
-    .select('id, course_id')
+    .select('id, course_id, name')
     .eq('teacher_id', user.id)
 
-  const courseIds = Array.from(new Set((subjects || []).map((s: any) => s.course_id).filter(Boolean)))
-  if (courseIds.length === 0) return NextResponse.json({ data: [] })
+  const subjectsCount = (subjects || []).length
+  const subjectsWithCourse = (subjects || []).filter((s: any) => !!s.course_id).length
+  const subjectsWithoutCourse = subjectsCount - subjectsWithCourse
 
-  // Get enrollments
+  if (subjectsCount === 0) {
+    return NextResponse.json({
+      data: [],
+      diag: {
+        reason: 'no_subjects',
+        message: 'No tienes materias asignadas. Pide al admin que te asigne materias en "Académico".',
+        subjectsCount: 0,
+      },
+    })
+  }
+
+  if (subjectsWithCourse === 0) {
+    return NextResponse.json({
+      data: [],
+      diag: {
+        reason: 'subjects_without_course',
+        message: `Tienes ${subjectsCount} materia(s) pero ninguna está asignada a un curso. Pide al admin asignar curso a tus materias.`,
+        subjectsCount,
+        subjectsWithoutCourse,
+      },
+    })
+  }
+
+  // 2) Cursos
+  const courseIds = Array.from(new Set((subjects || []).map((s: any) => s.course_id).filter(Boolean)))
+
+  // 3) Matrículas (enrollments)
   const { data: enrollments } = await admin
     .from('enrollments')
     .select('course_id, student_id')
     .in('course_id', courseIds)
 
-  if (!enrollments || enrollments.length === 0) return NextResponse.json({ data: [] })
+  const enrollmentsCount = (enrollments || []).length
 
-  // Get student profiles
-  const studentIds = Array.from(new Set(enrollments.map((e: any) => e.student_id as string)))
+  if (enrollmentsCount === 0) {
+    return NextResponse.json({
+      data: [],
+      diag: {
+        reason: 'no_enrollments',
+        message: `Tus ${courseIds.length} curso(s) no tienen estudiantes matriculados. El admin debe matricular alumnos en "Académico → Cursos".`,
+        subjectsCount,
+        coursesCount: courseIds.length,
+        enrollmentsCount: 0,
+      },
+    })
+  }
+
+  // 4) Perfiles de estudiantes
+  const studentIds = Array.from(new Set((enrollments || []).map((e: any) => e.student_id as string)))
   const { data: profiles } = await admin
     .from('profiles')
     .select('id, full_name, email')
     .in('id', studentIds)
 
-  // Merge: return array of { course_id, student_id, student: {...} }
   const profilesById: Record<string, any> = {}
   ;(profiles || []).forEach((p: any) => { profilesById[p.id] = p })
 
-  const merged = enrollments.map((e: any) => ({
+  const merged = (enrollments || []).map((e: any) => ({
     course_id:  e.course_id,
     student_id: e.student_id,
     student:    profilesById[e.student_id] || null,
   }))
 
-  return NextResponse.json({ data: merged })
+  return NextResponse.json({
+    data: merged,
+    diag: {
+      reason: 'ok',
+      subjectsCount,
+      coursesCount: courseIds.length,
+      enrollmentsCount,
+      profilesCount: (profiles || []).length,
+    },
+  })
 }
