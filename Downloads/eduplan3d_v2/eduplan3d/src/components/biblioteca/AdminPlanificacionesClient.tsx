@@ -5,29 +5,11 @@
 import { useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  Search, Filter, Download, Eye, BookOpen, 
-  Calendar, ChevronRight, ArrowLeft, User, 
-  FileText, ExternalLink, MoreVertical, LayoutGrid
+  Search, ArrowLeft, User, 
+  FileText, LayoutGrid, ChevronRight, BookOpen
 } from 'lucide-react'
-import { FilePreview } from '@/components/ui/FilePreview'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface PlanDoc {
-  id: string
-  user_id: string
-  titulo: string
-  tipo: string
-  trimestre: number | null
-  semana: number | null
-  asignatura: string
-  curso: string
-  storage_path: string
-  file_size: number
-  file_name: string | null
-  file_type: string | null
-  created_at: string
-}
-
 interface Teacher {
   id: string
   full_name: string
@@ -48,8 +30,7 @@ interface PlanManual {
 }
 
 interface Props {
-  planificaciones: PlanDoc[]
-  manuales?: PlanManual[]
+  manuales: PlanManual[]
   teachers: Teacher[]
 }
 
@@ -79,7 +60,7 @@ function fileExt(fileName: string | null) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function AdminPlanificacionesClient({ planificaciones, manuales = [], teachers }: Props) {
+export function AdminPlanificacionesClient({ manuales, teachers }: Props) {
   const supabase = createClient()
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -95,47 +76,17 @@ export function AdminPlanificacionesClient({ planificaciones, manuales = [], tea
     return map
   }, [teachers])
 
-  // Count plans per teacher
-  const teacherPlanCounts = useMemo(() => {
-    const map: Record<string, number> = {}
-    planificaciones.forEach(p => { map[p.user_id] = (map[p.user_id] || 0) + 1 })
-    return map
-  }, [planificaciones])
-
   // Get selected teacher object
   const selectedTeacher = useMemo(() => 
     teachers.find(t => t.id === selectedTeacherId), [teachers, selectedTeacherId])
-
-  // Filtered plans for the selected teacher (or all)
-  const filteredPlans = useMemo(() => {
-    let list = planificaciones
-    if (selectedTeacherId) list = list.filter(p => p.user_id === selectedTeacherId)
-    if (filterCurso) list = list.filter(p => p.curso === filterCurso)
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase()
-      list = list.filter(p => 
-        p.titulo.toLowerCase().includes(q) || 
-        p.asignatura.toLowerCase().includes(q)
-      )
-    }
-    return list
-  }, [planificaciones, selectedTeacherId, filterCurso, searchTerm])
-
-  // Group plans by Course -> Subject
-  const groupedPlans = useMemo(() => {
-    const map: Record<string, Record<string, PlanDoc[]>> = {}
-    filteredPlans.forEach(p => {
-      if (!map[p.curso]) map[p.curso] = {}
-      if (!map[p.curso][p.asignatura]) map[p.curso][p.asignatura] = []
-      map[p.curso][p.asignatura].push(p)
-    })
-    return map
-  }, [filteredPlans])
 
   // Manuales filtrados por docente seleccionado (si aplica) y por término búsqueda
   const filteredManuales = useMemo(() => {
     let list = manuales
     if (selectedTeacherId) list = list.filter(m => m.user_id === selectedTeacherId)
+    // Filter by Curso if selected
+    if (filterCurso) list = list.filter(m => m.course_name === filterCurso)
+    
     if (searchTerm) {
       const t = searchTerm.toLowerCase()
       list = list.filter(m =>
@@ -145,9 +96,8 @@ export function AdminPlanificacionesClient({ planificaciones, manuales = [], tea
       )
     }
     return list
-  }, [manuales, selectedTeacherId, searchTerm])
+  }, [manuales, selectedTeacherId, filterCurso, searchTerm])
 
-  // Conteo de manuales publicadas por docente (suma a teacherPlanCounts visible)
   const manualesByTeacher = useMemo(() => {
     const m: Record<string, number> = {}
     manuales.forEach(p => { m[p.user_id] = (m[p.user_id] || 0) + 1 })
@@ -155,7 +105,8 @@ export function AdminPlanificacionesClient({ planificaciones, manuales = [], tea
   }, [manuales])
 
   const allCursosForSelected = useMemo(() => 
-    Array.from(new Set(filteredPlans.map(p => p.curso))).sort(), [filteredPlans])
+    Array.from(new Set(manuales.filter(m => m.user_id === selectedTeacherId).map(p => p.course_name))).sort(), 
+  [manuales, selectedTeacherId])
 
   function getUrl(path: string) {
     return supabase.storage.from('submissions').getPublicUrl(path).data.publicUrl
@@ -183,7 +134,7 @@ export function AdminPlanificacionesClient({ planificaciones, manuales = [], tea
               </div>
               <div>
                 <h2 className="font-bold text-lg leading-tight">{selectedTeacher?.full_name}</h2>
-                <p className="text-xs text-ink3">{filteredPlans.length} planificaciones encontradas</p>
+                <p className="text-xs text-ink3">{filteredManuales.length} planificaciones encontradas</p>
               </div>
             </div>
           </div>
@@ -227,9 +178,8 @@ export function AdminPlanificacionesClient({ planificaciones, manuales = [], tea
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {teachers.map(t => {
             const tColor = teacherColor[t.id]
-            const docCount = teacherPlanCounts[t.id] || 0
             const manualCount = manualesByTeacher[t.id] || 0
-            const count = docCount + manualCount
+            const count = manualCount
             return (
               <button
                 key={t.id}
@@ -253,11 +203,6 @@ export function AdminPlanificacionesClient({ planificaciones, manuales = [], tea
                   <div className="space-y-0.5">
                     <p className="text-[10px] uppercase font-bold text-ink4 tracking-wider">Planificaciones</p>
                     <p className={`text-xl font-black ${tColor.text}`}>{count}</p>
-                    {manualCount > 0 && (
-                      <p className="text-[9px] text-ink3 font-semibold">
-                        {manualCount} en línea · {docCount} subidas
-                      </p>
-                    )}
                   </div>
                   <div className={`p-2 rounded-xl ${tColor.badge} group-hover:scale-110 transition-transform`}>
                     <ChevronRight size={18} />
@@ -272,154 +217,49 @@ export function AdminPlanificacionesClient({ planificaciones, manuales = [], tea
       {/* ── TEACHER DETAIL VIEW (Grouped Plans) ── */}
       {selectedTeacherId && (
         <div className="space-y-8 pb-10">
-          {/* Manuales (planes en línea publicados) */}
-          {filteredManuales.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-1.5 h-6 rounded-full ${color.header}`} />
-                <h3 className="font-display text-xl font-bold flex items-center gap-2">
-                  📒 Planificaciones en línea ({filteredManuales.length})
-                </h3>
-                <span className="text-[10px] uppercase tracking-widest font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  Publicadas
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {filteredManuales.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-surface rounded-[2rem] border border-dashed border-surface2">
+              <FileText size={48} className="text-ink4 opacity-20 mb-4" />
+              <p className="text-ink3 font-medium">No hay planificaciones digitales creadas.</p>
+            </div>
+          ) : (
+            <div className="space-y-8">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredManuales.map(m => (
-                  <a
+                  <button
                     key={m.id}
-                    href={`/dashboard/planificaciones/${m.id}/preview`}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setManualPreview(m)
-                    }}
-                    className="block p-4 rounded-2xl bg-white border border-line hover:border-violet hover:shadow-md transition-all"
+                    onClick={() => setManualPreview(m)}
+                    className="text-left p-4 rounded-2xl bg-white border border-line hover:border-violet hover:shadow-md transition-all group"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-violet/10 text-violet flex items-center justify-center flex-shrink-0">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet/10 text-violet flex items-center justify-center group-hover:bg-violet/20 transition-colors">
                         <FileText size={18} />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <h4 className="font-semibold text-sm text-ink line-clamp-1 leading-tight flex-1">
-                            {m.title}
-                          </h4>
-                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg bg-violet/10 text-violet whitespace-nowrap">
-                            {TIPO_EMOJI[m.type] || '📑'} {TIPO_LABEL[m.type] || 'Doc'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-ink3">
-                          {m.subject_name} · {m.course_name}
-                        </p>
-                        <p className="text-[10px] text-ink4 mt-1">
-                          Última edición {new Date(m.updated_at).toLocaleDateString('es-EC', {
-                            day: 'numeric', month: 'short', year: 'numeric',
-                          })}
-                        </p>
-                      </div>
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg bg-violet/5 text-ink3">
+                         {TIPO_EMOJI[m.type] || '📑'} {TIPO_LABEL[m.type] || 'Doc'}
+                      </span>
                     </div>
-                  </a>
+                    
+                    <h4 className="font-bold text-sm text-ink line-clamp-2 leading-tight mb-2 group-hover:text-violet transition-colors">
+                      {m.title}
+                    </h4>
+                    
+                    <p className="text-xs text-ink3 mb-3">
+                      {m.subject_name} · {m.course_name}
+                    </p>
+                    
+                    <div className="pt-3 border-t border-line flex items-center justify-between">
+                      <span className="text-[10px] text-ink4">
+                        Actualizado: {new Date(m.updated_at).toLocaleDateString()}
+                      </span>
+                      <span className="text-[10px] font-bold text-violet opacity-0 group-hover:opacity-100 transition-opacity">
+                        Ver detalle →
+                      </span>
+                    </div>
+                  </button>
                 ))}
               </div>
             </div>
-          )}
-
-          {Object.keys(groupedPlans).length === 0 && filteredManuales.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 bg-surface rounded-[2rem] border border-dashed border-surface2">
-              <FileText size={48} className="text-ink4 opacity-20 mb-4" />
-              <p className="text-ink3 font-medium">No hay planificaciones que coincidan con los filtros.</p>
-            </div>
-          ) : (
-            Object.entries(groupedPlans).sort(([a], [b]) => a.localeCompare(b)).map(([curso, subjectsMap]) => (
-              <div key={curso} className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-1.5 h-6 rounded-full ${color.header}`} />
-                  <h3 className="font-display text-xl font-bold flex items-center gap-2">
-                    {curso}
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-surface2 text-ink3">
-                      {Object.values(subjectsMap).flat().length} items
-                    </span>
-                  </h3>
-                </div>
-
-                <div className="space-y-6">
-                  {Object.entries(subjectsMap).sort(([a], [b]) => a.localeCompare(b)).map(([materia, docs]) => (
-                    <div key={materia} className="ml-4">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-ink4 mb-3 flex items-center gap-2">
-                         <BookOpen size={12} /> {materia}
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {docs.map(doc => {
-                          const url = getUrl(doc.storage_path)
-                          const isPreview = previewId === doc.id
-                          const lowerName = (doc.file_name || '').toLowerCase()
-                          const isOffice = /\.(docx?|xlsx?|pptx?|odt|ods|odp)/i.test(lowerName)
-                          const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)/i.test(lowerName)
-                          const isPdfFile = lowerName.endsWith('.pdf') || doc.file_type === 'application/pdf'
-                          const canPreview = isPdfFile || isOffice || isImage
-                          
-                          return (
-                            <div key={doc.id} className="bg-surface rounded-2xl border border-surface2 p-4 shadow-sm hover:shadow-md transition-shadow group relative">
-                              <div className="flex justify-between items-start mb-2">
-                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${color.badge}`}>
-                                  {TIPO_EMOJI[doc.tipo]} {TIPO_LABEL[doc.tipo]}
-                                </span>
-                                <div className="text-[10px] font-bold text-ink4">
-                                  {new Date(doc.created_at).toLocaleDateString()}
-                                </div>
-                              </div>
-                              
-                              <h5 className="text-sm font-bold text-ink mb-1 line-clamp-2" title={doc.titulo}>
-                                {doc.titulo}
-                              </h5>
-                              
-                              {doc.trimestre && (
-                                <p className="text-[10px] text-ink3 mb-3">
-                                  Trimestre {doc.trimestre} {doc.semana ? `· Semana ${doc.semana}` : ''}
-                                </p>
-                              )}
-
-                              <div className="flex items-center gap-3 mt-4 pt-3 border-t border-surface2">
-                                {canPreview ? (
-                                  <button 
-                                    onClick={() => setPreviewId(isPreview ? null : doc.id)}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all ${
-                                      isPreview 
-                                        ? `${color.header} text-white` 
-                                        : 'bg-surface2 text-ink2 hover:bg-surface3'
-                                    }`}
-                                  >
-                                    <Eye size={14} /> {isPreview ? 'Cerrar' : 'Ver'}
-                                  </button>
-                                ) : (
-                                  <div className="flex-1 opacity-50 cursor-not-allowed flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold bg-surface2 text-ink3" title="Formato no soportado para vista previa">
-                                    <MoreVertical size={14} /> No previsualizable
-                                  </div>
-                                )}
-                                <a 
-                                  href={url} 
-                                  download={doc.file_name || 'planificacion'}
-                                  className="p-2 rounded-xl bg-surface2 text-ink2 hover:text-violet2 hover:bg-violet-50 transition-colors"
-                                  title="Descargar"
-                                >
-                                  <Download size={16} />
-                                </a>
-                              </div>
-
-                              {isPreview && canPreview && (
-                                <div className="mt-4 animate-in fade-in slide-in-from-top-2">
-                                  <FilePreview url={url} compact />
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))
           )}
         </div>
       )}

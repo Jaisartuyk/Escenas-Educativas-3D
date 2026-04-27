@@ -32,18 +32,13 @@ export default async function BibliotecaPage() {
       await admin.from('profiles').select('id').eq('institution_id', instId).eq('role', 'teacher')
     ).data?.map((p: any) => p.id) || []
 
-    const [{ data: teachers }, { data: planificaciones }, { data: manuales }] = await Promise.all([
+    const [{ data: teachers }, { data: manuales }] = await Promise.all([
       admin
         .from('profiles')
         .select('id, full_name, email')
         .eq('institution_id', instId)
         .eq('role', 'teacher')
         .order('full_name'),
-      admin
-        .from('planificacion_docs' as any)
-        .select('*')
-        .in('user_id', teacherIds)
-        .order('created_at', { ascending: false }),
       // Solo planificaciones manuales PUBLICADAS (los borradores no se ven al admin)
       admin
         .from('planificaciones_manuales' as any)
@@ -62,7 +57,6 @@ export default async function BibliotecaPage() {
           </p>
         </div>
         <AdminPlanificacionesClient
-          planificaciones={(planificaciones as any) || []}
           manuales={(manuales as any) || []}
           teachers={(teachers as any) || []}
         />
