@@ -7,6 +7,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 
 export type PlanManualStatus = 'borrador' | 'publicada'
 
+export type PlanManualType = 'anual' | 'semanal' | 'diaria'
+
 export type PlanManualRow = {
   id: string
   user_id: string
@@ -19,6 +21,8 @@ export type PlanManualRow = {
   content_json: any
   content_html: string | null
   status: PlanManualStatus
+  type: PlanManualType
+  unit_number: number | null
   academic_year_id: string | null
   created_at: string
   updated_at: string
@@ -33,6 +37,8 @@ export async function ensurePlanificacionManual(input: {
   courseId: string
   subjectName: string
   courseName: string
+  type?: PlanManualType
+  unitNumber?: number | null
   academicYearId?: string | null
 }): Promise<{ ok: boolean; id?: string; error?: string }> {
   const sb = createServerClient()
@@ -43,6 +49,9 @@ export async function ensurePlanificacionManual(input: {
     .from('profiles').select('institution_id').eq('id', user.id).single()
   if (!prof?.institution_id) return { ok: false, error: 'Sin institución asignada' }
 
+  const type = input.type || 'anual'
+  const unitNumber = input.unitNumber ?? null
+
   // Ver si ya existe
   const { data: existing } = await (sb as any)
     .from('planificaciones_manuales')
@@ -51,10 +60,15 @@ export async function ensurePlanificacionManual(input: {
     .eq('subject_id', input.subjectId)
     .eq('course_id', input.courseId)
     .eq('academic_year_id', input.academicYearId ?? null)
+    .eq('type', type)
+    .eq('unit_number', unitNumber)
     .maybeSingle()
   if (existing?.id) return { ok: true, id: existing.id }
 
-  const title = `Planificación ${input.subjectName} — ${input.courseName}`
+  const typeLabel = type === 'anual' ? 'Anual' : type === 'semanal' ? 'Semanal' : 'Diaria'
+  const unitLabel = unitNumber ? ` — Unidad ${unitNumber}` : ''
+  const title = `Planificación ${typeLabel}: ${input.subjectName} — ${input.courseName}${unitLabel}`
+
   const { data, error } = await (sb as any)
     .from('planificaciones_manuales')
     .insert({
@@ -68,6 +82,8 @@ export async function ensurePlanificacionManual(input: {
       content_json: {},
       content_html: '',
       status: 'borrador',
+      type,
+      unit_number: unitNumber,
       academic_year_id: input.academicYearId ?? null,
     })
     .select('id')

@@ -41,6 +41,8 @@ interface PlanManual {
   subject_name: string
   course_name: string
   status: 'borrador' | 'publicada'
+  type: string
+  unit_number: number | null
   updated_at: string
   content_html: string | null
 }
@@ -298,10 +300,15 @@ export function AdminPlanificacionesClient({ planificaciones, manuales = [], tea
                         <FileText size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm text-ink line-clamp-2 leading-tight">
-                          {m.title}
-                        </h4>
-                        <p className="text-xs text-ink3 mt-0.5">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h4 className="font-semibold text-sm text-ink line-clamp-1 leading-tight flex-1">
+                            {m.title}
+                          </h4>
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg bg-violet/10 text-violet whitespace-nowrap">
+                            {TIPO_EMOJI[m.type] || '📑'} {TIPO_LABEL[m.type] || 'Doc'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-ink3">
                           {m.subject_name} · {m.course_name}
                         </p>
                         <p className="text-[10px] text-ink4 mt-1">

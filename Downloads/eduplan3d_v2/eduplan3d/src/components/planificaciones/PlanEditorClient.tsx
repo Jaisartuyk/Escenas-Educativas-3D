@@ -26,6 +26,7 @@ import {
   savePlanificacionManual,
   setPlanificacionManualStatus,
   type PlanManualStatus,
+  type PlanManualType,
 } from '@/lib/actions/planificaciones-manuales'
 
 type PlanData = {
@@ -34,6 +35,8 @@ type PlanData = {
   subjectName: string
   courseName: string
   status: PlanManualStatus
+  type: PlanManualType
+  unitNumber: number | null
   contentJson: any
   updatedAt: string
 }
@@ -64,7 +67,9 @@ export function PlanEditorClient({
     teacherName,
     subjectName: plan.subjectName,
     courseName: plan.courseName,
-  }), [institutionName, logoUrl, teacherName, plan.subjectName, plan.courseName])
+    type: plan.type,
+    unitNumber: plan.unitNumber,
+  }), [institutionName, logoUrl, teacherName, plan.subjectName, plan.courseName, plan.type, plan.unitNumber])
 
   // Determina el contenido inicial: si hay JSON guardado, úsalo; si no, plantilla.
   const initialContent: any = useMemo(() => {
@@ -404,17 +409,29 @@ function Toolbar({ editor }: { editor: any }) {
 // Esta plantilla replica la estructura mostrada por el docente: encabezado con
 // logo + datos institucionales + tabla microcurricular.
 function buildMinEducTemplate({
-  institutionName, logoUrl, teacherName, subjectName, courseName,
+  institutionName, logoUrl, teacherName, subjectName, courseName, type, unitNumber,
 }: {
   institutionName: string
   logoUrl: string | null
   teacherName: string
   subjectName: string
   courseName: string
+  type: PlanManualType
+  unitNumber?: number | null
 }): string {
   const logoCell = logoUrl
     ? `<td style="width: 90px; text-align: center;"><img src="${escapeHtml(logoUrl)}" alt="Logo" style="max-width: 80px; max-height: 80px;" /></td>`
     : `<td style="width: 90px; text-align: center; color: #9ca3af; font-size: 10px;">[Logo]</td>`
+
+  const typeHeader = type === 'anual' 
+    ? 'PLANIFICACIÓN CURRICULAR ANUAL (PCA)' 
+    : type === 'semanal' 
+      ? 'PLANIFICACIÓN MICROCURRICULAR (PUD)' 
+      : 'PLANIFICACIÓN DIARIA'
+
+  const unitRow = type !== 'anual' && unitNumber
+    ? `<tr><td><strong>N. de Unidad</strong></td><td>${unitNumber}</td><td><strong>Título de Unidad</strong></td><td></td></tr>`
+    : ''
 
   return `
 <table class="plan-header-table">
@@ -423,7 +440,7 @@ function buildMinEducTemplate({
       ${logoCell}
       <td style="text-align: center;">
         <strong style="font-size: 14px;">${escapeHtml(institutionName.toUpperCase())}</strong><br/>
-        <span style="font-size: 11px; color: #6b7280;">PLANIFICACIÓN MICROCURRICULAR</span>
+        <span style="font-size: 11px; color: #6b7280;">${typeHeader}</span>
       </td>
     </tr>
   </tbody>
@@ -434,6 +451,7 @@ function buildMinEducTemplate({
     <tr><td><strong>Nombre del Docente</strong></td><td>${escapeHtml(teacherName)}</td><td><strong>Fecha</strong></td><td></td></tr>
     <tr><td><strong>Área</strong></td><td>${escapeHtml(subjectName)}</td><td><strong>Grado</strong></td><td>${escapeHtml(courseName)}</td></tr>
     <tr><td><strong>Asignatura</strong></td><td>${escapeHtml(subjectName)}</td><td><strong>Año lectivo</strong></td><td></td></tr>
+    ${unitRow}
   </tbody>
 </table>
 

@@ -47,7 +47,7 @@ export default async function BibliotecaPage() {
       // Solo planificaciones manuales PUBLICADAS (los borradores no se ven al admin)
       admin
         .from('planificaciones_manuales' as any)
-        .select('id, user_id, title, subject_name, course_name, status, updated_at, content_html')
+        .select('id, user_id, title, subject_name, course_name, status, type, unit_number, updated_at, content_html')
         .eq('institution_id', instId)
         .eq('status', 'publicada')
         .order('updated_at', { ascending: false }),
