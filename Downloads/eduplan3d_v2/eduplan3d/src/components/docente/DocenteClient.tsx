@@ -171,8 +171,11 @@ export function DocenteClient({
   }
 
   // ── Alumnos del curso seleccionado ───────────────────────────────────────
+  // Usamos course_id (FK directa) y course?.id (del join) como fallback,
+  // en caso de que el join no haya cargado.
+  const selectedCourseId = selectedSubject?.course_id || selectedSubject?.course?.id || null
   const students: any[] = selectedSubject
-    ? enrollments.filter((e: any) => e.course_id === selectedSubject.course?.id)
+    ? enrollments.filter((e: any) => e.course_id === selectedCourseId)
         .map((e: any) => e.student).filter(Boolean)
     : []
 
@@ -988,10 +991,17 @@ export function DocenteClient({
               <div className="p-8 text-center border border-dashed border-amber/40 bg-amber/5 rounded-2xl">
                 <div className="text-amber-700 font-semibold mb-1">No hay alumnos para mostrar</div>
                 <div className="text-sm text-ink3">
-                  {enrollmentsDiag?.message || 'No hay alumnos matriculados en este curso.'}
+                  {enrollments.length === 0
+                    ? (enrollmentsDiag?.message || 'No hay alumnos matriculados en este curso.')
+                    : `Esta materia no tiene alumnos matriculados en su curso. Tienes ${
+                        new Set(enrollments.map((e: any) => e.student_id)).size
+                      } alumno(s) en otros cursos. Verifica que la materia esté vinculada al curso correcto (Académico → Materias).`}
                 </div>
                 {enrollmentsDiag?.reason && enrollmentsDiag.reason !== 'ok' && (
                   <div className="text-[11px] text-ink4 mt-2">Diagnóstico: <code>{enrollmentsDiag.reason}</code></div>
+                )}
+                {selectedCourseId && (
+                  <div className="text-[10px] text-ink4 mt-1">course_id: <code>{selectedCourseId}</code></div>
                 )}
               </div>
             ) : (
@@ -1446,10 +1456,17 @@ export function DocenteClient({
                   <>
                     <div className="text-amber-700 font-semibold mb-1">No hay alumnos para mostrar</div>
                     <div className="text-sm text-ink3">
-                      {enrollmentsDiag?.message || 'No hay alumnos matriculados en este curso.'}
+                      {enrollments.length === 0
+                        ? (enrollmentsDiag?.message || 'No hay alumnos matriculados en este curso.')
+                        : `Esta materia no tiene alumnos matriculados en su curso. Tienes ${
+                            new Set(enrollments.map((e: any) => e.student_id)).size
+                          } alumno(s) en otros cursos. Verifica que la materia esté vinculada al curso correcto (Académico → Materias).`}
                     </div>
                     {enrollmentsDiag?.reason && enrollmentsDiag.reason !== 'ok' && (
                       <div className="text-[11px] text-ink4 mt-2">Diagnóstico: <code>{enrollmentsDiag.reason}</code></div>
+                    )}
+                    {selectedCourseId && (
+                      <div className="text-[10px] text-ink4 mt-1">course_id: <code>{selectedCourseId}</code></div>
                     )}
                   </>
                 ) : null}
