@@ -51,18 +51,29 @@ export async function ensurePlanificacionManual(input: {
 
   const type = input.type || 'anual'
   const unitNumber = input.unitNumber ?? null
+  const academicYearId = input.academicYearId ?? null
 
-  // Ver si ya existe
-  const { data: existing } = await (sb as any)
+  // Ver si ya existe.
+  // PostgreSQL: NULL ≠ NULL, así que para columnas opcionales se usa .is('col', null)
+  // en lugar de .eq('col', null) — sino la query nunca matchea filas existentes
+  // y caemos en la unique constraint al insertar.
+  let q = (sb as any)
     .from('planificaciones_manuales')
     .select('id')
     .eq('user_id', user.id)
     .eq('subject_id', input.subjectId)
     .eq('course_id', input.courseId)
-    .eq('academic_year_id', input.academicYearId ?? null)
     .eq('type', type)
-    .eq('unit_number', unitNumber)
-    .maybeSingle()
+
+  q = academicYearId === null
+    ? q.is('academic_year_id', null)
+    : q.eq('academic_year_id', academicYearId)
+
+  q = unitNumber === null
+    ? q.is('unit_number', null)
+    : q.eq('unit_number', unitNumber)
+
+  const { data: existing } = await q.maybeSingle()
   if (existing?.id) return { ok: true, id: existing.id }
 
   const typeLabel = type === 'anual' ? 'Anual' : type === 'semanal' ? 'Semanal' : 'Diaria'
