@@ -47,11 +47,16 @@ export default async function PlanificacionesPage() {
   const academicYearId = ycx.viewingYearId || ycx.currentYearId || null
 
   // Planificaciones manuales existentes del docente para este año.
-  const { data: manualPlans } = await admin
-    .from('planificaciones_manuales' as any)
-    .select('id, subject_id, course_id, status, updated_at, title')
+  // PostgreSQL: NULL ≠ NULL, así que para academic_year_id null se usa
+  // .is(...) en vez de .eq(...) — sino no devuelve filas guardadas con NULL.
+  let plansQuery = (admin as any)
+    .from('planificaciones_manuales')
+    .select('id, subject_id, course_id, status, type, unit_number, updated_at, title')
     .eq('user_id', user.id)
-    .eq('academic_year_id', academicYearId)
+  plansQuery = academicYearId === null
+    ? plansQuery.is('academic_year_id', null)
+    : plansQuery.eq('academic_year_id', academicYearId)
+  const { data: manualPlans } = await plansQuery
 
   return (
     <div className="animate-fade-in">
