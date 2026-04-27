@@ -216,7 +216,7 @@ export async function GET(req: Request) {
     .from('profiles' as any)
     .select('id, full_name')
     .eq('institution_id', instId)
-    .eq('role', 'teacher')
+    .in('role', ['teacher', 'rector'])
 
   if (dbTeachers && (dbTeachers as any[]).length > 0) {
     // Build docentes list entirely from DB — materias come from subjects table
