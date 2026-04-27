@@ -34,8 +34,20 @@ interface Teacher {
   email: string
 }
 
+interface PlanManual {
+  id: string
+  user_id: string
+  title: string
+  subject_name: string
+  course_name: string
+  status: 'borrador' | 'publicada'
+  updated_at: string
+  content_html: string | null
+}
+
 interface Props {
   planificaciones: PlanDoc[]
+  manuales?: PlanManual[]
   teachers: Teacher[]
 }
 
@@ -65,13 +77,14 @@ function fileExt(fileName: string | null) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export function AdminPlanificacionesClient({ planificaciones, teachers }: Props) {
+export function AdminPlanificacionesClient({ planificaciones, manuales = [], teachers }: Props) {
   const supabase = createClient()
 
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null)
   const [filterCurso, setFilterCurso] = useState('')
   const [previewId, setPreviewId] = useState<string | null>(null)
+  const [manualPreview, setManualPreview] = useState<PlanManual | null>(null)
 
   // Assign stable color per teacher
   const teacherColor = useMemo(() => {
@@ -116,6 +129,28 @@ export function AdminPlanificacionesClient({ planificaciones, teachers }: Props)
     })
     return map
   }, [filteredPlans])
+
+  // Manuales filtrados por docente seleccionado (si aplica) y por término búsqueda
+  const filteredManuales = useMemo(() => {
+    let list = manuales
+    if (selectedTeacherId) list = list.filter(m => m.user_id === selectedTeacherId)
+    if (searchTerm) {
+      const t = searchTerm.toLowerCase()
+      list = list.filter(m =>
+        m.title.toLowerCase().includes(t) ||
+        m.subject_name.toLowerCase().includes(t) ||
+        m.course_name.toLowerCase().includes(t)
+      )
+    }
+    return list
+  }, [manuales, selectedTeacherId, searchTerm])
+
+  // Conteo de manuales publicadas por docente (suma a teacherPlanCounts visible)
+  const manualesByTeacher = useMemo(() => {
+    const m: Record<string, number> = {}
+    manuales.forEach(p => { m[p.user_id] = (m[p.user_id] || 0) + 1 })
+    return m
+  }, [manuales])
 
   const allCursosForSelected = useMemo(() => 
     Array.from(new Set(filteredPlans.map(p => p.curso))).sort(), [filteredPlans])
@@ -190,7 +225,9 @@ export function AdminPlanificacionesClient({ planificaciones, teachers }: Props)
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {teachers.map(t => {
             const tColor = teacherColor[t.id]
-            const count = teacherPlanCounts[t.id] || 0
+            const docCount = teacherPlanCounts[t.id] || 0
+            const manualCount = manualesByTeacher[t.id] || 0
+            const count = docCount + manualCount
             return (
               <button
                 key={t.id}
@@ -214,6 +251,11 @@ export function AdminPlanificacionesClient({ planificaciones, teachers }: Props)
                   <div className="space-y-0.5">
                     <p className="text-[10px] uppercase font-bold text-ink4 tracking-wider">Planificaciones</p>
                     <p className={`text-xl font-black ${tColor.text}`}>{count}</p>
+                    {manualCount > 0 && (
+                      <p className="text-[9px] text-ink3 font-semibold">
+                        {manualCount} en línea · {docCount} subidas
+                      </p>
+                    )}
                   </div>
                   <div className={`p-2 rounded-xl ${tColor.badge} group-hover:scale-110 transition-transform`}>
                     <ChevronRight size={18} />
@@ -228,7 +270,54 @@ export function AdminPlanificacionesClient({ planificaciones, teachers }: Props)
       {/* ── TEACHER DETAIL VIEW (Grouped Plans) ── */}
       {selectedTeacherId && (
         <div className="space-y-8 pb-10">
-          {Object.keys(groupedPlans).length === 0 ? (
+          {/* Manuales (planes en línea publicados) */}
+          {filteredManuales.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-1.5 h-6 rounded-full ${color.header}`} />
+                <h3 className="font-display text-xl font-bold flex items-center gap-2">
+                  📒 Planificaciones en línea ({filteredManuales.length})
+                </h3>
+                <span className="text-[10px] uppercase tracking-widest font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Publicadas
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filteredManuales.map(m => (
+                  <a
+                    key={m.id}
+                    href={`/dashboard/planificaciones/${m.id}/preview`}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setManualPreview(m)
+                    }}
+                    className="block p-4 rounded-2xl bg-white border border-line hover:border-violet hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet/10 text-violet flex items-center justify-center flex-shrink-0">
+                        <FileText size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm text-ink line-clamp-2 leading-tight">
+                          {m.title}
+                        </h4>
+                        <p className="text-xs text-ink3 mt-0.5">
+                          {m.subject_name} · {m.course_name}
+                        </p>
+                        <p className="text-[10px] text-ink4 mt-1">
+                          Última edición {new Date(m.updated_at).toLocaleDateString('es-EC', {
+                            day: 'numeric', month: 'short', year: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {Object.keys(groupedPlans).length === 0 && filteredManuales.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-surface rounded-[2rem] border border-dashed border-surface2">
               <FileText size={48} className="text-ink4 opacity-20 mb-4" />
               <p className="text-ink3 font-medium">No hay planificaciones que coincidan con los filtros.</p>
@@ -325,6 +414,56 @@ export function AdminPlanificacionesClient({ planificaciones, teachers }: Props)
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* ── Modal: previsualización de planificación manual ─────────────── */}
+      {manualPreview && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-start justify-between p-5 border-b border-line">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-display text-lg font-bold leading-tight">
+                  {manualPreview.title}
+                </h3>
+                <p className="text-xs text-ink3 mt-0.5">
+                  {manualPreview.subject_name} · {manualPreview.course_name}
+                </p>
+              </div>
+              <button
+                onClick={() => setManualPreview(null)}
+                className="p-1 text-ink3 hover:text-ink ml-3"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="overflow-y-auto p-6 flex-1">
+              {manualPreview.content_html ? (
+                <div
+                  className="plan-readonly-preview"
+                  dangerouslySetInnerHTML={{ __html: manualPreview.content_html }}
+                />
+              ) : (
+                <p className="text-sm text-ink3 italic text-center py-10">
+                  El docente aún no ha agregado contenido a esta planificación.
+                </p>
+              )}
+            </div>
+          </div>
+          <style jsx global>{`
+            .plan-readonly-preview h1,
+            .plan-readonly-preview h2,
+            .plan-readonly-preview h3 { color: #4c1d95; font-weight: 700; margin: 1em 0 .4em; }
+            .plan-readonly-preview h1 { font-size: 22px; }
+            .plan-readonly-preview h2 { font-size: 18px; }
+            .plan-readonly-preview h3 { font-size: 15px; }
+            .plan-readonly-preview p { margin: .5em 0; }
+            .plan-readonly-preview table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 13px; }
+            .plan-readonly-preview td, .plan-readonly-preview th { border: 1px solid #d1d5db; padding: 6px 8px; vertical-align: top; }
+            .plan-readonly-preview th { background: #f3f4f6; font-weight: 700; text-align: left; }
+            .plan-readonly-preview ul, .plan-readonly-preview ol { padding-left: 1.4em; margin: .5em 0; }
+            .plan-readonly-preview strong { color: #4c1d95; }
+          `}</style>
         </div>
       )}
     </div>

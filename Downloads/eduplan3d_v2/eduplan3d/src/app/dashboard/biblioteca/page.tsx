@@ -28,7 +28,11 @@ export default async function BibliotecaPage() {
 
   // ── ADMIN: fetch all teachers + their planificaciones ──────────────────────
   if (isAdmin && instId) {
-    const [{ data: teachers }, { data: planificaciones }] = await Promise.all([
+    const teacherIds = (
+      await admin.from('profiles').select('id').eq('institution_id', instId).eq('role', 'teacher')
+    ).data?.map((p: any) => p.id) || []
+
+    const [{ data: teachers }, { data: planificaciones }, { data: manuales }] = await Promise.all([
       admin
         .from('profiles')
         .select('id, full_name, email')
@@ -38,12 +42,15 @@ export default async function BibliotecaPage() {
       admin
         .from('planificacion_docs' as any)
         .select('*')
-        .in(
-          'user_id',
-          // sub-select teacher IDs
-          (await admin.from('profiles').select('id').eq('institution_id', instId).eq('role', 'teacher')).data?.map((p: any) => p.id) || []
-        )
+        .in('user_id', teacherIds)
         .order('created_at', { ascending: false }),
+      // Solo planificaciones manuales PUBLICADAS (los borradores no se ven al admin)
+      admin
+        .from('planificaciones_manuales' as any)
+        .select('id, user_id, title, subject_name, course_name, status, updated_at, content_html')
+        .eq('institution_id', instId)
+        .eq('status', 'publicada')
+        .order('updated_at', { ascending: false }),
     ])
 
     return (
@@ -51,11 +58,12 @@ export default async function BibliotecaPage() {
         <div className="mb-6">
           <h1 className="font-display text-3xl font-bold tracking-tight">Planificaciones Docentes</h1>
           <p className="text-ink3 text-sm mt-1">
-            Visualiza todas las planificaciones subidas por los docentes de tu institución.
+            Visualiza las planificaciones de los docentes de tu institución (subidas o creadas en línea).
           </p>
         </div>
         <AdminPlanificacionesClient
           planificaciones={(planificaciones as any) || []}
+          manuales={(manuales as any) || []}
           teachers={(teachers as any) || []}
         />
       </div>
