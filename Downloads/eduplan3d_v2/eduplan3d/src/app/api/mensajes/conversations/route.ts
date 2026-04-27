@@ -91,21 +91,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Solo dentro de la misma institución' }, { status: 403 })
   }
 
-  // Validar emparejamiento: student↔tutor-del-curso
+  // Validar emparejamiento.
+  // Casos permitidos:
+  //  A) staff↔staff: cualquier rol del staff (admin, assistant, teacher,
+  //     rector, supervisor, horarios_only) puede mensajear a cualquier otro
+  //     staff de su misma institución (mensajería interna).
+  //  B) student↔teacher: solo si el docente es tutor del curso del estudiante.
+  //  C) admin/assistant↔student: permitido (admin puede contactar cualquier
+  //     estudiante de su institución).
+  const STAFF_ROLES = ['admin', 'assistant', 'teacher', 'rector', 'supervisor', 'horarios_only']
+  const meIsStaff    = STAFF_ROLES.includes(me.role)
+  const otherIsStaff = STAFF_ROLES.includes(other.role)
+
   let studentId = ''
   let tutorId = ''
-  if (me.role === 'student' && other.role === 'teacher') { studentId = me.id; tutorId = other.id }
-  else if (me.role === 'teacher' && other.role === 'student') { studentId = other.id; tutorId = me.id }
-  else if (me.role === 'admin' || me.role === 'assistant') {
-    // admin puede iniciar directo con cualquiera de su institución (no se valida tutoría)
-    studentId = other.role === 'student' ? other.id : (studentContext || '')
-    tutorId = other.role === 'teacher' ? other.id : ''
+  let isStaffPair = false
+
+  if (meIsStaff && otherIsStaff) {
+    // Caso A: mensajería interna staff a staff. Sin validación de tutoría.
+    isStaffPair = true
+  } else if (me.role === 'student' && other.role === 'teacher') {
+    studentId = me.id; tutorId = other.id
+  } else if (me.role === 'teacher' && other.role === 'student') {
+    studentId = other.id; tutorId = me.id
+  } else if ((me.role === 'admin' || me.role === 'assistant') && other.role === 'student') {
+    studentId = other.id
+    tutorId = ''
+  } else if (other.role === 'admin' || other.role === 'assistant') {
+    // estudiante o padre escribiendo a admin → permitido
+    studentId = me.role === 'student' ? me.id : (studentContext || '')
+    tutorId = ''
   } else {
     return NextResponse.json({ error: 'Combinación de roles no permitida' }, { status: 403 })
   }
 
-  if (me.role !== 'admin' && me.role !== 'assistant') {
+  if (!isStaffPair && me.role === 'teacher' && other.role === 'student') {
     // Verificar que el teacher es tutor del curso del student
+    const tutors = await resolveTutorsForStudent(admin as any, studentId)
+    const ok = tutors.some(t => t.teacherId === tutorId)
+    if (!ok) return NextResponse.json({ error: 'El docente no es tutor del estudiante' }, { status: 403 })
+  }
+  if (!isStaffPair && me.role === 'student' && other.role === 'teacher') {
     const tutors = await resolveTutorsForStudent(admin as any, studentId)
     const ok = tutors.some(t => t.teacherId === tutorId)
     if (!ok) return NextResponse.json({ error: 'El docente no es tutor del estudiante' }, { status: 403 })
@@ -131,16 +157,21 @@ export async function POST(req: NextRequest) {
       institution_id: me.institution_id,
       type:           'direct',
       title:          null,
-      student_id:     studentId || null,
+      student_id:     isStaffPair ? null : (studentId || null),
       created_by:     user.id,
     })
     .select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const parts = [
-    { conversation_id: conv.id, user_id: studentId || user.id, role: 'student' },
-    { conversation_id: conv.id, user_id: tutorId   || partnerId, role: 'tutor'   },
-  ]
+  const parts = isStaffPair
+    ? [
+        { conversation_id: conv.id, user_id: user.id,    role: 'staff' },
+        { conversation_id: conv.id, user_id: partnerId,  role: 'staff' },
+      ]
+    : [
+        { conversation_id: conv.id, user_id: studentId || user.id,   role: 'student' },
+        { conversation_id: conv.id, user_id: tutorId   || partnerId, role: 'tutor'   },
+      ]
   await (admin as any).from('conversation_participants').insert(parts)
   return NextResponse.json({ conversation: conv })
 }
