@@ -97,7 +97,7 @@ export function PlanEditorClient({
     editorProps: {
       attributes: {
         class:
-          'plan-editor-prose focus:outline-none min-h-[640px] px-8 py-10 bg-white rounded-2xl border border-line shadow-sm',
+          'plan-editor-prose focus:outline-none min-h-[640px] px-8 py-8 bg-white',
       },
     },
     onUpdate: ({ editor }) => {
@@ -191,7 +191,7 @@ export function PlanEditorClient({
         </div>
       </div>
 
-      {/* ── Header doc ──────────────────────────────────────────────────────── */}
+      {/* ── Header doc (no editable) ──────────────────────────────────────── */}
       <div className="mb-3">
         <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight">
           {plan.title}
@@ -204,11 +204,54 @@ export function PlanEditorClient({
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <Toolbar editor={editor} />
 
-      {/* ── Editor ─────────────────────────────────────────────────────────── */}
-      <EditorContent editor={editor} />
+      {/* ── Documento (header institucional + editor) ────────────────────── */}
+      <div className="plan-doc-wrap bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
+        {/* Header institucional NO editable, igual que libretas. Se imprime
+            con el documento. */}
+        <div className="plan-doc-header px-8 pt-8 pb-4 print:px-3 print:pt-3 print:pb-2">
+          <div className="flex items-center gap-4 border-b-2 border-black pb-3">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt="Logo"
+                className="w-16 h-16 object-contain print:w-14 print:h-14"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-lg border border-dashed border-ink4 flex items-center justify-center text-[9px] text-ink4 text-center px-1">
+                Logo
+              </div>
+            )}
+            <div className="flex-1 text-center">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-ink">
+                {institutionName.toUpperCase()}
+              </h2>
+              <p className="text-[10px] font-semibold tracking-widest text-ink3 mt-0.5 uppercase">
+                Planificación Microcurricular
+              </p>
+              <p className="text-[10px] font-semibold tracking-wider text-ink3 mt-1">
+                {plan.subjectName} · {plan.courseName}
+              </p>
+            </div>
+            <div className="w-16" /> {/* spacer simétrico */}
+          </div>
+        </div>
+
+        {/* Editor TipTap (ahora sin border/shadow propio, lo da el wrap) */}
+        <EditorContent editor={editor} />
+      </div>
 
       {/* Estilos */}
       <style jsx global>{`
+        /* Header institucional NO editable */
+        .plan-doc-header {
+          background: white;
+        }
+        @media print {
+          /* Mantener el header visible al imprimir */
+          .plan-doc-wrap { border: none !important; box-shadow: none !important; }
+          .plan-doc-header { padding: 0 !important; margin-bottom: 8px; }
+        }
         .plan-editor-prose {
           font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
           color: #111;
@@ -419,33 +462,16 @@ function buildMinEducTemplate({
   type: PlanManualType
   unitNumber?: number | null
 }): string {
-  const logoCell = logoUrl
-    ? `<td style="width: 90px; text-align: center;"><img src="${escapeHtml(logoUrl)}" alt="Logo" style="max-width: 80px; max-height: 80px;" /></td>`
-    : `<td style="width: 90px; text-align: center; color: #9ca3af; font-size: 10px;">[Logo]</td>`
-
-  const typeHeader = type === 'anual' 
-    ? 'PLANIFICACIÓN CURRICULAR ANUAL (PCA)' 
-    : type === 'semanal' 
-      ? 'PLANIFICACIÓN MICROCURRICULAR (PUD)' 
-      : 'PLANIFICACIÓN DIARIA'
+  // Nota: el encabezado institucional con logo + nombre de la institución
+  // se renderiza FUERA del editor (header fijo no editable). La plantilla
+  // empieza directamente con la tabla de datos del docente para evitar
+  // duplicar el banner.
 
   const unitRow = type !== 'anual' && unitNumber
     ? `<tr><td><strong>N. de Unidad</strong></td><td>${unitNumber}</td><td><strong>Título de Unidad</strong></td><td></td></tr>`
     : ''
 
   return `
-<table class="plan-header-table">
-  <tbody>
-    <tr>
-      ${logoCell}
-      <td style="text-align: center;">
-        <strong style="font-size: 14px;">${escapeHtml(institutionName.toUpperCase())}</strong><br/>
-        <span style="font-size: 11px; color: #6b7280;">${typeHeader}</span>
-      </td>
-    </tr>
-  </tbody>
-</table>
-
 <table class="plan-table">
   <tbody>
     <tr><td><strong>Nombre del Docente</strong></td><td>${escapeHtml(teacherName)}</td><td><strong>Fecha</strong></td><td></td></tr>
