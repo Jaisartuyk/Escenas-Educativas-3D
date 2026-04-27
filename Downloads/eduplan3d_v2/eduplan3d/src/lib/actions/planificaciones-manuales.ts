@@ -129,8 +129,9 @@ export async function savePlanificacionManual(input: {
     .eq('id', input.id)
     .eq('user_id', user.id)
   if (error) return { ok: false, error: error.message }
-  revalidatePath('/dashboard/planificaciones')
-  revalidatePath(`/dashboard/planificaciones/${input.id}`)
+  // No invalidamos /dashboard/planificaciones/[id] — el editor maneja su
+  // propio estado y revalidar dispara re-render que rompe el TipTap mid-save.
+  // La lista de tarjetas se refresca al volver mediante el server fetch normal.
   return { ok: true }
 }
 

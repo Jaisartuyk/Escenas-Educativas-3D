@@ -112,18 +112,36 @@ export function PlanEditorClient({
   // Save handler
   const triggerSave = useCallback(async (json: any, html: string) => {
     setSavingState('saving')
-    const r = await savePlanificacionManual({
-      id: plan.id,
-      contentJson: json,
-      contentHtml: html,
-    })
-    if (r.ok) {
-      setSavingState('saved')
-      setLastSavedAt(new Date().toISOString())
-      setTimeout(() => setSavingState('idle'), 1500)
-    } else {
+    // Hard timeout: si el server action no responde en 12s, salir de
+    // "Guardando…" y mostrar error en vez de quedar colgado.
+    let timedOut = false
+    const watchdog = setTimeout(() => {
+      timedOut = true
       setSavingState('error')
-      toast.error('Error al guardar: ' + (r.error || 'desconocido'))
+      toast.error('Tiempo agotado al guardar. Revisa tu conexión.')
+    }, 12000)
+    try {
+      const r = await savePlanificacionManual({
+        id: plan.id,
+        contentJson: json,
+        contentHtml: html,
+      })
+      clearTimeout(watchdog)
+      if (timedOut) return
+      if (r.ok) {
+        setSavingState('saved')
+        setLastSavedAt(new Date().toISOString())
+        setTimeout(() => setSavingState('idle'), 1500)
+      } else {
+        setSavingState('error')
+        toast.error('Error al guardar: ' + (r.error || 'desconocido'))
+      }
+    } catch (err: any) {
+      clearTimeout(watchdog)
+      if (timedOut) return
+      setSavingState('error')
+      toast.error('Error al guardar: ' + (err?.message || 'desconocido'))
+      console.error('[planificaciones save]', err)
     }
   }, [plan.id])
 
