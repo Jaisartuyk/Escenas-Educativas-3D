@@ -119,7 +119,8 @@ export function MensajesClient({ me, institutionName, broadcastCourses }: Props)
   const [mobilePane, setMobilePane] = useState<'list' | 'thread'>('list')
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const canBroadcast = me.role === 'teacher' || me.role === 'admin' || me.role === 'assistant'
+  // Solo administración (admin/assistant/rector) puede publicar boletines.
+  const canBroadcast = me.role === 'admin' || me.role === 'assistant' || me.role === 'rector'
 
   // ── Carga ──
   const loadConversations = useCallback(async () => {
