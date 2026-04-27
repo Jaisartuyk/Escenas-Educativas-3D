@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MessageSquare, Send, Search, Plus, Megaphone, X, CheckCheck, Check,
   Clock, AlertTriangle, CalendarDays, BookOpen, BadgeCheck, ArrowLeft,
-  Users, GraduationCap, Sparkles,
+  Users, GraduationCap, Sparkles, Trash2,
 } from 'lucide-react'
 
 // ── Tipos ───────────────────────────────────────────────────────────────────
@@ -256,6 +256,25 @@ export function MensajesClient({ me, institutionName, broadcastCourses }: Props)
     return { ok: false, error: json.error }
   }
 
+  async function deleteConversation(convId: string, isBulletin: boolean) {
+    const msg = isBulletin
+      ? '¿Eliminar este boletín? Se borrará para TODOS los destinatarios y no podrá recuperarse.'
+      : '¿Eliminar esta conversación? Se borrarán todos los mensajes para ambos participantes.'
+    if (!confirm(msg)) return
+    const res = await fetch(`/api/mensajes/conversations/${convId}`, { method: 'DELETE' })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      alert('Error al eliminar: ' + (json?.error || 'desconocido'))
+      return
+    }
+    // Si era el seleccionado, limpiar selección.
+    if (selectedId === convId) {
+      setSelectedId(null)
+      setMessages([])
+    }
+    await loadConversations()
+  }
+
   // ── Listado filtrado ──
   const filteredConvs = useMemo(() => {
     if (!search.trim()) return conversations
@@ -392,6 +411,7 @@ export function MensajesClient({ me, institutionName, broadcastCourses }: Props)
               me={me}
               conversation={selected}
               onBack={() => { setSelectedId(null); setMobilePane('list') }}
+              onDelete={deleteConversation}
             />
 
             {/* Lista de mensajes */}
@@ -478,7 +498,12 @@ export function MensajesClient({ me, institutionName, broadcastCourses }: Props)
 
 // ── Subcomponentes ──────────────────────────────────────────────────────────
 
-function ThreadHeader({ me, conversation, onBack }: { me: Me; conversation: Conversation; onBack: () => void }) {
+function ThreadHeader({
+  me, conversation, onBack, onDelete,
+}: {
+  me: Me; conversation: Conversation; onBack: () => void
+  onDelete?: (convId: string, isBulletin: boolean) => void
+}) {
   const { title, avatarId } = conversationLabel(conversation, me.id)
   const isBulletin = conversation.type === 'bulletin'
   const other = conversation.participants.find(p => p.user_id !== me.id)
@@ -487,6 +512,14 @@ function ThreadHeader({ me, conversation, onBack }: { me: Me; conversation: Conv
     : other?.user_role === 'teacher' ? 'Docente tutor'
     : other?.user_role === 'student' ? 'Representante / Estudiante'
     : 'Administración'
+
+  // Permiso para eliminar:
+  //  · Boletín → solo admin/assistant/rector
+  //  · DM     → creador o admin/assistant/rector
+  const isAdminRole = me.role === 'admin' || me.role === 'assistant' || me.role === 'rector'
+  const canDelete = isBulletin
+    ? isAdminRole
+    : (conversation.created_by === me.id || isAdminRole)
 
   return (
     <div className="px-4 md:px-6 py-3 border-b border-[rgba(0,0,0,0.06)] bg-bg2 flex items-center gap-3">
@@ -507,6 +540,15 @@ function ThreadHeader({ me, conversation, onBack }: { me: Me; conversation: Conv
         <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-ink4">
           <Users size={12} /> {conversation.participants.length - 1}
         </div>
+      )}
+      {canDelete && onDelete && (
+        <button
+          onClick={() => onDelete(conversation.id, isBulletin)}
+          className="p-2 hover:bg-rose-50 rounded-lg text-ink4 hover:text-rose-600 transition-colors"
+          title={isBulletin ? 'Eliminar boletín (para todos)' : 'Eliminar conversación'}
+        >
+          <Trash2 size={16} />
+        </button>
       )}
     </div>
   )
