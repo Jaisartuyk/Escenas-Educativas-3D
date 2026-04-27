@@ -35,7 +35,7 @@ export default async function SuperAdminPage() {
     (admin as any).from('planificaciones').select('*', { count: 'exact', head: true }),
     admin
       .from('institutions')
-      .select('id, name, join_code, created_at')
+      .select('id, name, join_code, created_at, planner_ia_enabled')
       .order('created_at', { ascending: false })
       .limit(50),
     admin

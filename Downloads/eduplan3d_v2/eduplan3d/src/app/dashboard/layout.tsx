@@ -26,7 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const { data: profile } = await (supabase as any)
     .from('profiles')
-    .select('id, full_name, institution_id, plan, email, role')
+    .select('id, full_name, institution_id, plan, email, role, planner_ia_enabled')
     .eq('id', user!.id)
     .single()
 
@@ -39,11 +39,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (profile?.institution_id) {
     const { data } = await (supabase as any)
       .from('institutions')
-      .select('name, settings')
+      .select('name, settings, planner_ia_enabled')
       .eq('id', profile.institution_id)
       .single()
     institution = data
   }
+
+  // Regla efectiva: el docente institucional ve Planificador IA y Biblioteca
+  // solo si su institución contrató el servicio Y el SuperAdmin lo habilitó
+  // a él específicamente. Los planner_solo (externos) siempre tienen acceso.
+  const plannerIaAccess = isPlannerSolo
+    ? true
+    : !!(institution?.planner_ia_enabled && profile?.planner_ia_enabled)
 
   // ── Fetch Academic Years (solo si tiene institución) ────────────────────────
   let academicYears: AcademicYear[] = []
@@ -88,6 +95,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           plan={profile?.plan}
           institutionName={isPlannerSolo ? undefined : institution?.name}
           logoUrl={isPlannerSolo ? null : logoUrl}
+          plannerIaAccess={plannerIaAccess}
         />
         <div className="flex-1 flex flex-col min-w-0">
           <Topbar profile={profile} institutionName={institution?.name} />

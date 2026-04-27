@@ -162,12 +162,19 @@ export function Sidebar({
   role = 'admin',
   plan,
   institutionName,
-  logoUrl
+  logoUrl,
+  plannerIaAccess = true,
 }: {
   role?: string,
   plan?: string,
   institutionName?: string
   logoUrl?: string | null
+  /**
+   * Si false, oculta los enlaces "Planificador" y "Biblioteca" del docente
+   * institucional (servicio IA opcional contratado por la institución).
+   * Para planner_solo siempre es true.
+   */
+  plannerIaAccess?: boolean
 }) {
   const pathname = usePathname()
   const isPlannerSolo = plan === 'planner_solo'
@@ -198,17 +205,43 @@ export function Sidebar({
   }
 
   // Get nav structure for current role
+  // Rutas que dependen del Planificador IA contratado.
+  // Si plannerIaAccess === false, se ocultan del sidebar.
+  const PLANNER_DEPENDENT_HREFS = new Set([
+    '/dashboard/planificador',
+    '/dashboard/biblioteca',
+    '/dashboard/calendario',
+  ])
+
+  function filterPlannerNodes(nodes: NavNode[]): NavNode[] {
+    if (plannerIaAccess) return nodes
+    return nodes
+      .map(n => {
+        if ('items' in n) {
+          const items = n.items.filter(it => !PLANNER_DEPENDENT_HREFS.has(it.href))
+          return { ...n, items }
+        }
+        return n
+      })
+      .filter(n => {
+        if ('items' in n) return n.items.length > 0
+        return !PLANNER_DEPENDENT_HREFS.has((n as any).href)
+      })
+  }
+
   function getNav(): NavNode[] {
     if (isPlannerSolo) return NAV_PLANNER_SOLO
     if (isAdmin || role === 'rector') return NAV_ADMIN_GROUPED
+    let nav: NavNode[]
     switch (role) {
-      case 'teacher':       return NAV_TEACHER
-      case 'student':       return NAV_STUDENT
-      case 'secretary':     return NAV_SECRETARY
-      case 'supervisor':    return NAV_SUPERVISOR
-      case 'horarios_only': return NAV_HORARIOS
-      default:              return []
+      case 'teacher':       nav = NAV_TEACHER; break
+      case 'student':       nav = NAV_STUDENT; break
+      case 'secretary':     nav = NAV_SECRETARY; break
+      case 'supervisor':    nav = NAV_SUPERVISOR; break
+      case 'horarios_only': nav = NAV_HORARIOS; break
+      default:              nav = []
     }
+    return filterPlannerNodes(nav)
   }
 
   // Close on route change

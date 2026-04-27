@@ -11,6 +11,11 @@ import {
 } from 'lucide-react'
 import { updateUserPlan, deleteInstitutionUser } from '@/lib/actions/users'
 import { recordPlannerPayment, setPlannerSuspended } from '@/lib/actions/subscriptions'
+import {
+  togglePlannerForInstitution,
+  togglePlannerForTeacher,
+  bulkTogglePlannerForInstitutionTeachers,
+} from '@/lib/actions/planner-ia'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 
@@ -28,6 +33,7 @@ interface Institution {
   join_code:   string
   created_at:  string
   memberCount: number
+  planner_ia_enabled?: boolean
 }
 
 interface PlannerUser {
@@ -107,7 +113,7 @@ export function SuperAdminClient({ stats, institutions, plannerUsers, teacherSub
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, email, role, plan, created_at')
+        .select('id, full_name, email, role, plan, created_at, planner_ia_enabled, planner_suspended')
         .eq('institution_id', inst.id)
         .order('role', { ascending: true })
         .order('full_name', { ascending: true })
@@ -134,6 +140,69 @@ export function SuperAdminClient({ stats, institutions, plannerUsers, teacherSub
       toast.error('Error: ' + err.message)
     } finally {
       setUpdatingUserId(null)
+    }
+  }
+
+  // ── Toggles del Planificador IA (servicio opcional) ───────────────────────
+  const [togglingInst, setTogglingInst] = useState(false)
+
+  async function handleToggleInstitution(enabled: boolean) {
+    if (!viewingInst) return
+    setTogglingInst(true)
+    try {
+      const r = await togglePlannerForInstitution(viewingInst.id, enabled)
+      if (!r.ok) throw new Error(r.error || '')
+      // Si se deshabilita la institución, también deshabilitar a todos sus docentes
+      // para que en una futura re-activación quede claro quién estaba activo.
+      if (!enabled) {
+        await bulkTogglePlannerForInstitutionTeachers(viewingInst.id, false)
+        setMembers(prev => prev.map(m => ({ ...m, planner_ia_enabled: false })))
+      }
+      setViewingInst({ ...viewingInst, planner_ia_enabled: enabled })
+      // Reflejar también en la lista exterior
+      // (no usamos setInstitutions porque viene como prop; recargamos la página al cerrar)
+      toast.success(enabled
+        ? 'Planificador IA habilitado para esta institución'
+        : 'Planificador IA deshabilitado para toda la institución')
+    } catch (err: any) {
+      toast.error('Error: ' + (err.message || 'desconocido'))
+    } finally {
+      setTogglingInst(false)
+    }
+  }
+
+  async function handleToggleTeacher(userId: string, enabled: boolean) {
+    setUpdatingUserId(userId)
+    try {
+      const r = await togglePlannerForTeacher(userId, enabled)
+      if (!r.ok) throw new Error(r.error || '')
+      setMembers(prev => prev.map(m =>
+        m.id === userId ? { ...m, planner_ia_enabled: enabled } : m
+      ))
+    } catch (err: any) {
+      toast.error('Error: ' + (err.message || 'desconocido'))
+    } finally {
+      setUpdatingUserId(null)
+    }
+  }
+
+  async function handleBulkToggleTeachers(enabled: boolean) {
+    if (!viewingInst) return
+    if (!confirm(`¿${enabled ? 'Habilitar' : 'Deshabilitar'} el Planificador IA para TODOS los docentes de ${viewingInst.name}?`)) return
+    setLoadingMembers(true)
+    try {
+      const r = await bulkTogglePlannerForInstitutionTeachers(viewingInst.id, enabled)
+      if (!r.ok) throw new Error(r.error || '')
+      setMembers(prev => prev.map(m =>
+        ['teacher','rector','supervisor'].includes(m.role)
+          ? { ...m, planner_ia_enabled: enabled }
+          : m
+      ))
+      toast.success(`${r.updated || 0} docentes ${enabled ? 'habilitados' : 'deshabilitados'}`)
+    } catch (err: any) {
+      toast.error('Error: ' + (err.message || 'desconocido'))
+    } finally {
+      setLoadingMembers(false)
     }
   }
 
@@ -531,23 +600,63 @@ export function SuperAdminClient({ stats, institutions, plannerUsers, teacherSub
               </button>
             </div>
 
-            {/* Bulk Actions Bar */}
-            <div className="px-6 py-3 bg-white/[0.01] border-b border-white/5 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Acciones masivas de Institución:</span>
+            {/* ── Toggle Planificador IA por Institución (servicio opcional) ── */}
+            <div className={`px-6 py-3 border-b border-white/5 flex items-center justify-between ${
+              viewingInst?.planner_ia_enabled
+                ? 'bg-emerald-500/[0.05]'
+                : 'bg-amber-500/[0.05]'
+            }`}>
+              <div className="flex items-center gap-3">
+                <Sparkles size={16} className={viewingInst?.planner_ia_enabled ? 'text-emerald-400' : 'text-amber-400'} />
+                <div>
+                  <div className="text-xs font-bold">
+                    Planificador IA: {viewingInst?.planner_ia_enabled
+                      ? <span className="text-emerald-400">CONTRATADO</span>
+                      : <span className="text-amber-400">NO CONTRATADO</span>}
+                  </div>
+                  <div className="text-[10px] text-white/40">
+                    {viewingInst?.planner_ia_enabled
+                      ? 'Los docentes habilitados abajo pueden usar Planificador IA + Biblioteca.'
+                      : 'Activar para que esta institución tenga acceso al Planificador IA.'}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => handleToggleInstitution(!viewingInst?.planner_ia_enabled)}
+                disabled={togglingInst}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all disabled:opacity-50 ${
+                  viewingInst?.planner_ia_enabled
+                    ? 'bg-white/5 text-white/50 border-white/10 hover:bg-white/10'
+                    : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
+                }`}
+              >
+                {togglingInst
+                  ? '...'
+                  : viewingInst?.planner_ia_enabled
+                    ? 'Desactivar institución'
+                    : 'Activar para esta institución'}
+              </button>
+            </div>
+
+            {/* Bulk Actions Bar — operaciones por docente, requiere institución activa */}
+            <div className={`px-6 py-3 bg-white/[0.01] border-b border-white/5 flex items-center justify-between ${
+              !viewingInst?.planner_ia_enabled ? 'opacity-50 pointer-events-none' : ''
+            }`}>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">Habilitar planificador a docentes:</span>
               <div className="flex gap-2">
-                <button 
-                  onClick={() => bulkUpdatePlan(true)}
-                  disabled={loadingMembers}
+                <button
+                  onClick={() => handleBulkToggleTeachers(true)}
+                  disabled={loadingMembers || !viewingInst?.planner_ia_enabled}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-violet-500/20 text-violet-400 border border-violet-500/20 hover:bg-violet-500/30 transition-all disabled:opacity-50"
                 >
-                  <Sparkles size={12} /> Habilitar Planificador (Todos)
+                  <Sparkles size={12} /> Habilitar a TODOS los docentes
                 </button>
-                <button 
-                  onClick={() => bulkUpdatePlan(false)}
-                  disabled={loadingMembers}
+                <button
+                  onClick={() => handleBulkToggleTeachers(false)}
+                  disabled={loadingMembers || !viewingInst?.planner_ia_enabled}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-white/5 text-white/40 border border-white/10 hover:bg-white/10 transition-all disabled:opacity-50"
                 >
-                  <X size={12} /> Deshabilitar Todo
+                  <X size={12} /> Deshabilitar a TODOS
                 </button>
               </div>
             </div>
@@ -562,9 +671,13 @@ export function SuperAdminClient({ stats, institutions, plannerUsers, teacherSub
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {members.map(u => {
-                    const isPremium = u.plan === 'institucion_premium'
-                    const isTeacher = u.role === 'teacher'
+                    const isTeacherRole = ['teacher','rector','supervisor'].includes(u.role)
                     const isUpdating = updatingUserId === u.id
+                    const iaEnabled = !!u.planner_ia_enabled
+                    const instEnabled = !!viewingInst?.planner_ia_enabled
+                    // Para que el docente realmente pueda usar el Planificador IA
+                    // se requiere AMBOS flags (institución y docente).
+                    const effectiveAccess = iaEnabled && instEnabled
 
                     return (
                       <div key={u.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.1] transition-all">
@@ -578,42 +691,51 @@ export function SuperAdminClient({ stats, institutions, plannerUsers, teacherSub
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate leading-tight">{u.full_name}</p>
                           <p className="text-[10px] text-white/30 truncate mb-1">{u.role.toUpperCase()} · {u.email}</p>
-                          
-                          {/* Plan Status Badge */}
-                          <div className="flex items-center gap-2">
-                             <div className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                               isPremium 
-                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' 
-                                : 'bg-white/5 text-white/30'
-                             }`}>
-                               {isPremium ? <><CheckCircle2 size={10} /> Planificador Pro</> : 'Plan Estándar'}
-                             </div>
-                             {isPremium && (
-                               <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400">
-                                 <Zap size={8} /> Activo
-                               </span>
-                             )}
-                          </div>
+
+                          {/* Estado del Planificador IA (nuevo flag) */}
+                          {isTeacherRole && (
+                            <div className="flex items-center gap-2">
+                              <div className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                effectiveAccess
+                                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'
+                                  : iaEnabled && !instEnabled
+                                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20'
+                                    : 'bg-white/5 text-white/30'
+                              }`}>
+                                {effectiveAccess
+                                  ? <><CheckCircle2 size={10} /> Planificador IA: ACTIVO</>
+                                  : iaEnabled && !instEnabled
+                                    ? 'Habilitado pero institución desactivada'
+                                    : 'Sin Planificador IA'}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Toggle Button (only for teachers, as they use the planner) */}
-                        {isTeacher && (
+                        {/* Toggle individual del Planificador IA (solo staff docente) */}
+                        {isTeacherRole && (
                           <button
-                            onClick={() => togglePlan(u)}
-                            disabled={isUpdating}
-                            className={`p-2.5 rounded-xl transition-all ${
-                              isPremium
-                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20'
+                            onClick={() => handleToggleTeacher(u.id, !iaEnabled)}
+                            disabled={isUpdating || !instEnabled}
+                            title={
+                              !instEnabled
+                                ? 'Primero activa el Planificador IA para esta institución'
+                                : iaEnabled
+                                  ? 'Quitar acceso al Planificador IA a este docente'
+                                  : 'Dar acceso al Planificador IA a este docente'
+                            }
+                            className={`p-2.5 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                              iaEnabled
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
                                 : 'bg-white/5 text-white/30 border border-white/5 hover:border-white/10 hover:text-white'
                             }`}
-                            title={isPremium ? 'Desactivar Planificador' : 'Activar Planificador'}
                           >
                             {isUpdating ? (
                               <RefreshCw size={16} className="animate-spin" />
-                            ) : isPremium ? (
+                            ) : iaEnabled ? (
                               <Zap size={16} />
                             ) : (
-                              <Settings2 size={16} />
+                              <Sparkles size={16} />
                             )}
                           </button>
                         )}

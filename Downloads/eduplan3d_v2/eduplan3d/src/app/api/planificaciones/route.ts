@@ -355,7 +355,10 @@ export async function POST(request: NextRequest) {
 
     // Verificar limite del plan free
     const { data: profile } = await (supabase as any)
-      .from('profiles').select('plan, planner_suspended').eq('id', user.id).single() as { data: { plan: string; planner_suspended?: boolean } | null }
+      .from('profiles')
+      .select('plan, planner_suspended, planner_ia_enabled, institution_id')
+      .eq('id', user.id)
+      .single() as { data: { plan: string; planner_suspended?: boolean; planner_ia_enabled?: boolean; institution_id?: string | null } | null }
 
     const isPlannerSolo = profile?.plan === 'planner_solo'
 
@@ -365,6 +368,31 @@ export async function POST(request: NextRequest) {
         { error: 'Tu suscripción al planificador está suspendida. Comunícate con el administrador para renovar el pago mensual.' },
         { status: 403 }
       )
+    }
+
+    // ── Bloqueo por servicio IA NO contratado (institucionales) ──────────
+    // Solo aplica a docentes institucionales. Los planner_solo (externos)
+    // siempre tienen acceso si pagaron suscripción.
+    if (!isPlannerSolo && profile?.institution_id) {
+      // Cargar el flag de la institución
+      const { data: inst } = await (supabase as any)
+        .from('institutions')
+        .select('planner_ia_enabled')
+        .eq('id', profile.institution_id)
+        .maybeSingle()
+      const instEnabled = !!(inst as any)?.planner_ia_enabled
+      const userEnabled = !!profile.planner_ia_enabled
+      if (!instEnabled || !userEnabled) {
+        return NextResponse.json(
+          {
+            error: !instEnabled
+              ? 'Tu institución no tiene contratado el Planificador IA. Pide al administrador que lo active.'
+              : 'No estás habilitado para usar el Planificador IA. Pide al administrador que te habilite.',
+            code: 'PLANNER_IA_NOT_ENABLED',
+          },
+          { status: 403 }
+        )
+      }
     }
 
     // Resolver año lectivo visible; bloquear si esta en modo historico
