@@ -77,11 +77,12 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
 
 // ─── Nav docente ─────────────────────────────────────────────────────────────
 const NAV_TEACHER: NavNode[] = [
-  { href: '/dashboard/docente',      icon: '📝', label: 'Panel Docente' },
-  { href: '/dashboard/planificador', icon: '📋', label: 'Planificador'  },
-  { href: '/dashboard/calendario',   icon: '📅', label: 'Calendario'    },
-  { href: '/dashboard/biblioteca',   icon: '📚', label: 'Biblioteca'    },
-  { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes'      },
+  { href: '/dashboard/docente',         icon: '📝', label: 'Panel Docente'   },
+  { href: '/dashboard/planificaciones', icon: '📒', label: 'Planificaciones' },
+  { href: '/dashboard/planificador',    icon: '📋', label: 'Planificador'    },
+  { href: '/dashboard/calendario',      icon: '📅', label: 'Calendario'      },
+  { href: '/dashboard/biblioteca',      icon: '📚', label: 'Biblioteca'      },
+  { href: '/dashboard/mensajes',        icon: '💬', label: 'Mensajes'        },
   {
     title: 'Tutorías',
     icon: '👥',
