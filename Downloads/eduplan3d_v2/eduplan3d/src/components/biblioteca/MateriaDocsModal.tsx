@@ -259,7 +259,11 @@ export function MateriaDocsModal({
             <button
               type="submit"
               disabled={uploading || !selectedFile || !titulo.trim()}
-              className={`w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${colorClass.solid} hover:opacity-90`}
+              className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all disabled:cursor-not-allowed
+                ${!selectedFile || !titulo.trim() || uploading
+                  ? 'bg-slate-100 text-slate-400'
+                  : `text-white ${colorClass.solid} hover:opacity-90 shadow-sm shadow-violet/10`
+                }`}
             >
               {uploading ? 'Subiendo…' : '+ Agregar material'}
             </button>
