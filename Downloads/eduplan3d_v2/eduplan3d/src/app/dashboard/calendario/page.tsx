@@ -15,7 +15,7 @@ export default async function CalendarioPage() {
   // Cargar todas las planificaciones del usuario para el sidebar (drag source).
   const { data: planificaciones } = await (supabase as any)
     .from('planificaciones')
-    .select('id, title, subject, grade, topic, type, grupo, metadata, created_at')
+    .select('id, title, subject, grade, topic, type, grupo, content, metadata, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(200)
