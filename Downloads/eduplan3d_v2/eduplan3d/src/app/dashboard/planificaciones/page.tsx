@@ -27,6 +27,17 @@ export default async function PlanificacionesPage() {
 
   if (!profile) redirect('/dashboard')
 
+  const { data: institution } = profile.institution_id
+    ? await admin
+        .from('institutions')
+        .select('name')
+        .eq('id', profile.institution_id)
+        .single()
+    : { data: null }
+
+  const institutionName = institution?.name || ''
+  const isLetamendi = institutionName.toUpperCase().includes('LETAMENDI')
+
   // Solo docentes institucionales (planner_solo no tiene plan manual MinEduc).
   const isInstitutionalTeacher =
     !!profile.institution_id &&
@@ -63,14 +74,16 @@ export default async function PlanificacionesPage() {
       <div className="mb-6">
         <h1 className="font-display text-3xl font-bold tracking-tight">Planificaciones</h1>
         <p className="text-ink3 text-sm mt-1">
-          Una planificación anual por cada materia/curso. Edita el documento como un Word
-          y publícalo cuando esté listo para que el rector lo revise.
+          {isLetamendi
+            ? 'Crea tu planificación anual y semanal por cada materia/curso. Edita el documento como un Word y publícalo cuando esté listo para que el rector lo revise.'
+            : 'Una planificación anual por cada materia/curso. Edita el documento como un Word y publícalo cuando esté listo para que el rector lo revise.'}
         </p>
       </div>
       <PlanificacionesCards
         subjects={(subjects as any[]) || []}
         manualPlans={(manualPlans as any[]) || []}
         academicYearId={academicYearId}
+        institutionName={institutionName}
       />
     </div>
   )

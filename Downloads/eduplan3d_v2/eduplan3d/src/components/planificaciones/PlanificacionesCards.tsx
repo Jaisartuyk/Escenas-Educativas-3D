@@ -35,15 +35,21 @@ export function PlanificacionesCards({
   subjects,
   manualPlans,
   academicYearId,
+  institutionName,
 }: {
   subjects: Subject[]
   manualPlans: ManualPlan[]
   academicYearId: string | null
+  institutionName: string
 }) {
   const router = useRouter()
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null)
   const [openingId, setOpeningId] = useState<string | null>(null)
   const [_, startTransition] = useTransition()
+  const isLetamendi = institutionName.toUpperCase().includes('LETAMENDI')
+  const visibleTypes: PlanManualType[] = isLetamendi
+    ? ['anual', 'semanal']
+    : ['anual', 'semanal', 'diaria']
 
   // Index de planes existentes por subject_id+course_id -> array de planes
   const subjectPlansMap = new Map<string, ManualPlan[]>()
@@ -114,7 +120,7 @@ export function PlanificacionesCards({
                   <BookOpen size={20} className="text-violet" />
                 </div>
                 <div className="flex flex-wrap gap-1 justify-end">
-                  {['anual', 'semanal', 'diaria'].map(type => {
+                  {visibleTypes.map(type => {
                     const count = existingPlans.filter(p => p.type === type).length
                     if (count === 0) return null
                     return (
@@ -148,10 +154,10 @@ export function PlanificacionesCards({
         description={selectedSubject?.course ? `${selectedSubject.course.name} ${selectedSubject.course.parallel || ''}` : ''}
       >
         <div className="space-y-6 pt-4 pb-2">
-          {['anual', 'semanal', 'diaria'].map((type) => {
+          {visibleTypes.map((type) => {
             const key = selectedSubject ? `${selectedSubject.id}::${selectedSubject.course_id}` : ''
             const plans = (subjectPlansMap.get(key) || []).filter(p => p.type === type)
-            const typeLabel = type === 'anual' ? 'Anual (PCA)' : type === 'semanal' ? 'Semanal (PUD)' : 'Diaria'
+            const typeLabel = type === 'anual' ? 'Anual (PCA)' : type === 'semanal' ? 'Semanal' : 'Diaria'
             
             return (
               <div key={type} className="space-y-3">

@@ -490,6 +490,15 @@ function buildMinEducTemplate({
   type: PlanManualType
   unitNumber?: number | null
 }): string {
+  if (institutionName.toUpperCase().includes('LETAMENDI') && type === 'semanal') {
+    return buildLetamendiWeeklyTemplate({
+      teacherName,
+      subjectName,
+      courseName,
+      unitNumber,
+    })
+  }
+
   // Nota: el encabezado institucional con logo + nombre de la institución
   // se renderiza FUERA del editor (header fijo no editable). La plantilla
   // empieza directamente con la tabla de datos del docente para evitar
@@ -545,6 +554,108 @@ function buildMinEducTemplate({
   </thead>
   <tbody>
     <tr><td><p></p></td><td><p></p></td><td><p></p></td><td><p></p></td><td><p></p></td></tr>
+  </tbody>
+</table>
+  `.trim()
+}
+
+function buildLetamendiWeeklyTemplate({
+  teacherName,
+  subjectName,
+  courseName,
+  unitNumber,
+}: {
+  teacherName: string
+  subjectName: string
+  courseName: string
+  unitNumber?: number | null
+}): string {
+  const unidad = unitNumber ?? 1
+
+  return `
+<table class="plan-table">
+  <tbody>
+    <tr><td colspan="4"><strong>Datos informativos</strong></td></tr>
+    <tr><td><strong>Área/Asignatura</strong></td><td>${escapeHtml(subjectName)}</td><td><strong>Grado/curso</strong></td><td>${escapeHtml(courseName)}</td></tr>
+    <tr><td><strong>Docente(s)</strong></td><td>${escapeHtml(teacherName)}</td><td><strong>Año lectivo</strong></td><td>2026 - 2027</td></tr>
+    <tr><td><strong>Tiempo</strong></td><td>9 semanas</td><td><strong>Fecha de inicio</strong></td><td></td></tr>
+    <tr><td><strong>Nivel educativo</strong></td><td></td><td><strong>Fecha de finalización</strong></td><td></td></tr>
+    <tr><td><strong>Título de la Unidad Didáctica ${unidad}</strong></td><td colspan="3"></td></tr>
+    <tr><td><strong>Objetivo de la Unidad</strong></td><td colspan="3"></td></tr>
+    <tr><td><strong>Criterios de Evaluación</strong></td><td colspan="3"></td></tr>
+  </tbody>
+</table>
+
+<table class="plan-table">
+  <thead>
+    <tr>
+      <th>Periodo / Fecha</th>
+      <th>Destrezas con criterio de desempeño ¿Qué van a aprender?</th>
+      <th>Actividades de aprendizaje / Estrategias metodológicas ¿Cómo van a aprender?</th>
+      <th>Recursos / Materiales</th>
+      <th>Indicadores de evaluación ¿Qué y cómo evaluar?</th>
+      <th>Técnicas e instrumentos de evaluación ¿Qué y cómo evaluar?</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${Array.from({ length: 9 }, (_, idx) => `
+      <tr>
+        <td><strong>Semana ${idx + 1}</strong><p>Desde:</p><p>Hasta:</p></td>
+        <td><p></p></td>
+        <td><p></p></td>
+        <td><p></p></td>
+        <td><p></p></td>
+        <td><p>Técnicas:</p><p>Instrumentos:</p></td>
+      </tr>
+    `).join('')}
+  </tbody>
+</table>
+
+<h3>Adaptación curricular</h3>
+<p><strong>Estudiantes con necesidades educativas específicas:</strong></p>
+<table class="plan-table">
+  <tbody>
+    <tr><td><strong>Tipo de NEE</strong></td></tr>
+  </tbody>
+</table>
+
+<table class="plan-table">
+  <thead>
+    <tr>
+      <th>Destrezas con criterio de desempeño</th>
+      <th>Indicadores de evaluación</th>
+      <th>Estrategias metodológicas</th>
+      <th>Recursos</th>
+      <th>Técnicas e instrumentos de evaluación</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><p></p></td><td><p></p></td><td><p></p></td><td><p></p></td><td><p></p></td></tr>
+  </tbody>
+</table>
+
+<table class="plan-table">
+  <tbody>
+    <tr>
+      <td><strong>Elaborado:</strong></td>
+      <td><strong>Revisado:</strong></td>
+      <td><strong>Aprobado:</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Cargo:</strong></td>
+      <td><strong>Cargo:</strong></td>
+      <td><strong>Cargo:</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Firma:</strong></td>
+      <td><strong>Firma:</strong></td>
+      <td><strong>Firma:</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Fecha:</strong></td>
+      <td><strong>Fecha:</strong></td>
+      <td><strong>Fecha:</strong></td>
+    </tr>
   </tbody>
 </table>
   `.trim()
