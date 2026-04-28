@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { teacherOwnsAssignment, getProfile } from '@/lib/auth/ownership'
+import { teacherOwnsAssignment, getProfile, isStudentUser, studentEnrolledInAssignment } from '@/lib/auth/ownership'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,6 +65,14 @@ export async function POST(req: Request) {
   const { assignment_id, comment, file_url } = body
 
   if (!assignment_id) return NextResponse.json({ error: 'Falta assignment_id' }, { status: 400 })
+
+  const isStudent = await isStudentUser(user.id)
+  if (!isStudent) return NextResponse.json({ error: 'Solo estudiantes pueden entregar tareas' }, { status: 403 })
+
+  const enrolled = await studentEnrolledInAssignment(user.id, assignment_id)
+  if (!enrolled) {
+    return NextResponse.json({ error: 'No tienes permiso para entregar en esta tarea' }, { status: 403 })
+  }
 
   const admin = createAdminClient()
   const { data, error } = await admin

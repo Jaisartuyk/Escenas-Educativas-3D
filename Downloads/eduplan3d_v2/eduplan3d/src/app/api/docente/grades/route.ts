@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { teacherOwnsAssignment } from '@/lib/auth/ownership'
+import { teacherOwnsAssignment, studentEnrolledInAssignment } from '@/lib/auth/ownership'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,9 +31,15 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   } else {
     if (!body.assignment_id) return NextResponse.json({ error: 'Falta assignment_id' }, { status: 400 })
+    if (!body.student_id) return NextResponse.json({ error: 'Falta student_id' }, { status: 400 })
 
     const owns = await teacherOwnsAssignment(user.id, body.assignment_id)
     if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta tarea' }, { status: 403 })
+
+    const enrolled = await studentEnrolledInAssignment(body.student_id, body.assignment_id)
+    if (!enrolled) {
+      return NextResponse.json({ error: 'El estudiante no pertenece al curso de esta tarea' }, { status: 403 })
+    }
 
     const { error } = await admin.from('grades').insert({
       id:            body.id,
