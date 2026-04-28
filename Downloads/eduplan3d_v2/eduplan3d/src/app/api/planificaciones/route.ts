@@ -239,9 +239,9 @@ CADA SESIÓN debe contener:
 
 REGLAS:
 - Las DCDs e indicadores van TEXTUALMENTE del currículo de ${prevLabel} que recibirás más arriba en el bloque "=== CURRÍCULO PRIORIZADO MinEduc 2025 ===". NO uses códigos del ${grade}.
+- Usa EXACTAMENTE el formato "## Sesión N: <tema>" (con doble almohadilla, la palabra Sesión, el número y dos puntos) — el sistema lo parsea para distribuir las sesiones en el calendario semanal.
 - Los subtemas distintos por sesión (no copies el mismo título N veces).
 - Actividades cortas y diagnósticas (no introducir contenido nuevo).
-- Usa EXACTAMENTE el formato "## Sesión N:" — el sistema lo parsea para distribuir las sesiones en el calendario semanal.
 
 ### 4. INSTRUMENTO DE EVALUACIÓN DIAGNÓSTICA
 Banco de mínimo 10 ítems imprimible que cubra las DCDs revisadas. Mezcla de tipos:
@@ -744,11 +744,9 @@ export async function POST(request: NextRequest) {
     const content = message.content[0].type === 'text' ? message.content[0].text : ''
     const wasTruncated = message.stop_reason === 'max_tokens'
 
-    // ── Parsear sesiones del markdown si aplica (modo semanal) ──
-    // Formato esperado: "## Sesión N: <subtema>"
-    // Acepta variantes: "## Sesion N:", con o sin tilde.
     const sesiones: Array<{ numero: number; tema: string; duracion_min: number }> = []
-    const sesionRegex = /^##\s+Sesi[oó]n\s+(\d+)\s*:\s*(.+?)\s*$/gim
+    // Regex robusta: admite Sesión/Sesion, con/sin tilde, opcionalmente el nro pegado, opcionalmente : o - o espacio.
+    const sesionRegex = /^##\s*Sesi[oó]n\s*(\d+)\s*[:\-–]?\s*(.*)$/gim
     let m: RegExpExecArray | null
     while ((m = sesionRegex.exec(content)) !== null) {
       const numero = parseInt(m[1], 10)

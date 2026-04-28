@@ -55,8 +55,30 @@ type Planificacion = {
 
 function getSesiones(p: Planificacion | undefined | null): Sesion[] {
   const arr = p?.metadata?.sesiones
-  if (!Array.isArray(arr) || arr.length === 0) return []
-  return arr.filter((s: any) => s && typeof s.numero === 'number')
+  if (Array.isArray(arr) && arr.length > 0) {
+    return arr.filter((s: any) => s && typeof s.numero === 'number')
+  }
+
+  // Fallback: Parsear del contenido markdown si no hay metadata (para planes viejos)
+  const content = p?.metadata?.content || '' // A veces se guarda en metadata si es manual, o en p.content
+  const text = (p as any).content || content
+  if (!text || typeof text !== 'string') return []
+
+  const sesiones: Sesion[] = []
+  const sesionRegex = /^##\s*Sesi[oó]n\s*(\d+)\s*[:\-–]?\s*(.*)$/gim
+  let m: RegExpExecArray | null
+  while ((m = sesionRegex.exec(text)) !== null) {
+    const numero = parseInt(m[1], 10)
+    const tema = (m[2] || '').trim().slice(0, 100)
+    if (numero > 0 && !sesiones.some(s => s.numero === numero)) {
+      sesiones.push({
+        numero,
+        tema: tema || `Sesión ${numero}`,
+        duracion_min: 45 // default
+      })
+    }
+  }
+  return sesiones.sort((a,b) => a.numero - b.numero)
 }
 
 /**
