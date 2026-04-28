@@ -6,6 +6,8 @@ import { getMethodology } from '@/lib/pedagogy/methodologies'
 import { buildNeePromptBlock, getNeeType } from '@/lib/pedagogy/nee'
 import { fetchCurriculoBlock } from '@/lib/curriculo/lookup'
 import { getPreviousLevel } from '@/lib/curriculo/previous-grade'
+import { buildInsercionesPromptBlock, getInserciones } from '@/lib/pedagogy/inserciones'
+import { buildCompetenciasPromptBlock } from '@/lib/pedagogy/competencias-clave'
 import { extractDocxRaw } from '@/lib/extract/extractDocxRaw'
 import { resolveYearContext } from '@/lib/academic-year/server'
 
@@ -52,6 +54,7 @@ function buildPrompt(data: any, contextoExtra: string = '', detectedPlanificatio
   const {
     type, subject, grade, topic, duration, extra,
     trimestre, parcial, semana, eje, cuadernillo,
+    inserciones,
     periodMinutes, weeklyHours, totalWeeklyMinutes,
     teacherName, institutionName,
     methodology: methodologyCode,
@@ -60,7 +63,8 @@ function buildPrompt(data: any, contextoExtra: string = '', detectedPlanificatio
   const minPorSesion = Number(periodMinutes) || 45
   const totalMin = Number(totalWeeklyMinutes) || (numSesiones * minPorSesion)
 
-  const axis = eje || 'Justicia'
+  // axis (Eje Transversal legacy) ya no se usa — reemplazado por inserciones
+  // curriculares MinEduc 2025-2026 inyectadas vía buildInsercionesPromptBlock.
   const methodology = getMethodology(methodologyCode)
   const cuadernilloRef = cuadernillo ? `\nREFERENCIA CUADERNILLO DE TRABAJO: ${cuadernillo}. OBLIGATORIO: usa estos ejercicios en la fase de Aplicacion.` : ''
   const extraNotes = extra ? `\nNOTAS DEL DOCENTE: ${extra}` : ''
@@ -90,6 +94,11 @@ Uno o mas documentos del docente contienen una planificacion lista. Tu tarea PRI
     ? `- Período: SEMANA DE ADAPTACIÓN (primera semana del año lectivo, antes de cualquier parcial). NO menciones trimestre, parcial ni semana en los datos informativos del documento.`
     : `- Trimestre ${trimestre}, Parcial ${parcial}${semana ? `, Semana ${semana}` : ''}`
 
+  // Inserciones curriculares MinEduc 2025-2026 (multi-select del docente)
+  const insercionesBlock = buildInsercionesPromptBlock(inserciones)
+  // Instrucciones para que la IA marque las competencias clave en cada DCD
+  const competenciasBlock = buildCompetenciasPromptBlock()
+
   const commonHeader = `
 DATOS DEL CONTEXTO:
 - Institucion: ${institutionName || 'Institucion Educativa'}
@@ -100,9 +109,8 @@ ${tpsLine}
 - Duracion hora pedagogica: ${periodMinutes} minutos
 - Carga horaria semanal: ${weeklyHours} horas
 - Duracion de esta clase: ${duration}
-- Eje Transversal: ${axis}
 - Estrategia metodologica (Ciclo): ${methodology.name} (${methodology.description})
-${cuadernilloRef}${extraNotes}${ragContext}${planDetectedNote}`
+${cuadernilloRef}${extraNotes}${insercionesBlock}${competenciasBlock}${ragContext}${planDetectedNote}`
 
   if (type === 'clase') {
     const isAporte = semana === 6
@@ -792,6 +800,7 @@ export async function POST(request: NextRequest) {
           parcial:   isAdaptacion ? null : body.parcial,
           semana:    isAdaptacion ? null : body.semana,
           eje:       body.eje,
+          inserciones: Array.isArray(body.inserciones) ? body.inserciones : [],
           cuadernillo: body.cuadernillo,
           periodMinutes: body.periodMinutes,
           weeklyHours: body.weeklyHours,

@@ -7,6 +7,27 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { DeletePlanButton } from '@/components/planner/DeletePlanButton'
 import { PlanContent } from '@/components/planner/PlanContent'
+import { getInserciones } from '@/lib/pedagogy/inserciones'
+
+// Pequeño helper de render para los badges de inserciones MinEduc.
+function InsercionesBadges({ ids }: { ids: string[] }) {
+  const items = getInserciones(ids)
+  if (items.length === 0) return null
+  return (
+    <>
+      {items.map(i => (
+        <span
+          key={i.id}
+          className={`text-xs font-semibold px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${i.bg} ${i.border} ${i.text}`}
+          title={i.description}
+        >
+          <span aria-hidden>{i.emoji}</span>
+          {i.shortLabel}
+        </span>
+      ))}
+    </>
+  )
+}
 
 interface Props { params: { id: string } }
 
@@ -76,6 +97,9 @@ export default async function PlanificacionDetailPage({ params }: Props) {
               <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                 📚 Diagnóstico: {meta.cursoAnterior}
               </span>
+            )}
+            {Array.isArray(meta.inserciones) && meta.inserciones.length > 0 && (
+              <InsercionesBadges ids={meta.inserciones} />
             )}
             <span className="text-xs text-ink3">
               {format(new Date(plan.created_at), "d 'de' MMMM, yyyy", { locale: es })}

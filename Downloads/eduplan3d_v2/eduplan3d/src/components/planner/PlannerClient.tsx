@@ -13,6 +13,7 @@ import { METHODOLOGIES, DEFAULT_METHODOLOGY } from '@/lib/pedagogy/methodologies
 import { NEE_SIN_DISCAPACIDAD, NEE_CON_DISCAPACIDAD } from '@/lib/pedagogy/nee'
 import { scheduleAdaptationWeek } from '@/lib/actions/planner-setup'
 import { getPreviousLevel } from '@/lib/curriculo/previous-grade'
+import { INSERCIONES, type InsercionId } from '@/lib/pedagogy/inserciones'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TRIMESTRES = [
@@ -32,7 +33,8 @@ const SEMANAS = [
   { value: 6, label: 'Semana 6 (Aporte)' },
 ]
 
-const EJES_TRANSVERSALES = ['Justicia', 'Innovacion', 'Solidaridad']
+// EJES_TRANSVERSALES (Justicia/Innovacion/Solidaridad) eliminado en favor de
+// las Inserciones Curriculares MinEduc 2025-2026 (ver lib/pedagogy/inserciones.ts).
 
 const GENERATION_MODES = [
   { id: 'clase',   label: 'Clase diaria',     icon: FileText,     desc: 'Una sesion de clase' },
@@ -65,7 +67,8 @@ export function PlannerClient({
   const [parcial,    setParcial]    = useState(1)
   const [semana,     setSemana]     = useState(1)
   const [topic,      setTopic]      = useState('')
-  const [eje,        setEje]        = useState('Justicia')
+  const [eje,        setEje]        = useState('Justicia')  // legacy, queda por compat
+  const [inserciones, setInserciones] = useState<InsercionId[]>([])
   const [methodology, setMethodology] = useState(DEFAULT_METHODOLOGY)
   const [cuadernillo, setCuadernillo] = useState('')
   const [extra,      setExtra]      = useState('')
@@ -188,6 +191,7 @@ export function PlannerClient({
         parcial,
         semana,
         eje,
+        inserciones,
         cuadernillo,
         periodMinutes: minutesHora,
         weeklyHours,
@@ -582,25 +586,47 @@ export function PlannerClient({
           </div>
         )}
 
-        {/* Eje transversal */}
+        {/* Inserciones curriculares MinEduc 2025-2026 */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1.5">Eje transversal</label>
-          <div className="flex gap-1.5">
-            {EJES_TRANSVERSALES.map(e => (
-              <button
-                key={e}
-                onClick={() => setEje(e)}
-                className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold text-center border transition-all ${
-                  eje === e
-                    ? 'text-white border-transparent'
-                    : 'bg-bg border-surface2 text-ink3 hover:border-ink4'
-                }`}
-                style={eje === e ? { backgroundColor: '#7C6DFA' } : {}}
-              >
-                {e}
-              </button>
-            ))}
+          <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1.5">
+            Inserciones curriculares
+          </label>
+          <p className="text-[10px] text-ink4 mb-2 leading-snug">
+            Selecciona las que se integren naturalmente al tema. La IA las distribuirá <strong>dentro</strong> de las DCDs (no en sección aparte).
+          </p>
+          <div className="grid grid-cols-1 gap-1.5">
+            {INSERCIONES.map(i => {
+              const active = inserciones.includes(i.id)
+              return (
+                <button
+                  key={i.id}
+                  type="button"
+                  onClick={() =>
+                    setInserciones(prev =>
+                      prev.includes(i.id)
+                        ? prev.filter(x => x !== i.id)
+                        : [...prev, i.id]
+                    )
+                  }
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold border transition-all ${
+                    active
+                      ? `${i.bg} ${i.border} ${i.text}`
+                      : 'bg-bg border-surface2 text-ink3 hover:border-ink4'
+                  }`}
+                  title={i.description}
+                >
+                  <span className="text-base leading-none">{i.emoji}</span>
+                  <span className="flex-1 text-left">{i.label}</span>
+                  {active && <span className="text-[14px] leading-none">✓</span>}
+                </button>
+              )
+            })}
           </div>
+          {inserciones.length === 0 && (
+            <p className="text-[10px] text-amber-600 mt-1.5 italic">
+              ⚠ No has seleccionado inserciones — la IA generará la planificación sin integrarlas.
+            </p>
+          )}
         </div>
 
         {/* Estrategia metodológica */}

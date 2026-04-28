@@ -22,10 +22,37 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+// Burbujas de Competencias Clave MinEduc 2025-2026.
+// La IA marca cada DCD con {{C}}, {{CM}}, {{CD}}, {{CS}} (o combinaciones
+// como {{C,CD}}). Aquí los reemplazamos por badges visuales tipo burbuja.
+const COMPETENCIA_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  C:  { bg: '#a7f3d0', text: '#065f46', label: 'Comunicacionales'   },
+  CM: { bg: '#bfdbfe', text: '#1e3a8a', label: 'Matemáticas'        },
+  CD: { bg: '#fed7aa', text: '#7c2d12', label: 'Digitales'          },
+  CS: { bg: '#fde68a', text: '#78350f', label: 'Socioemocionales'   },
+}
+
+function renderCompetenciaBadges(codes: string): string {
+  // codes ej: "C" o "C,CD" o "CM,CS"
+  return codes.split(',')
+    .map(c => c.trim().toUpperCase())
+    .filter(c => COMPETENCIA_STYLES[c])
+    .map(c => {
+      const s = COMPETENCIA_STYLES[c]
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;background:${s.bg};color:${s.text};font-weight:700;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:4px;line-height:1.2;letter-spacing:0.5px;" title="${s.label}">${c}</span>`
+    })
+    .join('')
+}
+
 function inlineFormat(text: string): string {
-  // Markdown links [label](url) — rendered antes de bold/italic para que
+  // 1) Burbujas de competencias clave: {{C}}, {{C,CD}}, {{CM,CS}} → badges
+  let result = text.replace(/\{\{([CMDS, ]+)\}\}/g, (_, codes: string) =>
+    renderCompetenciaBadges(codes)
+  )
+
+  // 2) Markdown links [label](url) — rendered antes de bold/italic para que
   // asteriscos dentro de la URL no rompan
-  let result = text.replace(
+  result = result.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
     '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-violet-600 underline hover:text-violet-800 break-all">$1</a>'
   )
