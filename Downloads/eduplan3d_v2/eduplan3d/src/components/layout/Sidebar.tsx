@@ -60,6 +60,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
     color: 'from-rose/20 to-rose/5',
     items: [
       { href: '/dashboard/biblioteca',   icon: '📋', label: 'Planificaciones Docentes' },
+      { href: '/dashboard/inserciones-distribucion', icon: '🌍', label: 'Inserciones Curriculares' },
     ],
   },
   {

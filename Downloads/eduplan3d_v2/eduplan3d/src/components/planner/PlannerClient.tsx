@@ -14,6 +14,7 @@ import { NEE_SIN_DISCAPACIDAD, NEE_CON_DISCAPACIDAD } from '@/lib/pedagogy/nee'
 import { scheduleAdaptationWeek } from '@/lib/actions/planner-setup'
 import { getPreviousLevel } from '@/lib/curriculo/previous-grade'
 import { INSERCIONES, type InsercionId } from '@/lib/pedagogy/inserciones'
+import { getInstitutionalMatriz } from '@/lib/actions/inserciones-distribucion'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TRIMESTRES = [
@@ -39,6 +40,7 @@ const SEMANAS = [
 const GENERATION_MODES = [
   { id: 'clase',   label: 'Clase diaria',     icon: FileText,     desc: 'Una sesion de clase' },
   { id: 'parcial', label: 'Parcial completo', icon: CalendarDays, desc: '6 semanas de clases' },
+  { id: 'abp',     label: 'Proyecto ABP',     icon: Sparkles,     desc: 'Proyecto de 6 semanas' },
   { id: 'unidad',  label: 'Unidad didactica', icon: BookOpen,     desc: 'Unidad completa' },
   { id: 'adaptacion', label: 'Semana Adaptacion', icon: Sparkles,    desc: 'Diagnostico + Adaptacion' },
   { id: 'rubrica', label: 'Rubrica',          icon: Target,       desc: 'Evaluacion con descriptores' },
@@ -48,6 +50,7 @@ const GENERATION_MODES = [
 export function PlannerClient({
   teacherName, teacherPlan, institutionName,
   subjects, periodMinutes, parcialesCount = 2,
+  academicYearId,
 }: {
   teacherName: string
   teacherPlan: string
@@ -55,6 +58,7 @@ export function PlannerClient({
   subjects: any[]
   periodMinutes: number
   parcialesCount?: number
+  academicYearId: string | null
 }) {
   const router = useRouter()
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
@@ -69,10 +73,46 @@ export function PlannerClient({
   const [topic,      setTopic]      = useState('')
   const [eje,        setEje]        = useState('Justicia')  // legacy, queda por compat
   const [inserciones, setInserciones] = useState<InsercionId[]>([])
+  
+  // ── Auto-vincular Inserciones desde la Matriz Anual ──
+  useEffect(() => {
+    // Solo para docentes institucionales (los externos no tienen matriz centralizada)
+    if (!institutionName || !academicYearId) return
+
+    async function loadMatrizSugestion() {
+      try {
+        const res = await getInstitutionalMatriz({ academicYearId: academicYearId || undefined })
+        if (res.ok && res.rows) {
+          const row = res.rows.find(r => r.trimestre === trimestre)
+          if (row && row.inserciones) {
+            setInserciones(row.inserciones)
+            // Solo notificamos si hay algo que sugerir
+            if (row.inserciones.length > 0) {
+              toast(`Inserciones sugeridas por la institución para el Trimestre ${trimestre}`, {
+                icon: '🌍',
+                //@ts-ignore
+                style: { fontSize: '12px' }
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[loadMatrizSugestion]', e)
+      }
+    }
+    loadMatrizSugestion()
+  }, [trimestre, institutionName, academicYearId])
   const [methodology, setMethodology] = useState(DEFAULT_METHODOLOGY)
   const [cuadernillo, setCuadernillo] = useState('')
   const [extra,      setExtra]      = useState('')
   const [loading,    setLoading]    = useState(false)
+  
+  // Forzar metodología ABPr si el modo es ABP
+  useEffect(() => {
+    if (mode === 'abp') {
+      setMethodology('ABPR')
+    }
+  }, [mode])
   const [result,     setResult]     = useState<Planificacion | null>(null)
   const [results,    setResults]    = useState<Planificacion[]>([]) // for parcial mode
 
@@ -213,7 +253,7 @@ export function PlannerClient({
         diac_grado_real:    diacGradoReal.trim(),
       }
 
-      if (mode === 'parcial') {
+      if (mode === 'parcial' || mode === 'abp') {
         // Generate all 6 weeks — multiple calls
         const allResults: Planificacion[] = []
         let firstRagStats: any = null
@@ -221,7 +261,12 @@ export function PlannerClient({
           const res = await fetch('/api/planificaciones', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...payload, type: 'clase', semana: w, topic: topic || `Semana ${w}` }),
+            body: JSON.stringify({ 
+              ...payload, 
+              type: mode === 'abp' ? 'clase' : 'clase', // Ambas son clases semanales
+              semana: w, 
+              topic: topic || (mode === 'abp' ? `Semana ${w} del Proyecto ABP` : `Semana ${w}`) 
+            }),
           })
           const data = await res.json()
           if (!res.ok) throw new Error(data.error)
@@ -784,19 +829,19 @@ export function PlannerClient({
           {loading ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {mode === 'parcial' ? 'Generando 6 semanas...' : 'Generando...'}
+              {mode === 'parcial' || mode === 'abp' ? 'Generando 6 semanas...' : 'Generando...'}
             </>
           ) : (
             <>
               <Sparkles size={16} />
-              {mode === 'parcial' ? 'Generar parcial completo' : 'Generar con IA'}
+              {mode === 'parcial' || mode === 'abp' ? 'Generar proyecto / parcial' : 'Generar con IA'}
             </>
           )}
         </button>
 
-        {mode === 'parcial' && (
+        {(mode === 'parcial' || mode === 'abp') && (
           <p className="text-[10px] text-ink4 text-center">
-            Se generaran 6 planificaciones (1 por semana del parcial)
+            Se generaran 6 planificaciones (1 por semana del proyecto/parcial)
           </p>
         )}
       </div>
