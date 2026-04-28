@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { PlannerClient } from '@/components/planner/PlannerClient'
+import { resolveYearContext } from '@/lib/academic-year/server'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -81,6 +82,9 @@ export default async function PlanificadorPage() {
       .single()
     institutionName = data?.name || ''
   }
+  
+  const ycx = await resolveYearContext(user.id)
+  const academicYearId = ycx.viewingYearId || ycx.currentYearId || null
 
   // Empty state: planner_solo sin materias creadas
   if (isPlannerSolo && subjects.length === 0) {
@@ -123,6 +127,7 @@ export default async function PlanificadorPage() {
         subjects={subjects}
         periodMinutes={scheduleConfig?.period_minutes || 40}
         parcialesCount={scheduleConfig?.parciales_count || 2}
+        academicYearId={academicYearId}
       />
     </div>
   )

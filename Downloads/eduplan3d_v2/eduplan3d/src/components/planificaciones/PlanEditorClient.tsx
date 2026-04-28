@@ -59,6 +59,8 @@ export function PlanEditorClient({
   const [savingState, setSavingState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [lastSavedAt, setLastSavedAt] = useState<string>(plan.updatedAt)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isLetamendi = institutionName.toUpperCase().includes('LETAMENDI')
+  const isLetamendiAnnual = isLetamendi && plan.type === 'anual'
 
   // Plantilla MinEduc inicial (HTML) cuando el documento está vacío.
   const initialTemplate = useMemo(() => buildMinEducTemplate({
@@ -237,32 +239,57 @@ export function PlanEditorClient({
         {/* Header institucional NO editable, igual que libretas. Se imprime
             con el documento. */}
         <div className="plan-doc-header px-8 pt-8 pb-4 print:px-3 print:pt-3 print:pb-2">
-          <div className="flex items-center gap-4 border-b-2 border-black pb-3">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt="Logo"
-                className="w-16 h-16 object-contain print:w-14 print:h-14"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-lg border border-dashed border-ink4 flex items-center justify-center text-[9px] text-ink4 text-center px-1">
-                Logo
+          {isLetamendiAnnual ? (
+            <div className="letamendi-annual-header">
+              <div className="letamendi-annual-header__top">
+                <div className="letamendi-annual-header__logo">
+                  {logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={logoUrl} alt="Logo" className="w-16 h-16 object-contain print:w-14 print:h-14" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg border border-dashed border-ink4 flex items-center justify-center text-[9px] text-ink4 text-center px-1">
+                      Logo
+                    </div>
+                  )}
+                </div>
+                <div className="letamendi-annual-header__title">
+                  {institutionName}
+                </div>
+                <div className="letamendi-annual-header__year">
+                  <div className="font-bold">Año lectivo:</div>
+                  <div>2026 - 2027</div>
+                </div>
               </div>
-            )}
-            <div className="flex-1 text-center">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-ink">
-                {institutionName.toUpperCase()}
-              </h2>
-              <p className="text-[10px] font-semibold tracking-widest text-ink3 mt-0.5 uppercase">
-                Planificación Microcurricular
-              </p>
-              <p className="text-[10px] font-semibold tracking-wider text-ink3 mt-1">
-                {plan.subjectName} · {plan.courseName}
-              </p>
+              <div className="letamendi-annual-header__plan-title">PLAN CURRICULAR ANUAL</div>
             </div>
-            <div className="w-16" /> {/* spacer simétrico */}
-          </div>
+          ) : (
+            <div className="flex items-center gap-4 border-b-2 border-black pb-3">
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="w-16 h-16 object-contain print:w-14 print:h-14"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-lg border border-dashed border-ink4 flex items-center justify-center text-[9px] text-ink4 text-center px-1">
+                  Logo
+                </div>
+              )}
+              <div className="flex-1 text-center">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-ink">
+                  {institutionName.toUpperCase()}
+                </h2>
+                <p className="text-[10px] font-semibold tracking-widest text-ink3 mt-0.5 uppercase">
+                  Planificación Microcurricular
+                </p>
+                <p className="text-[10px] font-semibold tracking-wider text-ink3 mt-1">
+                  {plan.subjectName} · {plan.courseName}
+                </p>
+              </div>
+              <div className="w-16" /> {/* spacer simétrico */}
+            </div>
+          )}
         </div>
 
         {/* Editor TipTap (ahora sin border/shadow propio, lo da el wrap) */}
@@ -321,6 +348,67 @@ export function PlanEditorClient({
           border: 1px solid #d1d5db;
           padding: 6px 8px;
           vertical-align: middle;
+        }
+        .plan-editor-prose .letamendi-plan-table {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 0 0 14px 0;
+          font-size: 12px;
+        }
+        .plan-editor-prose .letamendi-plan-table th,
+        .plan-editor-prose .letamendi-plan-table td {
+          border: 1px solid #111;
+          padding: 4px 6px;
+          vertical-align: top;
+        }
+        .plan-editor-prose .letamendi-plan-table th {
+          background: #f8f8f8;
+          font-weight: 700;
+          text-align: center;
+        }
+        .plan-editor-prose .letamendi-plan-table .section-title {
+          font-weight: 700;
+          background: #f8f8f8;
+        }
+        .letamendi-annual-header {
+          border: 1px solid #111;
+          margin-bottom: 12px;
+        }
+        .letamendi-annual-header__top {
+          display: grid;
+          grid-template-columns: 126px 1fr 122px;
+          align-items: stretch;
+        }
+        .letamendi-annual-header__logo,
+        .letamendi-annual-header__title,
+        .letamendi-annual-header__year {
+          border-right: 1px solid #111;
+          min-height: 96px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 10px;
+          text-align: center;
+        }
+        .letamendi-annual-header__year {
+          border-right: none;
+          flex-direction: column;
+          gap: 10px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        .letamendi-annual-header__title {
+          font-size: 22px;
+          font-weight: 800;
+          line-height: 1.1;
+          padding: 12px 18px;
+        }
+        .letamendi-annual-header__plan-title {
+          border-top: 1px solid #111;
+          text-align: center;
+          font-weight: 800;
+          font-size: 14px;
+          padding: 4px 8px;
         }
         .plan-editor-prose .ProseMirror-selectednode {
           outline: 2px solid #7c3aed;
@@ -490,6 +578,14 @@ function buildMinEducTemplate({
   type: PlanManualType
   unitNumber?: number | null
 }): string {
+  if (institutionName.toUpperCase().includes('LETAMENDI') && type === 'anual') {
+    return buildLetamendiAnnualTemplate({
+      teacherName,
+      subjectName,
+      courseName,
+    })
+  }
+
   if (institutionName.toUpperCase().includes('LETAMENDI') && type === 'semanal') {
     return buildLetamendiWeeklyTemplate({
       teacherName,
@@ -554,6 +650,162 @@ function buildMinEducTemplate({
   </thead>
   <tbody>
     <tr><td><p></p></td><td><p></p></td><td><p></p></td><td><p></p></td><td><p></p></td></tr>
+  </tbody>
+</table>
+  `.trim()
+}
+
+function buildLetamendiAnnualTemplate({
+  teacherName,
+  subjectName,
+  courseName,
+}: {
+  teacherName: string
+  subjectName: string
+  courseName: string
+}): string {
+  return `
+<table class="letamendi-plan-table">
+  <tbody>
+    <tr><td colspan="5" class="section-title">1. Datos informativos</td></tr>
+    <tr>
+      <td><strong>Área:</strong></td>
+      <td colspan="2">${escapeHtml(subjectName)}</td>
+      <td><strong>Asignatura:</strong></td>
+      <td>${escapeHtml(subjectName)}</td>
+    </tr>
+    <tr>
+      <td><strong>Docente(s):</strong></td>
+      <td colspan="4">${escapeHtml(teacherName)}</td>
+    </tr>
+    <tr>
+      <td><strong>Grado/curso:</strong></td>
+      <td>${escapeHtml(courseName)}</td>
+      <td><strong>Nivel educativo:</strong></td>
+      <td colspan="2"></td>
+    </tr>
+    <tr><td colspan="5" class="section-title">2. Tiempo</td></tr>
+    <tr>
+      <th>Carga horaria semanal</th>
+      <th>Número de semanas de trabajo</th>
+      <th>Evaluación del aprendizaje e imprevistos</th>
+      <th>Total de semanas clases</th>
+      <th>Total de periodos</th>
+    </tr>
+    <tr>
+      <td style="text-align:center">6 horas</td>
+      <td style="text-align:center">40 semanas</td>
+      <td style="text-align:center">5 semanas</td>
+      <td style="text-align:center">35 semanas</td>
+      <td style="text-align:center">200 horas</td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="letamendi-plan-table">
+  <tbody>
+    <tr><td colspan="2" class="section-title">3. Objetivos generales</td></tr>
+    <tr>
+      <th>Objetivos del área</th>
+      <th>Objetivos del grado/curso</th>
+    </tr>
+    <tr>
+      <td>
+        <p>OG.LL.1. Desempeñarse como usuarios competentes de la cultura escrita en diversos contextos personales, sociales y culturales para actuar con autonomía y ejercer una ciudadanía plena.</p>
+        <p>....................................................................</p>
+      </td>
+      <td>
+        <p>O.LL.3.1. Interactuar con diversas expresiones culturales para acceder, participar y apropiarse de la cultura escrita.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Ejes transversales</strong></td>
+      <td>
+        <ul>
+          <li>La interculturalidad.</li>
+          <li>La formación de una ciudadanía democrática.</li>
+          <li>La protección del medioambiente.</li>
+          <li>El cuidado de la salud y los hábitos de recreación de los estudiantes.</li>
+          <li>Educación vial.</li>
+          <li>Gestión de riesgo.</li>
+          <li>Diversidades culturales, étnicas y discapacidades.</li>
+        </ul>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="letamendi-plan-table">
+  <tbody>
+    <tr><td colspan="7" class="section-title">Desarrollo de unidades de planificación</td></tr>
+    <tr>
+      <th style="width:4%">N.º</th>
+      <th style="width:16%">Título de la unidad de planificación</th>
+      <th style="width:17%">Objetivos específicos de la unidad de planificación</th>
+      <th style="width:18%">Contenidos (Destrezas con criterios de desempeño)</th>
+      <th style="width:16%">Estrategias metodológicas</th>
+      <th style="width:24%">Evaluación (Criterio de evaluación e indicadores)</th>
+      <th style="width:5%">Duración en semanas</th>
+    </tr>
+    <tr>
+      <td style="text-align:center">1</td>
+      <td>La información mueve el mundo</td>
+      <td>O.LL.3.1. Interactuar con diversas expresiones culturales para acceder, participar y apropiarse de la cultura escrita.</td>
+      <td>LL.3.5.1. Reconocer en un texto literario los elementos característicos que le dan sentido.</td>
+      <td>
+        <p>ERCA</p>
+        <p>- Experiencia</p>
+        <p>- Reflexión</p>
+        <p>- Conceptualización</p>
+        <p>- Aplicación</p>
+        <p><strong>Aprendizaje Cooperativo.</strong></p>
+        <p><strong>ABJ</strong></p>
+      </td>
+      <td>CE.LL.3.7. Elige lecturas basándose en preferencias personales, reconoce los elementos característicos que le dan sentido y participa en discusiones literarias, desarrollando la lectura crítica.</td>
+      <td style="text-align:center">6</td>
+    </tr>
+    <tr><td style="height:54px"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td style="height:54px"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td style="height:54px"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    <tr><td style="height:54px"></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+  </tbody>
+</table>
+
+<table class="letamendi-plan-table">
+  <tbody>
+    <tr>
+      <td class="section-title" style="width:68%">6. Bibliografía y webgrafía</td>
+      <td class="section-title" style="width:32%">7. Observaciones</td>
+    </tr>
+    <tr>
+      <td style="height:64px"></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="letamendi-plan-table">
+  <tbody>
+    <tr>
+      <td><strong>Elaborado:</strong></td>
+      <td><strong>Revisado:</strong></td>
+      <td><strong>Aprobado:</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Cargo:</strong></td>
+      <td><strong>Cargo:</strong></td>
+      <td><strong>Cargo:</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Firma:</strong></td>
+      <td><strong>Firma:</strong></td>
+      <td><strong>Firma:</strong></td>
+    </tr>
+    <tr>
+      <td><strong>Fecha:</strong></td>
+      <td><strong>Fecha:</strong></td>
+      <td><strong>Fecha:</strong></td>
+    </tr>
   </tbody>
 </table>
   `.trim()
