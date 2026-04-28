@@ -284,19 +284,40 @@ export function PlannerClient({
       }
 
       if (mode === 'parcial' || mode === 'abp') {
-        // Generate all 6 weeks — multiple calls
         const allResults: Planificacion[] = []
         let firstRagStats: any = null
-        for (let w = 1; w <= 6; w++) {
+
+        // Para EFL: parcial = 3 mini-unidades de 2 semanas (no 6 clases semanales).
+        // Estructura más coherente con el currículo MinEduc EFL alineado al CEFR.
+        const useEflMiniUnits = isEFL && mode === 'parcial'
+        const totalIters = useEflMiniUnits ? 3 : 6
+
+        for (let i = 1; i <= totalIters; i++) {
+          let iterBody: any
+          if (useEflMiniUnits) {
+            // 3 unidades EFL de 2 semanas cada una
+            iterBody = {
+              ...payload,
+              type: 'unidad',
+              unitNumber: i,
+              unitTotal: 3,
+              semana: null,                // unidad no usa semana
+              topic: topic || `EFL Unit ${i}`,
+              // Cada mini-unit cubre 2 semanas → duplicamos el tiempo total esperado
+              totalWeeklyMinutes: minutesHora * weeklyHours * 2,
+            }
+          } else {
+            iterBody = {
+              ...payload,
+              type: 'clase', // Tanto parcial como ABP en modo no-EFL son clases semanales
+              semana: i,
+              topic: topic || (mode === 'abp' ? `Semana ${i} del Proyecto ABP` : `Semana ${i}`),
+            }
+          }
           const res = await fetch('/api/planificaciones', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              ...payload, 
-              type: mode === 'abp' ? 'clase' : 'clase', // Ambas son clases semanales
-              semana: w, 
-              topic: topic || (mode === 'abp' ? `Semana ${w} del Proyecto ABP` : `Semana ${w}`) 
-            }),
+            body: JSON.stringify(iterBody),
           })
           const data = await res.json()
           if (!res.ok) throw new Error(data.error)
@@ -671,6 +692,13 @@ export function PlannerClient({
                 el documento por las 5 destrezas comunicativas MinEduc EFL
                 (Communication, Oral, Reading, Writing, Language through the Arts)
                 con DCDs específicas <code className="text-[10px]">EFL.x.x.x</code>.
+                {mode === 'parcial' && (
+                  <div className="mt-1.5 pt-1.5 border-t border-cyan-200">
+                    <strong>Parcial EFL:</strong> en vez de 6 clases semanales,
+                    se generan <strong>3 mini-units de ~2 semanas</strong> cada
+                    una (más coherente con CEFR).
+                  </div>
+                )}
               </div>
             </div>
 
@@ -930,12 +958,20 @@ export function PlannerClient({
           {loading ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {mode === 'parcial' || mode === 'abp' ? 'Generando 6 semanas...' : 'Generando...'}
+              {mode === 'parcial' && isEFL
+                ? 'Generando 3 EFL mini-units...'
+                : mode === 'parcial' || mode === 'abp'
+                  ? 'Generando 6 semanas...'
+                  : 'Generando...'}
             </>
           ) : (
             <>
               <Sparkles size={16} />
-              {mode === 'parcial' || mode === 'abp' ? 'Generar proyecto / parcial' : 'Generar con IA'}
+              {mode === 'parcial' && isEFL
+                ? 'Generar parcial (3 EFL units)'
+                : mode === 'parcial' || mode === 'abp'
+                  ? 'Generar proyecto / parcial'
+                  : 'Generar con IA'}
             </>
           )}
         </button>
