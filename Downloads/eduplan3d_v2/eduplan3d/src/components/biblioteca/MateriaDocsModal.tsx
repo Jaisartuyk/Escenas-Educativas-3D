@@ -261,8 +261,8 @@ export function MateriaDocsModal({
               disabled={uploading || !selectedFile || !titulo.trim()}
               className={`w-full py-3 rounded-xl text-sm font-bold transition-all disabled:cursor-not-allowed
                 ${!selectedFile || !titulo.trim() || uploading
-                  ? 'bg-slate-100 text-slate-400 border border-slate-200'
-                  : 'bg-violet-600 text-white hover:bg-violet-700 shadow-md shadow-violet/20'
+                  ? 'bg-ink4/10 text-ink4 border border-line'
+                  : 'bg-violet text-white hover:bg-violet2 shadow-md shadow-violet/20'
                 }`}
             >
               {uploading ? (
@@ -271,7 +271,7 @@ export function MateriaDocsModal({
                   Subiendo…
                 </span>
               ) : (
-                '+ Agregar material'
+                '✓ Guardar documento'
               )}
             </button>
             {(!selectedFile || !titulo.trim()) && !uploading && (

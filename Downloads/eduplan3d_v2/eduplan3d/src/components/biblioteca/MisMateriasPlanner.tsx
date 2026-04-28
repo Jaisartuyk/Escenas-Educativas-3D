@@ -14,15 +14,15 @@ import { MateriaDocsModal, type PlannerSubject } from './MateriaDocsModal'
 
 // ── Paleta de colores determinista por materia ────────────────────────────────
 const PALETTE: Array<{ bg: string; border: string; text: string; solid: string; chip: string }> = [
-  { bg: 'bg-violet-500/10',  border: 'border-violet-500/30', text: 'text-violet-700', solid: 'bg-violet-500',  chip: 'bg-violet-500/15 text-violet-700' },
-  { bg: 'bg-teal-500/10',    border: 'border-teal-500/30',   text: 'text-teal-700',   solid: 'bg-teal-500',    chip: 'bg-teal-500/15 text-teal-700' },
-  { bg: 'bg-amber-500/10',   border: 'border-amber-500/30',  text: 'text-amber-700',  solid: 'bg-amber-500',   chip: 'bg-amber-500/15 text-amber-700' },
-  { bg: 'bg-rose-500/10',    border: 'border-rose-500/30',   text: 'text-rose-700',   solid: 'bg-rose-500',    chip: 'bg-rose-500/15 text-rose-700' },
-  { bg: 'bg-blue-500/10',    border: 'border-blue-500/30',   text: 'text-blue-700',   solid: 'bg-blue-500',    chip: 'bg-blue-500/15 text-blue-700' },
+  { bg: 'bg-violet/10',  border: 'border-violet/30', text: 'text-violet', solid: 'bg-violet',  chip: 'bg-violet/15 text-violet' },
+  { bg: 'bg-teal/10',    border: 'border-teal/30',   text: 'text-teal',   solid: 'bg-teal',    chip: 'bg-teal/15 text-teal' },
+  { bg: 'bg-amber/10',   border: 'border-amber/30',  text: 'text-amber',  solid: 'bg-amber',   chip: 'bg-amber/15 text-amber' },
+  { bg: 'bg-rose/10',    border: 'border-rose/30',   text: 'text-rose',   solid: 'bg-rose',    chip: 'bg-rose/15 text-rose' },
+  { bg: 'bg-violet2/10', border: 'border-violet2/30',text: 'text-violet2',solid: 'bg-violet2', chip: 'bg-violet2/15 text-violet2' },
+  { bg: 'bg-indigo-500/10', border: 'border-indigo-500/30',text: 'text-indigo-700',solid: 'bg-indigo-500', chip: 'bg-indigo-500/15 text-indigo-700' },
   { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30',text: 'text-emerald-700',solid: 'bg-emerald-500', chip: 'bg-emerald-500/15 text-emerald-700' },
   { bg: 'bg-orange-500/10',  border: 'border-orange-500/30', text: 'text-orange-700', solid: 'bg-orange-500',  chip: 'bg-orange-500/15 text-orange-700' },
   { bg: 'bg-pink-500/10',    border: 'border-pink-500/30',   text: 'text-pink-700',   solid: 'bg-pink-500',    chip: 'bg-pink-500/15 text-pink-700' },
-  { bg: 'bg-indigo-500/10',  border: 'border-indigo-500/30', text: 'text-indigo-700', solid: 'bg-indigo-500',  chip: 'bg-indigo-500/15 text-indigo-700' },
   { bg: 'bg-cyan-500/10',    border: 'border-cyan-500/30',   text: 'text-cyan-700',   solid: 'bg-cyan-500',    chip: 'bg-cyan-500/15 text-cyan-700' },
 ]
 
