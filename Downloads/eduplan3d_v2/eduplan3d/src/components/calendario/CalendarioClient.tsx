@@ -54,57 +54,64 @@ type Planificacion = {
 }
 
 function getSesiones(p: Planificacion | undefined | null): Sesion[] {
-  const arr = p?.metadata?.sesiones
+  const meta = p?.metadata || {}
+  const arr = (meta as any)?.sesiones
   if (Array.isArray(arr) && arr.length > 0) {
     return arr.filter((s: any) => s && typeof s.numero === 'number')
   }
 
-  // Fallback: Parsear del contenido markdown si no hay metadata (para planes viejos)
-  const content = p?.metadata?.content || '' // A veces se guarda en metadata si es manual, o en p.content
-  const text = (p as any).content || content
-  if (!text || typeof text !== 'string') return []
+  // Fallback: Parsear del contenido markdown
+  let text = (p as any).content || (meta as any).content || ''
+  if (typeof text !== 'string') {
+    try { text = JSON.stringify(text) } catch { text = '' }
+  }
+  if (!text) return []
 
   const sesiones: Sesion[] = []
-  const sesionRegex = /^##\s*Sesi[oó]n\s*(\d+)\s*[:\-–]?\s*(.*)$/gim
+  // Regex extrema: cualquier cabecera (o ninguna) + Sesion + numero + cualquier separador
+  const sesionRegex = /^(?:#{1,5}\s*)?Sesi[oó]n\s*(\d+)\s*[:\-–.]?\s*(.*)$/gim
   let m: RegExpExecArray | null
   while ((m = sesionRegex.exec(text)) !== null) {
     const numero = parseInt(m[1], 10)
-    const tema = (m[2] || '').trim().slice(0, 100)
+    const tema = (m[2] || '').trim().split('\n')[0].replace(/[#*]/g, '').trim().slice(0, 100)
     if (numero > 0 && !sesiones.some(s => s.numero === numero)) {
       sesiones.push({
         numero,
         tema: tema || `Sesión ${numero}`,
-        duracion_min: 45 // default
+        duracion_min: 45
       })
     }
   }
   return sesiones.sort((a,b) => a.numero - b.numero)
 }
 
-/**
- * Extrae el bloque markdown de la sesión N de un contenido completo.
- * Busca "## Sesión N: ..." hasta el siguiente "## Sesión M:" o "###" final.
- * Si no encuentra, devuelve el contenido completo (compat con planes viejos).
- */
 function extractSesionMarkdown(content: string | null | undefined, numero: number | null): string {
   if (!content) return ''
-  if (numero == null) return content
-  // Busca "## Sesión N:" tolerando tilde / sin tilde / espacios
+  let text = content
+  if (typeof text !== 'string') {
+    try { text = JSON.stringify(text, null, 2) } catch { text = '' }
+  }
+  if (numero == null) return text
+
+  // Busca cualquier cabecera que empiece con "Sesión N"
   const startRegex = new RegExp(
-    `^##\\s+Sesi[oó]n\\s+${numero}\\s*:[^\\n]*$`,
+    `^(?:#{1,5}\\s*)?Sesi[oó]n\\s*${numero}\\s*[:\\-–.]?.*$`,
     'im'
   )
-  const startMatch = startRegex.exec(content)
-  if (!startMatch || startMatch.index == null) return content
+  const startMatch = startRegex.exec(text)
+  if (!startMatch || startMatch.index == null) return text
+  
   const startIdx = startMatch.index
-  // Busca siguiente "## Sesión" o "###" o "## " del nivel principal
-  const rest = content.slice(startIdx + startMatch[0].length)
-  const nextRegex = /^##\s+(Sesi[oó]n\s+\d+|\d+\.)/im
+  const rest = text.slice(startIdx + startMatch[0].length)
+  
+  // Busca el inicio de la siguiente sesión o sección principal
+  const nextRegex = /^(?:#{1,5}\s*)?(?:Sesi[oó]n\s*(\d+)|[A-Z0-9]{1,2}\.\s+|#{1,3}\s+)/im
   const nextMatch = nextRegex.exec(rest)
   const endIdx = nextMatch && nextMatch.index != null
     ? startIdx + startMatch[0].length + nextMatch.index
-    : content.length
-  return content.slice(startIdx, endIdx).trim()
+    : text.length
+    
+  return text.slice(startIdx, endIdx).trim()
 }
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
