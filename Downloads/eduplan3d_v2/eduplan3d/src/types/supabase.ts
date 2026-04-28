@@ -29,7 +29,7 @@ export interface Database {
           id: string
           user_id: string
           title: string
-          type: 'clase' | 'unidad' | 'rubrica'
+          type: 'clase' | 'unidad' | 'rubrica' | 'adaptacion' | 'diagnostica'
           subject: string
           grade: string
           topic: string
@@ -48,7 +48,7 @@ export interface Database {
     Functions: Record<string, never>
     Enums: {
       plan_type: 'free' | 'pro' | 'institucion'
-      planificacion_type: 'clase' | 'unidad' | 'rubrica'
+      planificacion_type: 'clase' | 'unidad' | 'rubrica' | 'adaptacion' | 'diagnostica'
       user_role: UserRole
     }
   }
@@ -59,7 +59,7 @@ export interface Database {
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Planificacion = Database['public']['Tables']['planificaciones']['Row']
 
-export type PlanType = 'clase' | 'unidad' | 'rubrica'
+export type PlanType = 'clase' | 'unidad' | 'rubrica' | 'adaptacion' | 'diagnostica'
 
 export interface PlanificacionFormData {
   subject: string

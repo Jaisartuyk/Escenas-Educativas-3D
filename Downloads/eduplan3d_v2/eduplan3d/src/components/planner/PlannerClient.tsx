@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { METHODOLOGIES, DEFAULT_METHODOLOGY } from '@/lib/pedagogy/methodologies'
 import { NEE_SIN_DISCAPACIDAD, NEE_CON_DISCAPACIDAD } from '@/lib/pedagogy/nee'
+import { scheduleAdaptationWeek } from '@/lib/actions/planner-setup'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TRIMESTRES = [
@@ -36,6 +37,7 @@ const GENERATION_MODES = [
   { id: 'clase',   label: 'Clase diaria',     icon: FileText,     desc: 'Una sesion de clase' },
   { id: 'parcial', label: 'Parcial completo', icon: CalendarDays, desc: '6 semanas de clases' },
   { id: 'unidad',  label: 'Unidad didactica', icon: BookOpen,     desc: 'Unidad completa' },
+  { id: 'adaptacion', label: 'Semana Adaptacion', icon: Sparkles,    desc: 'Diagnostico + Adaptacion' },
   { id: 'rubrica', label: 'Rubrica',          icon: Target,       desc: 'Evaluacion con descriptores' },
 ]
 
@@ -52,9 +54,11 @@ export function PlannerClient({
   parcialesCount?: number
 }) {
   const router = useRouter()
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+  const initialMode = searchParams?.get('mode') || 'clase'
 
   // Form state
-  const [mode,       setMode]       = useState('clase')
+  const [mode,       setMode]       = useState(initialMode)
   const [subjectId,  setSubjectId]  = useState('')
   const [trimestre,  setTrimestre]  = useState(1)
   const [parcial,    setParcial]    = useState(1)
@@ -80,6 +84,16 @@ export function PlannerClient({
   const [variants, setVariants] = useState<Planificacion[]>([])
   const [activeTab, setActiveTab] = useState<'regular' | 'nee_sin_disc' | 'diac'>('regular')
   const [detectedPlanification, setDetectedPlanification] = useState(false)
+
+  // Scheduling state
+  const [mondayStartDate, setMondayStartDate] = useState(() => {
+    const d = new Date()
+    const dow = d.getDay()
+    const diff = dow === 0 ? -6 : 1 - dow
+    d.setDate(d.getDate() + diff)
+    return d.toISOString().split('T')[0]
+  })
+  const [scheduling, setScheduling] = useState(false)
 
   function toggleNeeSinDiscCode(code: string) {
     setNeeSinDiscCodes(prev =>
@@ -292,6 +306,27 @@ export function PlannerClient({
   function handleCopy(content: string) {
     navigator.clipboard.writeText(content)
     toast.success('Copiado al portapapeles')
+  }
+
+  async function handleAutoSchedule() {
+    if (!result || !mondayStartDate) return
+    setScheduling(true)
+    const t = toast.loading('Agendando semana...')
+    try {
+      const res = await scheduleAdaptationWeek({
+        planificacionId: result.id,
+        mondayDate: mondayStartDate
+      })
+      if (res.ok) {
+        toast.success('¡Semana programada en el calendario!', { id: t })
+      } else {
+        toast.error(res.error || 'Error al agendar', { id: t })
+      }
+    } catch (err: any) {
+      toast.error(err.message, { id: t })
+    } finally {
+      setScheduling(false)
+    }
   }
 
   const showSemana = mode === 'clase'
@@ -740,6 +775,40 @@ export function PlannerClient({
             </div>
           )}
         </div>
+
+        {/* ── Auto-Scheduling Banner (Special for Adaptation) ── */}
+        {result && (result.type === 'adaptacion' || result.type === 'diagnostica') && (
+          <div className="mx-6 mt-4 p-4 rounded-xl bg-violet/5 border border-violet/10 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-violet text-white flex items-center justify-center shadow-sm">
+                <CalendarDays size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-ink">Agendar esta semana</p>
+                <p className="text-xs text-ink3">Registra automáticamente las sesiones en el calendario.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-ink4 uppercase">Lunes de inicio</span>
+                <input
+                  type="date"
+                  value={mondayStartDate}
+                  onChange={e => setMondayStartDate(e.target.value)}
+                  className="bg-white border border-surface2 rounded-lg px-2 py-1 text-xs"
+                />
+              </div>
+              <button
+                onClick={handleAutoSchedule}
+                disabled={scheduling}
+                className="btn-primary h-9 px-4 text-xs flex items-center gap-2"
+                style={{ backgroundColor: '#7C6DFA' }}
+              >
+                {scheduling ? 'Agendando...' : 'Programar semana'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="flex-1 flex items-center justify-center p-12">

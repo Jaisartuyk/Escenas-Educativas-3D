@@ -192,6 +192,31 @@ Estructura obligatoria:
 Usa tablas Markdown limpias y profesionales.`.trim()
   }
 
+  // Semana de Adaptación / Diagnóstico
+  if (type === 'adaptacion' || type === 'diagnostica') {
+    const gradeMatch = grade.match(/(\d+)/)
+    const currentGradeNum = gradeMatch ? parseInt(gradeMatch[1], 10) : null
+    const prevGrade = currentGradeNum ? `${currentGradeNum - 1}${grade.replace(/\d+/, '')}` : 'el grado anterior'
+
+    return `Genera una PLANIFICACIÓN DE SEMANA DE ADAPTACIÓN Y EVALUACIÓN DIAGNÓSTICA:
+${commonHeader}
+- Objetivo: Evaluar los conocimientos previos y facilitar la transición al nuevo año lectivo.
+- Referencia curricular: BASADO EN EL CURRÍCULO DE ${prevGrade.toUpperCase()}.
+
+ESTRUCTURA OBLIGATORIA:
+1. ACTIVIDADES DE ADAPTACIÓN (Semanas 1 y 2): Dinámicas de grupo, acuerdos de convivencia y ambientación.
+2. REPASO DE CONOCIMIENTOS PREVIOS: Selección de los 3-5 temas más críticos de ${prevGrade} necesarios para este año.
+3. PRUEBA DIAGNÓSTICA (Contenido para imprimir):
+   - Genera un "Banco de Preguntas" (mínimo 10 items).
+   - Incluye destrezas del año anterior (${prevGrade}).
+   - Tipos de preguntas: Opción múltiple, completar, relacionar y resolución de problemas.
+4. TABLA DE PLANIFICACIÓN SEMANAL (Formato estándar) cubriendo ${numSesiones} sesiones:
+   | Sesión | Actividad | Destreza (Grado Anterior) | Indicador |
+   |---|---|---|---|
+
+Usa un tono alentador y profesional.`.trim()
+  }
+
   // Rubrica
   return `Genera una RUBRICA DE EVALUACION con formato MINEDUC:
 ${commonHeader}

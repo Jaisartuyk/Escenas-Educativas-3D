@@ -8,7 +8,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
-import { Plus, BookOpen, Trash2, X, FileText } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Plus, BookOpen, Trash2, X, FileText, Sparkles } from 'lucide-react'
 import { MateriaDocsModal, type PlannerSubject } from './MateriaDocsModal'
 
 // ── Paleta de colores determinista por materia ────────────────────────────────
@@ -35,6 +36,7 @@ function colorFor(id: string) {
 const NIVEL_OPTIONS = ['Preescolar', 'EGB', 'BGU', 'Bachillerato Técnico', 'Otro']
 
 export function MisMateriasPlanner() {
+  const router = useRouter()
   const supabase = createClient()
   const [subjects, setSubjects] = useState<PlannerSubject[]>([])
   const [loading, setLoading] = useState(true)
@@ -141,6 +143,31 @@ export function MisMateriasPlanner() {
 
   return (
     <div className="space-y-6">
+      {/* ── Banner Inicio de Año ─────────────────────────────────────── */}
+      {subjects.length > 0 && (
+        <div className="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden animate-fade-in mb-8">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Sparkles size={120} />
+          </div>
+          <div className="relative z-10 max-w-2xl">
+            <h2 className="font-display text-xl md:text-2xl font-bold mb-2 flex items-center gap-2">
+              <Sparkles className="animate-pulse" /> Inicio de Año Lectivo
+            </h2>
+            <p className="text-white/80 text-sm md:text-base mb-5 leading-relaxed">
+              Prepara tu **Semana de Adaptación** y **Pruebas Diagnósticas** automáticamente. 
+              La IA generará repasos basados en el año anterior para cada una de tus materias.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push('/dashboard/planificador?mode=adaptacion')}
+                className="bg-white text-violet-600 hover:bg-violet-50 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2"
+              >
+                Configurar Semana de Adaptación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ── Stats + botón crear ─────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-5 flex-wrap">
