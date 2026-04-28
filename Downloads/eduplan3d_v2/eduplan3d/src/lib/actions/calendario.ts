@@ -210,6 +210,7 @@ export async function listarRango(input: {
   hasta: string
   grupo?: string | null
   asignatura?: string | null
+  grado?: string | null
 }): Promise<AgendaEntryWithPlan[]> {
   const sb = createServerClient()
   const { data: { user } } = await sb.auth.getUser()
@@ -236,6 +237,9 @@ export async function listarRango(input: {
   let rows = (data || []) as AgendaEntryWithPlan[]
   if (input.asignatura) {
     rows = rows.filter(r => r.planificacion?.subject === input.asignatura)
+  }
+  if (input.grado) {
+    rows = rows.filter(r => r.planificacion?.grade === input.grado)
   }
   return rows
 }

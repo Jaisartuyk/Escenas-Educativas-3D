@@ -393,11 +393,16 @@ export function CalendarioClient({
 
   // Cargar entradas del rango
   const reload = async () => {
+    const [valAsig, valGrado] = filterSubject.includes('|') 
+      ? filterSubject.split('|') 
+      : [filterSubject, null]
+      
     const data = await listarRango({
       desde,
       hasta,
       grupo: filterGrupo || null,
-      asignatura: filterSubject || null,
+      asignatura: valAsig || null,
+      grado: valGrado || null
     })
     setEntries(data)
   }
@@ -407,11 +412,21 @@ export function CalendarioClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desde, hasta, filterSubject, filterGrupo])
 
-  // Asignaturas y grupos disponibles para filtros
-  const subjects = useMemo(() => {
-    const s = new Set<string>()
-    planificaciones.forEach(p => p.subject && s.add(p.subject))
-    return Array.from(s).sort()
+  // Asignaturas y grados disponibles para filtros
+  const filterOptions = useMemo(() => {
+    const s = new Map<string, string>() // value -> label
+    planificaciones.forEach(p => {
+      if (p.subject && p.grade) {
+        const value = `${p.subject}|${p.grade}`
+        const label = `${p.subject} (${p.grade})`
+        s.set(value, label)
+      } else if (p.subject) {
+        s.set(p.subject, p.subject)
+      }
+    })
+    return Array.from(s.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
   }, [planificaciones])
 
   const grupos = useMemo(() => {
@@ -426,8 +441,14 @@ export function CalendarioClient({
   // del calendario, no por planificación. Aplica solo al calendario.
   const planesFiltrados = useMemo(() => {
     const q = search.trim().toLowerCase()
+    const [valAsig, valGrado] = filterSubject.includes('|') 
+      ? filterSubject.split('|') 
+      : [filterSubject, null]
+
     return planificaciones.filter(p => {
-      if (filterSubject && p.subject !== filterSubject) return false
+      if (valAsig && p.subject !== valAsig) return false
+      if (valGrado && p.grade !== valGrado) return false
+      
       if (q) {
         const hay =
           p.title.toLowerCase().includes(q) ||
@@ -563,8 +584,14 @@ export function CalendarioClient({
 
   const exportPDF = () => {
     const params = new URLSearchParams({ desde, hasta })
+    const [valAsig, valGrado] = filterSubject.includes('|') 
+      ? filterSubject.split('|') 
+      : [filterSubject, null]
+
     if (filterGrupo) params.set('grupo', filterGrupo)
-    if (filterSubject) params.set('asignatura', filterSubject)
+    if (valAsig) params.set('asignatura', valAsig)
+    if (valGrado) params.set('grado', valGrado)
+    
     window.open(`/api/calendario/export-pdf?${params.toString()}`, '_blank')
   }
 
@@ -592,8 +619,8 @@ export function CalendarioClient({
             className="w-full mb-2 px-2 py-1.5 text-xs border border-line rounded-md bg-white"
           >
             <option value="">Todas las asignaturas</option>
-            {subjects.map(s => (
-              <option key={s} value={s}>{s}</option>
+            {filterOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
 
@@ -666,8 +693,8 @@ export function CalendarioClient({
             </div>
           </div>
 
-          {/* ── Tabs por materia ─────────────────────────────────────── */}
-          {subjects.length > 0 && (
+          {/* ── Tabs por materia/curso ─────────────────────────────────── */}
+          {filterOptions.length > 0 && (
             <div className="mb-3 flex items-center gap-1 overflow-x-auto pb-1 border-b border-line">
               <button
                 onClick={() => setFilterSubject('')}
@@ -679,20 +706,23 @@ export function CalendarioClient({
               >
                 Todas ({entries.length})
               </button>
-              {subjects.map(s => {
-                const count = entries.filter(e => e.planificacion?.subject === s).length
-                const active = filterSubject === s
+              {filterOptions.map(opt => {
+                const [s, g] = opt.value.split('|')
+                const count = entries.filter(e => 
+                  e.planificacion?.subject === s && (!g || e.planificacion?.grade === g)
+                ).length
+                const active = filterSubject === opt.value
                 return (
                   <button
-                    key={s}
-                    onClick={() => setFilterSubject(s)}
+                    key={opt.value}
+                    onClick={() => setFilterSubject(opt.value)}
                     className={`shrink-0 px-3 py-1.5 text-xs font-semibold rounded-t-md border-b-2 transition ${
                       active
                         ? 'border-violet text-violet bg-violet/5'
                         : 'border-transparent text-ink3 hover:text-ink hover:bg-bg2'
                     }`}
                   >
-                    {s} {count > 0 && <span className="opacity-60">({count})</span>}
+                    {opt.label} {count > 0 && <span className="opacity-60">({count})</span>}
                   </button>
                 )
               })}
