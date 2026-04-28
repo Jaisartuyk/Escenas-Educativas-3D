@@ -329,8 +329,9 @@ export function PlannerClient({
     }
   }
 
-  const showSemana = mode === 'clase'
-  const showTopic  = mode === 'clase' || mode === 'rubrica'
+  const showSemana           = mode === 'clase'
+  const showTopic            = mode === 'clase' || mode === 'rubrica'
+  const showTrimestreParcial = mode !== 'adaptacion' && mode !== 'diagnostica'
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-start">
@@ -523,42 +524,44 @@ export function PlannerClient({
         </div>
 
         {/* Trimestre + Parcial + Semana */}
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Trimestre</label>
-            <select
-              value={trimestre}
-              onChange={e => setTrimestre(Number(e.target.value))}
-              className="w-full bg-bg border border-surface2 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-violet/50"
-            >
-              {TRIMESTRES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Parcial</label>
-            <select
-              value={parcial}
-              onChange={e => setParcial(Number(e.target.value))}
-              className="w-full bg-bg border border-surface2 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-violet/50"
-            >
-              {Array.from({ length: parcialesCount }, (_, i) => (
-                <option key={i + 1} value={i + 1}>Parcial {i + 1} (Unidad)</option>
-              ))}
-            </select>
-          </div>
-          {showSemana && (
+        {showTrimestreParcial && (
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Semana</label>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Trimestre</label>
               <select
-                value={semana}
-                onChange={e => setSemana(Number(e.target.value))}
+                value={trimestre}
+                onChange={e => setTrimestre(Number(e.target.value))}
                 className="w-full bg-bg border border-surface2 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-violet/50"
               >
-                {SEMANAS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                {TRIMESTRES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
-          )}
-        </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Parcial</label>
+              <select
+                value={parcial}
+                onChange={e => setParcial(Number(e.target.value))}
+                className="w-full bg-bg border border-surface2 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-violet/50"
+              >
+                {Array.from({ length: parcialesCount }, (_, i) => (
+                  <option key={i + 1} value={i + 1}>Parcial {i + 1} (Unidad)</option>
+                ))}
+              </select>
+            </div>
+            {showSemana && (
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Semana</label>
+                <select
+                  value={semana}
+                  onChange={e => setSemana(Number(e.target.value))}
+                  className="w-full bg-bg border border-surface2 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-violet/50"
+                >
+                  {SEMANAS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Eje transversal */}
         <div>
