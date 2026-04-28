@@ -8,6 +8,7 @@ import { fetchCurriculoBlock } from '@/lib/curriculo/lookup'
 import { getPreviousLevel } from '@/lib/curriculo/previous-grade'
 import { buildInsercionesPromptBlock, getInserciones } from '@/lib/pedagogy/inserciones'
 import { buildCompetenciasPromptBlock } from '@/lib/pedagogy/competencias-clave'
+import { isEFLSubject } from '@/lib/pedagogy/subject-types'
 import { extractDocxRaw } from '@/lib/extract/extractDocxRaw'
 import { resolveYearContext } from '@/lib/academic-year/server'
 
@@ -55,6 +56,7 @@ function buildPrompt(data: any, contextoExtra: string = '', detectedPlanificatio
     type, subject, grade, topic, duration, extra,
     trimestre, parcial, semana, eje, cuadernillo,
     inserciones,
+    isEFL: isEFLFlag, cefrLevel, unitNumber, unitTotal,
     periodMinutes, weeklyHours, totalWeeklyMinutes,
     teacherName, institutionName,
     methodology: methodologyCode,
@@ -62,6 +64,8 @@ function buildPrompt(data: any, contextoExtra: string = '', detectedPlanificatio
   const numSesiones = Math.max(1, Number(weeklyHours) || 1)
   const minPorSesion = Number(periodMinutes) || 45
   const totalMin = Number(totalWeeklyMinutes) || (numSesiones * minPorSesion)
+  // Detectar EFL desde flag del cliente o desde el nombre de la materia (fallback)
+  const isEFL = !!isEFLFlag || isEFLSubject(subject)
 
   // axis (Eje Transversal legacy) ya no se usa — reemplazado por inserciones
   // curriculares MinEduc 2025-2026 inyectadas vía buildInsercionesPromptBlock.
@@ -116,10 +120,15 @@ ${cuadernilloRef}${extraNotes}${insercionesBlock}${competenciasBlock}${ragContex
     const isAporte = semana === 6
     const esSemanal = numSesiones > 1
 
+    // Hint EFL al inicio del prompt cuando aplique
+    const eflHint = isEFL
+      ? `\n\nMATERIA EFL — Usa códigos DCD EFL.x.x.x del bloque CURRÍCULO PRIORIZADO. ${cefrLevel ? `Nivel CEFR: ${cefrLevel}.` : ''} Estructura las actividades por las 5 destrezas comunicativas (Communication, Oral, Reading, Writing, Language through the Arts). Metodología comunicativa CLT. Usa inglés en los Can-Do statements y español en las orientaciones metodológicas.`
+      : ''
+
     if (esSemanal) {
       // ── Modo semanal: N sesiones cubriendo el total semanal ────────────────
       return `Genera una PLANIFICACION SEMANAL MICROCURRICULAR distribuida en ${numSesiones} sesiones secuenciales:
-${commonHeader}
+${commonHeader}${eflHint}
 - Tema central de la semana: ${topic}
 - Total semanal: ${totalMin} minutos (${numSesiones} sesiones de ${minPorSesion} min cada una)
 ${isAporte ? '- NOTA: Es Semana 6 (APORTE). La última sesión debe contener evaluación sumativa.' : ''}
@@ -160,7 +169,7 @@ IMPORTANTE: usa EXACTAMENTE el formato de encabezado "## Sesión N:" (con doble 
 
     // ── Modo sesión única (1 sola hora pedagógica) ──────────────────────────
     return `Genera una PLANIFICACION MICROCURRICULAR DIARIA con el siguiente formato:
-${commonHeader}
+${commonHeader}${eflHint}
 - Tema: ${topic}
 - Duración: ${minPorSesion} minutos (1 sesión)
 ${isAporte ? '- NOTA: Es Semana 6 (APORTE). La evaluación debe ser sumativa.' : ''}
@@ -190,6 +199,78 @@ IMPORTANTE: NO repitas informacion fuera de la tabla.`.trim()
   }
 
   if (type === 'unidad') {
+    // ── Modo EFL / Lengua Extranjera (CEFR) ────────────────────────────
+    if (isEFL) {
+      const unitLabel = unitNumber && unitTotal
+        ? `Unit ${unitNumber} of ${unitTotal}`
+        : unitNumber ? `Unit ${unitNumber}` : 'Unit (sin numerar)'
+      const cefrLine = cefrLevel ? `\n- Nivel CEFR: ${cefrLevel}` : ''
+
+      return `Genera una UNIDAD EFL COMPLETA siguiendo el currículo MinEduc EFL 2025-2026 (Marco Común Europeo de Referencia para las Lenguas).
+${commonHeader}
+- ${unitLabel}${cefrLine}
+- Tema central / Topic: ${topic || 'A determinar según el currículo del nivel'}
+- Duración estimada: 2-3 semanas (estructura granular EFL, NO 6 semanas como otras materias)
+
+ESTRUCTURA OBLIGATORIA (formato MinEduc EFL):
+
+### 1. DATOS INFORMATIVOS
+Tabla con: Institución, Docente, Asignatura (English), Curso/Grado, Nivel CEFR (${cefrLevel || '—'}), Unit (${unitLabel}), Duración estimada (2-3 semanas), Año lectivo.
+
+### 2. UNIT GOALS / OBJETIVOS COMUNICATIVOS
+Lista de 3-4 objetivos en INGLÉS (Can-Do statements al estilo CEFR):
+  - "Students can introduce themselves using simple greetings."
+  - "Students can describe their family using possessive adjectives."
+  Cada objetivo debe ser DEMOSTRABLE en una performance comunicativa.
+
+### 3. ASSESSMENT CRITERIA / CRITERIOS DE EVALUACIÓN
+Lista de criterios MinEduc CE.EFL.x.x.x extraídos del bloque CURRÍCULO PRIORIZADO inyectado.
+
+### 4. CURRICULUM TABLE — POR LAS 5 DESTREZAS COMUNICATIVAS — OBLIGATORIO
+
+Genera UNA tabla con CINCO filas (una por cada destreza MinEduc EFL) y estas columnas:
+
+| Skill | DCD (EFL.x.x.x) | Strategies & Activities | Resources | Indicators (I.EFL.x.x.x) | Techniques / Instruments |
+|---|---|---|---|---|---|
+| 🌍 Communication and Cultural Awareness | EFL.x.x.x ... {{C}} | ... | ... | I.EFL.x.x.x | Observation / Checklist |
+| 🗣️ Oral Communication (Listening & Speaking) | EFL.x.x.x ... {{C,CS}} | ... | ... | I.EFL.x.x.x | ... |
+| 📖 Reading | EFL.x.x.x ... {{C}} | ... | ... | I.EFL.x.x.x | ... |
+| ✍️ Writing | EFL.x.x.x ... {{C,CD}} | ... | ... | I.EFL.x.x.x | ... |
+| 🎭 Language through the Arts | EFL.x.x.x ... {{C,CS}} | ... | ... | I.EFL.x.x.x | ... |
+
+REGLAS:
+- Las DCDs van TEXTUALMENTE del bloque CURRÍCULO PRIORIZADO inyectado (códigos EFL.x.x.x reales).
+- Cada DCD debe llevar al menos UNA competencia clave entre llaves dobles {{C}}, {{CD}}, {{CS}}, etc.
+- Las strategies deben usar metodología comunicativa CLT (Communicative Language Teaching) — NO traducción gramática.
+- En cada celda, INTEGRA las inserciones curriculares activas (ver bloque arriba) — Ejemplo: "Listen to a podcast about recycling and discuss in pairs (🌱 Desarrollo Sostenible) (DUA: representación múltiple)".
+
+### 5. SESSION PLAN — ${numSesiones} SESIONES SECUENCIALES
+
+Genera EXACTAMENTE ${numSesiones} sesiones con encabezado literal "## Sesión N: <focus>". Cada sesión cubre UNA o DOS destrezas integradas.
+
+Por ejemplo (template):
+## Sesión 1: Vocabulary Building (Reading + Writing)
+**Duración:** ${minPorSesion} minutos
+| Phase | Activity | DCD | Resources |
+| Warm-up | ... | EFL.x.x.x | ... |
+| Presentation | ... | ... | ... |
+| Practice | ... | ... | ... |
+| Production | ... | ... | ... |
+| Wrap-up | ... | ... | ... |
+
+### 6. FORMATIVE & SUMMATIVE ASSESSMENT
+Cómo se evalúa cada destreza durante y al final de la unit.
+
+### 7. ADAPTACIONES CURRICULARES (NEE)
+Sección breve.
+
+### 8. RESOURCES / RECURSOS BIBLIOGRÁFICOS
+Lista breve.
+
+USA tablas Markdown limpias. Tono profesional pero amigable. Mezcla inglés y español según corresponda (definiciones técnicas en inglés, explicaciones metodológicas en español).`.trim()
+    }
+
+    // ── Modo estándar (no-EFL) ─────────────────────────────────────────
     return `Genera una UNIDAD DIDACTICA COMPLETA (6 semanas) con formato MINEDUC:
 ${commonHeader}
 - Tema central: ${topic || 'A determinar segun curriculo'}
@@ -771,11 +852,25 @@ export async function POST(request: NextRequest) {
 
     // Auto-generate title
     const isAdaptacion = body.type === 'adaptacion' || body.type === 'diagnostica'
+    const isEFLBody = !!body.isEFL || isEFLSubject(body.subject)
     const trimLabel = `T${body.trimestre || 1}-P${body.parcial || 1}`
     const semLabel = body.semana ? `-S${body.semana}` : ''
-    const title = isAdaptacion
-      ? `Semana de Adaptación — ${body.subject} · ${body.grade}`.slice(0, 100)
-      : `${body.subject} — ${body.topic || 'Planificacion'} (${trimLabel}${semLabel})`.slice(0, 100)
+
+    // Título dedicado para EFL Unidad / Clase
+    let title: string
+    if (isAdaptacion) {
+      title = `Semana de Adaptación — ${body.subject} · ${body.grade}`.slice(0, 100)
+    } else if (isEFLBody && body.type === 'unidad') {
+      const unitTag = body.unitNumber && body.unitTotal
+        ? `Unit ${body.unitNumber} of ${body.unitTotal}`
+        : body.unitNumber ? `Unit ${body.unitNumber}` : 'Unit'
+      const cefr = body.cefrLevel ? ` [${body.cefrLevel}]` : ''
+      title = `EFL ${unitTag}${cefr}: ${body.topic || body.subject} · ${body.grade}`.slice(0, 100)
+    } else if (isEFLBody && body.cefrLevel) {
+      title = `${body.subject} [${body.cefrLevel}] — ${body.topic || 'Lesson'} (${trimLabel}${semLabel})`.slice(0, 100)
+    } else {
+      title = `${body.subject} — ${body.topic || 'Planificacion'} (${trimLabel}${semLabel})`.slice(0, 100)
+    }
 
     // Save regular plan
     const { data: saved, error } = await (supabase as any)
@@ -808,7 +903,12 @@ export async function POST(request: NextRequest) {
           daysOfWeek: Array.isArray(body.daysOfWeek) && body.daysOfWeek.length > 0 ? body.daysOfWeek : null,
           sesiones: sesiones.length > 0 ? sesiones : null,
           methodology: body.methodology || 'ERCA',
-          tipoEspecial: isAdaptacion ? 'adaptacion' : null,
+          tipoEspecial: isAdaptacion ? 'adaptacion' : (isEFLBody ? 'efl' : null),
+          // Campos EFL (lengua extranjera): se guardan solo si la materia es EFL
+          isEFL:       isEFLBody,
+          cefrLevel:   isEFLBody ? (body.cefrLevel || null) : null,
+          unitNumber:  isEFLBody && body.unitNumber ? Number(body.unitNumber) : null,
+          unitTotal:   isEFLBody && body.unitTotal  ? Number(body.unitTotal)  : null,
           cursoAnterior: isAdaptacion ? getPreviousLevel(body.grade).label : null,
           generatedAt: new Date().toISOString(),
         },

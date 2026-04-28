@@ -15,6 +15,9 @@ import { scheduleAdaptationWeek } from '@/lib/actions/planner-setup'
 import { getPreviousLevel } from '@/lib/curriculo/previous-grade'
 import { INSERCIONES, type InsercionId } from '@/lib/pedagogy/inserciones'
 import { getInstitutionalMatriz } from '@/lib/actions/inserciones-distribucion'
+import {
+  isEFLSubject, isLanguageSubject, CEFR_LEVELS, suggestCEFRLevel, type CEFRLevel,
+} from '@/lib/pedagogy/subject-types'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TRIMESTRES = [
@@ -73,6 +76,10 @@ export function PlannerClient({
   const [topic,      setTopic]      = useState('')
   const [eje,        setEje]        = useState('Justicia')  // legacy, queda por compat
   const [inserciones, setInserciones] = useState<InsercionId[]>([])
+  // EFL / lenguas extranjeras: nivel CEFR + unit number (opcional)
+  const [cefrLevel,  setCefrLevel]  = useState<CEFRLevel | ''>('')
+  const [unitNumber, setUnitNumber] = useState<string>('')   // string para input controlado
+  const [unitTotal,  setUnitTotal]  = useState<string>('')
   
   // ── Auto-vincular Inserciones desde la Matriz Anual ──
   useEffect(() => {
@@ -179,6 +186,24 @@ export function PlannerClient({
 
   const subjectName = selectedSubject?.name || ''
   const gradeLabel  = `${courseName} ${courseParallel}`.trim()
+
+  // ── Detección EFL / Lenguas extranjeras ────────────────────────────────
+  const isEFL      = isEFLSubject(subjectName)
+  const isLanguage = isLanguageSubject(subjectName)
+  // Auto-sugerir CEFR cuando seleccionan una materia EFL y aún no eligieron nivel
+  useEffect(() => {
+    if (isEFL && !cefrLevel) {
+      const sugg = suggestCEFRLevel(gradeLabel)
+      if (sugg) setCefrLevel(sugg)
+    }
+    // Reset cuando cambia a una materia no-idioma
+    if (!isLanguage && cefrLevel) {
+      setCefrLevel('')
+      setUnitNumber('')
+      setUnitTotal('')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjectId, isEFL, isLanguage, gradeLabel])
   // Sin cap: la duración total es horas × min/hora (real, no Math.min)
   const classDuration =
     weeklyHours > 1
@@ -232,6 +257,11 @@ export function PlannerClient({
         semana,
         eje,
         inserciones,
+        // EFL / lenguas extranjeras
+        isEFL,
+        cefrLevel: cefrLevel || null,
+        unitNumber: unitNumber ? parseInt(unitNumber, 10) : null,
+        unitTotal:  unitTotal  ? parseInt(unitTotal,  10) : null,
         cuadernillo,
         periodMinutes: minutesHora,
         weeklyHours,
@@ -628,6 +658,77 @@ export function PlannerClient({
                 </select>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── Bloque EFL / Lengua Extranjera ──────────────────────────── */}
+        {isLanguage && (
+          <div className="rounded-xl border border-cyan-200 bg-cyan-50/60 p-3 space-y-3">
+            <div className="flex items-start gap-2">
+              <div className="text-base leading-none">🌐</div>
+              <div className="text-[11px] text-cyan-900 leading-snug">
+                <strong>Modo Lengua Extranjera (CEFR):</strong> la IA estructurará
+                el documento por las 5 destrezas comunicativas MinEduc EFL
+                (Communication, Oral, Reading, Writing, Language through the Arts)
+                con DCDs específicas <code className="text-[10px]">EFL.x.x.x</code>.
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {/* Nivel CEFR */}
+              <div className="sm:col-span-3">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-cyan-900 mb-1">
+                  Nivel CEFR
+                </label>
+                <select
+                  value={cefrLevel}
+                  onChange={e => setCefrLevel(e.target.value as CEFRLevel | '')}
+                  className="w-full bg-white border border-cyan-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
+                >
+                  <option value="">— Selecciona nivel —</option>
+                  {CEFR_LEVELS.map(l => (
+                    <option key={l.id} value={l.id}>{l.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Unit number / total */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-cyan-900 mb-1">
+                  Unit #
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  placeholder="Ej. 3"
+                  value={unitNumber}
+                  onChange={e => setUnitNumber(e.target.value)}
+                  className="w-full bg-white border border-cyan-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-cyan-900 mb-1">
+                  Total units
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  placeholder="Ej. 12"
+                  value={unitTotal}
+                  onChange={e => setUnitTotal(e.target.value)}
+                  className="w-full bg-white border border-cyan-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div className="flex items-end">
+                <div className="text-[10px] text-cyan-800 italic leading-tight">
+                  {unitNumber && unitTotal
+                    ? `Generando: Unit ${unitNumber} of ${unitTotal}`
+                    : 'Opcional — ayuda a la IA a calibrar progresión'}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
