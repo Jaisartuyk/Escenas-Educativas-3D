@@ -145,22 +145,28 @@ export function MisMateriasPlanner() {
     <div className="space-y-6">
       {/* ── Banner Inicio de Año ─────────────────────────────────────── */}
       {subjects.length > 0 && (
-        <div className="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden animate-fade-in mb-8">
-          <div className="absolute top-0 right-0 p-4 opacity-10">
+        <div 
+          className="rounded-2xl p-6 text-white shadow-lg relative overflow-hidden animate-fade-in mb-8"
+          style={{ 
+            background: 'linear-gradient(135deg, #7C6DFA 0%, #5B47FB 100%)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}
+        >
+          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
             <Sparkles size={120} />
           </div>
           <div className="relative z-10 max-w-2xl">
-            <h2 className="font-display text-xl md:text-2xl font-bold mb-2 flex items-center gap-2">
+            <h2 className="font-display text-xl md:text-2xl font-bold mb-2 flex items-center gap-2 drop-shadow-sm">
               <Sparkles className="animate-pulse" /> Inicio de Año Lectivo
             </h2>
-            <p className="text-white/80 text-sm md:text-base mb-5 leading-relaxed">
+            <p className="text-white font-medium text-sm md:text-base mb-5 leading-relaxed drop-shadow-sm">
               Prepara tu **Semana de Adaptación** y **Pruebas Diagnósticas** automáticamente. 
               La IA generará repasos basados en el año anterior para cada una de tus materias.
             </p>
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => router.push('/dashboard/planificador?mode=adaptacion')}
-                className="bg-white text-violet-600 hover:bg-violet-50 px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2"
+                className="bg-white text-[#7C6DFA] hover:bg-violet-50 px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2 hover:scale-[1.02] active:scale-95"
               >
                 Configurar Semana de Adaptación
               </button>

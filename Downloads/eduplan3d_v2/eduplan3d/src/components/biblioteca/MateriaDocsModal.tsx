@@ -259,13 +259,20 @@ export function MateriaDocsModal({
             <button
               type="submit"
               disabled={uploading || !selectedFile || !titulo.trim()}
-              className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all disabled:cursor-not-allowed
+              className={`w-full py-3 rounded-xl text-sm font-bold transition-all disabled:cursor-not-allowed
                 ${!selectedFile || !titulo.trim() || uploading
-                  ? 'bg-slate-100 text-slate-400'
-                  : `text-white ${colorClass.solid} hover:opacity-90 shadow-sm shadow-violet/10`
+                  ? 'bg-slate-100 text-slate-400 border border-slate-200'
+                  : 'bg-violet-600 text-white hover:bg-violet-700 shadow-md shadow-violet/20'
                 }`}
             >
-              {uploading ? 'Subiendo…' : '+ Agregar material'}
+              {uploading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Subiendo…
+                </span>
+              ) : (
+                '+ Agregar material'
+              )}
             </button>
             {(!selectedFile || !titulo.trim()) && !uploading && (
               <p className="text-[11px] text-ink4 text-center">
