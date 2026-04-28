@@ -49,6 +49,7 @@ type Planificacion = {
   topic: string
   type: string
   grupo?: string | null
+  content?: string | any | null
   metadata?: any
   created_at: string
 }
