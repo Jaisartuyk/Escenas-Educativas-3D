@@ -88,3 +88,48 @@ export async function courseInUserInstitution(userId: string, courseId: string):
     .single()
   return (data as any)?.institution_id === myInst
 }
+
+/** ¿El perfil pertenece a un estudiante? */
+export async function isStudentUser(userId: string): Promise<boolean> {
+  const profile = await getProfile(userId)
+  return profile?.role === 'student'
+}
+
+/** ¿El estudiante está matriculado en el curso de la materia? */
+export async function studentEnrolledInSubject(studentId: string, subjectId: string): Promise<boolean> {
+  if (!studentId || !subjectId) return false
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('subjects')
+    .select('course_id')
+    .eq('id', subjectId)
+    .single()
+
+  const courseId = (data as any)?.course_id
+  if (!courseId) return false
+
+  const { data: enrollment } = await admin
+    .from('enrollments')
+    .select('student_id')
+    .eq('student_id', studentId)
+    .eq('course_id', courseId)
+    .maybeSingle()
+
+  return !!enrollment
+}
+
+/** ¿El estudiante está matriculado en el curso de la tarea? */
+export async function studentEnrolledInAssignment(studentId: string, assignmentId: string): Promise<boolean> {
+  if (!studentId || !assignmentId) return false
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('assignments')
+    .select('subject_id')
+    .eq('id', assignmentId)
+    .single()
+
+  const subjectId = (data as any)?.subject_id
+  if (!subjectId) return false
+
+  return studentEnrolledInSubject(studentId, subjectId)
+}

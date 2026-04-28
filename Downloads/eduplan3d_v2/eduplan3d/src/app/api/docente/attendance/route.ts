@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { teacherOwnsSubject } from '@/lib/auth/ownership'
+import { teacherOwnsSubject, studentEnrolledInSubject } from '@/lib/auth/ownership'
 
 // GET /api/docente/attendance?subjectId=X&weekStart=YYYY-MM-DD
 export async function GET(req: Request) {
@@ -46,9 +46,15 @@ export async function POST(req: Request) {
   const { subject_id, student_id, date, status } = body
 
   if (!subject_id) return NextResponse.json({ error: 'Missing subject_id' }, { status: 400 })
+  if (!student_id) return NextResponse.json({ error: 'Missing student_id' }, { status: 400 })
 
   const owns = await teacherOwnsSubject(user.id, subject_id)
   if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta materia' }, { status: 403 })
+
+  const enrolled = await studentEnrolledInSubject(student_id, subject_id)
+  if (!enrolled) {
+    return NextResponse.json({ error: 'El estudiante no pertenece al curso de esta materia' }, { status: 403 })
+  }
 
   const admin = createAdminClient()
 

@@ -4,6 +4,7 @@
 
 import { useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { sanitizePlanHtml } from '@/lib/sanitize/plan-html'
 import { 
   Search, ArrowLeft, User, 
   FileText, LayoutGrid, ChevronRight, BookOpen
@@ -66,7 +67,6 @@ export function AdminPlanificacionesClient({ manuales, teachers }: Props) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null)
   const [filterCurso, setFilterCurso] = useState('')
-  const [previewId, setPreviewId] = useState<string | null>(null)
   const [manualPreview, setManualPreview] = useState<PlanManual | null>(null)
 
   // Assign stable color per teacher
@@ -113,6 +113,10 @@ export function AdminPlanificacionesClient({ manuales, teachers }: Props) {
   }
 
   const color = selectedTeacherId ? teacherColor[selectedTeacherId] : PALETTE[0]
+  const sanitizedPreviewHtml = useMemo(
+    () => sanitizePlanHtml(manualPreview?.content_html) || null,
+    [manualPreview?.content_html]
+  )
 
   return (
     <div className="space-y-6">
@@ -285,10 +289,10 @@ export function AdminPlanificacionesClient({ manuales, teachers }: Props) {
               </button>
             </div>
             <div className="overflow-y-auto p-6 flex-1">
-              {manualPreview.content_html ? (
+              {sanitizedPreviewHtml ? (
                 <div
                   className="plan-readonly-preview"
-                  dangerouslySetInnerHTML={{ __html: manualPreview.content_html }}
+                  dangerouslySetInnerHTML={{ __html: sanitizedPreviewHtml }}
                 />
               ) : (
                 <p className="text-sm text-ink3 italic text-center py-10">

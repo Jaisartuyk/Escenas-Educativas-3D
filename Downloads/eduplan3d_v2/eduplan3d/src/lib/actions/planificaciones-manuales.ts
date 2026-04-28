@@ -4,6 +4,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { sanitizePlanHtml } from '@/lib/sanitize/plan-html'
 
 export type PlanManualStatus = 'borrador' | 'publicada'
 
@@ -119,7 +120,7 @@ export async function savePlanificacionManual(input: {
 
   const patch: any = {
     content_json: input.contentJson,
-    content_html: input.contentHtml ?? null,
+    content_html: sanitizePlanHtml(input.contentHtml),
   }
   if (input.title) patch.title = input.title
 
