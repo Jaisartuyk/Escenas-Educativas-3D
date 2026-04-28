@@ -20,11 +20,15 @@ const TYPE_LABELS: Record<string, string> = {
   clase: 'Planificacion de clase',
   unidad: 'Unidad didactica',
   rubrica: 'Rubrica de evaluacion',
+  adaptacion: 'Semana de Adaptación',
+  diagnostica: 'Semana de Adaptación',
 }
 const TYPE_CLASSES: Record<string, string> = {
   clase: 'badge-violet',
   unidad: 'badge-amber',
   rubrica: 'badge-rose',
+  adaptacion: 'badge-teal',
+  diagnostica: 'badge-teal',
 }
 
 export default async function PlanificacionDetailPage({ params }: Props) {
@@ -68,6 +72,11 @@ export default async function PlanificacionDetailPage({ params }: Props) {
             <span className={TYPE_CLASSES[plan.type] || 'badge-violet'}>{TYPE_LABELS[plan.type] || plan.type}</span>
             <span className="text-xs text-ink3">{plan.subject} · {plan.grade}</span>
             {meta.trimestre && <span className="text-xs text-ink3">T{meta.trimestre} · P{meta.parcial} · S{meta.semana}</span>}
+            {meta.tipoEspecial === 'adaptacion' && meta.cursoAnterior && (
+              <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                📚 Diagnóstico: {meta.cursoAnterior}
+              </span>
+            )}
             <span className="text-xs text-ink3">
               {format(new Date(plan.created_at), "d 'de' MMMM, yyyy", { locale: es })}
             </span>

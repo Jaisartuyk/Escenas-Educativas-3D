@@ -81,13 +81,22 @@ REGLAS OBLIGATORIAS PARA USAR ESTE CONTENIDO:
 Uno o mas documentos del docente contienen una planificacion lista. Tu tarea PRINCIPAL es TRANSCRIBIR Y ADAPTAR esa planificacion al formato institucional solicitado, PRESERVANDO la esencia del documento original.`
     : ''
 
+  // Para Semana de Adaptación NO inyectamos Trimestre/Parcial/Semana — esta
+  // semana está FUERA del calendario regular de parciales. La IA debe omitir
+  // esos campos del documento generado y reemplazarlos por contexto de
+  // diagnóstico del curso anterior.
+  const isAdaptacionCH = type === 'adaptacion' || type === 'diagnostica'
+  const tpsLine = isAdaptacionCH
+    ? `- Período: SEMANA DE ADAPTACIÓN (primera semana del año lectivo, antes de cualquier parcial). NO menciones trimestre, parcial ni semana en los datos informativos del documento.`
+    : `- Trimestre ${trimestre}, Parcial ${parcial}${semana ? `, Semana ${semana}` : ''}`
+
   const commonHeader = `
 DATOS DEL CONTEXTO:
 - Institucion: ${institutionName || 'Institucion Educativa'}
 - Docente: ${teacherName || 'Docente'}
 - Asignatura: ${subject}
 - Curso/Grado: ${grade}
-- Trimestre ${trimestre}, Parcial ${parcial}${semana ? `, Semana ${semana}` : ''}
+${tpsLine}
 - Duracion hora pedagogica: ${periodMinutes} minutos
 - Carga horaria semanal: ${weeklyHours} horas
 - Duracion de esta clase: ${duration}
@@ -778,9 +787,12 @@ export async function POST(request: NextRequest) {
         tipo_documento: 'regular',
         academic_year_id: ycx.currentYearId,
         metadata: {
-          trimestre: body.trimestre,
-          parcial:   body.parcial,
-          semana:    body.semana,
+          // En modo Adaptación, NO almacenamos trimestre/parcial/semana — la
+          // semana de adaptación está fuera del calendario de parciales. Esto
+          // evita que la UI muestre badges T1·P1·S1 que confunden al docente.
+          trimestre: isAdaptacion ? null : body.trimestre,
+          parcial:   isAdaptacion ? null : body.parcial,
+          semana:    isAdaptacion ? null : body.semana,
           eje:       body.eje,
           cuadernillo: body.cuadernillo,
           periodMinutes: body.periodMinutes,
