@@ -12,6 +12,7 @@ import {
 import { METHODOLOGIES, DEFAULT_METHODOLOGY } from '@/lib/pedagogy/methodologies'
 import { NEE_SIN_DISCAPACIDAD, NEE_CON_DISCAPACIDAD } from '@/lib/pedagogy/nee'
 import { scheduleAdaptationWeek } from '@/lib/actions/planner-setup'
+import { getPreviousLevel } from '@/lib/curriculo/previous-grade'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const TRIMESTRES = [
@@ -522,6 +523,24 @@ export function PlannerClient({
             </div>
           )}
         </div>
+
+        {/* Banner: Semana de Adaptación → curso anterior diagnosticado */}
+        {mode === 'adaptacion' && gradeLabel && (
+          <div className="rounded-xl border border-amber/30 bg-amber/5 p-3">
+            <div className="flex items-start gap-2">
+              <div className="text-base leading-none">📚</div>
+              <div className="flex-1 text-xs">
+                <div className="font-bold text-ink mb-0.5">Diagnóstico del curso anterior</div>
+                <div className="text-ink3 leading-snug">
+                  Esta planificación NO genera contenido nuevo de <strong>{gradeLabel}</strong>.
+                  Hace un diagnóstico de las DCDs clave de{' '}
+                  <strong className="text-amber-700">{getPreviousLevel(gradeLabel).label}</strong>{' '}
+                  para nivelar a los estudiantes antes de avanzar.
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Trimestre + Parcial + Semana */}
         {showTrimestreParcial && (

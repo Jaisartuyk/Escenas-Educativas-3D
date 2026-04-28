@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getMethodology } from '@/lib/pedagogy/methodologies'
 import { buildNeePromptBlock, getNeeType } from '@/lib/pedagogy/nee'
 import { fetchCurriculoBlock } from '@/lib/curriculo/lookup'
+import { getPreviousLevel } from '@/lib/curriculo/previous-grade'
 import { extractDocxRaw } from '@/lib/extract/extractDocxRaw'
 import { resolveYearContext } from '@/lib/academic-year/server'
 
@@ -194,27 +195,66 @@ Usa tablas Markdown limpias y profesionales.`.trim()
 
   // Semana de Adaptación / Diagnóstico
   if (type === 'adaptacion' || type === 'diagnostica') {
-    const gradeMatch = grade.match(/(\d+)/)
-    const currentGradeNum = gradeMatch ? parseInt(gradeMatch[1], 10) : null
-    const prevGrade = currentGradeNum ? `${currentGradeNum - 1}${grade.replace(/\d+/, '')}` : 'el grado anterior'
+    const prev = getPreviousLevel(grade)
+    const prevLabel = prev.label
 
-    return `Genera una PLANIFICACIÓN DE SEMANA DE ADAPTACIÓN Y EVALUACIÓN DIAGNÓSTICA:
+    return `Genera una PLANIFICACIÓN DE SEMANA DE ADAPTACIÓN Y EVALUACIÓN DIAGNÓSTICA orientada a NIVELAR a los estudiantes que vienen del año anterior:
 ${commonHeader}
-- Objetivo: Evaluar los conocimientos previos y facilitar la transición al nuevo año lectivo.
-- Referencia curricular: BASADO EN EL CURRÍCULO DE ${prevGrade.toUpperCase()}.
 
-ESTRUCTURA OBLIGATORIA:
-1. ACTIVIDADES DE ADAPTACIÓN (Semanas 1 y 2): Dinámicas de grupo, acuerdos de convivencia y ambientación.
-2. REPASO DE CONOCIMIENTOS PREVIOS: Selección de los 3-5 temas más críticos de ${prevGrade} necesarios para este año.
-3. PRUEBA DIAGNÓSTICA (Contenido para imprimir):
-   - Genera un "Banco de Preguntas" (mínimo 10 items).
-   - Incluye destrezas del año anterior (${prevGrade}).
-   - Tipos de preguntas: Opción múltiple, completar, relacionar y resolución de problemas.
-4. TABLA DE PLANIFICACIÓN SEMANAL (Formato estándar) cubriendo ${numSesiones} sesiones:
-   | Sesión | Actividad | Destreza (Grado Anterior) | Indicador |
-   |---|---|---|---|
+CONTEXTO CRÍTICO DE ESTA SEMANA:
+- Este NO es contenido nuevo del curso ${grade}. Es la PRIMERA SEMANA del año lectivo, donde el docente NO arranca con el currículo del curso actual.
+- El propósito es DIAGNOSTICAR el nivel de logro de las DCDs CLAVE del CURSO ANTERIOR (${prevLabel}) para identificar brechas y planificar nivelación.
+- TODAS las destrezas, indicadores y actividades de esta planificación deben provenir del currículo de ${prevLabel}, NO del currículo de ${grade}.
 
-Usa un tono alentador y profesional.`.trim()
+ESTRUCTURA OBLIGATORIA — sigue EXACTAMENTE este orden y encabezados:
+
+### 1. DATOS INFORMATIVOS
+Tabla con: Institución, Docente, Asignatura, Curso actual (${grade}), Curso anterior diagnosticado (${prevLabel}), Año lectivo, Total semanal (${totalMin} min en ${numSesiones} sesiones de ${minPorSesion} min).
+
+### 2. PROPÓSITO DE LA SEMANA
+Párrafo breve explicando que esta semana se diagnostica el nivel de los estudiantes en las DCDs del ${prevLabel} para planificar acciones de nivelación antes de avanzar con los contenidos de ${grade}.
+
+### 3. SESIONES DE LA SEMANA — OBLIGATORIO
+
+Genera EXACTAMENTE ${numSesiones} bloques con el ENCABEZADO LITERAL "## Sesión N: <subtema diagnóstico>" (donde N va de 1 a ${numSesiones}). Cada sesión cubre una destreza/tema clave del ${prevLabel}.
+
+CADA SESIÓN debe contener:
+
+## Sesión N: <subtema diagnóstico breve>
+**Duración:** ${minPorSesion} minutos
+**DCD diagnosticada (${prevLabel}):** <código y descripción literal del currículo del ${prevLabel}>
+
+| Actividad diagnóstica | Indicadores esperados (${prevLabel}) | Recursos | Evidencia / Instrumento |
+|---|---|---|---|
+| ... | ... | ... | ej: rúbrica diagnóstica, lista de cotejo |
+
+REGLAS:
+- Las DCDs e indicadores van TEXTUALMENTE del currículo de ${prevLabel} que recibirás más arriba en el bloque "=== CURRÍCULO PRIORIZADO MinEduc 2025 ===". NO uses códigos del ${grade}.
+- Los subtemas distintos por sesión (no copies el mismo título N veces).
+- Actividades cortas y diagnósticas (no introducir contenido nuevo).
+- Usa EXACTAMENTE el formato "## Sesión N:" — el sistema lo parsea para distribuir las sesiones en el calendario semanal.
+
+### 4. INSTRUMENTO DE EVALUACIÓN DIAGNÓSTICA
+Banco de mínimo 10 ítems imprimible que cubra las DCDs revisadas. Mezcla de tipos:
+- Opción múltiple (4 ítems)
+- Respuesta corta / completar (3 ítems)
+- Relacionar (1 ítem)
+- Aplicación / problema (2 ítems)
+
+Cada ítem indica la DCD del ${prevLabel} que evalúa.
+
+### 5. PLAN DE ACCIÓN POST-DIAGNÓSTICO
+Pequeña tabla con criterios de decisión:
+| Si el estudiante logra | Acción del docente |
+|---|---|
+| ≥ 70% del diagnóstico | Avanzar al currículo de ${grade} |
+| 40-69% | Reforzar las DCDs específicas no logradas durante 1-2 semanas |
+| < 40% | Plan de nivelación intensiva con apoyo individualizado |
+
+### 6. ADAPTACIONES CURRICULARES (NEE)
+Sección breve sugiriendo ajustes generales para estudiantes con NEE durante la semana de diagnóstico.
+
+Usa tono alentador, profesional, orientado a la nivelación.`.trim()
   }
 
   // Rubrica
@@ -655,11 +695,17 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Inyección del Currículo Priorizado MinEduc ──
+    // Para Semana de Adaptación, queremos el currículo del CURSO ANTERIOR
+    // (no el actual), porque el diagnóstico nivela contenidos previos.
     try {
+      const isAdaptacion = body.type === 'adaptacion' || body.type === 'diagnostica'
+      const curriculoGrado = isAdaptacion
+        ? getPreviousLevel(body.grade).label
+        : body.grade
       const curriculoBlock = await fetchCurriculoBlock(supabase as any, {
-        grado: body.grade,
+        grado: curriculoGrado,
         asignatura: body.subject,
-        tema: body.topic,
+        tema: isAdaptacion ? null : body.topic,  // en adaptación traemos TODO el subnivel anterior
       })
       if (curriculoBlock) {
         // Ponemos el currículo DESPUÉS de los documentos del docente para que estos tengan prioridad de lectura
@@ -672,9 +718,11 @@ export async function POST(request: NextRequest) {
     // Calcular max_tokens según número de sesiones (cada sesión con tabla ≈ 1500 tok).
     // Base 4096 para encabezado + secciones previa + NEE; 1800 por sesión adicional.
     const numSesionesEsperadas = Math.max(1, Number(body.weeklyHours) || 1)
-    const dynamicMaxTokens = body.type === 'clase' && numSesionesEsperadas > 1
-      ? Math.min(16000, 4096 + (numSesionesEsperadas * 1800))
-      : 6000
+    const isAdaptacionMaxTok = body.type === 'adaptacion' || body.type === 'diagnostica'
+    const dynamicMaxTokens =
+      (body.type === 'clase' || isAdaptacionMaxTok) && numSesionesEsperadas > 1
+        ? Math.min(16000, 4096 + (numSesionesEsperadas * 1800))
+        : 6000
 
     // Call Claude with system prompt + user prompt (regular)
     const message = await anthropic.messages.create({
@@ -707,9 +755,12 @@ export async function POST(request: NextRequest) {
     sesiones.sort((a, b) => a.numero - b.numero)
 
     // Auto-generate title
+    const isAdaptacion = body.type === 'adaptacion' || body.type === 'diagnostica'
     const trimLabel = `T${body.trimestre || 1}-P${body.parcial || 1}`
     const semLabel = body.semana ? `-S${body.semana}` : ''
-    const title = `${body.subject} — ${body.topic || 'Planificacion'} (${trimLabel}${semLabel})`.slice(0, 100)
+    const title = isAdaptacion
+      ? `Semana de Adaptación — ${body.subject} · ${body.grade}`.slice(0, 100)
+      : `${body.subject} — ${body.topic || 'Planificacion'} (${trimLabel}${semLabel})`.slice(0, 100)
 
     // Save regular plan
     const { data: saved, error } = await (supabase as any)
@@ -738,6 +789,8 @@ export async function POST(request: NextRequest) {
           daysOfWeek: Array.isArray(body.daysOfWeek) && body.daysOfWeek.length > 0 ? body.daysOfWeek : null,
           sesiones: sesiones.length > 0 ? sesiones : null,
           methodology: body.methodology || 'ERCA',
+          tipoEspecial: isAdaptacion ? 'adaptacion' : null,
+          cursoAnterior: isAdaptacion ? getPreviousLevel(body.grade).label : null,
           generatedAt: new Date().toISOString(),
         },
       })
