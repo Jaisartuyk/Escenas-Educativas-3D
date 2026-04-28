@@ -7,9 +7,27 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { Planificacion } from '@/types/supabase'
 
-const TYPE_LABELS: Record<string, string>  = { clase: 'Clase', unidad: 'Unidad', rubrica: 'Rúbrica' }
-const TYPE_CLASSES: Record<string, string> = { clase: 'badge-violet', unidad: 'badge-amber', rubrica: 'badge-rose' }
-const TYPE_ICONS: Record<string, string>   = { clase: '📋', unidad: '📚', rubrica: '🎯' }
+const TYPE_LABELS: Record<string, string>  = { 
+  clase: 'Clase', 
+  unidad: 'Unidad', 
+  rubrica: 'Rúbrica',
+  adaptacion: 'Adaptación',
+  diagnostica: 'Diagnóstico'
+}
+const TYPE_CLASSES: Record<string, string> = { 
+  clase: 'badge-violet', 
+  unidad: 'badge-amber', 
+  rubrica: 'badge-rose',
+  adaptacion: 'badge-teal',
+  diagnostica: 'badge-teal'
+}
+const TYPE_ICONS: Record<string, string>   = { 
+  clase: '📋', 
+  unidad: '📚', 
+  rubrica: '🎯',
+  adaptacion: '🌱',
+  diagnostica: '🔍'
+}
 
 interface Props { initialData: Planificacion[] }
 
@@ -43,6 +61,7 @@ export function HistorialClient({ initialData }: Props) {
           <option value="clase">Clase</option>
           <option value="unidad">Unidad</option>
           <option value="rubrica">Rúbrica</option>
+          <option value="adaptacion">Adaptación</option>
         </select>
       </div>
 

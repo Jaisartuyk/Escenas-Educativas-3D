@@ -120,6 +120,23 @@ function DraggablePlan({ plan }: { plan: Planificacion }) {
     data: { type: 'plan', plan },
   })
   const sesiones = getSesiones(plan)
+  
+  const typeLabel = {
+    clase: 'Clase',
+    unidad: 'Unidad',
+    rubrica: 'Rúbrica',
+    adaptacion: 'Adaptación',
+    diagnostica: 'Diagnóstico'
+  }[plan.type] || plan.type
+
+  const typeColor = {
+    clase: 'text-violet bg-violet/10',
+    unidad: 'text-amber-600 bg-amber-50',
+    rubrica: 'text-rose-600 bg-rose-50',
+    adaptacion: 'text-teal-600 bg-teal-50',
+    diagnostica: 'text-teal-600 bg-teal-50'
+  }[plan.type] || 'text-violet bg-violet/10'
+
   return (
     <div
       ref={setNodeRef}
@@ -132,15 +149,18 @@ function DraggablePlan({ plan }: { plan: Planificacion }) {
         ${isDragging ? 'opacity-40' : ''}
       `}
     >
-      <div className="flex items-start justify-between gap-1">
-        <div className="text-sm font-semibold text-ink line-clamp-2 flex-1">{plan.title}</div>
+      <div className="flex items-start justify-between gap-1 mb-1.5">
+        <span className={`text-[9px] font-bold uppercase rounded px-1.5 py-0.5 ${typeColor}`}>
+          {typeLabel}
+        </span>
         {sesiones.length > 1 && (
-          <span className="shrink-0 text-[9px] font-bold bg-violet/15 text-violet rounded px-1 py-0.5">
-            {sesiones.length} ses
+          <span className="shrink-0 text-[10px] font-bold text-ink3">
+            {sesiones.length} sesiones
           </span>
         )}
       </div>
-      <div className="text-xs text-ink3 mt-1">
+      <div className="text-sm font-semibold text-ink line-clamp-2">{plan.title}</div>
+      <div className="text-[10px] text-ink3 mt-1 uppercase tracking-wider font-medium">
         {plan.subject} · {plan.grade}
       </div>
       {plan.grupo && (
@@ -168,11 +188,23 @@ function DraggableEntry({
     id: `entry:${entry.id}`,
     data: { type: 'entry', entry },
   })
+  const colors = {
+    clase: 'bg-violet/10 border-violet text-violet',
+    unidad: 'bg-amber-50 border-amber-600 text-amber-600',
+    rubrica: 'bg-rose-50 border-rose-600 text-rose-600',
+    adaptacion: 'bg-teal-50 border-teal-600 text-teal-600',
+    diagnostica: 'bg-teal-50 border-teal-600 text-teal-600'
+  }[entry.planificacion?.type || 'clase'] || 'bg-violet/10 border-violet text-violet'
+
+  const borderClass = colors.split(' ').find(c => c.startsWith('border-')) || 'border-violet'
+  const bgClass = colors.split(' ').find(c => c.startsWith('bg-')) || 'bg-violet/10'
+  const textClass = colors.split(' ').find(c => c.startsWith('text-')) || 'text-violet'
+
   return (
     <div
       ref={setNodeRef}
       className={`
-        group bg-violet/10 border-l-2 border-violet rounded p-2 mb-1.5
+        group ${bgClass} border-l-2 ${borderClass} rounded p-2 mb-1.5 transition-shadow hover:shadow-xs
         ${isDragging ? 'opacity-40' : ''}
       `}
     >
@@ -187,9 +219,8 @@ function DraggableEntry({
           {entry.sesion_numero != null && (() => {
             const sesArr = (entry.planificacion?.metadata?.sesiones || []) as Sesion[]
             const total = sesArr.length || null
-            const sesActual = sesArr.find(s => s.numero === entry.sesion_numero)
             return (
-              <div className="inline-block text-[9px] font-bold uppercase bg-violet text-white rounded px-1 py-0.5 mb-0.5">
+              <div className={`inline-block text-[9px] font-bold uppercase rounded px-1 py-0.5 mb-1 ${textClass} bg-white/60 border border-current/20`}>
                 Sesión {entry.sesion_numero}{total ? `/${total}` : ''}
               </div>
             )
@@ -917,32 +948,42 @@ function AsignarSesionesModal({
         </div>
 
         <div className="space-y-2 mb-4">
-          {sesiones.map(s => (
-            <div
-              key={s.numero}
-              className="flex items-center gap-2 p-2 rounded-lg border border-line bg-bg2"
-            >
-              <div className="shrink-0 text-[10px] font-bold bg-violet text-white rounded px-2 py-0.5">
-                Sesión {s.numero}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold text-ink line-clamp-1">{s.tema}</div>
-                <div className="text-[10px] text-ink3">{s.duracion_min} min</div>
-              </div>
-              <select
-                value={assignments[s.numero] || ''}
-                onChange={e =>
-                  setAssignments(prev => ({ ...prev, [s.numero]: e.target.value }))
-                }
-                className="shrink-0 px-2 py-1 text-xs border border-line rounded-md bg-white"
-              >
-                <option value="">— día —</option>
-                {days.map(d => (
-                  <option key={d.fecha} value={d.fecha}>{d.label}</option>
-                ))}
-              </select>
-            </div>
-          ))}
+            {sesiones.map(s => {
+              const typeColor = {
+                clase: 'bg-violet',
+                unidad: 'bg-amber-600',
+                rubrica: 'bg-rose-600',
+                adaptacion: 'bg-teal-600',
+                diagnostica: 'bg-teal-600'
+              }[plan.type] || 'bg-violet'
+              
+              return (
+                <div
+                  key={s.numero}
+                  className="flex items-center gap-2 p-2 rounded-lg border border-line bg-bg2"
+                >
+                  <div className={`shrink-0 text-[10px] font-bold ${typeColor} text-white rounded px-2 py-0.5`}>
+                    Sesión {s.numero}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-ink line-clamp-1">{s.tema}</div>
+                    <div className="text-[10px] text-ink3">{s.duracion_min} min</div>
+                  </div>
+                  <select
+                    value={assignments[s.numero] || ''}
+                    onChange={e =>
+                      setAssignments(prev => ({ ...prev, [s.numero]: e.target.value }))
+                    }
+                    className="shrink-0 px-2 py-1 text-xs border border-line rounded-md bg-white"
+                  >
+                    <option value="">— día —</option>
+                    {days.map(d => (
+                      <option key={d.fecha} value={d.fecha}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )
+            })}
         </div>
 
         <div className="flex gap-2 justify-end pt-2 border-t border-line">
