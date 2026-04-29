@@ -36,7 +36,7 @@ export default async function BibliotecaPage() {
         .order('full_name'),
       admin
         .from('planificaciones_manuales' as any)
-        .select('id, user_id, title, subject_name, course_name, status, type, unit_number, updated_at, content_html')
+        .select('id, user_id, title, subject_name, course_name, status, type, unit_number, updated_at, content_html, supervisor_notes, supervisor_notes_updated_at')
         .eq('institution_id', instId)
         .order('updated_at', { ascending: false }),
       admin

@@ -4,6 +4,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { sanitizePlanHtml } from '@/lib/sanitize/plan-html'
 
 export type PlanManualStatus = 'borrador' | 'publicada'
@@ -147,21 +148,22 @@ export async function saveSupervisorNotes(input: {
   const sb = createServerClient()
   const { data: { user } } = await sb.auth.getUser()
   if (!user) return { ok: false, error: 'No autenticado' }
+  const admin = createAdminClient()
 
-  const { data: prof } = await (sb as any)
+  const { data: prof } = await (admin as any)
     .from('profiles').select('role, institution_id').eq('id', user.id).single()
   if (!['admin', 'assistant', 'supervisor', 'rector'].includes(prof?.role)) {
     return { ok: false, error: 'No autorizado' }
   }
 
   // Verificar que la planificación pertenece a la misma institución
-  const { data: plan } = await (sb as any)
+  const { data: plan } = await (admin as any)
     .from('planificaciones_manuales').select('institution_id').eq('id', input.id).single()
   if ((plan as any)?.institution_id !== prof?.institution_id) {
     return { ok: false, error: 'No autorizado' }
   }
 
-  const { error } = await (sb as any)
+  const { error } = await (admin as any)
     .from('planificaciones_manuales')
     .update({
       supervisor_notes: input.notes.trim() || null,
