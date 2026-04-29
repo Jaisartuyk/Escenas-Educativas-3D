@@ -698,6 +698,14 @@ function buildMinEducTemplate({
     })
   }
 
+  if (type === 'semanal' && isInitialOrPreparatoryCourse(courseName)) {
+    return buildInitialPreparatoryWeeklyTemplate({
+      teacherName,
+      subjectName,
+      courseName,
+    })
+  }
+
   if (institutionName.toUpperCase().includes('LETAMENDI') && type === 'semanal') {
     return buildLetamendiWeeklyTemplate({
       teacherName,
@@ -762,6 +770,148 @@ function buildMinEducTemplate({
   </thead>
   <tbody>
     <tr><td><p></p></td><td><p></p></td><td><p></p></td><td><p></p></td><td><p></p></td></tr>
+  </tbody>
+</table>
+  `.trim()
+}
+
+function isInitialOrPreparatoryCourse(courseName: string): boolean {
+  const normalized = normalizeCourseName(courseName)
+  return normalized.includes('INICIAL 2') || normalized.includes('1RO BASICA') || normalized.includes('1RO DE BASICA')
+}
+
+function normalizeCourseName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function buildInitialPreparatoryWeeklyTemplate({
+  teacherName,
+  subjectName,
+  courseName,
+}: {
+  teacherName: string
+  subjectName: string
+  courseName: string
+}): string {
+  const criterionCopy = normalizeCourseName(courseName).includes('INICIAL 2')
+    ? 'No aplica para Educación Inicial (EI).'
+    : 'En 1.º grado de EGB, son tomados del currículo y se corresponden con las DCD.'
+
+  return `
+<h2>EJEMPLO DE FORMATO DE PLANIFICACIÓN MICROCURRICULAR POR EXPERIENCIA DE APRENDIZAJE PARA EDUCACIÓN INICIAL Y PREPARATORIA</h2>
+
+<table class="plan-table">
+  <tbody>
+    <tr>
+      <td><strong>Experiencia de aprendizaje</strong></td>
+      <td colspan="3">Nombre o título de la experiencia de aprendizaje.</td>
+    </tr>
+    <tr>
+      <td><strong>Grupo de edad</strong></td>
+      <td>${escapeHtml(courseName)}</td>
+      <td><strong>No. de niños</strong></td>
+      <td>Número de estudiantes que tiene el grupo</td>
+    </tr>
+    <tr>
+      <td><strong>Docente</strong></td>
+      <td>${escapeHtml(teacherName)}</td>
+      <td><strong>Fecha de inicio</strong></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><strong>Tiempo estimado</strong></td>
+      <td colspan="3">Días o semanas que durará el desarrollo de la experiencia.</td>
+    </tr>
+    <tr>
+      <td><strong>Área / Ámbito principal</strong></td>
+      <td colspan="3">${escapeHtml(subjectName)}</td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="plan-table">
+  <tbody>
+    <tr>
+      <td style="width:24%"><strong>Criterio de Evaluación</strong></td>
+      <td>${criterionCopy}</td>
+    </tr>
+    <tr>
+      <td><strong>Descripción general de la experiencia</strong></td>
+      <td>Descripción general de lo que consistirá la experiencia y lo que se va a lograr con los estudiantes.</td>
+    </tr>
+    <tr>
+      <td><strong>Elemento integrador</strong></td>
+      <td>Elemento integrador de la experiencia. Puede ser una canción, un juego, una vivencia en el hogar, un objeto que interese mucho a los niños, entre otros.</td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="plan-table">
+  <thead>
+    <tr>
+      <th>Ámbito de Desarrollo y Aprendizaje</th>
+      <th>Contenidos</th>
+      <th>Actividades</th>
+      <th>Recursos</th>
+      <th>Indicadores para evaluar</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <p>En Educación Inicial, anotar los ámbitos establecidos en el currículo a los que pertenecen las destrezas seleccionadas.</p>
+        <p>En 1.º grado de EGB, anotar los ámbitos establecidos en el Currículo de Preparatoria a los que pertenecen las destrezas con criterios de desempeño seleccionadas.</p>
+      </td>
+      <td>
+        <p>En EI, anotar las destrezas seleccionadas del currículo.</p>
+        <p>En 1.º grado de EGB, anotar las destrezas con criterios de desempeño seleccionadas del currículo.</p>
+      </td>
+      <td>Describir todas las actividades que se van a desarrollar hasta concluir la experiencia.</td>
+      <td>Anotar la lista de equipos, materiales y demás recursos necesarios para desarrollar las actividades.</td>
+      <td>
+        <p>En EI, los docentes deben crear los indicadores.</p>
+        <p>En 1.º grado de EGB, los docentes deben escribir los indicadores (desagregados) con los cuales se va a evaluar el desarrollo de cada una de las destrezas con criterios de desempeño seleccionadas.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="plan-table">
+  <tbody>
+    <tr>
+      <td><strong>Adaptaciones curriculares</strong></td>
+      <td>En este apartado se deben desarrollar las adaptaciones curriculares para los estudiantes con N.E.E. asociadas o no a la discapacidad.</td>
+    </tr>
+    <tr>
+      <td><strong>Especificación de la necesidad educativa</strong></td>
+      <td>Enunciar la necesidad educativa que presenta el estudiante; puede ser asociada o no a la discapacidad. Indicar las iniciales del o de los estudiantes.</td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="plan-table">
+  <thead>
+    <tr>
+      <th>Ámbito de Desarrollo y Aprendizaje</th>
+      <th>Contenidos</th>
+      <th>Actividades</th>
+      <th>Recursos</th>
+      <th>Indicadores para evaluar</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Enunciar el ámbito a trabajar, debe guardar correspondencia con el ámbito establecido para todo el grupo.</td>
+      <td>En las adaptaciones curriculares, anotar la misma destreza para todo el grupo. En caso de adaptaciones, especificar la destreza o DCD modificada según el ámbito establecido y la experiencia de aprendizaje.</td>
+      <td>Describir todas las actividades específicas que se van a desarrollar hasta concluir la experiencia.</td>
+      <td>Anotar la lista de equipos, materiales y demás recursos específicos para desarrollar las actividades.</td>
+      <td>Deben crearse en función de la destreza o DCD modificada para las adaptaciones.</td>
+    </tr>
   </tbody>
 </table>
   `.trim()
