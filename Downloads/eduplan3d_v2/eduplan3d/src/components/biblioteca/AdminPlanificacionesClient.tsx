@@ -372,7 +372,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
                     </p>
 
                     <div className="flex items-center justify-between border-t border-line pt-3">
-                      <span className="text-[10px] text-ink4">
+                      <span className="text-[10px] text-ink4" suppressHydrationWarning>
                         Actualizado: {new Date(item.updated_at).toLocaleDateString('es-EC')}
                       </span>
                       <span className="text-[10px] font-bold text-violet opacity-0 transition-opacity group-hover:opacity-100">
@@ -424,7 +424,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
                     </p>
 
                     <div className="flex items-center justify-between border-t border-line pt-3">
-                      <span className="text-[10px] text-ink4">
+                      <span className="text-[10px] text-ink4" suppressHydrationWarning>
                         Subido: {new Date(item.created_at).toLocaleDateString('es-EC')}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 opacity-0 transition-opacity group-hover:opacity-100">

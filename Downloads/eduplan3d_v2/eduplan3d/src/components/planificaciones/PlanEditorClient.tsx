@@ -564,9 +564,10 @@ function SaveIndicator({
       </span>
     )
   }
-  // idle
+  // idle — suppressHydrationWarning: toLocaleString('es-EC') produce output diferente
+  // en el servidor (Node/Vercel sin ICU completo) vs el cliente (browser).
   return (
-    <span className="text-[11px] text-ink4 flex items-center gap-1">
+    <span className="text-[11px] text-ink4 flex items-center gap-1" suppressHydrationWarning>
       <Save size={11} /> Última edición {timeAgo(lastSavedAt)}
     </span>
   )
