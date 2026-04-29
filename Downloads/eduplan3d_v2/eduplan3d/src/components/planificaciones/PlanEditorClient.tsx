@@ -874,10 +874,30 @@ function buildLetamendiAnnualTemplate({
   <tbody>
     <tr><td colspan="4" class="section-title">4. Competencias</td></tr>
     <tr>
-      <th style="text-align:center">Competencias comunicacionales <span style="display:inline-block;background:#4a90d9;color:white;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-size:11px;font-weight:bold;margin-left:4px">C</span></th>
-      <th style="text-align:center">Competencias matemáticas <span style="display:inline-block;background:#2bb5a0;color:white;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-size:10px;font-weight:bold;margin-left:4px">CM</span></th>
-      <th style="text-align:center">Competencias digitales <span style="display:inline-block;background:#e8a020;color:white;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-size:10px;font-weight:bold;margin-left:4px">CD</span></th>
-      <th style="text-align:center">Competencias Socioemocionales <span style="display:inline-block;background:#f0c030;color:white;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-size:10px;font-weight:bold;margin-left:4px">CS</span></th>
+      <th style="text-align:center;padding:10px">
+        <span style="display:inline-block;background:#00ACC1;color:white;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:bold;width:90%;box-sizing:border-box">
+          <span style="display:block;font-size:22px;font-weight:900;letter-spacing:1px">C</span>
+          Competencias Comunicacionales
+        </span>
+      </th>
+      <th style="text-align:center;padding:10px">
+        <span style="display:inline-block;background:#1565C0;color:white;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:bold;width:90%;box-sizing:border-box">
+          <span style="display:block;font-size:22px;font-weight:900;letter-spacing:1px">CM</span>
+          Competencias Matemáticas
+        </span>
+      </th>
+      <th style="text-align:center;padding:10px">
+        <span style="display:inline-block;background:#E64A19;color:white;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:bold;width:90%;box-sizing:border-box">
+          <span style="display:block;font-size:22px;font-weight:900;letter-spacing:1px">CD</span>
+          Competencias Digitales
+        </span>
+      </th>
+      <th style="text-align:center;padding:10px">
+        <span style="display:inline-block;background:#F9A825;color:white;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:bold;width:90%;box-sizing:border-box">
+          <span style="display:block;font-size:22px;font-weight:900;letter-spacing:1px">CS</span>
+          Competencias Socioemocionales
+        </span>
+      </th>
     </tr>
     <tr>
       <td style="height:80px;vertical-align:top"></td>
@@ -988,6 +1008,43 @@ function buildLetamendiWeeklyTemplate({
     <tr><td><strong>Título de la Unidad Didáctica ${unidad}</strong></td><td colspan="3"></td></tr>
     <tr><td><strong>Objetivo de la Unidad</strong></td><td colspan="3"></td></tr>
     <tr><td><strong>Criterios de Evaluación</strong></td><td colspan="3"></td></tr>
+  </tbody>
+</table>
+
+<table class="plan-table">
+  <tbody>
+    <tr>
+      <td colspan="5" style="background:#f0f0f0;font-weight:bold;font-size:12px;padding:8px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #ccc">
+        Ejes transversales / Inserciones curriculares MinEduc
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#4a235a;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">🏛️</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#4a235a;margin-top:4px;line-height:1.2">CÍVICA, ÉTICA E INTEGRIDAD</span>
+      </td>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#1e6b42;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">🌿</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#1e6b42;margin-top:4px;line-height:1.2">DESARROLLO SOSTENIBLE</span>
+      </td>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#6b2d8b;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">🤝</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#6b2d8b;margin-top:4px;line-height:1.2">EDUCACIÓN SOCIOEMOCIONAL</span>
+      </td>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#0e6b6b;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">💰</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#0e6b6b;margin-top:4px;line-height:1.2">EDUCACIÓN FINANCIERA</span>
+      </td>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#154360;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">🚲</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#154360;margin-top:4px;line-height:1.2">EDUCACIÓN VIAL</span>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="5" style="padding:8px">
+        <strong>Inserciones que se trabajan en esta unidad:</strong>
+      </td>
+    </tr>
   </tbody>
 </table>
 
