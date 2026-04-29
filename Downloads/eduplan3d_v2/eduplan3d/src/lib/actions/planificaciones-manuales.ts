@@ -163,9 +163,16 @@ export async function saveSupervisorNotes(input: {
 
   const { error } = await (sb as any)
     .from('planificaciones_manuales')
-    .update({ supervisor_notes: input.notes.trim() || null })
+    .update({
+      supervisor_notes: input.notes.trim() || null,
+      supervisor_notes_updated_at: new Date().toISOString(),
+      supervisor_notes_updated_by: user.id,
+    })
     .eq('id', input.id)
   if (error) return { ok: false, error: error.message }
+  revalidatePath('/dashboard/biblioteca')
+  revalidatePath('/dashboard/planificaciones')
+  revalidatePath(`/dashboard/planificaciones/${input.id}`)
   return { ok: true }
 }
 
