@@ -684,20 +684,86 @@ function buildLetamendiAnnualTemplate({
       <td><strong>Nivel educativo:</strong></td>
       <td colspan="2"></td>
     </tr>
-    <tr><td colspan="5" class="section-title">2. Tiempo</td></tr>
+  </tbody>
+</table>
+
+<table class="letamendi-plan-table">
+  <tbody>
+    <tr><td colspan="6" class="section-title">2. Tiempo</td></tr>
     <tr>
-      <th>Carga horaria semanal</th>
-      <th>Número de semanas de trabajo</th>
-      <th>Evaluación del aprendizaje e imprevistos</th>
-      <th>Total de semanas clases</th>
-      <th>Total de periodos</th>
+      <th rowspan="2" style="width:30%;text-align:center;vertical-align:middle">UNIDADES DE PLANIFICACIÓN CURRICULAR<br><small>(detallar tiempos según el cronograma general escolar institucional)</small></th>
+      <th rowspan="2" style="width:14%;text-align:center;vertical-align:middle">NÚMERO DE SEMANAS DESTINADAS A LAS UNIDADES DE PLANIFICACIÓN CURRICULAR</th>
+      <th colspan="4" style="text-align:center">NÚMERO DE PERIODOS DESTINADOS PARA EL DESARROLLO DE LA PROGRAMACIÓN</th>
     </tr>
     <tr>
-      <td style="text-align:center">6 horas</td>
-      <td style="text-align:center">40 semanas</td>
-      <td style="text-align:center">5 semanas</td>
-      <td style="text-align:center">35 semanas</td>
-      <td style="text-align:center">200 horas</td>
+      <th style="text-align:center">NÚMERO DE PERIODOS SEMANALES</th>
+      <th style="text-align:center">NÚMERO TOTAL DE PERIODOS</th>
+      <th style="text-align:center">NÚMERO DE PERIODOS PARA EVALUACIONES E IMPREVISTOS</th>
+      <th style="text-align:center">TOTAL DE PERIODOS</th>
+    </tr>
+    <tr>
+      <td>0.- DIAGNÓSTICO Y NIVELACIÓN</td>
+      <td style="text-align:center">4</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">28</td>
+      <td></td>
+      <td style="text-align:center">28</td>
+    </tr>
+    <tr>
+      <td>1.- LA COMUNICACIÓN</td>
+      <td style="text-align:center">4</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">28</td>
+      <td></td>
+      <td style="text-align:center">28</td>
+    </tr>
+    <tr>
+      <td>2.-</td>
+      <td style="text-align:center">6</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">42</td>
+      <td></td>
+      <td style="text-align:center">42</td>
+    </tr>
+    <tr>
+      <td>3.-</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">49</td>
+      <td></td>
+      <td style="text-align:center">49</td>
+    </tr>
+    <tr>
+      <td>4.-</td>
+      <td style="text-align:center">7</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.-</td>
+      <td style="text-align:center">7</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.-</td>
+      <td style="text-align:center">5</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><strong>TOTAL SEMANAS ANUALES</strong></td>
+      <td style="text-align:center"><strong>40</strong></td>
+      <td></td>
+      <td></td>
+      <td style="text-align:center"><strong>TOTAL PERIODO ANUAL</strong></td>
+      <td></td>
     </tr>
   </tbody>
 </table>
@@ -737,7 +803,25 @@ function buildLetamendiAnnualTemplate({
 
 <table class="letamendi-plan-table">
   <tbody>
-    <tr><td colspan="7" class="section-title">Desarrollo de unidades de planificación</td></tr>
+    <tr><td colspan="4" class="section-title">4. Competencias</td></tr>
+    <tr>
+      <th style="text-align:center">Competencias comunicacionales <span style="display:inline-block;background:#4a90d9;color:white;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-size:11px;font-weight:bold;margin-left:4px">C</span></th>
+      <th style="text-align:center">Competencias matemáticas <span style="display:inline-block;background:#2bb5a0;color:white;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-size:10px;font-weight:bold;margin-left:4px">CM</span></th>
+      <th style="text-align:center">Competencias digitales <span style="display:inline-block;background:#e8a020;color:white;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-size:10px;font-weight:bold;margin-left:4px">CD</span></th>
+      <th style="text-align:center">Competencias Socioemocionales <span style="display:inline-block;background:#f0c030;color:white;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-size:10px;font-weight:bold;margin-left:4px">CS</span></th>
+    </tr>
+    <tr>
+      <td style="height:80px;vertical-align:top"></td>
+      <td style="vertical-align:top"></td>
+      <td style="vertical-align:top"></td>
+      <td style="vertical-align:top"></td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="letamendi-plan-table">
+  <tbody>
+    <tr><td colspan="7" class="section-title">5. Desarrollo de unidades de planificación</td></tr>
     <tr>
       <th style="width:4%">N.º</th>
       <th style="width:16%">Título de la unidad de planificación</th>
