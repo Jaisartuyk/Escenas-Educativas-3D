@@ -283,14 +283,16 @@ export function PlanEditorClient({
 
       {/* ── Banner: actualizar plantilla (solo LETAMENDI anual con estructura vieja) */}
       {isLetamendiAnnual && needsTemplateUpdate && (
-        <div className="mb-3 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm">
-          <span className="text-lg leading-none mt-0.5">⚠️</span>
-          <p className="flex-1 text-amber-800">
-            Esta planificación usa la estructura anterior. Actualízala para incluir la nueva tabla de <strong>Tiempo</strong> (unidades 0–6) y la sección de <strong>4. Competencias</strong>. Tu contenido de Objetivos, Desarrollo y Bibliografía se conservará.
-          </p>
+        <div className="mb-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm">
+          <div className="flex items-start gap-2 mb-2">
+            <span className="text-lg leading-none mt-0.5">⚠️</span>
+            <p className="text-amber-800">
+              Esta planificación usa la estructura anterior. Actualízala para incluir la nueva tabla de <strong>Tiempo</strong> (unidades 0–6) y la sección de <strong>4. Competencias</strong>. Tu contenido de Objetivos, Desarrollo y Bibliografía se conservará.
+            </p>
+          </div>
           <button
             onClick={applyTemplateUpdate}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors whitespace-nowrap flex-shrink-0"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors"
           >
             <RefreshCw size={12} />
             Actualizar plantilla
