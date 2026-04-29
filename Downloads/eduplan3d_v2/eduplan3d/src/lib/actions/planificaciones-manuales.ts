@@ -137,6 +137,39 @@ export async function savePlanificacionManual(input: {
 }
 
 /**
+ * Guarda la retroalimentación del supervisor en una planificación.
+ * Solo roles admin/assistant/supervisor/rector pueden usarlo.
+ */
+export async function saveSupervisorNotes(input: {
+  id: string
+  notes: string
+}): Promise<{ ok: boolean; error?: string }> {
+  const sb = createServerClient()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+
+  const { data: prof } = await (sb as any)
+    .from('profiles').select('role, institution_id').eq('id', user.id).single()
+  if (!['admin', 'assistant', 'supervisor', 'rector'].includes(prof?.role)) {
+    return { ok: false, error: 'No autorizado' }
+  }
+
+  // Verificar que la planificación pertenece a la misma institución
+  const { data: plan } = await (sb as any)
+    .from('planificaciones_manuales').select('institution_id').eq('id', input.id).single()
+  if ((plan as any)?.institution_id !== prof?.institution_id) {
+    return { ok: false, error: 'No autorizado' }
+  }
+
+  const { error } = await (sb as any)
+    .from('planificaciones_manuales')
+    .update({ supervisor_notes: input.notes.trim() || null })
+    .eq('id', input.id)
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
+/**
  * Cambia el estado: borrador ↔ publicada.
  */
 export async function setPlanificacionManualStatus(input: {

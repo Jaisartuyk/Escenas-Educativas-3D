@@ -27,7 +27,7 @@ export default async function BibliotecaPage() {
   const isPlannerSolo = (profile as any)?.plan === 'planner_solo'
 
   if (isAdmin && instId) {
-    const [{ data: teachers }, { data: manuales }, { data: docsLegacy }, { data: docsByMateria }] = await Promise.all([
+    const [{ data: teachers }, { data: manuales }, { data: docsLegacy }, { data: docsByMateria }, { data: inst }] = await Promise.all([
       admin
         .from('profiles')
         .select('id, full_name, email')
@@ -36,7 +36,7 @@ export default async function BibliotecaPage() {
         .order('full_name'),
       admin
         .from('planificaciones_manuales' as any)
-        .select('id, user_id, title, subject_name, course_name, status, type, unit_number, updated_at, content_html')
+        .select('id, user_id, title, subject_name, course_name, status, type, unit_number, updated_at, content_html, supervisor_notes')
         .eq('institution_id', instId)
         .order('updated_at', { ascending: false }),
       admin
@@ -45,6 +45,11 @@ export default async function BibliotecaPage() {
       admin
         .from('planner_reference_docs' as any)
         .select('id, user_id, titulo, planner_subject_id, storage_path, created_at, file_name, file_type'),
+      admin
+        .from('institutions' as any)
+        .select('name, settings')
+        .eq('id', instId)
+        .single(),
     ])
 
     const subjectIds = Array.from(
@@ -98,6 +103,12 @@ export default async function BibliotecaPage() {
       })),
     ]
 
+    const institutionName = (inst as any)?.name || 'Institución Educativa'
+    const instSettings = ((inst as any)?.settings as any) || {}
+    const logoUrl: string | null =
+      instSettings?.logo_url
+        ?? (institutionName.toUpperCase().includes('LETAMENDI') ? '/icon/logo-institucion.png' : null)
+
     return (
       <div className="animate-fade-in max-w-6xl mx-auto">
         <div className="mb-6">
@@ -110,6 +121,8 @@ export default async function BibliotecaPage() {
           manuales={(manuales as any) || []}
           recursos={recursos}
           teachers={(teachers as any) || []}
+          institutionName={institutionName}
+          logoUrl={logoUrl}
         />
       </div>
     )

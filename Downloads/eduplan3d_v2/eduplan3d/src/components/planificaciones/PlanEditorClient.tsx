@@ -39,9 +39,27 @@ type PlanData = {
   unitNumber: number | null
   contentJson: any
   updatedAt: string
+  supervisorNotes?: string | null
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
+
+// Extiende TableCell para preservar atributo class (necesario para comp-c/cm/cd/cs)
+const CustomTableCell = TableCell.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      class: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('class'),
+        renderHTML: (attributes) => {
+          if (!attributes.class) return {}
+          return { class: attributes.class }
+        },
+      },
+    }
+  },
+})
 
 export function PlanEditorClient({
   plan,
@@ -93,7 +111,7 @@ export function PlanEditorClient({
       Table.configure({ resizable: true, HTMLAttributes: { class: 'plan-table' } }),
       TableRow,
       TableHeader,
-      TableCell,
+      CustomTableCell,
     ],
     content: initialContent,
     immediatelyRender: false,
@@ -281,6 +299,17 @@ export function PlanEditorClient({
         </p>
       </div>
 
+      {/* ── Retroalimentación del supervisor (read-only para el docente) ──────── */}
+      {plan.supervisorNotes && (
+        <div className="mb-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">💬</span>
+            <p className="font-bold text-blue-800 text-xs uppercase tracking-wide">Retroalimentación del supervisor</p>
+          </div>
+          <p className="text-blue-800 whitespace-pre-wrap leading-relaxed">{plan.supervisorNotes}</p>
+        </div>
+      )}
+
       {/* ── Banner: actualizar plantilla (solo LETAMENDI anual con estructura vieja) */}
       {isLetamendiAnnual && needsTemplateUpdate && (
         <div className="mb-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm">
@@ -439,6 +468,18 @@ export function PlanEditorClient({
           font-weight: 700;
           background: #f8f8f8;
         }
+        .plan-editor-prose .letamendi-plan-table td.comp-c  { background: #00ACC1 !important; color: white; text-align: center; font-weight: bold; padding: 12px 8px; }
+        .plan-editor-prose .letamendi-plan-table td.comp-cm { background: #1565C0 !important; color: white; text-align: center; font-weight: bold; padding: 12px 8px; }
+        .plan-editor-prose .letamendi-plan-table td.comp-cd { background: #E64A19 !important; color: white; text-align: center; font-weight: bold; padding: 12px 8px; }
+        .plan-editor-prose .letamendi-plan-table td.comp-cs { background: #F9A825 !important; color: white; text-align: center; font-weight: bold; padding: 12px 8px; }
+        .plan-editor-prose .letamendi-plan-table td.comp-c p,
+        .plan-editor-prose .letamendi-plan-table td.comp-cm p,
+        .plan-editor-prose .letamendi-plan-table td.comp-cd p,
+        .plan-editor-prose .letamendi-plan-table td.comp-cs p { color: white !important; margin: 3px 0; }
+        .plan-editor-prose .letamendi-plan-table td.comp-c strong,
+        .plan-editor-prose .letamendi-plan-table td.comp-cm strong,
+        .plan-editor-prose .letamendi-plan-table td.comp-cd strong,
+        .plan-editor-prose .letamendi-plan-table td.comp-cs strong { color: white !important; font-size: 20px; display: block; }
         .letamendi-annual-header {
           border: 1px solid #111;
           margin-bottom: 12px;
@@ -874,30 +915,10 @@ function buildLetamendiAnnualTemplate({
   <tbody>
     <tr><td colspan="4" class="section-title">4. Competencias</td></tr>
     <tr>
-      <th style="text-align:center;padding:10px">
-        <span style="display:inline-block;background:#00ACC1;color:white;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:bold;width:90%;box-sizing:border-box">
-          <span style="display:block;font-size:22px;font-weight:900;letter-spacing:1px">C</span>
-          Competencias Comunicacionales
-        </span>
-      </th>
-      <th style="text-align:center;padding:10px">
-        <span style="display:inline-block;background:#1565C0;color:white;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:bold;width:90%;box-sizing:border-box">
-          <span style="display:block;font-size:22px;font-weight:900;letter-spacing:1px">CM</span>
-          Competencias Matemáticas
-        </span>
-      </th>
-      <th style="text-align:center;padding:10px">
-        <span style="display:inline-block;background:#E64A19;color:white;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:bold;width:90%;box-sizing:border-box">
-          <span style="display:block;font-size:22px;font-weight:900;letter-spacing:1px">CD</span>
-          Competencias Digitales
-        </span>
-      </th>
-      <th style="text-align:center;padding:10px">
-        <span style="display:inline-block;background:#F9A825;color:white;border-radius:10px;padding:10px 14px;font-size:12px;font-weight:bold;width:90%;box-sizing:border-box">
-          <span style="display:block;font-size:22px;font-weight:900;letter-spacing:1px">CS</span>
-          Competencias Socioemocionales
-        </span>
-      </th>
+      <td class="comp-c"><p><strong>C</strong></p><p>Competencias Comunicacionales</p></td>
+      <td class="comp-cm"><p><strong>CM</strong></p><p>Competencias Matemáticas</p></td>
+      <td class="comp-cd"><p><strong>CD</strong></p><p>Competencias Digitales</p></td>
+      <td class="comp-cs"><p><strong>CS</strong></p><p>Competencias Socioemocionales</p></td>
     </tr>
     <tr>
       <td style="height:80px;vertical-align:top"></td>
