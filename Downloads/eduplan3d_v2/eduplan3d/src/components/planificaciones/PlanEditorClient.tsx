@@ -40,6 +40,7 @@ type PlanData = {
   contentJson: any
   updatedAt: string
   supervisorNotes?: string | null
+  supervisorNotesUpdatedAt?: string | null
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
