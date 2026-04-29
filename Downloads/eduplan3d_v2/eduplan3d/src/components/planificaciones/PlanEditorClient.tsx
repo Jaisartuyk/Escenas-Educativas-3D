@@ -192,10 +192,10 @@ export function PlanEditorClient({
     }
   }, [editor, plan.id])
 
-  // Detectar si el plan usa la plantilla vieja de LETAMENDI (tiene "Carga horaria semanal")
+  // Detectar si el plan usa una versión anterior de la plantilla anual LETAMENDI.
   useEffect(() => {
     if (!editor || !isLetamendiAnnual) return
-    setNeedsTemplateUpdate(editor.getHTML().includes('Carga horaria semanal'))
+    setNeedsTemplateUpdate(detectLetamendiAnnualTemplateNeedsUpdate(editor.getHTML()))
   }, [editor, isLetamendiAnnual])
 
   // Toggle publicar / borrador
@@ -220,10 +220,12 @@ export function PlanEditorClient({
     const html = editor.getHTML()
     const tables = Array.from(html.matchAll(/<table[\s\S]*?<\/table>/gi)).map(m => m[0])
 
-    const objetivosTable  = tables.find(t => t.includes('Objetivos generales')) ?? ''
-    let   desarrolloTable = tables.find(t => t.includes('Desarrollo de unidades')) ?? ''
+    const objetivosTable    = tables.find(t => t.includes('Objetivos generales')) ?? ''
+    const existingTiempo    = tables.find(t => t.includes('2. Tiempo') || t.includes('Carga horaria semanal')) ?? ''
+    const existingCompet    = tables.find(t => t.includes('4. Competencias') || t.includes('Competencias Comunicacionales')) ?? ''
+    let   desarrolloTable   = tables.find(t => t.includes('Desarrollo de unidades')) ?? ''
     const bibliografiaTable = tables.find(t => t.includes('Bibliograf')) ?? ''
-    const firmasTable     = tables.find(t => t.includes('Elaborado:')) ?? ''
+    const firmasTable       = tables.find(t => t.includes('Elaborado:')) ?? ''
 
     // Renumerar Desarrollo → Punto 5
     desarrolloTable = desarrolloTable.replace(
@@ -238,11 +240,14 @@ export function PlanEditorClient({
       courseName: plan.courseName,
     })
     const newTables = Array.from(newTpl.matchAll(/<table[\s\S]*?<\/table>/gi)).map(m => m[0])
-    const newDatos       = newTables[0] ?? ''
-    const newTiempo      = newTables[1] ?? ''
-    const newCompetencias = newTables[3] ?? ''
+    const newDatos        = newTables[0] ?? ''
+    const defaultTiempo   = newTables[1] ?? ''
+    const defaultCompet   = newTables[3] ?? ''
 
-    const newContent = [newDatos, newTiempo, objetivosTable, newCompetencias, desarrolloTable, bibliografiaTable, firmasTable]
+    const tiempoTable = shouldPreserveCurrentTiempo(existingTiempo) ? existingTiempo : defaultTiempo
+    const competenciasTable = existingCompet || defaultCompet
+
+    const newContent = [newDatos, tiempoTable, objetivosTable, competenciasTable, desarrolloTable, bibliografiaTable, firmasTable]
       .filter(Boolean).join('\n')
 
     editor.commands.setContent(newContent)
@@ -915,6 +920,35 @@ function buildInitialPreparatoryWeeklyTemplate({
   </tbody>
 </table>
   `.trim()
+}
+
+function detectLetamendiAnnualTemplateNeedsUpdate(html: string): boolean {
+  const normalized = normalizeTemplateHtml(html)
+  const requiredMarkers = [
+    '1. datos informativos',
+    '2. tiempo',
+    '4. competencias',
+    '5. desarrollo de unidades de planificacion',
+    '6. bibliografia y webgrafia',
+    '7. observaciones',
+    '0.- diagnostico y nivelacion',
+  ]
+
+  return requiredMarkers.some((marker) => !normalized.includes(marker))
+}
+
+function shouldPreserveCurrentTiempo(tableHtml: string): boolean {
+  if (!tableHtml) return false
+  const normalized = normalizeTemplateHtml(tableHtml)
+  return normalized.includes('2. tiempo') && normalized.includes('0.- diagnostico y nivelacion')
+}
+
+function normalizeTemplateHtml(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
 }
 
 function buildLetamendiAnnualTemplate({
