@@ -292,7 +292,7 @@ export function PlanEditorClient({
           </div>
           <button
             onClick={applyTemplateUpdate}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors"
           >
             <RefreshCw size={12} />
             Actualizar plantilla
