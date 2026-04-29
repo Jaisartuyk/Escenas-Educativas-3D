@@ -23,48 +23,98 @@ export default async function BibliotecaPage() {
     .single()
 
   const isAdmin = ['admin', 'assistant', 'supervisor', 'rector'].includes(profile?.role)
-  const instId  = profile?.institution_id
+  const instId = profile?.institution_id
   const isPlannerSolo = (profile as any)?.plan === 'planner_solo'
 
-  // ── ADMIN: fetch all teachers + their planificaciones ──────────────────────
   if (isAdmin && instId) {
-    const teacherIds = (
-      await admin.from('profiles').select('id').eq('institution_id', instId).eq('role', 'teacher')
-    ).data?.map((p: any) => p.id) || []
-
-    const [{ data: teachers }, { data: manuales }] = await Promise.all([
+    const [{ data: teachers }, { data: manuales }, { data: docsLegacy }, { data: docsByMateria }] = await Promise.all([
       admin
         .from('profiles')
         .select('id, full_name, email')
         .eq('institution_id', instId)
         .eq('role', 'teacher')
         .order('full_name'),
-      // Solo planificaciones manuales PUBLICADAS (los borradores no se ven al admin)
       admin
         .from('planificaciones_manuales' as any)
         .select('id, user_id, title, subject_name, course_name, status, type, unit_number, updated_at, content_html')
         .eq('institution_id', instId)
-        .eq('status', 'publicada')
         .order('updated_at', { ascending: false }),
+      admin
+        .from('documentos' as any)
+        .select('id, user_id, titulo, asignatura, grado, storage_path, created_at, file_size'),
+      admin
+        .from('planner_reference_docs' as any)
+        .select('id, user_id, titulo, planner_subject_id, storage_path, created_at, file_name, file_type'),
     ])
+
+    const subjectIds = Array.from(
+      new Set(
+        (((docsByMateria as any[]) || []).map((doc: any) => doc.planner_subject_id).filter(Boolean))
+      )
+    )
+
+    const plannerSubjects = subjectIds.length > 0
+      ? ((await admin
+          .from('subjects' as any)
+          .select('id, name, course:courses(name, parallel)')
+          .in('id', subjectIds)
+        ).data || [])
+      : []
+
+    const plannerSubjectMap = new Map(
+      (plannerSubjects as any[]).map((subject: any) => {
+        const courseName = subject.course
+          ? `${subject.course.name} ${subject.course.parallel || ''}`.trim()
+          : ''
+        return [subject.id, { subject_name: subject.name || 'Sin materia', course_name: courseName || 'Sin curso' }]
+      })
+    )
+
+    const recursos = [
+      ...(((docsLegacy as any[]) || []).map((doc: any) => ({
+        id: doc.id,
+        user_id: doc.user_id,
+        title: doc.titulo || 'Documento adjunto',
+        subject_name: doc.asignatura || 'Sin materia',
+        course_name: doc.grado || 'Sin curso',
+        storage_path: doc.storage_path,
+        created_at: doc.created_at,
+        file_name: doc.storage_path?.split('/').pop() || null,
+        file_size: doc.file_size || null,
+      }))),
+      ...(((docsByMateria as any[]) || []).map((doc: any) => {
+        const subjectInfo = plannerSubjectMap.get(doc.planner_subject_id) || { subject_name: 'Sin materia', course_name: 'Sin curso' }
+        return {
+          id: doc.id,
+          user_id: doc.user_id,
+          title: doc.titulo || doc.file_name || 'Documento de referencia',
+          subject_name: subjectInfo.subject_name,
+          course_name: subjectInfo.course_name,
+          storage_path: doc.storage_path,
+          created_at: doc.created_at,
+          file_name: doc.file_name || doc.storage_path?.split('/').pop() || null,
+          file_size: null,
+        }
+      })),
+    ]
 
     return (
       <div className="animate-fade-in max-w-6xl mx-auto">
         <div className="mb-6">
           <h1 className="font-display text-3xl font-bold tracking-tight">Planificaciones Docentes</h1>
           <p className="text-ink3 text-sm mt-1">
-            Visualiza las planificaciones de los docentes de tu institución (subidas o creadas en línea).
+            Visualiza las planificaciones, borradores y recursos de los docentes de tu institución.
           </p>
         </div>
         <AdminPlanificacionesClient
           manuales={(manuales as any) || []}
+          recursos={recursos}
           teachers={(teachers as any) || []}
         />
       </div>
     )
   }
 
-  // ── PLANNER_SOLO (docente externo): manager de materias propias ─────────────
   if (isPlannerSolo) {
     return (
       <div className="animate-fade-in">
@@ -80,7 +130,6 @@ export default async function BibliotecaPage() {
     )
   }
 
-  // ── TEACHER / other roles: personal library + personal planificaciones ──────
   const { data: subjects } = await admin
     .from('subjects' as any)
     .select('id, name, course_id, course:courses(id, name, parallel, level)')
