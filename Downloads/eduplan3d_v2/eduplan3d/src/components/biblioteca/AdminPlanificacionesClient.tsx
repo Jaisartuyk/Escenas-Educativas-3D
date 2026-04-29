@@ -188,7 +188,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
 
   function openPreview(item: PlanManual) {
     setManualPreview(item)
-    setNotesText(item.supervisor_notes || '')
+    setNotesText((item as any).supervisor_notes || '')
   }
 
   async function handleSaveNotes() {
