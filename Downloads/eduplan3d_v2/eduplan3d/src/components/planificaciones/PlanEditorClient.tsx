@@ -39,6 +39,8 @@ type PlanData = {
   unitNumber: number | null
   contentJson: any
   updatedAt: string
+  supervisorNotes?: string | null
+  supervisorNotesUpdatedAt?: string | null
 }
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
@@ -232,6 +234,26 @@ export function PlanEditorClient({
       </div>
 
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
+      {plan.supervisorNotes?.trim() && (
+        <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">
+                Retroalimentacion del rector / supervisor
+              </p>
+              {plan.supervisorNotesUpdatedAt && (
+                <p className="mt-1 text-[11px] text-blue-700/80">
+                  Actualizada: {new Date(plan.supervisorNotesUpdatedAt).toLocaleDateString('es-EC')}
+                </p>
+              )}
+            </div>
+            <Eye size={16} className="mt-0.5 shrink-0 text-blue-600" />
+          </div>
+          <div className="mt-3 whitespace-pre-wrap rounded-xl border border-blue-100 bg-white/80 px-3 py-3 text-sm text-ink">
+            {plan.supervisorNotes}
+          </div>
+        </div>
+      )}
       <Toolbar editor={editor} />
 
       {/* ── Documento (header institucional + editor) ────────────────────── */}

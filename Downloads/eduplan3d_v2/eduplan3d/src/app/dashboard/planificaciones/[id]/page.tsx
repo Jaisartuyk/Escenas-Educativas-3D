@@ -17,7 +17,7 @@ export default async function PlanificacionManualPage({ params }: { params: { id
 
   const { data: plan } = await (admin as any)
     .from('planificaciones_manuales')
-    .select('id, user_id, institution_id, title, subject_name, course_name, status, type, unit_number, content_json, content_html, updated_at')
+    .select('id, user_id, institution_id, title, subject_name, course_name, status, type, unit_number, content_json, content_html, updated_at, supervisor_notes, supervisor_notes_updated_at')
     .eq('id', params.id)
     .single()
 
@@ -59,6 +59,8 @@ export default async function PlanificacionManualPage({ params }: { params: { id
         unitNumber: plan.unit_number,
         contentJson: plan.content_json,
         updatedAt: plan.updated_at,
+        supervisorNotes: plan.supervisor_notes,
+        supervisorNotesUpdatedAt: plan.supervisor_notes_updated_at,
       }}
       institutionName={institutionName}
       logoUrl={logoUrl}
