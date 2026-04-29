@@ -19,7 +19,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import {
   ChevronLeft, Save, CheckCircle2, Clock, Bold, Italic, List, ListOrdered,
   Heading1, Heading2, Heading3, Table as TableIcon, Undo2, Redo2,
-  Eye, FileText,
+  Eye, FileText, RefreshCw,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -45,6 +45,23 @@ type PlanData = {
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
+// Extiende TableCell para preservar atributo class (necesario para comp-c/cm/cd/cs)
+const CustomTableCell = TableCell.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      class: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('class'),
+        renderHTML: (attributes) => {
+          if (!attributes.class) return {}
+          return { class: attributes.class }
+        },
+      },
+    }
+  },
+})
+
 export function PlanEditorClient({
   plan,
   institutionName,
@@ -63,6 +80,7 @@ export function PlanEditorClient({
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isLetamendi = institutionName.toUpperCase().includes('LETAMENDI')
   const isLetamendiAnnual = isLetamendi && plan.type === 'anual'
+  const [needsTemplateUpdate, setNeedsTemplateUpdate] = useState(false)
 
   // Plantilla MinEduc inicial (HTML) cuando el documento está vacío.
   const initialTemplate = useMemo(() => buildMinEducTemplate({
@@ -94,7 +112,7 @@ export function PlanEditorClient({
       Table.configure({ resizable: true, HTMLAttributes: { class: 'plan-table' } }),
       TableRow,
       TableHeader,
-      TableCell,
+      CustomTableCell,
     ],
     content: initialContent,
     immediatelyRender: false,
@@ -174,6 +192,12 @@ export function PlanEditorClient({
     }
   }, [editor, plan.id])
 
+  // Detectar si el plan usa la plantilla vieja de LETAMENDI (tiene "Carga horaria semanal")
+  useEffect(() => {
+    if (!editor || !isLetamendiAnnual) return
+    setNeedsTemplateUpdate(editor.getHTML().includes('Carga horaria semanal'))
+  }, [editor, isLetamendiAnnual])
+
   // Toggle publicar / borrador
   async function handleStatusToggle() {
     const next: PlanManualStatus = status === 'borrador' ? 'publicada' : 'borrador'
@@ -188,6 +212,49 @@ export function PlanEditorClient({
     }
     setStatus(next)
     toast.success(next === 'publicada' ? 'Planificación publicada' : 'Marcada como borrador')
+  }
+
+  // Migrar plantilla anual LETAMENDI vieja → nueva preservando contenido
+  function applyTemplateUpdate() {
+    if (!editor) return
+    const html = editor.getHTML()
+    const tables = Array.from(html.matchAll(/<table[\s\S]*?<\/table>/gi)).map(m => m[0])
+
+    const objetivosTable  = tables.find(t => t.includes('Objetivos generales')) ?? ''
+    let   desarrolloTable = tables.find(t => t.includes('Desarrollo de unidades')) ?? ''
+    const bibliografiaTable = tables.find(t => t.includes('Bibliograf')) ?? ''
+    const firmasTable     = tables.find(t => t.includes('Elaborado:')) ?? ''
+
+    // Renumerar Desarrollo → Punto 5
+    desarrolloTable = desarrolloTable.replace(
+      'Desarrollo de unidades de planificación',
+      '5. Desarrollo de unidades de planificación',
+    )
+
+    // Extraer datos+tiempo+competencias del nuevo template
+    const newTpl = buildLetamendiAnnualTemplate({
+      teacherName,
+      subjectName: plan.subjectName,
+      courseName: plan.courseName,
+    })
+    const newTables = Array.from(newTpl.matchAll(/<table[\s\S]*?<\/table>/gi)).map(m => m[0])
+    const newDatos       = newTables[0] ?? ''
+    const newTiempo      = newTables[1] ?? ''
+    const newCompetencias = newTables[3] ?? ''
+
+    const newContent = [newDatos, newTiempo, objetivosTable, newCompetencias, desarrolloTable, bibliografiaTable, firmasTable]
+      .filter(Boolean).join('\n')
+
+    editor.commands.setContent(newContent)
+    setNeedsTemplateUpdate(false)
+
+    setTimeout(() => {
+      if (editor && !editor.isDestroyed) {
+        triggerSave(editor.getJSON(), editor.getHTML())
+      }
+    }, 150)
+
+    toast.success('Plantilla actualizada — tu contenido fue preservado.')
   }
 
   if (!editor) {
@@ -233,27 +300,37 @@ export function PlanEditorClient({
         </p>
       </div>
 
-      {/* ── Toolbar ────────────────────────────────────────────────────────── */}
-      {plan.supervisorNotes?.trim() && (
-        <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">
-                Retroalimentacion del rector / supervisor
-              </p>
-              {plan.supervisorNotesUpdatedAt && (
-                <p className="mt-1 text-[11px] text-blue-700/80">
-                  Actualizada: {new Date(plan.supervisorNotesUpdatedAt).toLocaleDateString('es-EC')}
-                </p>
-              )}
-            </div>
-            <Eye size={16} className="mt-0.5 shrink-0 text-blue-600" />
+      {/* ── Retroalimentación del supervisor (read-only para el docente) ──────── */}
+      {plan.supervisorNotes && (
+        <div className="mb-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">💬</span>
+            <p className="font-bold text-blue-800 text-xs uppercase tracking-wide">Retroalimentación del supervisor</p>
           </div>
-          <div className="mt-3 whitespace-pre-wrap rounded-xl border border-blue-100 bg-white/80 px-3 py-3 text-sm text-ink">
-            {plan.supervisorNotes}
-          </div>
+          <p className="text-blue-800 whitespace-pre-wrap leading-relaxed">{plan.supervisorNotes}</p>
         </div>
       )}
+
+      {/* ── Banner: actualizar plantilla (solo LETAMENDI anual con estructura vieja) */}
+      {isLetamendiAnnual && needsTemplateUpdate && (
+        <div className="mb-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm">
+          <div className="flex items-start gap-2 mb-2">
+            <span className="text-lg leading-none mt-0.5">⚠️</span>
+            <p className="text-amber-800">
+              Esta planificación usa la estructura anterior. Actualízala para incluir la nueva tabla de <strong>Tiempo</strong> (unidades 0–6) y la sección de <strong>4. Competencias</strong>. Tu contenido de Objetivos, Desarrollo y Bibliografía se conservará.
+            </p>
+          </div>
+          <button
+            onClick={applyTemplateUpdate}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors"
+          >
+            <RefreshCw size={12} />
+            Actualizar plantilla
+          </button>
+        </div>
+      )}
+
+      {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <Toolbar editor={editor} />
 
       {/* ── Documento (header institucional + editor) ────────────────────── */}
@@ -392,6 +469,18 @@ export function PlanEditorClient({
           font-weight: 700;
           background: #f8f8f8;
         }
+        .plan-editor-prose .letamendi-plan-table td.comp-c  { background: #00ACC1 !important; color: white; text-align: center; font-weight: bold; padding: 12px 8px; }
+        .plan-editor-prose .letamendi-plan-table td.comp-cm { background: #1565C0 !important; color: white; text-align: center; font-weight: bold; padding: 12px 8px; }
+        .plan-editor-prose .letamendi-plan-table td.comp-cd { background: #E64A19 !important; color: white; text-align: center; font-weight: bold; padding: 12px 8px; }
+        .plan-editor-prose .letamendi-plan-table td.comp-cs { background: #F9A825 !important; color: white; text-align: center; font-weight: bold; padding: 12px 8px; }
+        .plan-editor-prose .letamendi-plan-table td.comp-c p,
+        .plan-editor-prose .letamendi-plan-table td.comp-cm p,
+        .plan-editor-prose .letamendi-plan-table td.comp-cd p,
+        .plan-editor-prose .letamendi-plan-table td.comp-cs p { color: white !important; margin: 3px 0; }
+        .plan-editor-prose .letamendi-plan-table td.comp-c strong,
+        .plan-editor-prose .letamendi-plan-table td.comp-cm strong,
+        .plan-editor-prose .letamendi-plan-table td.comp-cd strong,
+        .plan-editor-prose .letamendi-plan-table td.comp-cs strong { color: white !important; font-size: 20px; display: block; }
         .letamendi-annual-header {
           border: 1px solid #111;
           margin-bottom: 12px;
@@ -476,9 +565,10 @@ function SaveIndicator({
       </span>
     )
   }
-  // idle
+  // idle — suppressHydrationWarning: toLocaleString('es-EC') produce output diferente
+  // en el servidor (Node/Vercel sin ICU completo) vs el cliente (browser).
   return (
-    <span className="text-[11px] text-ink4 flex items-center gap-1">
+    <span className="text-[11px] text-ink4 flex items-center gap-1" suppressHydrationWarning>
       <Save size={11} /> Última edición {timeAgo(lastSavedAt)}
     </span>
   )
@@ -706,20 +796,86 @@ function buildLetamendiAnnualTemplate({
       <td><strong>Nivel educativo:</strong></td>
       <td colspan="2"></td>
     </tr>
-    <tr><td colspan="5" class="section-title">2. Tiempo</td></tr>
+  </tbody>
+</table>
+
+<table class="letamendi-plan-table">
+  <tbody>
+    <tr><td colspan="6" class="section-title">2. Tiempo</td></tr>
     <tr>
-      <th>Carga horaria semanal</th>
-      <th>Número de semanas de trabajo</th>
-      <th>Evaluación del aprendizaje e imprevistos</th>
-      <th>Total de semanas clases</th>
-      <th>Total de periodos</th>
+      <th rowspan="2" style="width:30%;text-align:center;vertical-align:middle">UNIDADES DE PLANIFICACIÓN CURRICULAR<br><small>(detallar tiempos según el cronograma general escolar institucional)</small></th>
+      <th rowspan="2" style="width:14%;text-align:center;vertical-align:middle">NÚMERO DE SEMANAS DESTINADAS A LAS UNIDADES DE PLANIFICACIÓN CURRICULAR</th>
+      <th colspan="4" style="text-align:center">NÚMERO DE PERIODOS DESTINADOS PARA EL DESARROLLO DE LA PROGRAMACIÓN</th>
     </tr>
     <tr>
-      <td style="text-align:center">6 horas</td>
-      <td style="text-align:center">40 semanas</td>
-      <td style="text-align:center">5 semanas</td>
-      <td style="text-align:center">35 semanas</td>
-      <td style="text-align:center">200 horas</td>
+      <th style="text-align:center">NÚMERO DE PERIODOS SEMANALES</th>
+      <th style="text-align:center">NÚMERO TOTAL DE PERIODOS</th>
+      <th style="text-align:center">NÚMERO DE PERIODOS PARA EVALUACIONES E IMPREVISTOS</th>
+      <th style="text-align:center">TOTAL DE PERIODOS</th>
+    </tr>
+    <tr>
+      <td>0.- DIAGNÓSTICO Y NIVELACIÓN</td>
+      <td style="text-align:center">4</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">28</td>
+      <td></td>
+      <td style="text-align:center">28</td>
+    </tr>
+    <tr>
+      <td>1.- LA COMUNICACIÓN</td>
+      <td style="text-align:center">4</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">28</td>
+      <td></td>
+      <td style="text-align:center">28</td>
+    </tr>
+    <tr>
+      <td>2.-</td>
+      <td style="text-align:center">6</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">42</td>
+      <td></td>
+      <td style="text-align:center">42</td>
+    </tr>
+    <tr>
+      <td>3.-</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">7</td>
+      <td style="text-align:center">49</td>
+      <td></td>
+      <td style="text-align:center">49</td>
+    </tr>
+    <tr>
+      <td>4.-</td>
+      <td style="text-align:center">7</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>5.-</td>
+      <td style="text-align:center">7</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>6.-</td>
+      <td style="text-align:center">5</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><strong>TOTAL SEMANAS ANUALES</strong></td>
+      <td style="text-align:center"><strong>40</strong></td>
+      <td></td>
+      <td></td>
+      <td style="text-align:center"><strong>TOTAL PERIODO ANUAL</strong></td>
+      <td></td>
     </tr>
   </tbody>
 </table>
@@ -759,7 +915,25 @@ function buildLetamendiAnnualTemplate({
 
 <table class="letamendi-plan-table">
   <tbody>
-    <tr><td colspan="7" class="section-title">Desarrollo de unidades de planificación</td></tr>
+    <tr><td colspan="4" class="section-title">4. Competencias</td></tr>
+    <tr>
+      <td class="comp-c"><p><strong>C</strong></p><p>Competencias Comunicacionales</p></td>
+      <td class="comp-cm"><p><strong>CM</strong></p><p>Competencias Matemáticas</p></td>
+      <td class="comp-cd"><p><strong>CD</strong></p><p>Competencias Digitales</p></td>
+      <td class="comp-cs"><p><strong>CS</strong></p><p>Competencias Socioemocionales</p></td>
+    </tr>
+    <tr>
+      <td style="height:80px;vertical-align:top"></td>
+      <td style="vertical-align:top"></td>
+      <td style="vertical-align:top"></td>
+      <td style="vertical-align:top"></td>
+    </tr>
+  </tbody>
+</table>
+
+<table class="letamendi-plan-table">
+  <tbody>
+    <tr><td colspan="7" class="section-title">5. Desarrollo de unidades de planificación</td></tr>
     <tr>
       <th style="width:4%">N.º</th>
       <th style="width:16%">Título de la unidad de planificación</th>
@@ -857,6 +1031,43 @@ function buildLetamendiWeeklyTemplate({
     <tr><td><strong>Título de la Unidad Didáctica ${unidad}</strong></td><td colspan="3"></td></tr>
     <tr><td><strong>Objetivo de la Unidad</strong></td><td colspan="3"></td></tr>
     <tr><td><strong>Criterios de Evaluación</strong></td><td colspan="3"></td></tr>
+  </tbody>
+</table>
+
+<table class="plan-table">
+  <tbody>
+    <tr>
+      <td colspan="5" style="background:#f0f0f0;font-weight:bold;font-size:12px;padding:8px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #ccc">
+        Ejes transversales / Inserciones curriculares MinEduc
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#4a235a;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">🏛️</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#4a235a;margin-top:4px;line-height:1.2">CÍVICA, ÉTICA E INTEGRIDAD</span>
+      </td>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#1e6b42;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">🌿</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#1e6b42;margin-top:4px;line-height:1.2">DESARROLLO SOSTENIBLE</span>
+      </td>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#6b2d8b;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">🤝</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#6b2d8b;margin-top:4px;line-height:1.2">EDUCACIÓN SOCIOEMOCIONAL</span>
+      </td>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#0e6b6b;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">💰</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#0e6b6b;margin-top:4px;line-height:1.2">EDUCACIÓN FINANCIERA</span>
+      </td>
+      <td style="text-align:center;padding:10px;vertical-align:top">
+        <span style="display:inline-block;background:#154360;color:white;border-radius:50%;width:56px;height:56px;line-height:56px;font-size:22px;text-align:center">🚲</span>
+        <span style="display:block;font-size:9px;font-weight:bold;color:#154360;margin-top:4px;line-height:1.2">EDUCACIÓN VIAL</span>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="5" style="padding:8px">
+        <strong>Inserciones que se trabajan en esta unidad:</strong>
+      </td>
+    </tr>
   </tbody>
 </table>
 

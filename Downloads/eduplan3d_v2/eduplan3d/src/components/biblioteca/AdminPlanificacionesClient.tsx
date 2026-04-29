@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { sanitizePlanHtml } from '@/lib/sanitize/plan-html'
+import { saveSupervisorNotes } from '@/lib/actions/planificaciones-manuales'
+import toast from 'react-hot-toast'
 import {
   ArrowLeft,
   BookOpen,
@@ -11,6 +13,7 @@ import {
   FileText,
   LayoutGrid,
   Search,
+  MessageSquare,
 } from 'lucide-react'
 
 interface Teacher {
@@ -30,6 +33,7 @@ interface PlanManual {
   unit_number: number | null
   updated_at: string
   content_html: string | null
+  supervisor_notes: string | null
 }
 
 interface RecursoDoc {
@@ -48,6 +52,8 @@ interface Props {
   manuales: PlanManual[]
   recursos: RecursoDoc[]
   teachers: Teacher[]
+  institutionName?: string
+  logoUrl?: string | null
 }
 
 const PALETTE = [
@@ -83,12 +89,16 @@ function fileExt(fileName: string | null) {
   return (fileName?.split('.').pop() || 'DOC').toUpperCase()
 }
 
-export function AdminPlanificacionesClient({ manuales, recursos, teachers }: Props) {
+export function AdminPlanificacionesClient({ manuales, recursos, teachers, institutionName, logoUrl }: Props) {
   const supabase = createClient()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null)
   const [filterCurso, setFilterCurso] = useState('')
   const [manualPreview, setManualPreview] = useState<PlanManual | null>(null)
+  const [notesText, setNotesText] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+
+  const isLetamendi = (institutionName || '').toUpperCase().includes('LETAMENDI')
 
   const teacherColor = useMemo(() => {
     const map: Record<string, typeof PALETTE[number]> = {}
@@ -175,6 +185,24 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers }: Pro
   }
 
   const color = selectedTeacherId ? teacherColor[selectedTeacherId] : PALETTE[0]
+
+  function openPreview(item: PlanManual) {
+    setManualPreview(item)
+    setNotesText((item as any).supervisor_notes || '')
+  }
+
+  async function handleSaveNotes() {
+    if (!manualPreview) return
+    setSavingNotes(true)
+    const r = await saveSupervisorNotes({ id: manualPreview.id, notes: notesText })
+    setSavingNotes(false)
+    if (r.ok) {
+      setManualPreview({ ...manualPreview, supervisor_notes: notesText.trim() || null })
+      toast.success('Retroalimentación guardada')
+    } else {
+      toast.error('Error al guardar: ' + r.error)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -314,7 +342,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers }: Pro
                 {filteredManuales.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => setManualPreview(item)}
+                    onClick={() => openPreview(item)}
                     className="group rounded-2xl border border-line bg-white p-4 text-left transition-all hover:border-violet hover:shadow-md"
                   >
                     <div className="mb-3 flex items-start justify-between gap-3">
@@ -344,7 +372,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers }: Pro
                     </p>
 
                     <div className="flex items-center justify-between border-t border-line pt-3">
-                      <span className="text-[10px] text-ink4">
+                      <span className="text-[10px] text-ink4" suppressHydrationWarning>
                         Actualizado: {new Date(item.updated_at).toLocaleDateString('es-EC')}
                       </span>
                       <span className="text-[10px] font-bold text-violet opacity-0 transition-opacity group-hover:opacity-100">
@@ -396,7 +424,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers }: Pro
                     </p>
 
                     <div className="flex items-center justify-between border-t border-line pt-3">
-                      <span className="text-[10px] text-ink4">
+                      <span className="text-[10px] text-ink4" suppressHydrationWarning>
                         Subido: {new Date(item.created_at).toLocaleDateString('es-EC')}
                       </span>
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 opacity-0 transition-opacity group-hover:opacity-100">
@@ -437,6 +465,20 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers }: Pro
                 ✕
               </button>
             </div>
+            {isLetamendi && manualPreview.type === 'anual' && (
+              <div className="flex items-center gap-4 border-b border-gray-200 bg-white px-6 py-4">
+                {logoUrl && (
+                  <img src={logoUrl} alt="Logo" className="h-14 w-auto object-contain" />
+                )}
+                <div className="flex-1 text-center">
+                  <p className="text-sm font-bold uppercase text-gray-800">{institutionName}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Planificación Curricular Anual</p>
+                </div>
+                {logoUrl && (
+                  <img src={logoUrl} alt="" className="h-14 w-auto object-contain opacity-0" aria-hidden />
+                )}
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto p-6">
               {sanitizedPreviewHtml ? (
                 <div
@@ -448,6 +490,32 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers }: Pro
                   El docente aún no ha agregado contenido a esta planificación.
                 </p>
               )}
+
+              <div className="mt-6 border-t border-line pt-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <MessageSquare size={15} className="text-blue-600" />
+                  <p className="text-xs font-bold uppercase tracking-wide text-blue-800">Retroalimentación al docente</p>
+                </div>
+                <textarea
+                  value={notesText}
+                  onChange={(e) => setNotesText(e.target.value)}
+                  placeholder="Escribe aquí tus comentarios o sugerencias para el docente sobre esta planificación…"
+                  rows={4}
+                  className="w-full rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-ink outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+                <div className="mt-2 flex items-center justify-end gap-3">
+                  {manualPreview.supervisor_notes && !notesText && (
+                    <p className="text-xs text-ink3 italic">El campo está vacío — guardar eliminará la retroalimentación actual.</p>
+                  )}
+                  <button
+                    onClick={handleSaveNotes}
+                    disabled={savingNotes}
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {savingNotes ? 'Guardando…' : 'Guardar retroalimentación'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           <style jsx global>{`
@@ -463,6 +531,17 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers }: Pro
             .plan-readonly-preview th { background: #f3f4f6; font-weight: 700; text-align: left; }
             .plan-readonly-preview ul, .plan-readonly-preview ol { padding-left: 1.4em; margin: .5em 0; }
             .plan-readonly-preview strong { color: #4c1d95; }
+            .plan-readonly-preview .letamendi-plan-table td,
+            .plan-readonly-preview .letamendi-plan-table th { border: 1px solid #111; }
+            .plan-readonly-preview .letamendi-plan-table .section-title td { background: #1a237e; color: white; font-weight: 700; font-size: 13px; }
+            .plan-readonly-preview .letamendi-plan-table td.comp-c  { background: #00ACC1 !important; color: white; text-align: center; font-weight: bold; }
+            .plan-readonly-preview .letamendi-plan-table td.comp-cm { background: #1565C0 !important; color: white; text-align: center; font-weight: bold; }
+            .plan-readonly-preview .letamendi-plan-table td.comp-cd { background: #E64A19 !important; color: white; text-align: center; font-weight: bold; }
+            .plan-readonly-preview .letamendi-plan-table td.comp-cs { background: #F9A825 !important; color: white; text-align: center; font-weight: bold; }
+            .plan-readonly-preview .letamendi-plan-table td.comp-c p,
+            .plan-readonly-preview .letamendi-plan-table td.comp-cm p,
+            .plan-readonly-preview .letamendi-plan-table td.comp-cd p,
+            .plan-readonly-preview .letamendi-plan-table td.comp-cs p { color: white !important; }
           `}</style>
         </div>
       )}

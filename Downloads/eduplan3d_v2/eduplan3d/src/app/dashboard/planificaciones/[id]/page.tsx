@@ -59,8 +59,8 @@ export default async function PlanificacionManualPage({ params }: { params: { id
         unitNumber: plan.unit_number,
         contentJson: plan.content_json,
         updatedAt: plan.updated_at,
-        supervisorNotes: plan.supervisor_notes,
-        supervisorNotesUpdatedAt: plan.supervisor_notes_updated_at,
+        supervisorNotes: (plan as any).supervisor_notes ?? null,
+        supervisorNotesUpdatedAt: (plan as any).supervisor_notes_updated_at ?? null,
       }}
       institutionName={institutionName}
       logoUrl={logoUrl}

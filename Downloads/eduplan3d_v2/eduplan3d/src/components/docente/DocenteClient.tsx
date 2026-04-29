@@ -619,7 +619,7 @@ export function DocenteClient({
             <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">
               {greeting}, {firstName} 👋
             </h1>
-            <p className="text-ink3 text-sm mt-1">
+            <p className="text-ink3 text-sm mt-1" suppressHydrationWarning>
               {todayName
                 ? `${todayName}, ${now.toLocaleDateString('es-EC', { day: 'numeric', month: 'long', year: 'numeric' })}`
                 : `${now.toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`
