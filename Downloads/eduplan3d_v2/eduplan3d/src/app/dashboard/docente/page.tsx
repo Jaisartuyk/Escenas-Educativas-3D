@@ -20,7 +20,7 @@ export default async function DocentePage() {
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['admin', 'assistant', 'teacher'].includes(profile.role)) {
+  if (!profile || !['admin', 'assistant', 'teacher', 'rector'].includes(profile.role)) {
     redirect('/dashboard')
   }
 

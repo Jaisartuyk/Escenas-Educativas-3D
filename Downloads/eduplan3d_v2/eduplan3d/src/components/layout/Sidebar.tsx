@@ -105,6 +105,18 @@ const NAV_TEACHER: NavNode[] = [
 ]
 
 // ─── Nav estudiante ───────────────────────────────────────────────────────────
+const NAV_RECTOR_DOCENTE_GROUP: NavGroup = {
+  title: 'Docencia Propia',
+  icon: '👩‍🏫',
+  color: 'from-violet/20 to-violet/5',
+  items: [
+    { href: '/dashboard/docente',         icon: '📝', label: 'Panel Docente'   },
+    { href: '/dashboard/planificaciones', icon: '📒', label: 'Planificaciones' },
+    { href: '/dashboard/planificador',    icon: '📋', label: 'Planificador'    },
+    { href: '/dashboard/calendario',      icon: '📅', label: 'Calendario'      },
+  ],
+}
+
 const NAV_STUDENT: NavItem[] = [
   { href: '/dashboard/alumno',       icon: '🎒', label: 'Mi Panel'     },
   { href: '/dashboard/notas',        icon: '📊', label: 'Mis Notas'    },
@@ -236,7 +248,7 @@ export function Sidebar({
 
   function getNav(): NavNode[] {
     if (isPlannerSolo) return NAV_PLANNER_SOLO
-    if (role === 'rector') return [...NAV_ADMIN_GROUPED, NAV_TUTORIAS_GROUP]
+    if (role === 'rector') return [...NAV_ADMIN_GROUPED, NAV_RECTOR_DOCENTE_GROUP, NAV_TUTORIAS_GROUP]
     if (isAdmin) return NAV_ADMIN_GROUPED
     // supervisor: ver planificaciones de docentes es supervisión institucional,
     // no un feature de IA — no filtrar por plannerIaAccess
