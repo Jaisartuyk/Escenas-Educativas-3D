@@ -11,11 +11,12 @@ export const revalidate = 0
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
-const TYPE_LABELS:  Record<string, string> = { clase: 'Clase', unidad: 'Unidad', rubrica: 'Rúbrica' }
+const TYPE_LABELS:  Record<string, string> = { anual: 'Anual', semanal: 'Semanal', diaria: 'Diaria', unidad: 'Unidad' }
 const TYPE_CLASSES: Record<string, string> = {
-  clase:   'badge-violet',
-  unidad:  'badge-amber',
-  rubrica: 'badge-rose',
+  anual:   'badge-violet',
+  semanal: 'badge-amber',
+  diaria:  'badge-rose',
+  unidad:  'badge-blue',
 }
 
 export default async function DashboardPage() {
@@ -359,11 +360,11 @@ export default async function DashboardPage() {
     .in('course_id', courseIds.length > 0 ? courseIds : ['none']);
   const subjectIds = (instSubs || []).map(s => s.id);
 
-  // 1. Tendencia de planificaciones (últimos 14 días)
+  // 1. Tendencia de planificaciones manuales (últimos 14 días)
   const { data: trendRaw } = (await admin
-    .from('planificacion_docs')
-    .select('created_at, user_id')
-    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])
+    .from('planificaciones_manuales' as any)
+    .select('created_at, user_id, status')
+    .eq('institution_id', instId)
     .gte('created_at', startOfPeriodISO)) as any;
 
   const last14Days = Array.from({ length: 14 }, (_, i) => {
@@ -377,17 +378,17 @@ export default async function DashboardPage() {
     count: ((trendRaw as any[]) || []).filter((p: any) => p.created_at.startsWith(date)).length
   }));
 
-  // 2. Distribución de contenido
+  // 2. Distribución de tipos de planificaciones manuales
   const { data: typeCounts } = (await admin
-    .from('planificacion_docs')
-    .select('tipo')
-    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])) as any;
+    .from('planificaciones_manuales' as any)
+    .select('type, status')
+    .eq('institution_id', instId)) as any;
 
   const contentDistribution = [
-    { name: 'Anual', value: ((typeCounts as any[]) || []).filter((p: any) => p.tipo === 'anual').length },
-    { name: 'Unidad', value: ((typeCounts as any[]) || []).filter((p: any) => p.tipo === 'unidad').length },
-    { name: 'Semanal', value: ((typeCounts as any[]) || []).filter((p: any) => p.tipo === 'semanal').length },
-    { name: 'Otros', value: ((typeCounts as any[]) || []).filter((p: any) => !['anual', 'unidad', 'semanal'].includes(p.tipo)).length },
+    { name: 'Anual', value: ((typeCounts as any[]) || []).filter((p: any) => p.type === 'anual').length },
+    { name: 'Semanal', value: ((typeCounts as any[]) || []).filter((p: any) => p.type === 'semanal').length },
+    { name: 'Diaria', value: ((typeCounts as any[]) || []).filter((p: any) => p.type === 'diaria').length },
+    { name: 'Borradores', value: ((typeCounts as any[]) || []).filter((p: any) => p.status === 'borrador').length },
   ];
 
   // 3. Asistencia por Nivel (Escuela vs Colegio)
@@ -430,30 +431,31 @@ export default async function DashboardPage() {
 
   // Datos recientes para la lista
   const { data: planificaciones } = (await admin
-    .from('planificacion_docs')
-    .select('id, titulo, asignatura, curso, tipo, created_at')
-    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])
-    .order('created_at', { ascending: false })
+    .from('planificaciones_manuales' as any)
+    .select('id, title, subject_name, course_name, type, status, created_at, updated_at')
+    .eq('institution_id', instId)
+    .order('updated_at', { ascending: false })
     .limit(5)) as any;
 
   // Adapt data structure for list
   const recentPlans = (planificaciones || []).map((p: any) => ({
     ...p,
-    title: p.titulo,
-    subject: p.asignatura,
-    grade: p.curso,
-    type: p.tipo
+    title: p.title,
+    subject: p.subject_name,
+    grade: p.course_name,
+    type: p.type,
+    created_at: p.updated_at || p.created_at,
   }));
 
   const { count: totalPlans } = (await admin
-    .from('planificacion_docs')
+    .from('planificaciones_manuales' as any)
     .select('*', { count: 'exact', head: true })
-    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])) as any;
+    .eq('institution_id', instId)) as any;
 
   const { count: thisMonth } = (await admin
-    .from('planificacion_docs')
+    .from('planificaciones_manuales' as any)
     .select('*', { count: 'exact', head: true })
-    .in('user_id', teacherIds.length > 0 ? teacherIds : ['none'])
+    .eq('institution_id', instId)
     .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())) as any;
 
   return (
@@ -521,10 +523,11 @@ export default async function DashboardPage() {
             ) : recentPlans.map((p: any) => (
               <Link key={p.id} href={`/dashboard/biblioteca`} className="card-hover p-4 flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
-                  p.type === 'clase' ? 'bg-[rgba(124,109,250,0.15)]' :
-                  p.type === 'unidad' ? 'bg-[rgba(255,179,71,0.15)]' : 'bg-[rgba(240,98,146,0.15)]'
+                  p.type === 'anual' ? 'bg-[rgba(124,109,250,0.15)]' :
+                  p.type === 'semanal' ? 'bg-[rgba(255,179,71,0.15)]' :
+                  p.type === 'diaria' ? 'bg-[rgba(240,98,146,0.15)]' : 'bg-[rgba(79,195,247,0.15)]'
                 }`}>
-                  {p.type === 'clase' ? '📋' : p.type === 'unidad' ? '📚' : '🎯'}
+                  {p.type === 'anual' ? '📘' : p.type === 'semanal' ? '🗓️' : p.type === 'diaria' ? '📝' : '📚'}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{p.title}</p>
