@@ -14,6 +14,41 @@ import { resolveYearContext } from '@/lib/academic-year/server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+type RagStats = {
+  found: number
+  parsed: number
+  skipped: number
+  reasons: string[]
+}
+
+type RagCacheEntry = {
+  docsContext: string
+  detectedPlanification: boolean
+  ragStats: RagStats
+  expiresAt: number
+}
+
+const RAG_CACHE_TTL_MS = 10 * 60 * 1000
+const ragContextCache = new Map<string, RagCacheEntry>()
+
+function buildRagCacheKey(userId: string, body: any, isPlannerSolo: boolean) {
+  return [
+    userId,
+    isPlannerSolo ? 'solo' : 'institutional',
+    body.subjectId || 'no-subject-id',
+    body.subject || 'no-subject',
+    body.grade || 'no-grade',
+  ].join('::')
+}
+
+function cloneRagStats(stats: RagStats): RagStats {
+  return {
+    found: stats.found,
+    parsed: stats.parsed,
+    skipped: stats.skipped,
+    reasons: [...stats.reasons],
+  }
+}
 // ── System prompt: MINEDUC Specialist ────────────────────────────────────────
 const SYSTEM_PROMPT = `Eres un Especialista en Curriculo y Gestion Pedagogica con 20 anios de experiencia en el sistema educativo ecuatoriano. Tu mision es generar planificaciones diarias operativas que cumplan estrictamente con el formato institucional solicitado, basandote PRIORITARIAMENTE en los documentos subidos por el docente (libros, guias, planes previos) y el Curriculo Priorizado MinEduc 2025.
 
@@ -628,63 +663,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── RAG: extract PDFs from teacher library ──
+    // RAG: extract PDFs from teacher library
     let contextoExtra = ''
     let detectedPlanification = false
-    const ragStats: {
-      found: number
-      parsed: number
-      skipped: number
-      reasons: string[]
-    } = { found: 0, parsed: 0, skipped: 0, reasons: [] }
-    try {
-      let refs: Array<{ storage_path: string; bucket: string; titulo?: string }> = []
+    const ragStats: RagStats = { found: 0, parsed: 0, skipped: 0, reasons: [] }
+    const ragCacheKey = buildRagCacheKey(user.id, body, isPlannerSolo)
+    const cachedRag = ragContextCache.get(ragCacheKey)
 
-      if (isPlannerSolo && body.subjectId) {
-        // Docente externo: usar planner_reference_docs ligados a la materia seleccionada
-        const { data: docs } = await (supabase as any)
-          .from('planner_reference_docs')
-          .select('storage_path, titulo, file_type, file_name')
-          .eq('user_id', user.id)
-          .eq('planner_subject_id', body.subjectId)
+    if (cachedRag && cachedRag.expiresAt > Date.now()) {
+      contextoExtra = cachedRag.docsContext
+      detectedPlanification = cachedRag.detectedPlanification
+      Object.assign(ragStats, cloneRagStats(cachedRag.ragStats))
+    } else {
+      ragContextCache.delete(ragCacheKey)
+      try {
+        let refs: Array<{ storage_path: string; bucket: string; titulo?: string }> = []
 
-        refs = (docs || [])
-          .filter((d: any) => {
-            const ext = (d.file_name?.split('.').pop() || '').toLowerCase()
-            return d.file_type?.includes('pdf') || d.file_type?.includes('officedocument') || ['pdf', 'doc', 'docx'].includes(ext)
-          })
-          .map((d: any) => ({
-            storage_path: d.storage_path,
-            bucket: 'submissions',
-            titulo: d.titulo,
-          }))
-      } else {
-        // Docente institucional: dos fuentes posibles
-        //   a) tabla `documentos` (BibliotecaClient legacy) — bucket 'submissions'
-        //   b) tabla `planner_reference_docs` (MateriaDocsModal) — bucket 'submissions'
-        const [{ data: docsLegacy }, { data: docsByMateria }] = await Promise.all([
-          (supabase as any)
-            .from('documentos')
-            .select('storage_path, titulo')
+        if (isPlannerSolo && body.subjectId) {
+          const { data: docs } = await (supabase as any)
+            .from('planner_reference_docs')
+            .select('storage_path, titulo, file_type, file_name')
             .eq('user_id', user.id)
-            .eq('asignatura', body.subject)
-            .eq('grado', body.grade),
-          body.subjectId
-            ? (supabase as any)
-                .from('planner_reference_docs')
-                .select('storage_path, titulo, file_type, file_name')
-                .eq('user_id', user.id)
-                .eq('planner_subject_id', body.subjectId)
-            : Promise.resolve({ data: [] as any[] }),
-        ])
+            .eq('planner_subject_id', body.subjectId)
 
-        refs = [
-          ...((docsLegacy || []) as any[]).map((d: any) => ({
-            storage_path: d.storage_path,
-            bucket: 'submissions',
-            titulo: d.titulo || 'Documento adjunto',
-          })),
-          ...((docsByMateria || []) as any[])
+          refs = (docs || [])
             .filter((d: any) => {
               const ext = (d.file_name?.split('.').pop() || '').toLowerCase()
               return d.file_type?.includes('pdf') || d.file_type?.includes('officedocument') || ['pdf', 'doc', 'docx'].includes(ext)
@@ -693,103 +695,148 @@ export async function POST(request: NextRequest) {
               storage_path: d.storage_path,
               bucket: 'submissions',
               titulo: d.titulo,
+            }))
+        } else {
+          const [{ data: docsLegacy }, { data: docsByMateria }] = await Promise.all([
+            (supabase as any)
+              .from('documentos')
+              .select('storage_path, titulo')
+              .eq('user_id', user.id)
+              .eq('asignatura', body.subject)
+              .eq('grado', body.grade),
+            body.subjectId
+              ? (supabase as any)
+                  .from('planner_reference_docs')
+                  .select('storage_path, titulo, file_type, file_name')
+                  .eq('user_id', user.id)
+                  .eq('planner_subject_id', body.subjectId)
+              : Promise.resolve({ data: [] as any[] }),
+          ])
+
+          refs = [
+            ...((docsLegacy || []) as any[]).map((d: any) => ({
+              storage_path: d.storage_path,
+              bucket: 'submissions',
+              titulo: d.titulo || 'Documento adjunto',
             })),
-        ]
-      }
+            ...((docsByMateria || []) as any[])
+              .filter((d: any) => {
+                const ext = (d.file_name?.split('.').pop() || '').toLowerCase()
+                return d.file_type?.includes('pdf') || d.file_type?.includes('officedocument') || ['pdf', 'doc', 'docx'].includes(ext)
+              })
+              .map((d: any) => ({
+                storage_path: d.storage_path,
+                bucket: 'submissions',
+                titulo: d.titulo,
+              })),
+          ]
+        }
 
-      ragStats.found = refs.length
-      if (refs.length > 0) {
-        const parsedDocs: Array<{ titulo: string; text: string }> = []
+        ragStats.found = refs.length
+        if (refs.length > 0) {
+          const parsedResults = await Promise.all(refs.map(async (r) => {
+            const label = (r as any).titulo || r.storage_path.split('/').pop() || 'doc'
+            try {
+              const { data: fileData, error: downloadError } = await supabase.storage
+                .from(r.bucket)
+                .download(r.storage_path)
 
-        for (const r of refs) {
-          const label = (r as any).titulo || r.storage_path.split('/').pop() || 'doc'
-          try {
-            const { data: fileData, error: downloadError } = await supabase.storage
-              .from(r.bucket)
-              .download(r.storage_path)
-
-            if (!fileData || downloadError) {
-              ragStats.skipped++
-              ragStats.reasons.push(`${label}: no se pudo descargar (bucket=${r.bucket})`)
-              continue
-            }
-
-            const arrayBuffer = await fileData.arrayBuffer()
-            const buffer = Buffer.from(arrayBuffer)
-            const ext = (r.storage_path.split('.').pop() || '').toLowerCase()
-            let text = ''
-
-            if (ext === 'pdf') {
-              // Importar pdf-parse SOLO aquí (evita crash DOMMatrix en Vercel para DOCX)
-              try {
-                const pdfMod = await import('pdf-parse')
-                const pdfParse = (pdfMod as any).default || pdfMod
-                const parsed = await pdfParse(buffer)
-                text = parsed?.text || ''
-              } catch (e1: any) {
-                console.warn('[RAG] pdf-parse fallo:', label, e1?.message)
+              if (!fileData || downloadError) {
+                return { ok: false as const, reason: `${label}: no se pudo descargar (bucket=${r.bucket})` }
               }
-            } else if (['doc', 'docx'].includes(ext)) {
-              console.log('[RAG] Procesando DOCX:', label, `(${buffer.length} bytes)`)
-              // Capa 1: mammoth
-              try {
-                const mammothMod = await import('mammoth')
-                const mammoth = mammothMod.default || mammothMod
-                const res = await mammoth.extractRawText({ buffer })
-                text = res.value || ''
-                console.log('[RAG] mammoth resultado:', label, `(${text.length} chars)`)
-              } catch (e1: any) {
-                console.warn('[RAG] mammoth falló para', label, e1?.message)
-              }
-              // Capa 2 (fallback): XML directo para tablas complejas
-              if (!text || !text.trim()) {
-                console.log('[RAG] mammoth devolvió vacío, intentando extractDocxRaw para', label)
+
+              const arrayBuffer = await fileData.arrayBuffer()
+              const buffer = Buffer.from(arrayBuffer)
+              const ext = (r.storage_path.split('.').pop() || '').toLowerCase()
+              let text = ''
+
+              if (ext === 'pdf') {
                 try {
-                  text = await extractDocxRaw(buffer)
-                  console.log('[RAG] extractDocxRaw resultado:', label, `(${text.length} chars)`)
-                } catch (e2: any) {
-                  console.error('[RAG] extractDocxRaw también falló:', label, e2?.message)
+                  const pdfMod = await import('pdf-parse')
+                  const pdfParse = (pdfMod as any).default || pdfMod
+                  const parsed = await pdfParse(buffer)
+                  text = parsed?.text || ''
+                } catch (e1: any) {
+                  console.warn('[RAG] pdf-parse fallo:', label, e1?.message)
                 }
+              } else if (['doc', 'docx'].includes(ext)) {
+                console.log('[RAG] Procesando DOCX:', label, `(${buffer.length} bytes)`)
+                try {
+                  const mammothMod = await import('mammoth')
+                  const mammoth = mammothMod.default || mammothMod
+                  const res = await mammoth.extractRawText({ buffer })
+                  text = res.value || ''
+                  console.log('[RAG] mammoth resultado:', label, `(${text.length} chars)`)
+                } catch (e1: any) {
+                  console.warn('[RAG] mammoth fallo para', label, e1?.message)
+                }
+                if (!text || !text.trim()) {
+                  console.log('[RAG] mammoth devolvio vacio, intentando extractDocxRaw para', label)
+                  try {
+                    text = await extractDocxRaw(buffer)
+                    console.log('[RAG] extractDocxRaw resultado:', label, `(${text.length} chars)`)
+                  } catch (e2: any) {
+                    console.error('[RAG] extractDocxRaw tambien fallo:', label, e2?.message)
+                  }
+                }
+              } else {
+                return { ok: false as const, reason: `${label}: extension no soportada (.${ext})` }
               }
+
+              if (!text || !text.trim()) {
+                return { ok: false as const, reason: `${label}: archivo vacio o sin texto extraible` }
+              }
+
+              return {
+                ok: true as const,
+                doc: {
+                  titulo: (r as any).titulo || 'Documento adjunto',
+                  text: text.slice(0, 150000),
+                },
+              }
+            } catch (docErr: any) {
+              console.error('[RAG per-doc error]', label, docErr)
+              return {
+                ok: false as const,
+                reason: `${label}: error al parsear (${docErr?.message?.slice(0, 120) || 'desconocido'})`,
+              }
+            }
+          }))
+
+          const parsedDocs: Array<{ titulo: string; text: string }> = []
+          for (const result of parsedResults) {
+            if (result.ok) {
+              parsedDocs.push(result.doc)
+              ragStats.parsed++
             } else {
               ragStats.skipped++
-              ragStats.reasons.push(`${label}: extension no soportada (.${ext})`)
-              continue
+              ragStats.reasons.push(result.reason)
             }
+          }
 
-            if (!text || !text.trim()) {
-              ragStats.skipped++
-              ragStats.reasons.push(`${label}: archivo vacio o sin texto extraible`)
-              continue
-            }
+          if (parsedDocs.length > 0) {
+            const classifications = await classifyDocuments(parsedDocs)
+            detectedPlanification = classifications.some(c => c.kind === 'planificacion')
 
-            parsedDocs.push({
-              titulo: (r as any).titulo || 'Documento adjunto',
-              text: text.slice(0, 150000),
+            parsedDocs.forEach((d: { titulo: string; text: string }, i: number) => {
+              const cls = classifications[i]?.kind || 'referencia'
+              const badge = cls === 'planificacion'
+                ? '[TIPO: PLANIFICACION YA ELABORADA - ADAPTAR AL FORMATO, no re-inventar]'
+                : '[TIPO: MATERIAL DE REFERENCIA - usar como fuente tematica]'
+              contextoExtra += `\n${badge}\nDocumento: ${d.titulo}:\n${d.text}\n`
             })
-            ragStats.parsed++
-          } catch (docErr: any) {
-            ragStats.skipped++
-            ragStats.reasons.push(`${label}: error al parsear (${docErr?.message?.slice(0, 120) || 'desconocido'})`)
-            console.error('[RAG per-doc error]', label, docErr)
           }
         }
 
-        // Clasificar: ¿cada doc es "referencia" o "planificacion" ya elaborada?
-        const classifications = await classifyDocuments(parsedDocs)
-        detectedPlanification = classifications.some(c => c.kind === 'planificacion')
-
-        // Construir el contextoExtra etiquetando cada doc según su tipo
-        parsedDocs.forEach((d: { titulo: string; text: string }, i: number) => {
-          const cls = classifications[i]?.kind || 'referencia'
-          const badge = cls === 'planificacion'
-            ? '[TIPO: PLANIFICACION YA ELABORADA — ADAPTAR AL FORMATO, no re-inventar]'
-            : '[TIPO: MATERIAL DE REFERENCIA — usar como fuente tematica]'
-          contextoExtra += `\n${badge}\nDocumento: ${d.titulo}:\n${d.text}\n`
+        ragContextCache.set(ragCacheKey, {
+          docsContext: contextoExtra,
+          detectedPlanification,
+          ragStats: cloneRagStats(ragStats),
+          expiresAt: Date.now() + RAG_CACHE_TTL_MS,
         })
+      } catch (err) {
+        console.error('[RAG Biblioteca Error]', err)
       }
-    } catch (err) {
-      console.error('[RAG Biblioteca Error]', err)
     }
 
     // ── Inyección del Currículo Priorizado MinEduc ──
