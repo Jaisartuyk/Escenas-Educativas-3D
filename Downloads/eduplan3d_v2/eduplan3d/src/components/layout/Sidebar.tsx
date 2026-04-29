@@ -238,12 +238,14 @@ export function Sidebar({
     if (isPlannerSolo) return NAV_PLANNER_SOLO
     if (role === 'rector') return [...NAV_ADMIN_GROUPED, NAV_TUTORIAS_GROUP]
     if (isAdmin) return NAV_ADMIN_GROUPED
+    // supervisor: ver planificaciones de docentes es supervisión institucional,
+    // no un feature de IA — no filtrar por plannerIaAccess
+    if (role === 'supervisor') return NAV_SUPERVISOR
     let nav: NavNode[]
     switch (role) {
       case 'teacher':       nav = NAV_TEACHER; break
       case 'student':       nav = NAV_STUDENT; break
       case 'secretary':     nav = NAV_SECRETARY; break
-      case 'supervisor':    nav = NAV_SUPERVISOR; break
       case 'horarios_only': nav = NAV_HORARIOS; break
       default:              nav = []
     }
