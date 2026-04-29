@@ -676,6 +676,31 @@ function Toolbar({ editor }: { editor: any }) {
       >
         <TableIcon size={14} />
       </Btn>
+      <span className="w-px h-5 bg-line mx-1" />
+      <Btn
+        onClick={() => editor.chain().focus().insertContent('🗣️ C ').run()}
+        title="Insertar icono de competencia comunicacional"
+      >
+        <span className="text-sm leading-none">🗣️</span>
+      </Btn>
+      <Btn
+        onClick={() => editor.chain().focus().insertContent('🧮 CM ').run()}
+        title="Insertar icono de competencia matemática"
+      >
+        <span className="text-sm leading-none">🧮</span>
+      </Btn>
+      <Btn
+        onClick={() => editor.chain().focus().insertContent('💻 CD ').run()}
+        title="Insertar icono de competencia digital"
+      >
+        <span className="text-sm leading-none">💻</span>
+      </Btn>
+      <Btn
+        onClick={() => editor.chain().focus().insertContent('🤝 CS ').run()}
+        title="Insertar icono de competencia socioemocional"
+      >
+        <span className="text-sm leading-none">🤝</span>
+      </Btn>
     </div>
   )
 }
@@ -1101,10 +1126,10 @@ function buildLetamendiAnnualTemplate({
   <tbody>
     <tr><td colspan="4" class="section-title">4. Competencias</td></tr>
     <tr>
-      <td class="comp-c"><p><strong>C</strong></p><p>Competencias Comunicacionales</p></td>
-      <td class="comp-cm"><p><strong>CM</strong></p><p>Competencias Matemáticas</p></td>
-      <td class="comp-cd"><p><strong>CD</strong></p><p>Competencias Digitales</p></td>
-      <td class="comp-cs"><p><strong>CS</strong></p><p>Competencias Socioemocionales</p></td>
+      <td class="comp-c"><p><strong>🗣️ C</strong></p><p>Competencias Comunicacionales</p></td>
+      <td class="comp-cm"><p><strong>🧮 CM</strong></p><p>Competencias Matemáticas</p></td>
+      <td class="comp-cd"><p><strong>💻 CD</strong></p><p>Competencias Digitales</p></td>
+      <td class="comp-cs"><p><strong>🤝 CS</strong></p><p>Competencias Socioemocionales</p></td>
     </tr>
     <tr>
       <td style="height:80px;vertical-align:top"></td>
