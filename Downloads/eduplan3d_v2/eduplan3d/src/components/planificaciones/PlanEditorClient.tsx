@@ -19,7 +19,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import {
   ChevronLeft, Save, CheckCircle2, Clock, Bold, Italic, List, ListOrdered,
   Heading1, Heading2, Heading3, Table as TableIcon, Undo2, Redo2,
-  Eye, FileText,
+  Eye, FileText, RefreshCw,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -61,6 +61,7 @@ export function PlanEditorClient({
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isLetamendi = institutionName.toUpperCase().includes('LETAMENDI')
   const isLetamendiAnnual = isLetamendi && plan.type === 'anual'
+  const [needsTemplateUpdate, setNeedsTemplateUpdate] = useState(false)
 
   // Plantilla MinEduc inicial (HTML) cuando el documento está vacío.
   const initialTemplate = useMemo(() => buildMinEducTemplate({
@@ -172,6 +173,12 @@ export function PlanEditorClient({
     }
   }, [editor, plan.id])
 
+  // Detectar si el plan usa la plantilla vieja de LETAMENDI (tiene "Carga horaria semanal")
+  useEffect(() => {
+    if (!editor || !isLetamendiAnnual) return
+    setNeedsTemplateUpdate(editor.getHTML().includes('Carga horaria semanal'))
+  }, [editor, isLetamendiAnnual])
+
   // Toggle publicar / borrador
   async function handleStatusToggle() {
     const next: PlanManualStatus = status === 'borrador' ? 'publicada' : 'borrador'
@@ -186,6 +193,49 @@ export function PlanEditorClient({
     }
     setStatus(next)
     toast.success(next === 'publicada' ? 'Planificación publicada' : 'Marcada como borrador')
+  }
+
+  // Migrar plantilla anual LETAMENDI vieja → nueva preservando contenido
+  function applyTemplateUpdate() {
+    if (!editor) return
+    const html = editor.getHTML()
+    const tables = Array.from(html.matchAll(/<table[\s\S]*?<\/table>/gi)).map(m => m[0])
+
+    const objetivosTable  = tables.find(t => t.includes('Objetivos generales')) ?? ''
+    let   desarrolloTable = tables.find(t => t.includes('Desarrollo de unidades')) ?? ''
+    const bibliografiaTable = tables.find(t => t.includes('Bibliograf')) ?? ''
+    const firmasTable     = tables.find(t => t.includes('Elaborado:')) ?? ''
+
+    // Renumerar Desarrollo → Punto 5
+    desarrolloTable = desarrolloTable.replace(
+      'Desarrollo de unidades de planificación',
+      '5. Desarrollo de unidades de planificación',
+    )
+
+    // Extraer datos+tiempo+competencias del nuevo template
+    const newTpl = buildLetamendiAnnualTemplate({
+      teacherName,
+      subjectName: plan.subjectName,
+      courseName: plan.courseName,
+    })
+    const newTables = Array.from(newTpl.matchAll(/<table[\s\S]*?<\/table>/gi)).map(m => m[0])
+    const newDatos       = newTables[0] ?? ''
+    const newTiempo      = newTables[1] ?? ''
+    const newCompetencias = newTables[3] ?? ''
+
+    const newContent = [newDatos, newTiempo, objetivosTable, newCompetencias, desarrolloTable, bibliografiaTable, firmasTable]
+      .filter(Boolean).join('\n')
+
+    editor.commands.setContent(newContent)
+    setNeedsTemplateUpdate(false)
+
+    setTimeout(() => {
+      if (editor && !editor.isDestroyed) {
+        triggerSave(editor.getJSON(), editor.getHTML())
+      }
+    }, 150)
+
+    toast.success('Plantilla actualizada — tu contenido fue preservado.')
   }
 
   if (!editor) {
@@ -230,6 +280,23 @@ export function PlanEditorClient({
           {plan.subjectName} · {plan.courseName}
         </p>
       </div>
+
+      {/* ── Banner: actualizar plantilla (solo LETAMENDI anual con estructura vieja) */}
+      {isLetamendiAnnual && needsTemplateUpdate && (
+        <div className="mb-3 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm">
+          <span className="text-lg leading-none mt-0.5">⚠️</span>
+          <p className="flex-1 text-amber-800">
+            Esta planificación usa la estructura anterior. Actualízala para incluir la nueva tabla de <strong>Tiempo</strong> (unidades 0–6) y la sección de <strong>4. Competencias</strong>. Tu contenido de Objetivos, Desarrollo y Bibliografía se conservará.
+          </p>
+          <button
+            onClick={applyTemplateUpdate}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-bold hover:bg-amber-600 transition-colors whitespace-nowrap flex-shrink-0"
+          >
+            <RefreshCw size={12} />
+            Actualizar plantilla
+          </button>
+        </div>
+      )}
 
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <Toolbar editor={editor} />
