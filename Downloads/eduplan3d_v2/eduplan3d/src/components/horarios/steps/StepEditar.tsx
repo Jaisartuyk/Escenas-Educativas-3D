@@ -6,6 +6,22 @@ import type { HorariosState, HorarioGrid, Dia } from '@/types/horarios'
 import { DIAS, getCursoStructure } from '@/types/horarios'
 import { detectConflictosPorHora, getDocForMateria } from '@/lib/horarios/generator'
 
+function isUnassignedTeacher(value?: string | null): boolean {
+  const normalized = (value || '')
+    .replace(/\u00A0/g, ' ')
+    .trim()
+    .toLowerCase()
+
+  return (
+    !normalized ||
+    normalized === '—' ||
+    normalized === 'â€”' ||
+    normalized === '-' ||
+    normalized === 'sin docente' ||
+    normalized === 'ninguno'
+  )
+}
+
 interface Props {
   state: HorariosState
   onChange: (h: HorarioGrid) => void
@@ -29,7 +45,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
       Object.entries(mats).forEach(([materia, horas]) => {
         if (!horas || horas <= 0) return
         const doc = dpc[curso]?.[materia]
-        if (!doc || doc === '—') return
+        if (isUnassignedTeacher(doc)) return
         const diasRestringidos = config.diasPorMateria?.[materia]
         if (!byDoc[doc]) byDoc[doc] = { total: 0, rows: [] }
         byDoc[doc].total += horas
@@ -77,6 +93,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
   // con estructuras distintas (cursosCustom). Si no hay overrides, equivale
   // al detector anterior.
   const conflictos = detectConflictosPorHora(horario, config, docentes, state.docentePorCurso)
+    .filter(c => !isUnassignedTeacher(c.docente))
   const conflictoSet = new Set(
     conflictos.map(c => `${c.curso}|${c.dia}|${c.periodo}`)
   )
@@ -115,7 +132,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
         horario[c]?.[d]?.forEach((m, p) => {
           if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO' || m === 'SALIDA') return
           const doc = getDocForMateria(m, docentes, config.jornada, config.nivel, state.docentePorCurso, c)
-          if (doc === '—') return
+          if (isUnassignedTeacher(doc)) return
           const label = hCurso[p] ?? String(p)
           if (!byDoc[doc]) byDoc[doc] = {}
           if (!byDoc[doc][label]) byDoc[doc][label] = {}
@@ -305,7 +322,7 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
                                 </option>
                               ))}
                             </select>
-                            {doc && doc !== '—' && (
+                            {doc && !isUnassignedTeacher(doc) && (
                               <div className="text-[9px] text-ink3 px-1 pb-1 leading-tight truncate">
                                 {doc.split(',')[0]}
                               </div>
