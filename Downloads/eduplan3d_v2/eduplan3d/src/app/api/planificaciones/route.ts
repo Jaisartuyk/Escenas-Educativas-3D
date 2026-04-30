@@ -101,6 +101,7 @@ function buildPrompt(data: any, contextoExtra: string = '', detectedPlanificatio
   const totalMin = Number(totalWeeklyMinutes) || (numSesiones * minPorSesion)
   // Detectar EFL desde flag del cliente o desde el nombre de la materia (fallback)
   const isEFL = !!isEFLFlag || isEFLSubject(subject)
+  const isTrimester = type === 'trimestre'
 
   // axis (Eje Transversal legacy) ya no se usa — reemplazado por inserciones
   // curriculares MinEduc 2025-2026 inyectadas vía buildInsercionesPromptBlock.
@@ -130,8 +131,10 @@ Uno o mas documentos del docente contienen una planificacion lista. Tu tarea PRI
   // diagnóstico del curso anterior.
   const isAdaptacionCH = type === 'adaptacion' || type === 'diagnostica'
   const tpsLine = isAdaptacionCH
-    ? `- Período: SEMANA DE ADAPTACIÓN (primera semana del año lectivo, antes de cualquier parcial). NO menciones trimestre, parcial ni semana en los datos informativos del documento.`
-    : `- Trimestre ${trimestre}, Parcial ${parcial}${semana ? `, Semana ${semana}` : ''}`
+    ? `- Periodo: SEMANA DE ADAPTACION (primera semana del ano lectivo, antes de cualquier parcial). NO menciones trimestre, parcial ni semana en los datos informativos del documento.`
+    : isTrimester
+      ? `- Trimestre ${trimestre}. NO menciones parcial ni semana porque este documento cubre el trimestre completo.`
+      : `- Trimestre ${trimestre}, Parcial ${parcial}${semana ? `, Semana ${semana}` : ''}`
 
   // Inserciones curriculares MinEduc 2025-2026 (multi-select del docente)
   const insercionesBlock = buildInsercionesPromptBlock(inserciones)
@@ -150,6 +153,63 @@ ${tpsLine}
 - Duracion de esta clase: ${duration}
 - Estrategia metodologica (Ciclo): ${methodology.name} (${methodology.description})
 ${cuadernilloRef}${extraNotes}${insercionesBlock}${competenciasBlock}${ragContext}${planDetectedNote}`
+
+
+  if (type === 'trimestre') {
+    return `Genera una PLANIFICACION MICROCURRICULAR DISCIPLINAR O INTERDISCIPLINAR para un trimestre completo, siguiendo el formato oficial 2026 del documento de referencia.
+${commonHeader}
+- Alcance: trimestre completo
+- Tema o eje articulador del trimestre: ${topic || 'Tomar del PUD y de los materiales subidos'}
+
+REGLA CENTRAL PARA DOCENTES EXTERNOS:
+- Si en los documentos subidos existe un PUD, una planificacion microcurricular, un plan de unidad o un documento equivalente, ese material es la FUENTE BASE para organizar el trimestre.
+- Debes tomar de ese PUD: secuencia de contenidos, objetivos, destrezas, indicadores, estrategias y temporalidad.
+- Luego debes VALIDAR y AJUSTAR esa base con el bloque del CURRICULO PRIORIZADO MinEduc 2025 para completar o corregir competencias clave, inserciones curriculares e indicadores cuando corresponda.
+- Si el PUD no trae explicitas las competencias o inserciones, infierelas a partir de la DCD, la actividad y el curriculo priorizado, sin inventar DCD fuera del contexto provisto.
+
+ESTRUCTURA DE SALIDA OBLIGATORIA (usa tablas Markdown limpias):
+
+### ENCABEZADO INSTITUCIONAL
+Tabla con tres bandas principales:
+1. Nombre de la institucion
+2. Ano lectivo
+3. Titulo centrado: PLANIFICACION MICROCURRICULAR DISCIPLINAR O INTERDISCIPLINAR
+
+### 1. DATOS INFORMATIVOS
+Crea una tabla con estos campos exactos:
+| Campo | Valor | Campo | Valor | Campo | Valor |
+|---|---|---|---|---|---|
+| Docente | ... | Nivel/Subnivel/Grado o curso | ... | Paralelo | ... |
+| Area/Asignatura/Ambitos de desarrollo y aprendizaje/Modulos BT o EBJA | ... | Tiempo de duracion | Trimestre ${trimestre} | Desde | ... | Hasta | ... |
+
+### 2. PLANIFICACION
+Debes producir estas tres tablas, en este orden:
+
+#### 2.1 Destrezas + Indicadores
+| Destrezas/Contenidos BT/ | Indicadores de evaluacion/Criterio de evaluacion BT |
+|---|---|
+| Lista organizada de DCDs y/o contenidos del trimestre tomados del PUD. Cada DCD debe conservar su codigo textual y llevar al final sus competencias clave entre llaves dobles, por ejemplo {{C}} o {{CM,CD}}. Puedes desagregar por vietas dentro de la celda. | Lista alineada de indicadores oficiales o criterios de evaluacion correspondientes al mismo trimestre. Si el PUD ya trae indicadores, usalos y corrigelos solo si el curriculo priorizado obliga un ajuste. |
+
+#### 2.2 Estrategias metodologicas (DUA) + Recursos
+| Estrategias metodologicas (DUA) | Recursos |
+|---|---|
+| Organiza la secuencia metodologica del trimestre tomando como base el PUD subido. Integra aqui las inserciones curriculares seleccionadas o inferidas para el trimestre, pero aterrizadas en acciones reales de aula. Deben sentirse naturales dentro de las experiencias, no como lista decorativa. | Recursos concretos, materiales, textos, TIC, manipulativos y apoyos que se desprenden del PUD y de las actividades del trimestre. |
+
+#### 2.3 Estrategias para la evaluacion
+| Estrategias para la evaluacion |
+|---|
+| Describe de forma practica como se evaluara diagnostica, formativa y sumativamente a lo largo del trimestre, en coherencia con los indicadores seleccionados. |
+
+### 3. ADAPTACIONES CURRICULARES
+Incluye una tabla o bloque breve con adaptaciones curriculares pertinentes para el trimestre.
+
+OBLIGATORIO SOBRE COMPETENCIAS E INSERCIONES:
+1. TODA DCD debe llevar competencia(s) clave marcadas con el formato {{C}}, {{CM}}, {{CD}}, {{CS}}.
+2. Las inserciones curriculares NO van como lista aislada al final: deben integrarse dentro de las estrategias metodologicas y, cuando tenga sentido, tambien en recursos o evaluacion.
+3. Si el PUD subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
+4. No inventes periodos semanales ni parciales. Este documento resume y organiza el trimestre completo.
+5. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.`.trim()
+  }
 
   if (type === 'clase') {
     const isAporte = semana === 6
@@ -865,9 +925,11 @@ export async function POST(request: NextRequest) {
     const numSesionesEsperadas = Math.max(1, Number(body.weeklyHours) || 1)
     const isAdaptacionMaxTok = body.type === 'adaptacion' || body.type === 'diagnostica'
     const dynamicMaxTokens =
-      (body.type === 'clase' || isAdaptacionMaxTok) && numSesionesEsperadas > 1
-        ? Math.min(16000, 4096 + (numSesionesEsperadas * 1800))
-        : 6000
+      body.type === 'trimestre'
+        ? 10000
+        : (body.type === 'clase' || isAdaptacionMaxTok) && numSesionesEsperadas > 1
+          ? Math.min(16000, 4096 + (numSesionesEsperadas * 1800))
+          : 6000
 
     // Call Claude with system prompt + user prompt (regular)
     const message = await anthropic.messages.create({
@@ -905,7 +967,9 @@ export async function POST(request: NextRequest) {
 
     // Título dedicado para EFL Unidad / Clase
     let title: string
-    if (isAdaptacion) {
+    if (body.type === 'trimestre') {
+      title = `Planificacion Trimestral T${body.trimestre || 1} - ${body.subject} - ${body.grade}`.slice(0, 100)
+    } else if (isAdaptacion) {
       title = `Semana de Adaptación — ${body.subject} · ${body.grade}`.slice(0, 100)
     } else if (isEFLBody && body.type === 'unidad') {
       const unitTag = body.unitNumber && body.unitTotal
@@ -925,7 +989,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id:       user.id,
         title,
-        type:          body.type === 'parcial' ? 'clase' : body.type,
+        type:          body.type === 'trimestre' ? 'unidad' : body.type === 'parcial' ? 'clase' : body.type,
         subject:       body.subject,
         grade:         body.grade,
         topic:         body.topic,
@@ -939,8 +1003,8 @@ export async function POST(request: NextRequest) {
           // semana de adaptación está fuera del calendario de parciales. Esto
           // evita que la UI muestre badges T1·P1·S1 que confunden al docente.
           trimestre: isAdaptacion ? null : body.trimestre,
-          parcial:   isAdaptacion ? null : body.parcial,
-          semana:    isAdaptacion ? null : body.semana,
+          parcial:   isAdaptacion || body.type === 'trimestre' ? null : body.parcial,
+          semana:    isAdaptacion || body.type === 'trimestre' ? null : body.semana,
           eje:       body.eje,
           inserciones: Array.isArray(body.inserciones) ? body.inserciones : [],
           cuadernillo: body.cuadernillo,
@@ -957,6 +1021,7 @@ export async function POST(request: NextRequest) {
           unitNumber:  isEFLBody && body.unitNumber ? Number(body.unitNumber) : null,
           unitTotal:   isEFLBody && body.unitTotal  ? Number(body.unitTotal)  : null,
           cursoAnterior: isAdaptacion ? getPreviousLevel(body.grade).label : null,
+          generationScope: body.type === 'trimestre' ? 'trimestre' : null,
           generatedAt: new Date().toISOString(),
         },
       })
