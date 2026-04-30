@@ -20,6 +20,20 @@ function slotKey(nivel: string, jornada: string): string {
   return `horarios_${n}_${j}`
 }
 
+function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isSpecialScheduleCell(value: string | null | undefined): boolean {
+  const normalized = (value || '').trim().toUpperCase()
+  return !normalized || normalized === 'RECESO' || normalized === 'ACOMPAÑAMIENTO' || normalized === 'SALIDA'
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const qNivel   = searchParams.get('nivel')   || ''
@@ -254,6 +268,24 @@ export async function GET(req: Request) {
       docentePorCurso[courseName][sub.name] = sub.teacher_id ? (teacherIdToName[sub.teacher_id] || '') : '—'
     })
 
+    // Preservar materias personalizadas ya colocadas en el horario guardado,
+    // aunque todavía no estén sincronizadas en la tabla subjects.
+    Object.entries((horariosConfig.horasPorCurso || {}) as Record<string, Record<string, number>>).forEach(([courseName, savedSubjects]) => {
+      if (!horasPorCurso[courseName]) horasPorCurso[courseName] = {}
+      if (!docentePorCurso[courseName]) docentePorCurso[courseName] = {}
+      const existingNames = Object.keys(horasPorCurso[courseName])
+      const existingByNormalized = new Map(existingNames.map(name => [normalizeText(name), name]))
+
+      Object.entries(savedSubjects || {}).forEach(([subjectName, savedHours]) => {
+        const normalizedName = normalizeText(subjectName)
+        const canonicalName = existingByNormalized.get(normalizedName) || subjectName
+        if (horasPorCurso[courseName][canonicalName] !== undefined) return
+        horasPorCurso[courseName][canonicalName] = Number(savedHours) || 1
+        const savedTeacher = horariosConfig.docentePorCurso?.[courseName]?.[subjectName]
+        docentePorCurso[courseName][canonicalName] = savedTeacher || 'â€”'
+      })
+    })
+
     horariosConfig.horasPorCurso = horasPorCurso
     horariosConfig.docentePorCurso = docentePorCurso
   } else {
@@ -377,8 +409,7 @@ export async function POST(req: Request) {
       .eq('institution_id', instId)
 
     // Normalize: remove accents, extra spaces, lowercase for comparison
-    const normalize = (s: string) =>
-      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+    const normalize = (s: string) => normalizeText(s)
 
     const courseMap: Record<string, string> = {}        // exact name → id
     const normalizedMap: Record<string, string> = {}    // normalized name → exact name
@@ -428,6 +459,17 @@ export async function POST(req: Request) {
       }
     })
 
+    const scheduledSubjectsByCourse: Record<string, Record<string, number>> = {}
+    Object.entries((body.horario || {}) as Record<string, Record<string, string[]>>).forEach(([courseName, days]) => {
+      scheduledSubjectsByCourse[courseName] = scheduledSubjectsByCourse[courseName] || {}
+      Object.values(days || {}).forEach((row: any) => {
+        ;(row || []).forEach((cell: string) => {
+          if (isSpecialScheduleCell(cell)) return
+          scheduledSubjectsByCourse[courseName][cell] = (scheduledSubjectsByCourse[courseName][cell] || 0) + 1
+        })
+      })
+    })
+
     const subjectsToUpsert: any[] = []
     // Mapa course_id → nombres de materias con horas > 0 (los que deben existir)
     const validSubjectNames: Record<string, string[]> = {}
@@ -456,6 +498,38 @@ export async function POST(req: Request) {
           name:           matName,
           weekly_hours:   Number(hours),
           teacher_id:     exactTeacherId,
+        })
+      })
+    })
+
+    // Blindaje: si una materia sigue ubicada en la grilla del horario, no la
+    // borremos por faltar temporalmente en horasPorCurso. La preservamos y la
+    // reinsertamos con al menos 1h semanal.
+    Object.entries(scheduledSubjectsByCourse).forEach(([courseName, scheduledSubjects]) => {
+      const course_id = courseMap[courseName]
+      if (!course_id) return
+      if (!validSubjectNames[course_id]) validSubjectNames[course_id] = []
+      const validNormalized = new Set(validSubjectNames[course_id].map((name) => normalizeText(name)))
+
+      Object.entries(scheduledSubjects).forEach(([subjectName, occurrenceCount]) => {
+        if (validNormalized.has(normalizeText(subjectName))) return
+
+        let exactTeacherId = null
+        if (body.docentePorCurso?.[courseName]?.[subjectName]) {
+          const teacherName = body.docentePorCurso[courseName][subjectName]
+          if (teacherName && teacherName !== 'â€”') exactTeacherId = nameToTeacherId[teacherName.trim()] || null
+        } else if (!body.docentePorCurso) {
+          exactTeacherId = materiaTeacherGlobal[subjectName] || null
+        }
+
+        validSubjectNames[course_id].push(subjectName)
+        validNormalized.add(normalizeText(subjectName))
+        subjectsToUpsert.push({
+          course_id,
+          institution_id: instId,
+          name: subjectName,
+          weekly_hours: Number(body.horasPorCurso?.[courseName]?.[subjectName]) || Number(occurrenceCount) || 1,
+          teacher_id: exactTeacherId,
         })
       })
     })
