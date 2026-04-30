@@ -97,6 +97,37 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
   const conflictoSet = new Set(
     conflictos.map(c => `${c.curso}|${c.dia}|${c.periodo}`)
   )
+  const conflictosDetallados = useMemo(() => {
+    const grouped = new Map<string, { docente: string; dia: Dia; horaLabel: string; items: { curso: string; materia: string; periodo: number }[] }>()
+
+    conflictos.forEach((conflicto) => {
+      const key = `${conflicto.docente}|${conflicto.dia}|${conflicto.horaLabel}`
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          docente: conflicto.docente,
+          dia: conflicto.dia,
+          horaLabel: conflicto.horaLabel,
+          items: [],
+        })
+      }
+      grouped.get(key)!.items.push({
+        curso: conflicto.curso,
+        materia: conflicto.materia,
+        periodo: conflicto.periodo,
+      })
+    })
+
+    return Array.from(grouped.values())
+      .map((group) => ({
+        ...group,
+        items: group.items.sort((a, b) => a.curso.localeCompare(b.curso) || a.periodo - b.periodo),
+      }))
+      .sort((a, b) =>
+        a.docente.localeCompare(b.docente) ||
+        a.dia.localeCompare(b.dia) ||
+        a.horaLabel.localeCompare(b.horaLabel)
+      )
+  }, [conflictos])
 
   function updateCell(curso: string, dia: Dia, periodo: number, val: string) {
     const nuevo: HorarioGrid = JSON.parse(JSON.stringify(horario))
@@ -181,6 +212,43 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
           </button>
         </div>
       </div>
+
+      {conflictosDetallados.length > 0 && (
+        <div className="card p-5 mb-4 border-[rgba(240,98,146,0.22)] bg-[rgba(240,98,146,0.05)]">
+          <h3 className="font-display text-sm font-bold mb-1 text-rose">Detalle de conflictos de docente</h3>
+          <p className="text-[11px] text-ink3 mb-3">
+            Aquí se muestra exactamente qué docente tiene cruce, en qué día y hora ocurre, y en qué cursos/materias está asignado al mismo tiempo.
+          </p>
+
+          <div className="space-y-3">
+            {conflictosDetallados.map((conflicto, idx) => (
+              <div
+                key={`${conflicto.docente}-${conflicto.dia}-${conflicto.horaLabel}-${idx}`}
+                className="rounded-xl border border-[rgba(240,98,146,0.16)] bg-white px-4 py-3"
+              >
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="text-xs font-bold text-rose">{conflicto.docente}</span>
+                  <span className="text-[11px] text-ink3">•</span>
+                  <span className="text-[11px] font-semibold text-ink2">{conflicto.dia}</span>
+                  <span className="text-[11px] text-ink3">•</span>
+                  <span className="text-[11px] font-semibold text-ink2">{conflicto.horaLabel}</span>
+                </div>
+
+                <ul className="space-y-1.5">
+                  {conflicto.items.map((item, itemIdx) => (
+                    <li key={`${item.curso}-${item.materia}-${itemIdx}`} className="text-[11px] text-ink2 leading-relaxed">
+                      <span className="font-semibold text-ink">{item.curso}</span>
+                      {' — '}
+                      <span>{item.materia}</span>
+                      <span className="text-ink3">{` (período ${item.periodo + 1})`}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {vistaCarga && (
         <div className="card p-5 mb-4">
