@@ -73,9 +73,10 @@ export default async function PlanificacionDetailPage({ params }: Props) {
     : JSON.stringify(plan.content, null, 2)
 
   const meta = plan.metadata || {}
+  const isTrimesterPlan = meta.generationScope === 'trimestre'
 
   return (
-    <div className="animate-fade-in max-w-4xl mx-auto">
+    <div className={`animate-fade-in mx-auto ${isTrimesterPlan ? 'max-w-7xl' : 'max-w-4xl'}`}>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-ink3 mb-6 print:hidden">
         <Link href="/dashboard" className="hover:text-ink transition-colors">Dashboard</Link>
@@ -115,7 +116,12 @@ export default async function PlanificacionDetailPage({ params }: Props) {
       </div>
 
       {/* Content editable */}
-      <PlanContent planId={plan.id} initialContent={contentText} />
+      <PlanContent
+        planId={plan.id}
+        initialContent={contentText}
+        printOrientation={isTrimesterPlan ? 'landscape' : 'portrait'}
+        roomyLayout={isTrimesterPlan}
+      />
     </div>
   )
 }
