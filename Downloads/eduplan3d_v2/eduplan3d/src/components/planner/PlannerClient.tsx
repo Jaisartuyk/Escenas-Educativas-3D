@@ -49,6 +49,19 @@ const GENERATION_MODES = [
   { id: 'rubrica', label: 'Rubrica',          icon: Target,       desc: 'Evaluacion con descriptores' },
 ]
 
+function getGenerationModes(isPlannerSoloTeacher: boolean) {
+  if (!isPlannerSoloTeacher) return GENERATION_MODES
+  return GENERATION_MODES.map(mode =>
+    mode.id === 'parcial'
+      ? {
+          ...mode,
+          label: 'Trimestre completo',
+          desc: 'Plantilla oficial trimestral basada en tu PUD',
+        }
+      : mode
+  )
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 export function PlannerClient({
   teacherName, teacherPlan, institutionName,
@@ -66,6 +79,8 @@ export function PlannerClient({
   const router = useRouter()
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
   const initialMode = searchParams?.get('mode') || 'clase'
+  const isPlannerSoloTeacher = teacherPlan === 'planner_solo'
+  const generationModes = getGenerationModes(isPlannerSoloTeacher)
 
   // Form state
   const [mode,       setMode]       = useState(initialMode)
@@ -229,7 +244,6 @@ export function PlannerClient({
     setActiveTab('regular')
     setDetectedPlanification(false)
 
-    // Validaciones NEE
     const finalNeeSinDisc = neeSinDiscEnabled ? neeSinDiscCodes : []
     const finalNeeConDisc = neeConDiscEnabled && neeConDiscCode ? neeConDiscCode : ''
     if (neeSinDiscEnabled && finalNeeSinDisc.length === 0) {
@@ -251,23 +265,20 @@ export function PlannerClient({
         methodology,
         methodologies: [methodology],
         extra,
-        // New fields
         trimestre,
         parcial,
         semana,
         eje,
         inserciones,
-        // EFL / lenguas extranjeras
         isEFL,
         cefrLevel: cefrLevel || null,
         unitNumber: unitNumber ? parseInt(unitNumber, 10) : null,
-        unitTotal:  unitTotal  ? parseInt(unitTotal,  10) : null,
+        unitTotal: unitTotal ? parseInt(unitTotal, 10) : null,
         cuadernillo,
         periodMinutes: minutesHora,
         weeklyHours,
         totalWeeklyMinutes: totalMinutes,
         daysOfWeek,
-        // Si el docente editó los valores, persistirlos en su materia
         persistHoursConfig:
           editedWeeklyHours !== null ||
           editedPeriodMinutes !== null ||
@@ -276,66 +287,98 @@ export function PlannerClient({
         teacherName,
         institutionName,
         subjectId,
-        // NEE
         nee_sin_disc_codes: finalNeeSinDisc,
-        nee_con_disc_code:  finalNeeConDisc,
-        diac_student_name:  diacStudentName.trim(),
-        diac_grado_real:    diacGradoReal.trim(),
+        nee_con_disc_code: finalNeeConDisc,
+        diac_student_name: diacStudentName.trim(),
+        diac_grado_real: diacGradoReal.trim(),
       }
 
       if (mode === 'parcial' || mode === 'abp') {
-        const allResults: Planificacion[] = []
-        let firstRagStats: any = null
-
-        // Para EFL: parcial = 3 mini-unidades de 2 semanas (no 6 clases semanales).
-        // Estructura más coherente con el currículo MinEduc EFL alineado al CEFR.
-        const useEflMiniUnits = isEFL && mode === 'parcial'
-        const totalIters = useEflMiniUnits ? 3 : 6
-
-        for (let i = 1; i <= totalIters; i++) {
-          let iterBody: any
-          if (useEflMiniUnits) {
-            // 3 unidades EFL de 2 semanas cada una
-            iterBody = {
-              ...payload,
-              type: 'unidad',
-              unitNumber: i,
-              unitTotal: 3,
-              semana: null,                // unidad no usa semana
-              topic: topic || `EFL Unit ${i}`,
-              // Cada mini-unit cubre 2 semanas → duplicamos el tiempo total esperado
-              totalWeeklyMinutes: minutesHora * weeklyHours * 2,
-            }
-          } else {
-            iterBody = {
-              ...payload,
-              type: 'clase', // Tanto parcial como ABP en modo no-EFL son clases semanales
-              semana: i,
-              topic: topic || (mode === 'abp' ? `Semana ${i} del Proyecto ABP` : `Semana ${i}`),
-            }
+        if (isExternalTrimesterMode) {
+          const trimestreBody = {
+            ...payload,
+            type: 'trimestre',
+            parcial: null,
+            semana: null,
+            topic: topic || `Planificacion del Trimestre ${trimestre}`,
           }
+
           const res = await fetch('/api/planificaciones', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(iterBody),
+            body: JSON.stringify(trimestreBody),
           })
           const data = await res.json()
           if (!res.ok) throw new Error(data.error)
-          allResults.push(data.planificacion)
-          if (!firstRagStats && data.ragStats) firstRagStats = data.ragStats
-        }
-        setResults(allResults)
-        toast.success(`${allResults.length} planificaciones generadas`)
-        if (firstRagStats) {
-          const rs = firstRagStats as { found: number; parsed: number; skipped: number; reasons: string[] }
-          if (rs.found === 0) {
-            toast('📚 No hay materiales subidos para esta materia. La IA generó sin contexto bibliográfico.', { icon: '⚠️', duration: 7000 })
-          } else if (rs.parsed === 0) {
-            toast.error(`📚 Encontré ${rs.found} material(es) pero no pude leer ninguno.\n${(rs.reasons || []).slice(0, 3).join('\n')}`, { duration: 10000 })
-          } else if (rs.skipped > 0) {
-            toast(`📚 Usé ${rs.parsed} de ${rs.found} materiales. ${rs.skipped} saltado(s):\n${(rs.reasons || []).slice(0, 3).join('\n')}`, { icon: 'ℹ️', duration: 8000 })
-          } else {
-            toast.success(`📚 Usando ${rs.parsed} material(es) de tu biblioteca como referencia`, { duration: 4000 })
+
+          setResult(data.planificacion)
+          setVariants(data.variants || [])
+          setActiveTab('regular')
+          setDetectedPlanification(!!data.detectedPlanification)
+          toast.success('Planificacion trimestral generada')
+
+          const rs = data.ragStats as { found: number; parsed: number; skipped: number; reasons: string[] } | undefined
+          if (rs) {
+            if (rs.found === 0) {
+              toast('Sube tu PUD o materiales de apoyo para que la IA complete el trimestre con mas precision.', { duration: 7000 })
+            } else if (rs.parsed === 0) {
+              toast.error(`Encontre ${rs.found} material(es) pero no pude leer ninguno.\n${(rs.reasons || []).slice(0, 3).join('\n')}`, { duration: 10000 })
+            } else if (rs.skipped > 0) {
+              toast(`Use ${rs.parsed} de ${rs.found} materiales. ${rs.skipped} saltado(s):\n${(rs.reasons || []).slice(0, 3).join('\n')}`, { duration: 8000 })
+            } else {
+              toast.success(`Usando ${rs.parsed} material(es) de tu biblioteca como referencia`, { duration: 4000 })
+            }
+          }
+        } else {
+          const allResults: Planificacion[] = []
+          let firstRagStats: any = null
+          const useEflMiniUnits = isEFL && mode === 'parcial'
+          const totalIters = useEflMiniUnits ? 3 : 6
+
+          for (let i = 1; i <= totalIters; i++) {
+            let iterBody: any
+            if (useEflMiniUnits) {
+              iterBody = {
+                ...payload,
+                type: 'unidad',
+                unitNumber: i,
+                unitTotal: 3,
+                semana: null,
+                topic: topic || `EFL Unit ${i}`,
+                totalWeeklyMinutes: minutesHora * weeklyHours * 2,
+              }
+            } else {
+              iterBody = {
+                ...payload,
+                type: 'clase',
+                semana: i,
+                topic: topic || (mode === 'abp' ? `Semana ${i} del Proyecto ABP` : `Semana ${i}`),
+              }
+            }
+            const res = await fetch('/api/planificaciones', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(iterBody),
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.error)
+            allResults.push(data.planificacion)
+            if (!firstRagStats && data.ragStats) firstRagStats = data.ragStats
+          }
+
+          setResults(allResults)
+          toast.success(`${allResults.length} planificaciones generadas`)
+          if (firstRagStats) {
+            const rs = firstRagStats as { found: number; parsed: number; skipped: number; reasons: string[] }
+            if (rs.found === 0) {
+              toast('No hay materiales subidos para esta materia. La IA genero sin contexto bibliografico.', { icon: '??', duration: 7000 })
+            } else if (rs.parsed === 0) {
+              toast.error(`Encontre ${rs.found} material(es) pero no pude leer ninguno.\n${(rs.reasons || []).slice(0, 3).join('\n')}`, { duration: 10000 })
+            } else if (rs.skipped > 0) {
+              toast(`Use ${rs.parsed} de ${rs.found} materiales. ${rs.skipped} saltado(s):\n${(rs.reasons || []).slice(0, 3).join('\n')}`, { icon: '??', duration: 8000 })
+            } else {
+              toast.success(`Usando ${rs.parsed} material(es) de tu biblioteca como referencia`, { duration: 4000 })
+            }
           }
         }
       } else {
@@ -357,14 +400,12 @@ export function PlannerClient({
             : 'Planificacion generada y guardada'
         )
         if (data.detectedPlanification) {
-          toast('📄 Se detecto una planificacion en tus documentos y se adapto al formato institucional', { duration: 6000 })
+          toast('Se detecto una planificacion en tus documentos y se adapto al formato institucional', { duration: 6000 })
         }
-        // Aviso si la respuesta se cortó por max_tokens
         if (data.truncated) {
           toast(
-            `⚠️ La planificación se generó parcialmente (${data.sesionesGeneradas ?? '?'}/${data.sesionesEsperadas ?? '?'} sesiones). ` +
-            `Edita o regenera con menos sesiones.`,
-            { icon: '⚠️', duration: 10000 }
+            `La planificacion se genero parcialmente (${data.sesionesGeneradas ?? '?'}/${data.sesionesEsperadas ?? '?'} sesiones). Edita o regenera con menos sesiones.`,
+            { icon: '??', duration: 10000 }
           )
         } else if (
           typeof data.sesionesEsperadas === 'number' &&
@@ -373,27 +414,26 @@ export function PlannerClient({
           data.sesionesGeneradas < data.sesionesEsperadas
         ) {
           toast(
-            `ℹ️ Se generaron ${data.sesionesGeneradas} de ${data.sesionesEsperadas} sesiones. Revisa el contenido.`,
-            { icon: 'ℹ️', duration: 8000 }
+            `Se generaron ${data.sesionesGeneradas} de ${data.sesionesEsperadas} sesiones. Revisa el contenido.`,
+            { icon: '??', duration: 8000 }
           )
         }
-        // Diagnóstico RAG: avisar al docente qué pasó con sus materiales
         const rs = data.ragStats as { found: number; parsed: number; skipped: number; reasons: string[] } | undefined
         if (rs) {
           if (rs.found === 0) {
-            toast('📚 No hay materiales subidos para esta materia. La IA generó sin contexto bibliográfico.', { icon: '⚠️', duration: 7000 })
+            toast('No hay materiales subidos para esta materia. La IA genero sin contexto bibliografico.', { icon: '??', duration: 7000 })
           } else if (rs.parsed === 0) {
             toast.error(
-              `📚 Encontré ${rs.found} material(es) pero no pude leer ninguno.\n${(rs.reasons || []).slice(0, 3).join('\n')}`,
+              `Encontre ${rs.found} material(es) pero no pude leer ninguno.\n${(rs.reasons || []).slice(0, 3).join('\n')}` ,
               { duration: 10000 }
             )
           } else if (rs.skipped > 0) {
             toast(
-              `📚 Usé ${rs.parsed} de ${rs.found} materiales. ${rs.skipped} saltado(s):\n${(rs.reasons || []).slice(0, 3).join('\n')}`,
-              { icon: 'ℹ️', duration: 8000 }
+              `Use ${rs.parsed} de ${rs.found} materiales. ${rs.skipped} saltado(s):\n${(rs.reasons || []).slice(0, 3).join('\n')}` ,
+              { icon: '??', duration: 8000 }
             )
           } else {
-            toast.success(`📚 Usando ${rs.parsed} material(es) de tu biblioteca como referencia`, { duration: 4000 })
+            toast.success(`Usando ${rs.parsed} material(es) de tu biblioteca como referencia`, { duration: 4000 })
           }
         }
       }
@@ -403,6 +443,7 @@ export function PlannerClient({
       setLoading(false)
     }
   }
+
 
   function handleCopy(content: string) {
     navigator.clipboard.writeText(content)
@@ -430,9 +471,14 @@ export function PlannerClient({
     }
   }
 
+  const isExternalTrimesterMode = isPlannerSoloTeacher && mode === 'parcial'
   const showSemana           = mode === 'clase'
-  const showTopic            = mode === 'clase' || mode === 'rubrica'
+  const showTopic            = mode === 'clase' || mode === 'rubrica' || isExternalTrimesterMode
   const showTrimestreParcial = mode !== 'adaptacion' && mode !== 'diagnostica'
+  const showParcialSelector  = showTrimestreParcial && !isExternalTrimesterMode
+  const periodoGridCols = showSemana
+    ? (showParcialSelector ? 'grid-cols-3' : 'grid-cols-2')
+    : (showParcialSelector ? 'grid-cols-2' : 'grid-cols-1')
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6 items-start">
@@ -447,7 +493,7 @@ export function PlannerClient({
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-ink3 mb-2">Tipo de generacion</label>
           <div className="grid grid-cols-2 gap-2">
-            {GENERATION_MODES.map(m => {
+            {generationModes.map(m => {
               const Icon = m.icon
               return (
                 <button
@@ -644,7 +690,7 @@ export function PlannerClient({
 
         {/* Trimestre + Parcial + Semana */}
         {showTrimestreParcial && (
-          <div className="grid grid-cols-3 gap-2">
+          <div className={`grid ${periodoGridCols} gap-2`}>
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Trimestre</label>
               <select
@@ -655,18 +701,20 @@ export function PlannerClient({
                 {TRIMESTRES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Parcial</label>
-              <select
-                value={parcial}
-                onChange={e => setParcial(Number(e.target.value))}
-                className="w-full bg-bg border border-surface2 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-violet/50"
-              >
-                {Array.from({ length: parcialesCount }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>Parcial {i + 1} (Unidad)</option>
-                ))}
-              </select>
-            </div>
+            {showParcialSelector && (
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Parcial</label>
+                <select
+                  value={parcial}
+                  onChange={e => setParcial(Number(e.target.value))}
+                  className="w-full bg-bg border border-surface2 rounded-xl px-2 py-2 text-xs focus:outline-none focus:border-violet/50"
+                >
+                  {Array.from({ length: parcialesCount }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>Parcial {i + 1} (Unidad)</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {showSemana && (
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-ink3 mb-1">Semana</label>
@@ -958,27 +1006,33 @@ export function PlannerClient({
           {loading ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {mode === 'parcial' && isEFL
-                ? 'Generando 3 EFL mini-units...'
-                : mode === 'parcial' || mode === 'abp'
-                  ? 'Generando 6 semanas...'
-                  : 'Generando...'}
+              {isExternalTrimesterMode
+                ? 'Generando trimestre...'
+                : mode === 'parcial' && isEFL
+                  ? 'Generando 3 EFL mini-units...'
+                  : mode === 'parcial' || mode === 'abp'
+                    ? 'Generando 6 semanas...'
+                    : 'Generando...'}
             </>
           ) : (
             <>
               <Sparkles size={16} />
-              {mode === 'parcial' && isEFL
-                ? 'Generar parcial (3 EFL units)'
-                : mode === 'parcial' || mode === 'abp'
-                  ? 'Generar proyecto / parcial'
-                  : 'Generar con IA'}
+              {isExternalTrimesterMode
+                ? 'Generar trimestre con IA'
+                : mode === 'parcial' && isEFL
+                  ? 'Generar parcial (3 EFL units)'
+                  : mode === 'parcial' || mode === 'abp'
+                    ? 'Generar proyecto / parcial'
+                    : 'Generar con IA'}
             </>
           )}
         </button>
 
         {(mode === 'parcial' || mode === 'abp') && (
           <p className="text-[10px] text-ink4 text-center">
-            Se generaran 6 planificaciones (1 por semana del proyecto/parcial)
+            {isExternalTrimesterMode
+              ? 'Se generara una planificacion trimestral basada en el PUD subido y el curriculo priorizado.'
+              : 'Se generaran 6 planificaciones (1 por semana del proyecto/parcial)'}
           </p>
         )}
       </div>
@@ -1058,7 +1112,11 @@ export function PlannerClient({
               <ClipboardList size={28} style={{ color: '#7C6DFA' }} />
             </div>
             <p className="text-base font-medium mb-1">Tu planificacion aparecera aqui</p>
-            <p className="text-sm text-ink4">Selecciona materia, trimestre y tema, luego presiona <strong className="text-ink2">Generar con IA</strong></p>
+            <p className="text-sm text-ink4">
+              {isExternalTrimesterMode
+                ? 'Selecciona materia y trimestre. La IA adaptara tu PUD al formato oficial con competencias e inserciones curriculares.'
+                : <>Selecciona materia, trimestre y tema, luego presiona <strong className="text-ink2">Generar con IA</strong></>}
+            </p>
           </div>
         )}
 
