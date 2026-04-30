@@ -111,8 +111,9 @@ ${list}
 REGLA DE INTEGRACIÓN:
 1. NO crees una sección aparte titulada "Inserciones curriculares" para mencionarlas; las inserciones deben aparecer INTEGRADAS dentro de las actividades concretas de cada DCD/sesión.
 2. Selecciona el contenido temático de las actividades, lecturas modelo o problemas para que naturalmente toquen la(s) inserción(es) seleccionada(s). Ejemplo: si la DCD es "Producir textos argumentativos" y la inserción es Desarrollo Sostenible, el tema del texto puede ser "El uso responsable del agua en mi comunidad".
-3. En cada celda de la columna Estrategias Metodológicas, donde una actividad integre una inserción, marca al final entre paréntesis cuál inserción integra. Ejemplo: "Lectura comparativa de dos noticias sobre reciclaje. (🌱 Desarrollo Sostenible)".
-4. NO marques inserciones que no apliquen genuinamente — la integración debe ser pertinente al tema curricular, no forzada.
+3. Cada vez que una actividad, recurso o criterio de evaluación integre una inserción, debes marcarla VISUALMENTE con su icono y etiqueta corta entre corchetes. Ejemplo: "[🌱 Sostenible] Lectura comparativa de dos noticias sobre reciclaje."
+4. Si una misma línea integra más de una inserción, puedes usar más de una marca, pero solo si aplica de verdad. Ejemplo: "[🚩 Cívica] [🤝 Socioemocional] Debate guiado sobre normas de convivencia digital."
+5. NO marques inserciones que no apliquen genuinamente; la integración debe ser pertinente al tema curricular, no forzada.
 
 DISEÑO UNIVERSAL DE APRENDIZAJE (DUA) — OBLIGATORIO al integrar inserciones:
 Las actividades que integran una inserción deben respetar los 3 principios DUA del MinEduc para garantizar acceso equitativo:
@@ -123,7 +124,7 @@ Las actividades que integran una inserción deben respetar los 3 principios DUA 
 
 CÓMO MARCARLO en la planificación:
 Cuando una actividad cubra uno de los 3 principios DUA, etiquétalo al final entre paréntesis. Ejemplo:
-  "Producir un afiche o un podcast corto sobre el ahorro de agua en su barrio. (🌱 Desarrollo Sostenible) (DUA: acción/expresión múltiple, implicación con contexto local)"
+  "[🌱 Sostenible] Producir un afiche o un podcast corto sobre el ahorro de agua en su barrio. (DUA: acción/expresión múltiple, implicación con contexto local)"
 
 REGLA: al menos UNA actividad por sesión debe declarar explícitamente qué principio DUA aplica.`
 }

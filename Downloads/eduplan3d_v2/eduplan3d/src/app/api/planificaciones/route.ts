@@ -193,7 +193,7 @@ Debes producir estas tres tablas, en este orden:
 #### 2.2 Estrategias metodologicas (DUA) + Recursos
 | Estrategias metodologicas (DUA) | Recursos |
 |---|---|
-| Organiza la secuencia metodologica del trimestre tomando como base el PUD subido. Integra aqui las inserciones curriculares seleccionadas o inferidas para el trimestre, pero aterrizadas en acciones reales de aula. Deben sentirse naturales dentro de las experiencias, no como lista decorativa. | Recursos concretos, materiales, textos, TIC, manipulativos y apoyos que se desprenden del PUD y de las actividades del trimestre. |
+| Organiza la secuencia metodologica del trimestre tomando como base el PUD subido. Integra aqui las inserciones curriculares seleccionadas o inferidas para el trimestre, pero aterrizadas en acciones reales de aula. Deben sentirse naturales dentro de las experiencias, no como lista decorativa. Cada insercion debe verse con su icono y etiqueta corta, por ejemplo [🌱 Sostenible], [🚩 Civica], [🤝 Socioemocional], [💰 Financiera], [🚲 Vial]. | Recursos concretos, materiales, textos, TIC, manipulativos y apoyos que se desprenden del PUD y de las actividades del trimestre. Si un recurso responde a una insercion curricular, marcalo tambien con el mismo formato visual [emoji etiqueta]. |
 
 #### 2.3 Estrategias para la evaluacion
 | Estrategias para la evaluacion |
@@ -206,9 +206,11 @@ Incluye una tabla o bloque breve con adaptaciones curriculares pertinentes para 
 OBLIGATORIO SOBRE COMPETENCIAS E INSERCIONES:
 1. TODA DCD debe llevar competencia(s) clave marcadas con el formato {{C}}, {{CM}}, {{CD}}, {{CS}}.
 2. Las inserciones curriculares NO van como lista aislada al final: deben integrarse dentro de las estrategias metodologicas y, cuando tenga sentido, tambien en recursos o evaluacion.
-3. Si el PUD subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
-4. No inventes periodos semanales ni parciales. Este documento resume y organiza el trimestre completo.
-5. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.`.trim()
+3. Toda insercion integrada debe verse con icono visible y etiqueta corta en este formato exacto: [🌱 Sostenible], [🚩 Civica], [🤝 Socioemocional], [💰 Financiera], [🚲 Vial].
+4. Si una fila o actividad no integra una insercion de manera genuina, no la fuerces; pero cuando si la integre, el icono es obligatorio.
+5. Si el PUD subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
+6. No inventes periodos semanales ni parciales. Este documento resume y organiza el trimestre completo.
+7. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.`.trim()
   }
 
   if (type === 'clase') {
