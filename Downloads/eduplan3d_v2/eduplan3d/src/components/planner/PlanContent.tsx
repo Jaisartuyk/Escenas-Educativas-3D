@@ -449,9 +449,16 @@ function VisualNode({
 interface Props {
   planId: string
   initialContent: string
+  printOrientation?: 'portrait' | 'landscape'
+  roomyLayout?: boolean
 }
 
-export function PlanContent({ planId, initialContent }: Props) {
+export function PlanContent({
+  planId,
+  initialContent,
+  printOrientation = 'portrait',
+  roomyLayout = false,
+}: Props) {
   const [content, setContent] = useState(initialContent)
   const [nodes, setNodes] = useState<DocNode[]>(() => parseMarkdownToNodes(initialContent))
   const [editMode, setEditMode] = useState(false)
@@ -517,7 +524,11 @@ export function PlanContent({ planId, initialContent }: Props) {
   }
 
   return (
-    <div className="bg-white text-black rounded-xl shadow-lg border print:shadow-none print:border-none print:rounded-none">
+    <div
+      className={`bg-white text-black rounded-xl shadow-lg border print:shadow-none print:border-none print:rounded-none ${
+        roomyLayout ? 'planner-roomy-layout' : ''
+      }`}
+    >
       {/* Toolbar */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 print:hidden flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-wrap">
@@ -572,7 +583,7 @@ export function PlanContent({ planId, initialContent }: Props) {
         </div>
         <div className="flex items-center gap-2">
           <CopyButton text={content} />
-          <PrintButton />
+          <PrintButton orientation={printOrientation} />
         </div>
       </div>
 
@@ -585,7 +596,7 @@ export function PlanContent({ planId, initialContent }: Props) {
       )}
 
       {/* Content */}
-      <div className="p-6 print:p-4">
+      <div className={roomyLayout ? 'p-4 md:p-5 lg:p-6 print:p-3' : 'p-6 print:p-4'}>
         {editMode ? (
           <div className="space-y-2">
             {nodes.map((node, idx) => (
@@ -608,7 +619,7 @@ export function PlanContent({ planId, initialContent }: Props) {
             )}
           </div>
         ) : (
-          <div className="px-2">
+          <div className={roomyLayout ? 'px-0 md:px-1' : 'px-2'}>
             <MarkdownRenderer content={content} />
           </div>
         )}
