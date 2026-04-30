@@ -19,7 +19,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import {
   ChevronLeft, Save, CheckCircle2, Clock, Bold, Italic, List, ListOrdered,
   Heading1, Heading2, Heading3, Table as TableIcon, Undo2, Redo2,
-  Eye, FileText, RefreshCw,
+  Eye, FileText, RefreshCw, Plus, Minus,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -218,37 +218,58 @@ export function PlanEditorClient({
   function applyTemplateUpdate() {
     if (!editor) return
     const html = editor.getHTML()
-    const tables = Array.from(html.matchAll(/<table[\s\S]*?<\/table>/gi)).map(m => m[0])
+    const tables = extractTables(html)
 
-    const objetivosTable    = tables.find(t => t.includes('Objetivos generales')) ?? ''
-    const existingTiempo    = tables.find(t => t.includes('2. Tiempo') || t.includes('Carga horaria semanal')) ?? ''
-    const existingCompet    = tables.find(t => t.includes('4. Competencias') || t.includes('Competencias Comunicacionales')) ?? ''
-    let   desarrolloTable   = tables.find(t => t.includes('Desarrollo de unidades')) ?? ''
-    const bibliografiaTable = tables.find(t => t.includes('Bibliograf')) ?? ''
-    const firmasTable       = tables.find(t => t.includes('Elaborado:')) ?? ''
+    const datosTable = findTableByMarkers(tables, ['1. datos informativos', 'docente(s):', 'grado/curso:'])
+    const existingTiempo = findTableByMarkers(tables, ['2. tiempo', 'diagnostico y nivelacion'])
+      || findTableByMarkers(tables, ['carga horaria semanal', 'numero de semanas de trabajo'])
+    const objetivosTable = findTableByMarkers(tables, ['3. objetivos generales', 'objetivos del area'])
+      || findTableByMarkers(tables, ['objetivos generales', 'ejes transversales'])
+    const existingCompet = findTableByMarkers(tables, ['4. competencias', 'competencias comunicacionales'])
+      || findTableByMarkers(tables, ['competencias comunicacionales', 'competencias socioemocionales'])
+    let desarrolloTable = findTableByMarkers(tables, ['5. desarrollo de unidades de planificacion', 'titulo de la unidad de planificacion'])
+      || findTableByMarkers(tables, ['desarrollo de unidades de planificacion', 'duracion en semanas'])
+    const bibliografiaTable = findTableByMarkers(tables, ['6. bibliografia y webgrafia', '7. observaciones'])
+      || findTableByMarkers(tables, ['bibliografia y webgrafia', 'observaciones'])
+    const firmasTable = findTableByMarkers(tables, ['elaborado:', 'revisado:', 'aprobado:'])
 
-    // Renumerar Desarrollo → Punto 5
-    desarrolloTable = desarrolloTable.replace(
-      'Desarrollo de unidades de planificación',
-      '5. Desarrollo de unidades de planificación',
-    )
+    if (desarrolloTable) {
+      desarrolloTable = desarrolloTable
+        .replace(/>Desarrollo de unidades de planificaci.n</i, '>5. Desarrollo de unidades de planificacion<')
+        .replace(/>5\.\s*Desarrollo de unidades de planificaci.n</i, '>5. Desarrollo de unidades de planificacion<')
+    }
 
-    // Extraer datos+tiempo+competencias del nuevo template
     const newTpl = buildLetamendiAnnualTemplate({
       teacherName,
       subjectName: plan.subjectName,
       courseName: plan.courseName,
     })
-    const newTables = Array.from(newTpl.matchAll(/<table[\s\S]*?<\/table>/gi)).map(m => m[0])
-    const newDatos        = newTables[0] ?? ''
-    const defaultTiempo   = newTables[1] ?? ''
-    const defaultCompet   = newTables[3] ?? ''
+    const newTables = extractTables(newTpl)
+    const newDatos = newTables[0] ?? ''
+    const defaultTiempo = newTables[1] ?? ''
+    const defaultObjetivos = newTables[2] ?? ''
+    const defaultCompet = newTables[3] ?? ''
+    const defaultDesarrollo = newTables[4] ?? ''
+    const defaultBibliografia = newTables[5] ?? ''
+    const defaultFirmas = newTables[6] ?? ''
 
+    const datosTableToUse = datosTable || newDatos
     const tiempoTable = shouldPreserveCurrentTiempo(existingTiempo) ? existingTiempo : defaultTiempo
+    const objetivosTableToUse = objetivosTable || defaultObjetivos
     const competenciasTable = existingCompet || defaultCompet
+    const desarrolloTableToUse = desarrolloTable || defaultDesarrollo
+    const bibliografiaTableToUse = bibliografiaTable || defaultBibliografia
+    const firmasTableToUse = firmasTable || defaultFirmas
 
-    const newContent = [newDatos, tiempoTable, objetivosTable, competenciasTable, desarrolloTable, bibliografiaTable, firmasTable]
-      .filter(Boolean).join('\n')
+    const newContent = [
+      datosTableToUse,
+      tiempoTable,
+      objetivosTableToUse,
+      competenciasTable,
+      desarrolloTableToUse,
+      bibliografiaTableToUse,
+      firmasTableToUse,
+    ].filter(Boolean).join('\n')
 
     editor.commands.setContent(newContent)
     setNeedsTemplateUpdate(false)
@@ -259,7 +280,7 @@ export function PlanEditorClient({
       }
     }, 150)
 
-    toast.success('Plantilla actualizada — tu contenido fue preservado.')
+    toast.success('Plantilla actualizada: se conservaron tus tablas y se agrego la estructura faltante.')
   }
 
   if (!editor) {
@@ -317,12 +338,14 @@ export function PlanEditorClient({
       )}
 
       {/* ── Banner: actualizar plantilla (solo LETAMENDI anual con estructura vieja) */}
-      {isLetamendiAnnual && needsTemplateUpdate && (
-        <div className="mb-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm">
+      {isLetamendiAnnual && (
+        <div className={`mb-3 px-4 py-3 rounded-xl text-sm ${needsTemplateUpdate ? 'bg-amber-50 border border-amber-200' : 'bg-sky-50 border border-sky-200'}`}>
           <div className="flex items-start gap-2 mb-2">
-            <span className="text-lg leading-none mt-0.5">⚠️</span>
-            <p className="text-amber-800">
-              Esta planificación usa la estructura anterior. Actualízala para incluir la nueva tabla de <strong>Tiempo</strong> (unidades 0–6) y la sección de <strong>4. Competencias</strong>. Tu contenido de Objetivos, Desarrollo y Bibliografía se conservará.
+            <span className="text-lg leading-none mt-0.5">{needsTemplateUpdate ? '⚠️' : '🧩'}</span>
+            <p className={needsTemplateUpdate ? 'text-amber-800' : 'text-sky-800'}>
+              {needsTemplateUpdate
+                ? <>Esta planificación usa una estructura anterior. Actualízala para incluir la versión más reciente de la anual. Se conservará lo ya escrito en <strong>Datos informativos</strong>, <strong>Objetivos</strong>, <strong>Competencias</strong>, <strong>Desarrollo</strong>, <strong>Bibliografia</strong> y las demás secciones que ya existan.</>
+                : <>Si necesitas incorporar la estructura más reciente en una anual ya editada, puedes usar este botón. La actualización es conservadora y mantiene el contenido existente mientras agrega bloques faltantes.</>}
             </p>
           </div>
           <button
@@ -330,13 +353,18 @@ export function PlanEditorClient({
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors"
           >
             <RefreshCw size={12} />
-            Actualizar plantilla
+            {needsTemplateUpdate ? 'Actualizar plantilla' : 'Actualizar estructura'}
           </button>
         </div>
       )}
 
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <Toolbar editor={editor} />
+      {isLetamendiAnnual && (
+        <p className="mb-3 text-xs text-ink3">
+          Consejo: cuando estas dentro de una tabla puedes usar los botones de <strong>agregar fila arriba</strong>, <strong>agregar fila debajo</strong> y <strong>eliminar fila</strong> para ampliar la anual sin perder lo ya escrito.
+        </p>
+      )}
 
       {/* ── Documento (header institucional + editor) ────────────────────── */}
       <div className="plan-doc-wrap bg-white rounded-2xl border border-line shadow-sm overflow-hidden">
@@ -676,6 +704,24 @@ function Toolbar({ editor }: { editor: any }) {
       >
         <TableIcon size={14} />
       </Btn>
+      <Btn
+        onClick={() => editor.chain().focus().addRowAfter().run()}
+        title="Agregar fila debajo"
+      >
+        <Plus size={14} />
+      </Btn>
+      <Btn
+        onClick={() => editor.chain().focus().addRowBefore().run()}
+        title="Agregar fila arriba"
+      >
+        <Plus size={14} className="rotate-180" />
+      </Btn>
+      <Btn
+        onClick={() => editor.chain().focus().deleteRow().run()}
+        title="Eliminar fila"
+      >
+        <Minus size={14} />
+      </Btn>
       <span className="w-px h-5 bg-line mx-1" />
       <Btn
         onClick={() => editor.chain().focus().insertContent('🗣️ C ').run()}
@@ -945,6 +991,17 @@ function buildInitialPreparatoryWeeklyTemplate({
   </tbody>
 </table>
   `.trim()
+}
+
+function extractTables(html: string): string[] {
+  return Array.from(html.matchAll(/<table[\s\S]*?<\/table>/gi)).map((match) => match[0])
+}
+
+function findTableByMarkers(tables: string[], markers: string[]): string {
+  return tables.find((tableHtml) => {
+    const normalized = normalizeTemplateHtml(tableHtml)
+    return markers.every((marker) => normalized.includes(marker))
+  }) ?? ''
 }
 
 function detectLetamendiAnnualTemplateNeedsUpdate(html: string): boolean {
