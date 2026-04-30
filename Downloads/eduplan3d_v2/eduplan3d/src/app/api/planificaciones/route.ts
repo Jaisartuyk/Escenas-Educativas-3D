@@ -188,7 +188,7 @@ Debes producir estas tres tablas, en este orden:
 #### 2.1 Destrezas + Indicadores
 | Destrezas/Contenidos BT/ | Indicadores de evaluacion/Criterio de evaluacion BT |
 |---|---|
-| Lista organizada de DCDs y/o contenidos del trimestre tomados del PUD. Cada DCD debe conservar su codigo textual y llevar al final sus competencias clave entre llaves dobles, por ejemplo {{C}} o {{CM,CD}}. Puedes desagregar por vietas dentro de la celda. | Lista alineada de indicadores oficiales o criterios de evaluacion correspondientes al mismo trimestre. Si el PUD ya trae indicadores, usalos y corrigelos solo si el curriculo priorizado obliga un ajuste. |
+| Lista organizada de DCDs y/o contenidos del trimestre tomados del PUD. Cada DCD debe conservar su codigo textual y llevar al final sus competencias clave entre llaves dobles, por ejemplo {{C}} o {{CM,CD}}. Usa una sola DCD principal por bloque o fila visual para que la lectura sea compacta. | Lista alineada de indicadores oficiales o criterios de evaluacion correspondientes exactamente a la DCD del lado izquierdo. Debes repetir el indicador completo en cada caso; no uses abreviaturas sueltas como "I.LL.4.7.2." sin descripcion. |
 
 #### 2.2 Estrategias metodologicas (DUA) + Recursos
 | Estrategias metodologicas (DUA) | Recursos |
@@ -208,9 +208,11 @@ OBLIGATORIO SOBRE COMPETENCIAS E INSERCIONES:
 2. Las inserciones curriculares NO van como lista aislada al final: deben integrarse dentro de las estrategias metodologicas y, cuando tenga sentido, tambien en recursos o evaluacion.
 3. Toda insercion integrada debe verse con icono visible y etiqueta corta en este formato exacto: [🌱 Sostenible], [🚩 Civica], [🤝 Socioemocional], [💰 Financiera], [🚲 Vial].
 4. Si una fila o actividad no integra una insercion de manera genuina, no la fuerces; pero cuando si la integre, el icono es obligatorio.
-5. Si el PUD subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
-6. No inventes periodos semanales ni parciales. Este documento resume y organiza el trimestre completo.
-7. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.`.trim()
+5. En la tabla 2.1, evita bloques desbalanceados: por cada DCD o contenido principal del lado izquierdo debe existir su indicador completo del lado derecho, en el mismo nivel de detalle.
+6. No dejes celdas visualmente vacias ni indicadores resumidos por referencia; si el mismo indicador aplica a dos DCDs distintas, repitelo completo para mantener la tabla pareja.
+7. Si el PUD subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
+8. No inventes periodos semanales ni parciales. Este documento resume y organiza el trimestre completo.
+9. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.`.trim()
   }
 
   if (type === 'clase') {
