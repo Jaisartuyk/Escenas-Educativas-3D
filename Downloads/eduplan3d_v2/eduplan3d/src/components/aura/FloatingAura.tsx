@@ -208,7 +208,7 @@ export function FloatingAura() {
   if (!isAllowedRoute) return null
 
   return (
-    <>
+    <div className="aura-print-hidden">
       {/* ── Botón flotante ── */}
       {!open && (
         <button
@@ -707,6 +707,6 @@ ${html}
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
