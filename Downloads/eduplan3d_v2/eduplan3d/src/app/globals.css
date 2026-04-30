@@ -107,6 +107,7 @@
 @media print {
   body { background: white !important; }
   aside, header, .print\:hidden, nav { display: none !important; }
+  .aura-print-hidden { display: none !important; }
   main { padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
   .print\:shadow-none { box-shadow: none !important; }
   .print\:border-none { border: none !important; }
