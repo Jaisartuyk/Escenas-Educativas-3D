@@ -3,6 +3,28 @@
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 
+function buildParentLogin(email: string | undefined, dni: string | undefined, studentId: string, relationship: 'MADRE' | 'PADRE' | 'OTRO') {
+  const normalizedEmail = email?.trim()
+  if (normalizedEmail) return normalizedEmail
+  const normalizedDni = dni?.trim()
+  if (normalizedDni) return `${normalizedDni}@classnova.local`
+  return `parent.${relationship.toLowerCase()}.${studentId}@classnova.local`
+}
+
+async function loadInstitutionSettings(
+  supabaseAdmin: any,
+  institutionId: string,
+) {
+  const { data: inst, error } = await supabaseAdmin
+    .from('institutions')
+    .select('settings')
+    .eq('id', institutionId)
+    .single()
+
+  if (error) return { error: error.message, settings: null as any }
+  return { settings: (inst as any)?.settings || {}, error: null as string | null }
+}
+
 export async function createInstitutionUser(data: {
   email: string
   password: string
@@ -135,12 +157,23 @@ export async function createInstitutionUser(data: {
       studentMetaUpdate.mother_name = data.parentAccount.full_name
       studentMetaUpdate.mother_email = parentEmail
       studentMetaUpdate.mother_phone = data.parentAccount.phone || ''
+      studentMetaUpdate.mother_dni = parentDni
+      studentMetaUpdate.mother_parent_user_id = parentUserId
+      studentMetaUpdate.mother_parent_login = parentEmail
     } else if (relationship === 'PADRE') {
       studentMetaUpdate.father_name = data.parentAccount.full_name
       studentMetaUpdate.father_email = parentEmail
       studentMetaUpdate.father_phone = data.parentAccount.phone || ''
+      studentMetaUpdate.father_dni = parentDni
+      studentMetaUpdate.father_parent_user_id = parentUserId
+      studentMetaUpdate.father_parent_login = parentEmail
     } else {
       studentMetaUpdate.other_representative_name = data.parentAccount.full_name
+      studentMetaUpdate.other_representative_email = parentEmail
+      studentMetaUpdate.other_representative_phone = data.parentAccount.phone || ''
+      studentMetaUpdate.other_representative_dni = parentDni
+      studentMetaUpdate.other_parent_user_id = parentUserId
+      studentMetaUpdate.other_parent_login = parentEmail
     }
 
     settings.directory[newUserId] = {
@@ -223,6 +256,232 @@ export async function createInstitutionUser(data: {
   revalidatePath('/dashboard/secretaria')
   
   return { success: true, userId: newUserId, warning }
+}
+
+export async function createParentAccessFromStudentProfile(data: {
+  institution_id: string
+  student_id: string
+  relationship: 'MADRE' | 'PADRE' | 'OTRO'
+  full_name?: string
+  dni?: string
+  email?: string
+  phone?: string
+  password: string
+  is_primary?: boolean
+}) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  if (!supabaseKey) {
+    return { error: 'Falta la clave de servicio para crear accesos de representantes.' }
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  })
+
+  const { settings, error: settingsError } = await loadInstitutionSettings(supabaseAdmin, data.institution_id)
+  if (settingsError) return { error: settingsError }
+
+  settings.directory = settings.directory || {}
+
+  const studentMeta = settings.directory[data.student_id] || {}
+
+  const fallbackName =
+    data.relationship === 'MADRE'
+      ? studentMeta.mother_name
+      : data.relationship === 'PADRE'
+      ? studentMeta.father_name
+      : studentMeta.other_representative_name
+
+  const fallbackEmail =
+    data.relationship === 'MADRE'
+      ? studentMeta.mother_email
+      : data.relationship === 'PADRE'
+      ? studentMeta.father_email
+      : studentMeta.other_representative_email
+
+  const fallbackPhone =
+    data.relationship === 'MADRE'
+      ? studentMeta.mother_phone
+      : data.relationship === 'PADRE'
+      ? studentMeta.father_phone
+      : studentMeta.other_representative_phone
+
+  const fallbackDni =
+    data.relationship === 'MADRE'
+      ? studentMeta.mother_dni
+      : data.relationship === 'PADRE'
+      ? studentMeta.father_dni
+      : studentMeta.other_representative_dni
+
+  const representativeName = (data.full_name || fallbackName || '').trim()
+  const representativeDni = (data.dni || fallbackDni || '').trim()
+  const representativeEmail = (data.email || fallbackEmail || '').trim()
+  const representativePhone = (data.phone || fallbackPhone || '').trim()
+
+  if (!representativeName) {
+    return { error: 'Necesitamos el nombre del representante para crear su acceso.' }
+  }
+  if (!data.password?.trim()) {
+    return { error: 'Necesitamos una contraseña inicial para el representante.' }
+  }
+
+  const { data: studentProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, institution_id')
+    .eq('id', data.student_id)
+    .single()
+
+  if (!studentProfile || (studentProfile as any).institution_id !== data.institution_id) {
+    return { error: 'No se encontró el estudiante dentro de esta institución.' }
+  }
+
+  const parentEmail = buildParentLogin(representativeEmail, representativeDni, data.student_id, data.relationship)
+
+  let parentUserId: string | null = null
+  let warning: string | null = null
+
+  const { data: existingProfile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, role, institution_id, full_name, email')
+    .eq('email', parentEmail)
+    .maybeSingle()
+
+  if (existingProfile) {
+    if ((existingProfile as any).institution_id !== data.institution_id) {
+      return { error: 'El correo o usuario del representante ya pertenece a otra institución.' }
+    }
+    if ((existingProfile as any).role !== 'parent') {
+      return { error: 'Ese correo o usuario ya existe con otro rol. Usa otro acceso o corrige esa cuenta primero.' }
+    }
+    parentUserId = (existingProfile as any).id
+    warning = 'Se reutilizó una cuenta de representante existente y se la vinculó con este estudiante.'
+  } else {
+    const { data: authParent, error: authParentError } = await supabaseAdmin.auth.admin.createUser({
+      email: parentEmail,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: { full_name: representativeName, dni: representativeDni }
+    })
+
+    if (authParentError) {
+      if (authParentError.message.includes('already registered')) {
+        return { error: 'El correo o usuario del representante ya está registrado. Usa ese acceso existente o define otro correo.' }
+      }
+      return { error: authParentError.message }
+    }
+
+    parentUserId = authParent.user.id
+
+    const { error: parentProfileError } = await supabaseAdmin
+      .from('profiles')
+      .upsert({
+        id: parentUserId,
+        email: parentEmail,
+        full_name: representativeName,
+        role: 'parent',
+        institution_id: data.institution_id,
+        plan: 'free'
+      }, { onConflict: 'id' })
+
+    if (parentProfileError) {
+      return { error: 'Se creó la cuenta del representante, pero no se pudo vincular su perfil.' }
+    }
+  }
+
+  if (!parentUserId) {
+    return { error: 'No se pudo resolver la cuenta del representante.' }
+  }
+
+  const { error: linkError } = await supabaseAdmin
+    .from('parent_links')
+    .upsert({
+      institution_id: data.institution_id,
+      parent_id: parentUserId,
+      child_id: data.student_id,
+      relationship: data.relationship,
+      is_primary: data.is_primary ?? true,
+    }, { onConflict: 'parent_id,child_id' })
+
+  if (linkError) {
+    return { error: `No se pudo crear el vínculo representante-estudiante: ${linkError.message}` }
+  }
+
+  const studentPatch: Record<string, any> = {
+    representative: studentMeta.representative || data.relationship,
+  }
+  const parentPatch: Record<string, any> = {
+    phone: representativePhone,
+    linked_student_id: data.student_id,
+    linked_student_name: (studentProfile as any).full_name,
+    parent_relationship: data.relationship,
+    is_primary_representative: data.is_primary ?? true,
+  }
+
+  if (data.relationship === 'MADRE') {
+    Object.assign(studentPatch, {
+      mother_name: representativeName,
+      mother_email: representativeEmail || parentEmail,
+      mother_phone: representativePhone,
+      mother_dni: representativeDni,
+      mother_parent_user_id: parentUserId,
+      mother_parent_login: parentEmail,
+    })
+  } else if (data.relationship === 'PADRE') {
+    Object.assign(studentPatch, {
+      father_name: representativeName,
+      father_email: representativeEmail || parentEmail,
+      father_phone: representativePhone,
+      father_dni: representativeDni,
+      father_parent_user_id: parentUserId,
+      father_parent_login: parentEmail,
+    })
+  } else {
+    Object.assign(studentPatch, {
+      representative: 'OTRO',
+      other_representative_name: representativeName,
+      other_representative_email: representativeEmail || parentEmail,
+      other_representative_phone: representativePhone,
+      other_representative_dni: representativeDni,
+      other_parent_user_id: parentUserId,
+      other_parent_login: parentEmail,
+    })
+  }
+
+  settings.directory[data.student_id] = {
+    ...studentMeta,
+    ...studentPatch,
+  }
+
+  settings.directory[parentUserId] = {
+    ...(settings.directory[parentUserId] || {}),
+    ...parentPatch,
+  }
+
+  const { error: saveSettingsError } = await supabaseAdmin
+    .from('institutions')
+    .update({ settings })
+    .eq('id', data.institution_id)
+
+  if (saveSettingsError) {
+    return { error: `Se creó el representante, pero no se pudo guardar su metadata: ${saveSettingsError.message}` }
+  }
+
+  revalidatePath('/dashboard/academico')
+  revalidatePath('/dashboard/alumno')
+  revalidatePath('/dashboard/notas')
+  revalidatePath('/dashboard/libretas')
+  revalidatePath('/dashboard/mensajes')
+
+  return {
+    success: true,
+    parentUserId,
+    login: parentEmail,
+    password: data.password,
+    warning,
+    studentMetadata: settings.directory[data.student_id],
+  }
 }
 
 export async function updateUserEmail(userId: string, newEmail: string) {

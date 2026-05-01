@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { X, Camera, Phone, Mail, User2, Save, Trash2, AlertTriangle } from 'lucide-react'
+import { X, Camera, Phone, Mail, User2, Save, Trash2, AlertTriangle, KeyRound, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { updateProfileMetadata, deleteInstitutionUser } from '@/lib/actions/users'
+import { updateProfileMetadata, deleteInstitutionUser, createParentAccessFromStudentProfile } from '@/lib/actions/users'
 import { createClient } from '@/lib/supabase/client'
 
 export function ProfileDetailsPanel({ 
@@ -23,11 +23,75 @@ export function ProfileDetailsPanel({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const [data, setData] = useState(metadata || {})
   const [avatarUrl, setAvatarUrl] = useState(metadata?.avatar_url || null)
+  const [creatingRepresentative, setCreatingRepresentative] = useState<'MADRE' | 'PADRE' | 'OTRO' | null>(null)
+  const [creatingParent, setCreatingParent] = useState(false)
+  const [parentAccessForms, setParentAccessForms] = useState({
+    MADRE: {
+      full_name: metadata?.mother_name || '',
+      email: metadata?.mother_email || '',
+      phone: metadata?.mother_phone || '',
+      dni: metadata?.mother_dni || '',
+      password: metadata?.mother_dni || '',
+    },
+    PADRE: {
+      full_name: metadata?.father_name || '',
+      email: metadata?.father_email || '',
+      phone: metadata?.father_phone || '',
+      dni: metadata?.father_dni || '',
+      password: metadata?.father_dni || '',
+    },
+    OTRO: {
+      full_name: metadata?.other_representative_name || '',
+      email: metadata?.other_representative_email || '',
+      phone: metadata?.other_representative_phone || metadata?.emergency_phone || '',
+      dni: metadata?.other_representative_dni || '',
+      password: metadata?.other_representative_dni || '',
+    },
+  })
   const fileRef = useRef<HTMLInputElement>(null)
   const supabase = createClient()
 
   const isStudent = user.role === 'student'
   const isParent = user.role === 'parent'
+
+  const representativeConfigs = [
+    {
+      key: 'MADRE' as const,
+      title: 'Madre',
+      name: data.mother_name,
+      email: data.mother_email,
+      phone: data.mother_phone,
+      linkedId: data.mother_parent_user_id,
+      login: data.mother_parent_login,
+      accent: 'text-teal',
+      border: 'border-teal/20',
+      bg: 'bg-teal/5',
+    },
+    {
+      key: 'PADRE' as const,
+      title: 'Padre',
+      name: data.father_name,
+      email: data.father_email,
+      phone: data.father_phone,
+      linkedId: data.father_parent_user_id,
+      login: data.father_parent_login,
+      accent: 'text-amber-500',
+      border: 'border-amber-200',
+      bg: 'bg-amber-50/60',
+    },
+    {
+      key: 'OTRO' as const,
+      title: 'Representante',
+      name: data.other_representative_name,
+      email: data.other_representative_email,
+      phone: data.other_representative_phone || data.emergency_phone,
+      linkedId: data.other_parent_user_id,
+      login: data.other_parent_login,
+      accent: 'text-violet2',
+      border: 'border-violet2/20',
+      bg: 'bg-violet2/5',
+    },
+  ].filter((item) => item.name)
 
   const handleSave = async () => {
     setLoading(true)
@@ -54,6 +118,85 @@ export function ProfileDetailsPanel({
       onClose()
       window.location.reload() // Hard refresh to update lists in parent
     }
+  }
+
+  const syncRepresentativeForm = (relationship: 'MADRE' | 'PADRE' | 'OTRO') => {
+    if (relationship === 'MADRE') {
+      setParentAccessForms(prev => ({
+        ...prev,
+        MADRE: {
+          ...prev.MADRE,
+          full_name: data.mother_name || '',
+          email: data.mother_email || '',
+          phone: data.mother_phone || '',
+          dni: prev.MADRE.dni || data.mother_dni || '',
+          password: prev.MADRE.password || data.mother_dni || '',
+        }
+      }))
+    } else if (relationship === 'PADRE') {
+      setParentAccessForms(prev => ({
+        ...prev,
+        PADRE: {
+          ...prev.PADRE,
+          full_name: data.father_name || '',
+          email: data.father_email || '',
+          phone: data.father_phone || '',
+          dni: prev.PADRE.dni || data.father_dni || '',
+          password: prev.PADRE.password || data.father_dni || '',
+        }
+      }))
+    } else {
+      setParentAccessForms(prev => ({
+        ...prev,
+        OTRO: {
+          ...prev.OTRO,
+          full_name: data.other_representative_name || '',
+          email: data.other_representative_email || '',
+          phone: data.other_representative_phone || data.emergency_phone || '',
+          dni: prev.OTRO.dni || data.other_representative_dni || '',
+          password: prev.OTRO.password || data.other_representative_dni || '',
+        }
+      }))
+    }
+  }
+
+  const handleCreateParentAccess = async (relationship: 'MADRE' | 'PADRE' | 'OTRO') => {
+    const form = parentAccessForms[relationship]
+    if (!form.full_name?.trim()) {
+      return toast.error('Necesitamos el nombre del representante para crear su acceso')
+    }
+    if (!form.password?.trim()) {
+      return toast.error('Necesitamos una contraseña inicial para el representante')
+    }
+
+    setCreatingParent(true)
+    const res = await createParentAccessFromStudentProfile({
+      institution_id: institutionId,
+      student_id: user.id,
+      relationship,
+      full_name: form.full_name,
+      email: form.email,
+      phone: form.phone,
+      dni: form.dni,
+      password: form.password,
+      is_primary: data.representative === relationship || (relationship === 'OTRO' && data.representative === 'OTRO'),
+    })
+
+    if (res.error) {
+      toast.error(res.error)
+    } else {
+      const nextMeta = {
+        ...data,
+        ...(res.studentMetadata || {}),
+      }
+      setData(nextMeta)
+      onUpdate({ ...nextMeta, avatar_url: avatarUrl })
+      setCreatingRepresentative(null)
+      toast.success(`Acceso de ${relationship === 'MADRE' ? 'madre' : relationship === 'PADRE' ? 'padre' : 'representante'} creado`)
+      toast((`Usuario: ${res.login} | Contraseña: ${res.password}`), { icon: '🔐', duration: 7000 })
+      if (res.warning) toast(res.warning as string, { icon: 'ℹ️' })
+    }
+    setCreatingParent(false)
   }
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,6 +333,130 @@ export function ProfileDetailsPanel({
                 <div>
                   <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5">Dirección / Notas Médicas</label>
                   <textarea value={data.address || ''} onChange={e => setData({...data, address: e.target.value})} placeholder="Dirección, alergias, o instrucciones especiales..." className="input-base min-h-[80px]" />
+                </div>
+                <div className="pt-2 mt-2 border-t border-[rgba(0,0,0,0.05)]">
+                  <h4 className="text-xs font-bold text-violet2 mb-3 uppercase tracking-wider">Accesos de representantes</h4>
+                  <p className="text-xs text-ink4 mb-3">
+                    Si este estudiante ya tiene madre, padre o tutor registrado, puedes crearle sus credenciales desde aquÃ­ mismo.
+                  </p>
+                  <div className="space-y-3">
+                    {representativeConfigs.map((rep) => {
+                      const form = parentAccessForms[rep.key]
+                      const isOpen = creatingRepresentative === rep.key
+                      return (
+                        <div key={rep.key} className={`rounded-2xl border p-4 ${rep.border} ${rep.bg}`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className={`text-sm font-bold ${rep.accent}`}>{rep.title}</p>
+                              <p className="text-sm text-ink mt-1">{rep.name}</p>
+                              <p className="text-xs text-ink4 mt-1">
+                                {rep.linkedId
+                                  ? <>Acceso activo: <span className="font-semibold text-ink3">{rep.login || rep.email}</span></>
+                                  : rep.email
+                                  ? <>Correo registrado: <span className="font-semibold text-ink3">{rep.email}</span></>
+                                  : 'AÃºn no tiene acceso creado'}
+                              </p>
+                            </div>
+                            {rep.linkedId ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 size={12} />
+                                Con acceso
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  syncRepresentativeForm(rep.key)
+                                  setCreatingRepresentative(prev => prev === rep.key ? null : rep.key)
+                                }}
+                                className="inline-flex items-center gap-2 rounded-xl bg-violet2 px-3 py-2 text-xs font-bold text-white hover:bg-violet transition-colors"
+                              >
+                                <KeyRound size={14} />
+                                {isOpen ? 'Ocultar' : 'Crear acceso'}
+                              </button>
+                            )}
+                          </div>
+
+                          {isOpen && !rep.linkedId && (
+                            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                              <div>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase text-ink3">Nombre completo</label>
+                                <input
+                                  value={form.full_name}
+                                  onChange={e => setParentAccessForms(prev => ({ ...prev, [rep.key]: { ...prev[rep.key], full_name: e.target.value } }))}
+                                  className="input-base"
+                                  placeholder="Nombre del representante"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase text-ink3">Correo o usuario <span className="normal-case font-normal text-ink4">(opcional)</span></label>
+                                <input
+                                  value={form.email}
+                                  onChange={e => setParentAccessForms(prev => ({ ...prev, [rep.key]: { ...prev[rep.key], email: e.target.value } }))}
+                                  className="input-base"
+                                  placeholder="Si lo dejas vacÃ­o, usamos cÃ©dula o usuario interno"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase text-ink3">CÃ©dula <span className="normal-case font-normal text-ink4">(opcional)</span></label>
+                                <input
+                                  value={form.dni}
+                                  onChange={e => setParentAccessForms(prev => ({ ...prev, [rep.key]: { ...prev[rep.key], dni: e.target.value, password: prev[rep.key].password || e.target.value } }))}
+                                  className="input-base"
+                                  placeholder="Ãštil si quieres usarla como usuario o clave"
+                                />
+                              </div>
+                              <div>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase text-ink3">TelÃ©fono</label>
+                                <input
+                                  value={form.phone}
+                                  onChange={e => setParentAccessForms(prev => ({ ...prev, [rep.key]: { ...prev[rep.key], phone: e.target.value } }))}
+                                  className="input-base"
+                                  placeholder="+593 9..."
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="mb-1.5 block text-xs font-semibold uppercase text-ink3">ContraseÃ±a inicial</label>
+                                <input
+                                  value={form.password}
+                                  onChange={e => setParentAccessForms(prev => ({ ...prev, [rep.key]: { ...prev[rep.key], password: e.target.value } }))}
+                                  className="input-base"
+                                  placeholder="Puede ser cÃ©dula, telÃ©fono o una temporal"
+                                />
+                              </div>
+                              <div className="md:col-span-2 rounded-xl border border-violet2/15 bg-white p-3">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-violet2 mb-1">Credenciales que se crearÃ¡n</p>
+                                <p className="text-sm text-ink2">
+                                  <span className="text-ink3">Usuario:</span>{' '}
+                                  <strong>{form.email || form.dni || `parent.${rep.key.toLowerCase()}.${user.id}@classnova.local`}</strong>
+                                  <span className="mx-2 text-ink4">|</span>
+                                  <span className="text-ink3">ContraseÃ±a:</span>{' '}
+                                  <strong>{form.password || 'Pendiente'}</strong>
+                                </p>
+                              </div>
+                              <div className="md:col-span-2 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCreateParentAccess(rep.key)}
+                                  disabled={creatingParent}
+                                  className="inline-flex items-center gap-2 rounded-xl bg-violet2 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet transition-colors disabled:opacity-60"
+                                >
+                                  <KeyRound size={16} />
+                                  {creatingParent ? 'Creando acceso...' : 'Crear credenciales'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {representativeConfigs.length === 0 && (
+                      <p className="text-xs text-ink4 italic">
+                        Primero completa el nombre de la madre, padre o representante para poder generar su acceso.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </>
             ) : isParent ? (
