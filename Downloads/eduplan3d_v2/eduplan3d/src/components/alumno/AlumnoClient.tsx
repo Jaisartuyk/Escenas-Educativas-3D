@@ -30,10 +30,13 @@ function parseLocalDate(dateStr: string) {
 }
 
 export function AlumnoClient({
-  profile, courses, subjects, assignments, grades, categories, attendance, behaviors, scheduleConfig, horariosData
+  profile, studentProfile, courses, subjects, assignments, grades, categories, attendance, behaviors, scheduleConfig, horariosData
 }: any) {
   const supabase = createClient()
   const [activeTab, setActiveTab] = useState<TabType>('resumen')
+  const isParentView = profile?.role === 'parent'
+  const viewedStudent = studentProfile || profile
+  const effectiveStudentId = viewedStudent?.id || profile?.id
 
   const currentDayIndex = new Date().getDay()
   const defaultDay = currentDayIndex >= 1 && currentDayIndex <= 5 ? DIAS_SEMANA[currentDayIndex - 1] : 'Lunes'
@@ -61,7 +64,8 @@ export function AlumnoClient({
   async function loadMySubmissions() {
     if (loadedSubmissions) return
     try {
-      const res = await fetch('/api/alumno/submissions')
+      const suffix = isParentView ? `?student_id=${effectiveStudentId}` : ''
+      const res = await fetch(`/api/alumno/submissions${suffix}`)
       const data = await res.json()
       const map: Record<string, any> = {}
       ;(data.submissions || []).forEach((s: any) => { map[s.assignment_id] = s })
@@ -85,7 +89,7 @@ export function AlumnoClient({
       let file_url = null
       if (submitFile) {
         const ext = submitFile.name.split('.').pop()
-        const fileName = `${profile.id}-${selectedAssignment.id}-${Date.now()}.${ext}`
+        const fileName = `${effectiveStudentId}-${selectedAssignment.id}-${Date.now()}.${ext}`
         const { error: uploadError } = await supabase.storage
           .from('submissions')
           .upload(fileName, submitFile)
@@ -96,7 +100,7 @@ export function AlumnoClient({
       const res = await fetch('/api/alumno/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignment_id: selectedAssignment.id, comment: submitComment, file_url })
+        body: JSON.stringify({ assignment_id: selectedAssignment.id, student_id: effectiveStudentId, comment: submitComment, file_url })
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
@@ -114,7 +118,8 @@ export function AlumnoClient({
     if (!confirm('¿Estás seguro de que deseas eliminar tu entrega? Esta acción no se puede deshacer.')) return
 
     try {
-      const res = await fetch(`/api/alumno/submissions?id=${submissionId}`, {
+      const suffix = isParentView ? `&student_id=${effectiveStudentId}` : ''
+      const res = await fetch(`/api/alumno/submissions?id=${submissionId}${suffix}`, {
         method: 'DELETE',
       })
       if (!res.ok) throw new Error('Error al eliminar la entrega')
@@ -184,7 +189,7 @@ export function AlumnoClient({
       let file_url = null
       if (justifyFile) {
         const fileExt = justifyFile.name.split('.').pop()
-        const fileName = `justifications/${profile.id}-${showJustifyModal?.id || Date.now()}-${Date.now()}.${fileExt}`
+        const fileName = `justifications/${effectiveStudentId}-${showJustifyModal?.id || Date.now()}-${Date.now()}.${fileExt}`
         const { error: uploadError } = await supabase.storage
           .from('submissions')
           .upload(fileName, justifyFile)
@@ -202,6 +207,7 @@ export function AlumnoClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           attendance_id: showJustifyModal.id,
+          student_id: effectiveStudentId,
           text: justifyText,
           file_url
         })
@@ -237,8 +243,13 @@ export function AlumnoClient({
         <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
           <div className="text-center sm:text-left">
             <h1 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight drop-shadow-sm mb-2">
-              Hola, {profile.full_name?.split(' ')[0] || 'Estudiante'} 👋
+              Hola, {profile.full_name?.split(' ')[0] || (isParentView ? 'Representante' : 'Estudiante')} 👋
             </h1>
+            {isParentView && (
+              <p className="text-white/85 text-sm sm:text-base font-medium mb-3">
+                Seguimiento de {viewedStudent.full_name || 'tu estudiante'}
+              </p>
+            )}
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-sm font-medium">
               <Award size={16} className="text-yellow-300" />
               {courses.map((c: any) => `${c.name} ${c.parallel || ''}`.trim()).join(' / ')}

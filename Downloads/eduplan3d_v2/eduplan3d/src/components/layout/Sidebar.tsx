@@ -124,6 +124,14 @@ const NAV_STUDENT: NavItem[] = [
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
 
+const NAV_PARENT: NavItem[] = [
+  { href: '/dashboard/alumno',       icon: '🧒', label: 'Seguimiento'   },
+  { href: '/dashboard/notas',        icon: '📊', label: 'Mis Notas'     },
+  { href: '/dashboard/libretas',     icon: '📓', label: 'Libreta'       },
+  { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes'      },
+  { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración' },
+]
+
 // ─── Nav secretaria ──────────────────────────────────────────────────────────
 const NAV_SECRETARY: NavNode[] = [
   { href: '/dashboard/secretaria',   icon: '💼', label: 'Secretaría'   },
@@ -256,6 +264,7 @@ export function Sidebar({
     switch (role) {
       case 'teacher':       nav = NAV_TEACHER; break
       case 'student':       nav = NAV_STUDENT; break
+      case 'parent':        nav = NAV_PARENT; break
       case 'secretary':     nav = NAV_SECRETARY; break
       case 'horarios_only': nav = NAV_HORARIOS; break
       default:              nav = []

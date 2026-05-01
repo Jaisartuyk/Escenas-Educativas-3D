@@ -46,6 +46,7 @@ export default async function DashboardPage() {
   if (plan === 'planner_solo') redirect('/dashboard/planificador')
   if (role === 'teacher') redirect('/dashboard/docente')
   if (role === 'student') redirect('/dashboard/alumno')
+  if (role === 'parent') redirect('/dashboard/alumno')
   if (role === 'secretary') redirect('/dashboard/secretaria')
 
   const hour     = new Date().getUTCHours() - 5

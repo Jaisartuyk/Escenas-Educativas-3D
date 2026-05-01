@@ -42,28 +42,29 @@ export function LibretasClient({
   categories, currentUserId, parcialesCount = 2, tutores = {},
   attendance = [], behaviors = [],
 }: Props) {
+  const isFamilyRole = role === 'student' || role === 'parent'
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '')
-  const [selectedStudentId, setSelectedStudentId] = useState<string>(role === 'student' ? currentUserId : '')
+  const [selectedStudentId, setSelectedStudentId] = useState<string>(isFamilyRole ? currentUserId : '')
   const [trimestre, setTrimestre] = useState(1)
   const [view, setView] = useState<'mensual' | 'trimestral' | 'anual'>('mensual')
   const [parcialSel, setParcialSel] = useState(1)
 
   // ── Derived data ────────────────────────────────────────────────────────
   const studentsInCourse = useMemo(() => {
-    if (role === 'student') return enrollments.map((e: any) => e.student).filter(Boolean)
+    if (isFamilyRole) return enrollments.map((e: any) => e.student).filter(Boolean)
     return enrollments
       .filter((e: any) => e.course_id === selectedCourseId)
       .map((e: any) => e.student).filter(Boolean)
       .sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || ''))
-  }, [enrollments, selectedCourseId, role])
+  }, [enrollments, selectedCourseId, isFamilyRole])
 
   const courseSubjects = useMemo(() => {
-    if (role === 'student') {
+    if (isFamilyRole) {
       const myCourseIds = enrollments.map((e: any) => e.course_id)
       return subjects.filter((s: any) => myCourseIds.includes(s.course_id))
     }
     return subjects.filter((s: any) => s.course_id === selectedCourseId)
-  }, [subjects, selectedCourseId, enrollments, role])
+  }, [subjects, selectedCourseId, enrollments, isFamilyRole])
 
   const currentCourse = courses.find((c: any) => c.id === selectedCourseId)
   const currentStudent = studentsInCourse.find((s: any) => s.id === selectedStudentId)
@@ -181,7 +182,7 @@ export function LibretasClient({
       {/* ── Controls (hidden on print) ─────────────────────────────────── */}
       <div className="print:hidden space-y-4">
         <div className="p-5 bg-surface rounded-2xl border border-surface2 flex flex-wrap gap-4 items-end">
-          {role !== 'student' && (
+          {!isFamilyRole && (
             <div className="flex-1 min-w-[180px] space-y-1">
               <label className="text-xs text-ink4 font-medium px-1">Curso</label>
               <select value={selectedCourseId} onChange={e => { setSelectedCourseId(e.target.value); setSelectedStudentId('') }}
@@ -191,7 +192,7 @@ export function LibretasClient({
               </select>
             </div>
           )}
-          {role !== 'student' && (
+          {!isFamilyRole && (
             <div className="flex-1 min-w-[180px] space-y-1">
               <label className="text-xs text-ink4 font-medium px-1">Estudiante</label>
               <select value={selectedStudentId} onChange={e => setSelectedStudentId(e.target.value)}
@@ -249,7 +250,7 @@ export function LibretasClient({
       </div>
 
       {/* ── Report ────────────────────────────────────────────────────── */}
-      {selectedStudentId && (role === 'student' || currentCourse) ? (
+      {selectedStudentId && (isFamilyRole || currentCourse) ? (
         <div className="bg-white text-black rounded-xl shadow-lg border print:shadow-none print:border-none print:rounded-none text-[11px]">
 
           {/* ═══ HEADER COMUN ═══ */}

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveTutorsForStudent, resolveStudentsForTutor } from '@/lib/mensajes/access'
+import { getPrimaryLinkedChildForParent } from '@/lib/parents'
 
 export async function GET(_req: NextRequest) {
   const supabase = createClient()
@@ -106,12 +107,21 @@ export async function POST(req: NextRequest) {
   let studentId = ''
   let tutorId = ''
   let isStaffPair = false
+  let participantRole: 'student' | 'parent' = 'student'
 
   if (meIsStaff && otherIsStaff) {
     // Caso A: mensajería interna staff a staff. Sin validación de tutoría.
     isStaffPair = true
   } else if (me.role === 'student' && other.role === 'teacher') {
     studentId = me.id; tutorId = other.id
+  } else if (me.role === 'parent' && other.role === 'teacher') {
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, me.id, studentContext || undefined)
+    if (!linkedChild) {
+      return NextResponse.json({ error: 'El representante no tiene un estudiante vinculado para este hilo' }, { status: 403 })
+    }
+    studentId = linkedChild.childId
+    tutorId = other.id
+    participantRole = 'parent'
   } else if (me.role === 'teacher' && other.role === 'student') {
     studentId = other.id; tutorId = me.id
   } else if ((me.role === 'admin' || me.role === 'assistant') && other.role === 'student') {
@@ -119,7 +129,13 @@ export async function POST(req: NextRequest) {
     tutorId = ''
   } else if (other.role === 'admin' || other.role === 'assistant') {
     // estudiante o padre escribiendo a admin → permitido
-    studentId = me.role === 'student' ? me.id : (studentContext || '')
+    if (me.role === 'parent') {
+      const linkedChild = await getPrimaryLinkedChildForParent(admin as any, me.id, studentContext || undefined)
+      studentId = linkedChild?.childId || ''
+      participantRole = 'parent'
+    } else {
+      studentId = me.role === 'student' ? me.id : (studentContext || '')
+    }
     tutorId = ''
   } else {
     return NextResponse.json({ error: 'Combinación de roles no permitida' }, { status: 403 })
@@ -135,6 +151,11 @@ export async function POST(req: NextRequest) {
     const tutors = await resolveTutorsForStudent(admin as any, studentId)
     const ok = tutors.some(t => t.teacherId === tutorId)
     if (!ok) return NextResponse.json({ error: 'El docente no es tutor del estudiante' }, { status: 403 })
+  }
+  if (!isStaffPair && me.role === 'parent' && other.role === 'teacher') {
+    const tutors = await resolveTutorsForStudent(admin as any, studentId)
+    const ok = tutors.some(t => t.teacherId === tutorId)
+    if (!ok) return NextResponse.json({ error: 'El docente no es tutor del estudiante vinculado' }, { status: 403 })
   }
 
   // Buscar conversación directa existente entre los dos
@@ -169,7 +190,7 @@ export async function POST(req: NextRequest) {
         { conversation_id: conv.id, user_id: partnerId,  role: 'staff' },
       ]
     : [
-        { conversation_id: conv.id, user_id: studentId || user.id,   role: 'student' },
+        { conversation_id: conv.id, user_id: user.id,                role: participantRole },
         { conversation_id: conv.id, user_id: tutorId   || partnerId, role: 'tutor'   },
       ]
   await (admin as any).from('conversation_participants').insert(parts)

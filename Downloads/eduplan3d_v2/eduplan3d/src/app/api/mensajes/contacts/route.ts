@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveTutorsForStudent } from '@/lib/mensajes/access'
+import { getLinkedChildrenForParent } from '@/lib/parents'
 
 const STAFF_ROLES = ['admin', 'assistant', 'teacher', 'rector', 'supervisor', 'horarios_only']
 
@@ -44,9 +45,24 @@ export async function GET(_req: NextRequest) {
     })
   }
 
-  // Padres: por ahora ven los tutores de su(s) hijo(s) — pendiente parent_links
+  // Padres: ven a los tutores de sus hijo(s) vinculados.
   if (me.role === 'parent') {
-    return NextResponse.json({ contacts: [] })
+    const children = await getLinkedChildrenForParent(admin as any, me.id)
+    if (children.length === 0) return NextResponse.json({ contacts: [] })
+
+    const contacts = new Map<string, { userId: string; fullName: string; role: string; subtitle: string }>()
+    for (const child of children) {
+      const tutors = await resolveTutorsForStudent(admin as any, child.childId)
+      for (const t of tutors) {
+        contacts.set(`${t.teacherId}:${child.childId}`, {
+          userId: t.teacherId,
+          fullName: t.teacherName,
+          role: 'teacher',
+          subtitle: `${child.relationship} de ${child.fullName} · ${t.courseName}`,
+        })
+      }
+    }
+    return NextResponse.json({ contacts: Array.from(contacts.values()) })
   }
 
   // Cualquier rol del staff → todo el staff de la institución (sin estudiantes

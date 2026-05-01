@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { LibretasClient } from '@/components/libretas/LibretasClient'
 import { filterSubjectsForLibretas } from '@/lib/subject-visibility'
+import { getPrimaryLinkedChildForParent } from '@/lib/parents'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -24,6 +25,21 @@ export default async function LibretasPage() {
   if (!profile?.institution_id) redirect('/dashboard')
 
   const instId = profile.institution_id
+  let linkedStudentId: string | null = null
+  if (profile.role === 'parent') {
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id)
+    if (!linkedChild) {
+      return (
+        <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
+          <div className="print:hidden">
+            <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">Libretas de Calificaciones</h1>
+            <p className="text-ink3 text-sm mt-1">Tu cuenta de representante todavía no tiene un estudiante vinculado.</p>
+          </div>
+        </div>
+      )
+    }
+    linkedStudentId = linkedChild.childId
+  }
 
   // ── Fetch all institutional data ───────────────────────────────────────
   const [
@@ -65,6 +81,12 @@ export default async function LibretasPage() {
       // Teacher not assigned as tutor of any course → empty
       filteredCourses = []
     }
+  }
+  if (profile.role === 'parent' && linkedStudentId) {
+    const parentCourseIds = (enrollments || [])
+      .filter((e: any) => e.student_id === linkedStudentId)
+      .map((e: any) => e.course_id)
+    filteredCourses = (courses || []).filter((c: any) => parentCourseIds.includes(c.id))
   }
 
   const courseIds = filteredCourses.map((c: any) => c.id)
@@ -117,21 +139,30 @@ export default async function LibretasPage() {
 
   // For students, filter to their own data
   const isStudent = profile.role === 'student'
+  const isParent = profile.role === 'parent'
   const filteredEnrollments = isStudent
     ? (enrollments || []).filter((e: any) => e.student_id === user.id)
+    : isParent
+    ? (enrollments || []).filter((e: any) => e.student_id === linkedStudentId)
     : (enrollments || []).filter((e: any) => courseIds.includes(e.course_id))
 
 
   const filteredGrades = isStudent
     ? grades.filter((g: any) => g.student_id === user.id)
+    : isParent
+    ? grades.filter((g: any) => g.student_id === linkedStudentId)
     : grades
 
   const filteredAttendance = isStudent
     ? attendance.filter((a: any) => a.student_id === user.id)
+    : isParent
+    ? attendance.filter((a: any) => a.student_id === linkedStudentId)
     : attendance
 
   const filteredBehaviors = isStudent
     ? behaviors.filter((b: any) => b.student_id === user.id)
+    : isParent
+    ? behaviors.filter((b: any) => b.student_id === linkedStudentId)
     : behaviors
 
   return (
@@ -150,7 +181,7 @@ export default async function LibretasPage() {
         assignments={assignments}
         grades={filteredGrades}
         categories={categories || []}
-        currentUserId={user.id}
+        currentUserId={linkedStudentId || user.id}
         parcialesCount={(scheduleConfig as any)?.parciales_count || 2}
         tutores={tutores}
         attendance={filteredAttendance}

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { MisNotasClient } from '@/components/notas/MisNotasClient'
+import { getPrimaryLinkedChildForParent } from '@/lib/parents'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -27,16 +28,31 @@ export default async function NotasPage() {
     .single()
 
   if (!profile?.institution_id) redirect('/dashboard')
+  if (!['student', 'parent'].includes(profile.role)) redirect('/dashboard')
 
   const instId = profile.institution_id
+  let effectiveStudentId = user.id
+  let studentDisplayName = profile.full_name || 'Estudiante'
+
+  if (profile.role === 'parent') {
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id)
+    if (!linkedChild) {
+      return (
+        <div className="max-w-3xl mx-auto p-8 text-center">
+          <h1 className="font-display text-3xl font-bold">Mis Notas</h1>
+          <p className="text-ink3 mt-3">Tu cuenta de representante todavía no tiene un estudiante vinculado. Pide a la institución que complete ese enlace.</p>
+        </div>
+      )
+    }
+    effectiveStudentId = linkedChild.childId
+    studentDisplayName = linkedChild.fullName
+  }
 
   // ── Enrollment del estudiante (o hijo/a si es padre) ──────────────────────
-  // Por simplicidad: el estudiante ve sus propias notas (user.id).
-  // (Los padres serán soportados filtrando por child_id cuando exista.)
   const { data: enrollments } = await admin
     .from('enrollments')
     .select('id, student_id, course_id, course:courses(id, name, parallel, institution_id)')
-    .eq('student_id', user.id)
+    .eq('student_id', effectiveStudentId)
 
   const courseIds = (enrollments || []).map((e: any) => e.course_id)
   if (courseIds.length === 0) {
@@ -70,10 +86,10 @@ export default async function NotasPage() {
       : Promise.resolve({ data: [] }),
     Promise.resolve({ data: [] }), // placeholder, se hace abajo
     subjectIds.length
-      ? admin.from('attendance').select('student_id, subject_id, status, date').eq('student_id', user.id).in('subject_id', subjectIds)
+      ? admin.from('attendance').select('student_id, subject_id, status, date').eq('student_id', effectiveStudentId).in('subject_id', subjectIds)
       : Promise.resolve({ data: [] }),
     subjectIds.length
-      ? admin.from('behaviors').select('student_id, subject_id, type, description, created_at').eq('student_id', user.id).in('subject_id', subjectIds)
+      ? admin.from('behaviors').select('student_id, subject_id, type, description, created_at').eq('student_id', effectiveStudentId).in('subject_id', subjectIds)
       : Promise.resolve({ data: [] }),
     admin.from('schedule_configs' as any).select('parciales_count').eq('institution_id', instId).maybeSingle(),
   ])
@@ -85,7 +101,7 @@ export default async function NotasPage() {
     const { data: g } = await admin
       .from('grades')
       .select('assignment_id, student_id, score')
-      .eq('student_id', user.id)
+      .eq('student_id', effectiveStudentId)
       .in('assignment_id', assignmentIds)
     myGrades = g || []
   }
@@ -93,7 +109,7 @@ export default async function NotasPage() {
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
       <MisNotasClient
-        studentName={profile.full_name || 'Estudiante'}
+        studentName={studentDisplayName}
         institutionName={(profile as any).institutions?.name || ''}
         enrollments={enrollments || []}
         subjects={((subjects || []) as any[]).map((s: any) => ({

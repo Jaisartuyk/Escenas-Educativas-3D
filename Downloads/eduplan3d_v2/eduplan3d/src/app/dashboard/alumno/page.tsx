@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { AlumnoClient } from '@/components/alumno/AlumnoClient'
+import { getPrimaryLinkedChildForParent } from '@/lib/parents'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -20,19 +21,49 @@ export default async function AlumnoPage() {
     .eq('id', user.id)
     .single()
 
-  if (!profile || profile.role !== 'student') {
-    // Si no es estudiante, redirigir al dashboard principal
+  if (!profile || !['student', 'parent'].includes(profile.role)) {
     redirect('/dashboard')
   }
 
   const instId = profile.institution_id
+  let effectiveStudentId = user.id
+  let studentProfile = profile
+
+  if (profile.role === 'parent') {
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id)
+    if (!linkedChild) {
+      return (
+        <div className="max-w-3xl mx-auto p-8 text-center">
+          <h1 className="font-display text-3xl font-bold">Seguimiento Académico</h1>
+          <p className="text-ink3 mt-3">Tu cuenta de representante todavía no tiene un estudiante vinculado. Pide a la institución que complete ese enlace.</p>
+        </div>
+      )
+    }
+    effectiveStudentId = linkedChild.childId
+
+    const { data: childProfile } = await admin
+      .from('profiles')
+      .select('id, full_name, institution_id, role')
+      .eq('id', effectiveStudentId)
+      .single()
+
+    if (!childProfile) {
+      return (
+        <div className="max-w-3xl mx-auto p-8 text-center">
+          <h1 className="font-display text-3xl font-bold">Seguimiento Académico</h1>
+          <p className="text-ink3 mt-3">No pudimos cargar la ficha del estudiante vinculado. Revisa el vínculo con la institución.</p>
+        </div>
+      )
+    }
+    studentProfile = childProfile as any
+  }
 
   // ── 1. Matrícula del Alumno ────────────────────────────────────────────────
   // Para saber en qué curso está
   const { data: enrollments } = await admin
     .from('enrollments')
     .select('course_id')
-    .eq('student_id', user.id)
+    .eq('student_id', effectiveStudentId)
 
   const courseIds = (enrollments || []).map((e: any) => e.course_id)
 
@@ -76,7 +107,7 @@ export default async function AlumnoPage() {
       .from('grades')
       .select('*')
       .in('assignment_id', assignmentIds)
-      .eq('student_id', user.id)
+      .eq('student_id', effectiveStudentId)
     grades = data || []
   }
 
@@ -97,7 +128,7 @@ export default async function AlumnoPage() {
     const { data } = await admin
       .from('attendance')
       .select('*')
-      .eq('student_id', user.id)
+      .eq('student_id', effectiveStudentId)
       .in('subject_id', subjectIds)
       .order('date', { ascending: false })
     attendance = data || []
@@ -106,12 +137,12 @@ export default async function AlumnoPage() {
   // ── 7. Comportamiento del Alumno ───────────────────────────────────────────
   let behaviors: any[] = []
   if (subjectIds.length > 0) {
-    const { data } = await admin
-      .from('behavior_records')
+      const { data } = await admin
+      .from('behaviors')
       .select('*')
-      .eq('student_id', user.id)
+      .eq('student_id', effectiveStudentId)
       .in('subject_id', subjectIds)
-      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
     behaviors = data || []
   }
 
@@ -132,6 +163,7 @@ export default async function AlumnoPage() {
   return (
     <AlumnoClient
       profile={profile}
+      studentProfile={studentProfile}
       courses={courses}
       subjects={subjects}
       assignments={assignments}
