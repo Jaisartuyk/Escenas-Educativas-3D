@@ -44,6 +44,7 @@ interface Props {
   me: Me
   institutionName: string
   broadcastCourses: Array<{ id: string; name: string; parallel: string | null }>
+  selectedChildId?: string | null
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ const CAT_LABELS: Record<string, { label: string; color: string; bg: string; tex
 }
 
 // ── Componente ──────────────────────────────────────────────────────────────
-export function MensajesClient({ me, institutionName, broadcastCourses }: Props) {
+export function MensajesClient({ me, institutionName, broadcastCourses, selectedChildId }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loadingConvs, setLoadingConvs] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -121,6 +122,13 @@ export function MensajesClient({ me, institutionName, broadcastCourses }: Props)
 
   // Solo administración (admin/assistant/rector) puede publicar boletines.
   const canBroadcast = me.role === 'admin' || me.role === 'assistant' || me.role === 'rector'
+
+  useEffect(() => {
+    if (me.role === 'parent') {
+      setContacts([])
+      setNewOpen(false)
+    }
+  }, [me.role, selectedChildId])
 
   // ── Carga ──
   const loadConversations = useCallback(async () => {
@@ -212,7 +220,8 @@ export function MensajesClient({ me, institutionName, broadcastCourses }: Props)
   async function openNewChat() {
     setNewOpen(true)
     if (contacts.length === 0) {
-      const res = await fetch('/api/mensajes/contacts')
+      const suffix = me.role === 'parent' && selectedChildId ? `?child_id=${selectedChildId}` : ''
+      const res = await fetch(`/api/mensajes/contacts${suffix}`)
       const json = await res.json()
       setContacts(json.contacts || [])
     }

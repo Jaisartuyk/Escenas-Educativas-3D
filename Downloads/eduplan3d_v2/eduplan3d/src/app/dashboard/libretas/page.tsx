@@ -1,15 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
+import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { LibretasClient } from '@/components/libretas/LibretasClient'
 import { filterSubjectsForLibretas } from '@/lib/subject-visibility'
-import { getPrimaryLinkedChildForParent } from '@/lib/parents'
+import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 export const revalidate = 0
 
-export default async function LibretasPage() {
+export default async function LibretasPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>
+}) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
@@ -24,10 +29,15 @@ export default async function LibretasPage() {
 
   if (!profile?.institution_id) redirect('/dashboard')
 
+  const params = await Promise.resolve(searchParams || {})
+  const requestedChildId = typeof params.child_id === 'string' ? params.child_id : undefined
+
   const instId = profile.institution_id
   let linkedStudentId: string | null = null
+  let linkedChildren: Awaited<ReturnType<typeof getLinkedChildrenForParent>> = []
   if (profile.role === 'parent') {
-    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id)
+    linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id, requestedChildId)
     if (!linkedChild) {
       return (
         <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
@@ -171,6 +181,15 @@ export default async function LibretasPage() {
         <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">Libretas de Calificaciones</h1>
         <p className="text-ink3 text-sm mt-1">Generacion e impresion de record academico automatizado.</p>
       </div>
+
+      {profile.role === 'parent' && linkedStudentId && (
+        <ChildScopeSelector
+          childrenOptions={linkedChildren}
+          selectedChildId={linkedStudentId}
+          title="Libreta por estudiante"
+          description="Cambia el hijo para generar e imprimir su libreta sin mezclar datos de otros estudiantes."
+        />
+      )}
 
       <LibretasClient
         role={profile.role}

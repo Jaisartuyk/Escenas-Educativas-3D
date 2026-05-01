@@ -2,13 +2,18 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { AlumnoClient } from '@/components/alumno/AlumnoClient'
-import { getPrimaryLinkedChildForParent } from '@/lib/parents'
+import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
+import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 export const revalidate = 0
 
-export default async function AlumnoPage() {
+export default async function AlumnoPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>
+}) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
@@ -25,12 +30,18 @@ export default async function AlumnoPage() {
     redirect('/dashboard')
   }
 
+  const params = await Promise.resolve(searchParams || {})
+  const requestedChildId = typeof params.child_id === 'string' ? params.child_id : undefined
+
   const instId = profile.institution_id
   let effectiveStudentId = user.id
   let studentProfile = profile
+  let linkedChildren: Awaited<ReturnType<typeof getLinkedChildrenForParent>> = []
+  let selectedChildId: string | null = null
 
   if (profile.role === 'parent') {
-    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id)
+    linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id, requestedChildId)
     if (!linkedChild) {
       return (
         <div className="max-w-3xl mx-auto p-8 text-center">
@@ -40,6 +51,7 @@ export default async function AlumnoPage() {
       )
     }
     effectiveStudentId = linkedChild.childId
+    selectedChildId = linkedChild.childId
 
     const { data: childProfile } = await admin
       .from('profiles')
@@ -161,18 +173,29 @@ export default async function AlumnoPage() {
   })
 
   return (
-    <AlumnoClient
-      profile={profile}
-      studentProfile={studentProfile}
-      courses={courses}
-      subjects={subjects}
-      assignments={assignments}
-      grades={grades}
-      categories={categories}
-      attendance={attendance}
-      behaviors={behaviors}
-      scheduleConfig={scheduleConfig}
-      horariosData={allHorarios}
-    />
+    <div className="max-w-7xl mx-auto">
+      {profile.role === 'parent' && selectedChildId && (
+        <ChildScopeSelector
+          childrenOptions={linkedChildren}
+          selectedChildId={selectedChildId}
+          title="Seguimiento por estudiante"
+          description="Cambia el hijo que quieres revisar en seguimiento, tareas, asistencia y comportamiento."
+        />
+      )}
+
+      <AlumnoClient
+        profile={profile}
+        studentProfile={studentProfile}
+        courses={courses}
+        subjects={subjects}
+        assignments={assignments}
+        grades={grades}
+        categories={categories}
+        attendance={attendance}
+        behaviors={behaviors}
+        scheduleConfig={scheduleConfig}
+        horariosData={allHorarios}
+      />
+    </div>
   )
 }

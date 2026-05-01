@@ -5,8 +5,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
+import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { MisNotasClient } from '@/components/notas/MisNotasClient'
-import { getPrimaryLinkedChildForParent } from '@/lib/parents'
+import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -14,7 +15,11 @@ export const revalidate = 0
 
 export const metadata = { title: 'Mis Notas' }
 
-export default async function NotasPage() {
+export default async function NotasPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>
+}) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
@@ -30,12 +35,18 @@ export default async function NotasPage() {
   if (!profile?.institution_id) redirect('/dashboard')
   if (!['student', 'parent'].includes(profile.role)) redirect('/dashboard')
 
+  const params = await Promise.resolve(searchParams || {})
+  const requestedChildId = typeof params.child_id === 'string' ? params.child_id : undefined
+
   const instId = profile.institution_id
   let effectiveStudentId = user.id
   let studentDisplayName = profile.full_name || 'Estudiante'
+  let linkedChildren: Awaited<ReturnType<typeof getLinkedChildrenForParent>> = []
+  let selectedChildId: string | null = null
 
   if (profile.role === 'parent') {
-    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id)
+    linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id, requestedChildId)
     if (!linkedChild) {
       return (
         <div className="max-w-3xl mx-auto p-8 text-center">
@@ -46,6 +57,7 @@ export default async function NotasPage() {
     }
     effectiveStudentId = linkedChild.childId
     studentDisplayName = linkedChild.fullName
+    selectedChildId = linkedChild.childId
   }
 
   // ── Enrollment del estudiante (o hijo/a si es padre) ──────────────────────
@@ -108,6 +120,14 @@ export default async function NotasPage() {
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
+      {profile.role === 'parent' && selectedChildId && (
+        <ChildScopeSelector
+          childrenOptions={linkedChildren}
+          selectedChildId={selectedChildId}
+          title="Notas por estudiante"
+          description="Cambia el hijo para revisar sus promedios, asistencia y comportamiento en esta vista."
+        />
+      )}
       <MisNotasClient
         studentName={studentDisplayName}
         institutionName={(profile as any).institutions?.name || ''}
