@@ -27,6 +27,7 @@ export function ProfileDetailsPanel({
   const supabase = createClient()
 
   const isStudent = user.role === 'student'
+  const isParent = user.role === 'parent'
 
   const handleSave = async () => {
     setLoading(true)
@@ -110,6 +111,7 @@ export function ProfileDetailsPanel({
             <h3 className="font-bold text-lg text-center">{user.full_name}</h3>
             <p className="text-xs text-ink3 uppercase tracking-wider font-bold">
               {user.role === 'student' ? 'Estudiante' : 
+               user.role === 'parent' ? 'Representante' :
                user.role === 'teacher' ? 'Docente' :
                user.role === 'secretary' ? 'Secretaría' : 
                user.role === 'supervisor' ? 'Supervisor' : 'Rector'}
@@ -188,6 +190,24 @@ export function ProfileDetailsPanel({
                 <div>
                   <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5">Dirección / Notas Médicas</label>
                   <textarea value={data.address || ''} onChange={e => setData({...data, address: e.target.value})} placeholder="Dirección, alergias, o instrucciones especiales..." className="input-base min-h-[80px]" />
+                </div>
+              </>
+            ) : isParent ? (
+              <>
+                <div className="pt-2 border-t border-[rgba(0,0,0,0.05)]">
+                  <h4 className="text-xs font-bold text-amber-500 mb-3 uppercase tracking-wider">Datos del Representante</h4>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Relación con el estudiante</label>
+                  <input value={data.parent_relationship || ''} onChange={e => setData({...data, parent_relationship: e.target.value})} placeholder="MADRE / PADRE / OTRO" className="input-base" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5"><Phone size={12}/> Teléfono</label>
+                  <input value={data.phone || ''} onChange={e => setData({...data, phone: e.target.value})} placeholder="+593 9..." className="input-base" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Estudiante vinculado</label>
+                  <input readOnly value={data.linked_student_name || ''} className="w-full bg-surface border border-transparent rounded-xl px-4 py-2.5 text-sm text-ink3 cursor-not-allowed" />
                 </div>
               </>
             ) : (

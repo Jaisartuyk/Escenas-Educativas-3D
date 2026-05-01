@@ -27,7 +27,7 @@ export default async function AcademicoPage() {
   const instId: string = profile.institution_id
 
   // ── Paso 1: todas las queries independientes en paralelo ────────────────────
-  const [coursesRes, studentsRes, teachersRes, subjectsRes, instRes, scheduleRes] =
+  const [coursesRes, studentsRes, teachersRes, parentsRes, subjectsRes, instRes, scheduleRes] =
     await Promise.all([
       admin.from('courses' as any)
         .select('*')
@@ -45,6 +45,12 @@ export default async function AcademicoPage() {
         .select('*')
         .eq('institution_id', instId)
         .in('role', ['teacher', 'secretary', 'supervisor', 'rector'])
+        .order('full_name', { ascending: true }),
+
+      admin.from('profiles' as any)
+        .select('*')
+        .eq('institution_id', instId)
+        .eq('role', 'parent')
         .order('full_name', { ascending: true }),
 
       admin.from('subjects' as any)
@@ -140,6 +146,7 @@ export default async function AcademicoPage() {
         initialGrades={gradesData}
         initialCategories={categories       || []}
         teachers={teachersRes.data          || []}
+        parents={parentsRes.data            || []}
         horariosDocentes={horariosDocentes}
         institutionId={instId}
         directoryMetadata={directoryMetadata}

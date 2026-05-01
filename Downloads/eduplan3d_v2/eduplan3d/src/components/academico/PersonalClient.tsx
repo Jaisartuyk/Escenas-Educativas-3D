@@ -7,7 +7,7 @@ import { createInstitutionUser } from '@/lib/actions/users'
 import { ProfileDetailsPanel } from './ProfileDetailsPanel'
 import { ImportarEstudiantesModal } from './ImportarEstudiantesModal'
 
-export function PersonalClient({ institutionId, teachers, students, horariosDocentes, directoryMetadata, courses = [] }: { institutionId: string, teachers: any[], students: any[], horariosDocentes: any[], directoryMetadata: any, courses?: any[] }) {
+export function PersonalClient({ institutionId, teachers, students, parents = [], horariosDocentes, directoryMetadata, courses = [] }: { institutionId: string, teachers: any[], students: any[], parents?: any[], horariosDocentes: any[], directoryMetadata: any, courses?: any[] }) {
   const [loading, setLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
   const [showRegistrarForm, setShowRegistrarForm] = useState(false)
@@ -22,13 +22,26 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
     email: '',
     password: '',
     role: 'student' as 'student' | 'teacher' | 'secretary' | 'supervisor' | 'rector',
-    course_id: ''
+    course_id: '',
+    create_parent_account: false,
+    parent_relationship: 'MADRE' as 'MADRE' | 'PADRE' | 'OTRO',
+    parent_full_name: '',
+    parent_dni: '',
+    parent_email: '',
+    parent_password: '',
+    parent_phone: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.full_name || !formData.password || !formData.dni) {
       return toast.error("Nombre, cédula y contraseña son obligatorios")
+    }
+
+    if (formData.role === 'student' && formData.create_parent_account) {
+      if (!formData.parent_full_name || !formData.parent_dni || !formData.parent_password) {
+        return toast.error("Para crear el acceso del representante necesitamos nombre, cédula y contraseña inicial")
+      }
     }
 
     // Si no se pone correo, generar uno interno con la cédula
@@ -42,19 +55,37 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
       password: formData.password,
       role: formData.role,
       institution_id: institutionId,
-      ...(formData.role === 'student' && formData.course_id ? { course_id: formData.course_id } : {})
+      ...(formData.role === 'student' && formData.course_id ? { course_id: formData.course_id } : {}),
+      ...(formData.role === 'student' && formData.create_parent_account ? {
+        parentAccount: {
+          full_name: formData.parent_full_name,
+          dni: formData.parent_dni,
+          email: formData.parent_email,
+          password: formData.parent_password,
+          phone: formData.parent_phone,
+          relationship: formData.parent_relationship,
+          is_primary: true,
+        }
+      } : {})
     })
 
     if (res.error) {
       toast.error(res.error)
     } else {
-      const msg = formData.role === 'student' ? 'Estudiante creado/matriculado' : 
+      const msg = formData.role === 'student'
+        ? (formData.create_parent_account ? 'Estudiante y representante creados' : 'Estudiante creado/matriculado')
+        : 
                   formData.role === 'teacher' ? 'Docente creado' :
                   formData.role === 'secretary' ? 'Secretaría creada' : 
                   formData.role === 'supervisor' ? 'Supervisor creado' : 'Rector creado'
       
       toast.success(`${msg} exitosamente`)
-      setFormData({ full_name: '', dni: '', email: '', password: '', role: 'student', course_id: '' })
+      if (res.warning) toast((res.warning as string), { icon: 'ℹ️' })
+      setFormData({
+        full_name: '', dni: '', email: '', password: '', role: 'student', course_id: '',
+        create_parent_account: false, parent_relationship: 'MADRE',
+        parent_full_name: '', parent_dni: '', parent_email: '', parent_password: '', parent_phone: ''
+      })
       setShowRegistrarForm(false) // Close form on success
       // Next JS router refresh is handled by the server action's revalidatePath
     }
@@ -156,6 +187,108 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
                 <p className="text-[10px] text-ink4">Se matriculará automáticamente al guardar.</p>
               </div>
             )}
+            {formData.role === 'student' && (
+              <div className="md:col-span-2 rounded-2xl border border-[rgba(124,109,250,0.12)] bg-[rgba(124,109,250,0.04)] p-4 space-y-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.create_parent_account}
+                    onChange={e => setFormData({
+                      ...formData,
+                      create_parent_account: e.target.checked,
+                      parent_password: e.target.checked ? (formData.parent_password || formData.parent_dni || '') : formData.parent_password,
+                    })}
+                    className="h-4 w-4 rounded border-surface2 text-violet2 focus:ring-violet2"
+                  />
+                  <div>
+                    <p className="text-sm font-bold text-violet2">Crear acceso para representante</p>
+                    <p className="text-xs text-ink3">Genera credenciales propias para el padre, madre o tutor legal del estudiante.</p>
+                  </div>
+                </label>
+
+                {formData.create_parent_account && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Tipo de representante</label>
+                      <select
+                        value={formData.parent_relationship}
+                        onChange={e => setFormData({ ...formData, parent_relationship: e.target.value as 'MADRE' | 'PADRE' | 'OTRO' })}
+                        className="input-base"
+                      >
+                        <option value="MADRE">Madre</option>
+                        <option value="PADRE">Padre</option>
+                        <option value="OTRO">Tutor / Otro</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Nombre completo</label>
+                      <input
+                        type="text"
+                        value={formData.parent_full_name}
+                        onChange={e => setFormData({ ...formData, parent_full_name: e.target.value })}
+                        placeholder="Ej. Ana Villamar"
+                        className="input-base"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Cédula / DNI</label>
+                      <input
+                        type="text"
+                        value={formData.parent_dni}
+                        onChange={e => setFormData({
+                          ...formData,
+                          parent_dni: e.target.value,
+                          parent_password: formData.parent_password || e.target.value,
+                        })}
+                        placeholder="09XXXXXXXX"
+                        className="input-base"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Correo del representante <span className="text-ink4 font-normal normal-case">(opcional)</span></label>
+                      <input
+                        type="email"
+                        value={formData.parent_email}
+                        onChange={e => setFormData({ ...formData, parent_email: e.target.value })}
+                        placeholder="Dejar vacío → ingresa con su cédula"
+                        className="input-base"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Teléfono</label>
+                      <input
+                        type="text"
+                        value={formData.parent_phone}
+                        onChange={e => setFormData({ ...formData, parent_phone: e.target.value })}
+                        placeholder="+593 9..."
+                        className="input-base"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Contraseña inicial</label>
+                      <input
+                        type="text"
+                        value={formData.parent_password}
+                        onChange={e => setFormData({ ...formData, parent_password: e.target.value })}
+                        placeholder="Por defecto: cédula"
+                        className="input-base"
+                      />
+                    </div>
+
+                    {formData.parent_dni && (
+                      <div className="md:col-span-2 p-3 rounded-xl bg-white border border-[rgba(124,109,250,0.12)]">
+                        <p className="text-[11px] font-bold text-violet2 uppercase tracking-wider mb-1">Credenciales del representante:</p>
+                        <p className="text-sm text-ink2">
+                          <span className="text-ink3">Usuario:</span> <strong>{formData.parent_email || formData.parent_dni}</strong>
+                          <span className="text-ink4 mx-2">|</span>
+                          <span className="text-ink3">Contraseña:</span> <strong>{formData.parent_password || formData.parent_dni}</strong>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="md:col-span-2 mt-4 pt-4 border-t border-[rgba(0,0,0,0.05)]">
                <button type="submit" disabled={loading} className="w-full btn-primary py-3.5 flex items-center justify-center gap-2">
                  {loading ? 'Sincronizando Base de Datos...' : <><Plus size={18}/> Validar y Empadronar Cuenta</>}
@@ -165,7 +298,7 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-bg border border-surface rounded-2xl p-5">
            <h4 className="font-bold mb-4 text-violet2 uppercase text-xs tracking-wider">Personal de la Institución ({teachers.length})</h4>
            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
@@ -208,6 +341,28 @@ export function PersonalClient({ institutionId, teachers, students, horariosDoce
                )
              })}
              {students.length === 0 && <p className="text-xs text-ink4 italic">Sin alumnos verificados.</p>}
+           </div>
+         </div>
+        <div className="bg-bg border border-surface rounded-2xl p-5">
+           <h4 className="font-bold mb-4 text-amber-500 uppercase text-xs tracking-wider">Representantes ({parents.length})</h4>
+           <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+             {parents.map(p => {
+               const meta = localMetaData[p.id] || {}
+               return (
+               <div key={p.id} onClick={() => setSelectedUser(p)} className="p-3 bg-[rgba(248,210,90,0.08)] rounded-xl border border-[rgba(248,210,90,0.18)] cursor-pointer hover:bg-[rgba(248,210,90,0.13)] transition-colors flex items-center gap-3">
+                 {meta.avatar_url ? (
+                   <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-amber-400" />
+                 ) : (
+                   <div className="w-10 h-10 rounded-full bg-[rgba(248,210,90,0.18)] flex items-center justify-center text-amber-600 font-bold text-xs">{p.full_name.charAt(0)}</div>
+                 )}
+                 <div>
+                   <p className="font-medium text-sm">{p.full_name}</p>
+                   <p className="text-xs text-ink4">{p.email}</p>
+                 </div>
+               </div>
+               )
+             })}
+             {parents.length === 0 && <p className="text-xs text-ink4 italic">Sin representantes con acceso aún.</p>}
            </div>
          </div>
       </div>
