@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveYearContext } from '@/lib/academic-year/server'
 import { PlanificacionesCards } from '@/components/planificaciones/PlanificacionesCards'
+import { filterSubjectsForPlanificaciones } from '@/lib/subject-visibility'
 
 export const metadata: Metadata = { title: 'Planificaciones' }
 export const dynamic = 'force-dynamic'
@@ -53,6 +54,9 @@ export default async function PlanificacionesPage() {
     .eq('teacher_id', user.id)
     .order('name', { ascending: true })
 
+  const visibleSubjects = filterSubjectsForPlanificaciones(institutionName, (subjects as any[]) || [])
+  const visibleSubjectIds = new Set(visibleSubjects.map((subject: any) => subject.id))
+
   // Año lectivo actual (para asociar la planificación a un año).
   const ycx = await resolveYearContext(user.id)
   const academicYearId = ycx.viewingYearId || ycx.currentYearId || null
@@ -68,6 +72,7 @@ export default async function PlanificacionesPage() {
     ? plansQuery.is('academic_year_id', null)
     : plansQuery.eq('academic_year_id', academicYearId)
   const { data: manualPlans } = await plansQuery
+  const visiblePlans = ((manualPlans as any[]) || []).filter((plan: any) => !plan.subject_id || visibleSubjectIds.has(plan.subject_id))
 
   return (
     <div className="animate-fade-in">
@@ -80,8 +85,8 @@ export default async function PlanificacionesPage() {
         </p>
       </div>
       <PlanificacionesCards
-        subjects={(subjects as any[]) || []}
-        manualPlans={(manualPlans as any[]) || []}
+        subjects={visibleSubjects}
+        manualPlans={visiblePlans}
         academicYearId={academicYearId}
         institutionName={institutionName}
       />

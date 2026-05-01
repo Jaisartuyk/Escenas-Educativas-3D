@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { LibretasClient } from '@/components/libretas/LibretasClient'
+import { filterSubjectsForLibretas } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -67,7 +68,11 @@ export default async function LibretasPage() {
   }
 
   const courseIds = filteredCourses.map((c: any) => c.id)
-  const instSubjects = (subjects || []).filter((s: any) => courseIds.includes(s.course_id))
+  const institutionName = profile.institutions?.name || ''
+  const instSubjects = filterSubjectsForLibretas(
+    institutionName,
+    ((subjects || []) as any[]).filter((s: any) => courseIds.includes(s.course_id)),
+  )
   const subjectIds = instSubjects.map((s: any) => s.id)
 
   // Assignments and grades
