@@ -185,10 +185,10 @@ Crea una tabla con estos campos exactos:
 ### 2. PLANIFICACION
 Debes producir estas tres tablas, en este orden:
 
-#### 2.1 Destrezas + Indicadores
-| Destrezas/Contenidos BT/ | Indicadores de evaluacion/Criterio de evaluacion BT |
-|---|---|
-| Lista organizada de DCDs y/o contenidos del trimestre tomados del PUD. Cada DCD debe conservar su codigo textual y llevar al final sus competencias clave entre llaves dobles, por ejemplo {{C}} o {{CM,CD}}. Usa una sola DCD principal por bloque o fila visual para que la lectura sea compacta. | Lista alineada de indicadores oficiales o criterios de evaluacion correspondientes exactamente a la DCD del lado izquierdo. Debes repetir el indicador completo en cada caso; no uses abreviaturas sueltas como "I.LL.4.7.2." sin descripcion. |
+#### 2.1 Temas + Destrezas + Indicadores
+| Temas | Destrezas/Contenidos BT/ | Indicadores de evaluacion/Criterio de evaluacion BT |
+|---|---|---|
+| Tema, subtema, bloque o experiencia de aprendizaje que se desprende del PUD para ese tramo del trimestre. Debe ser concreto y legible; no dejes esta columna vacia. | Lista organizada de DCDs y/o contenidos del trimestre tomados del PUD. Cada DCD debe conservar su codigo textual y llevar al final sus competencias clave entre llaves dobles, por ejemplo {{C}} o {{CM,CD}}. Usa una sola DCD principal por bloque o fila visual para que la lectura sea compacta. | Lista alineada de indicadores oficiales o criterios de evaluacion correspondientes exactamente a la DCD del lado izquierdo. Debes repetir el indicador completo en cada caso; no uses abreviaturas sueltas como "I.LL.4.7.2." sin descripcion. |
 
 #### 2.2 Estrategias metodologicas (DUA) + Recursos
 | Estrategias metodologicas (DUA) | Recursos |
@@ -208,11 +208,12 @@ OBLIGATORIO SOBRE COMPETENCIAS E INSERCIONES:
 2. Las inserciones curriculares NO van como lista aislada al final: deben integrarse dentro de las estrategias metodologicas y, cuando tenga sentido, tambien en recursos o evaluacion.
 3. Toda insercion integrada debe verse con icono visible y etiqueta corta en este formato exacto: [🌱 Sostenible], [🚩 Civica], [🤝 Socioemocional], [💰 Financiera], [🚲 Vial].
 4. Si una fila o actividad no integra una insercion de manera genuina, no la fuerces; pero cuando si la integre, el icono es obligatorio.
-5. En la tabla 2.1, evita bloques desbalanceados: por cada DCD o contenido principal del lado izquierdo debe existir su indicador completo del lado derecho, en el mismo nivel de detalle.
-6. No dejes celdas visualmente vacias ni indicadores resumidos por referencia; si el mismo indicador aplica a dos DCDs distintas, repitelo completo para mantener la tabla pareja.
-7. Si el PUD subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
-8. No inventes periodos semanales ni parciales. Este documento resume y organiza el trimestre completo.
-9. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.`.trim()
+5. En la tabla 2.1, la columna TEMAS es obligatoria y debe alinearse con cada DCD e indicador. No dejes temas genericos vacios ni repetidos sin sentido.
+6. En la tabla 2.1, evita bloques desbalanceados: por cada DCD o contenido principal del lado izquierdo debe existir su indicador completo del lado derecho, en el mismo nivel de detalle.
+7. No dejes celdas visualmente vacias ni indicadores resumidos por referencia; si el mismo indicador aplica a dos DCDs distintas, repitelo completo para mantener la tabla pareja.
+8. Si el PUD subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
+9. No inventes periodos semanales ni parciales. Este documento resume y organiza el trimestre completo.
+10. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.`.trim()
   }
 
   if (type === 'clase') {
@@ -562,9 +563,11 @@ function buildNeeAdaptationPrompt(opts: {
   grade: string
   topic: string
   duration: string
+  type?: string
 }): string {
-  const { regularContent, kind, neeCodes, studentName, gradoReal, subject, grade, topic, duration } = opts
+  const { regularContent, kind, neeCodes, studentName, gradoReal, subject, grade, topic, duration, type } = opts
   const isSignificativa = kind === 'diac'
+  const isTrimester = type === 'trimestre'
   const neeBlock = buildNeePromptBlock(neeCodes)
   const studentLine = studentName ? `\n- Estudiante: ${studentName}` : ''
   const gradoRealLine = gradoReal ? `\n- Grado curricular REAL del estudiante: ${gradoReal} (puede ser diferente al del aula)` : ''
@@ -592,18 +595,22 @@ ${regularContent}
 ---
 
 INSTRUCCIONES:
-1. Produce UNA planificacion completa con la MISMA estructura de secciones que la regular (encabezado, tabla principal, adaptaciones DUA, firmas).
-2. Mantén el formato de tabla Markdown con las mismas columnas (DCD, Indicador, Estrategias, Recursos, Evaluación).
-3. En la tabla principal, ${isSignificativa
+1. Produce UNA planificacion completa con la MISMA estructura de secciones que la regular. NO cambies el orden ni simplifiques bloques.
+2. Mantén el formato de tabla Markdown con las mismas columnas y subtítulos que tenga la regular.
+3. ${isTrimester
+    ? 'Como esta adaptación corresponde a una PLANIFICACION MICROCURRICULAR DISCIPLINAR O INTERDISCIPLINAR trimestral, debes conservar explícitamente la misma estructura de: 1) DATOS INFORMATIVOS, 2.1) tabla de TEMAS + DESTREZAS/CONTENIDOS + INDICADORES, 2.2) tabla de ESTRATEGIAS METODOLOGICAS (DUA) + RECURSOS, 2.3) ESTRATEGIAS PARA LA EVALUACION, y 3) ADAPTACIONES CURRICULARES. Los TEMAS son obligatorios también en la adaptación.'
+    : 'Si la planificación regular ya trae subtemas o temas dentro de tablas o bloques, consérvalos y adáptalos; no los elimines.'}
+4. En la tabla principal, ${isSignificativa
     ? 'REESCRIBE la DCD al nivel real del estudiante. Usa códigos de DCD de ese grado. El indicador debe ser funcional/autónomo, no comparativo con el grupo.'
     : 'MANTÉN la DCD y el indicador del grado. Solo adapta las actividades, recursos y forma de evaluación.'}
-4. En la columna de estrategias metodológicas aplica las adaptaciones descritas arriba.
-5. En RECURSOS incluye materiales específicos de la adaptación (pictogramas, lector de pantalla, material manipulable, etc.) además de los digitales.
-6. En EVALUACION ${isSignificativa
+5. Si existe una columna o bloque de TEMAS en la regular, debes mantenerla completa. Cada fila o bloque de tema debe conservar su nombre temático y su alineación con destrezas e indicadores.
+6. En la columna de estrategias metodológicas aplica las adaptaciones descritas arriba.
+7. En RECURSOS incluye materiales específicos de la adaptación (pictogramas, lector de pantalla, material manipulable, etc.) además de los digitales.
+8. En EVALUACION ${isSignificativa
     ? 'usa criterios individualizados propios del DIAC (observación de progreso, evidencias, no comparación con el grupo).'
     : 'usa los MISMOS criterios del grupo, pero adaptados en forma (oral, tiempo extra, apoyos).'}
-7. Añade al final una sección "### JUSTIFICACION DE LA ADAPTACION" explicando brevemente por qué esta adaptación responde a la necesidad.
-8. Usa tablas Markdown limpias. Las celdas deben tener <br/> para saltos internos.`
+9. Añade al final una sección "### JUSTIFICACION DE LA ADAPTACION" explicando brevemente por qué esta adaptación responde a la necesidad.
+10. Usa tablas Markdown limpias. Las celdas deben tener <br/> para saltos internos.`
 }
 
 export async function POST(request: NextRequest) {
@@ -1060,6 +1067,7 @@ export async function POST(request: NextRequest) {
         grade: body.grade,
         topic: body.topic,
         duration: body.duration,
+        type: body.type,
         studentName: extraFields.estudiante_nombre,
         gradoReal:   extraFields.grado_curricular_real,
       })
