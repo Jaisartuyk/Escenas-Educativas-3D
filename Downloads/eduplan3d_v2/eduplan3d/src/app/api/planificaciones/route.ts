@@ -12,6 +12,9 @@ import { isEFLSubject } from '@/lib/pedagogy/subject-types'
 import { extractDocxRaw } from '@/lib/extract/extractDocxRaw'
 import { resolveYearContext } from '@/lib/academic-year/server'
 
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 type RagStats = {
@@ -31,6 +34,7 @@ type RagCacheEntry = {
 const RAG_CACHE_TTL_MS = 10 * 60 * 1000
 const ragContextCache = new Map<string, RagCacheEntry>()
 const MAX_DOCS_CONTEXT_CHARS = 45000
+const MAX_TOTAL_CONTEXT_CHARS = 60000
 
 function buildRagCacheKey(userId: string, body: any, isPlannerSolo: boolean) {
   return [
@@ -82,6 +86,13 @@ function compactDocsContext(
   }
 
   return context
+}
+
+function clampPlannerContext(text: string) {
+  if (!text) return ''
+  return text.length > MAX_TOTAL_CONTEXT_CHARS
+    ? text.slice(0, MAX_TOTAL_CONTEXT_CHARS)
+    : text
 }
 
 async function generateWithContinuation(opts: {
@@ -996,10 +1007,11 @@ export async function POST(request: NextRequest) {
         grado: curriculoGrado,
         asignatura: body.subject,
         tema: isAdaptacion ? null : body.topic,  // en adaptación traemos TODO el subnivel anterior
+        limit: body.type === 'trimestre' ? 12 : 25,
       })
       if (curriculoBlock) {
         // Ponemos el currículo DESPUÉS de los documentos del docente para que estos tengan prioridad de lectura
-        contextoExtra = `${contextoExtra}\n\n${curriculoBlock}`
+        contextoExtra = clampPlannerContext(`${contextoExtra}\n\n${curriculoBlock}`)
       }
     } catch (err) {
       console.error('[Curriculo Lookup Error]', err)
