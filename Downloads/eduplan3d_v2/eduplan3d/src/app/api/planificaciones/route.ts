@@ -30,6 +30,7 @@ type RagCacheEntry = {
 
 const RAG_CACHE_TTL_MS = 10 * 60 * 1000
 const ragContextCache = new Map<string, RagCacheEntry>()
+const MAX_DOCS_CONTEXT_CHARS = 45000
 
 function buildRagCacheKey(userId: string, body: any, isPlannerSolo: boolean) {
   return [
@@ -48,6 +49,39 @@ function cloneRagStats(stats: RagStats): RagStats {
     skipped: stats.skipped,
     reasons: [...stats.reasons],
   }
+}
+
+function compactDocsContext(
+  parsedDocs: Array<{ titulo: string; text: string }>,
+  classifications: Array<{ kind: 'referencia' | 'planificacion' }>
+) {
+  const prioritized = parsedDocs
+    .map((doc, i) => ({ doc, kind: classifications[i]?.kind || 'referencia' }))
+    .sort((a, b) => {
+      if (a.kind === b.kind) return 0
+      return a.kind === 'planificacion' ? -1 : 1
+    })
+
+  let totalChars = 0
+  let context = ''
+
+  for (const item of prioritized) {
+    if (totalChars >= MAX_DOCS_CONTEXT_CHARS) break
+
+    const badge = item.kind === 'planificacion'
+      ? '[TIPO: PLANIFICACION YA ELABORADA - ADAPTAR AL FORMATO, no re-inventar]'
+      : '[TIPO: MATERIAL DE REFERENCIA - usar como fuente tematica]'
+
+    const remaining = MAX_DOCS_CONTEXT_CHARS - totalChars
+    const allowedText = Math.max(1500, remaining - badge.length - item.doc.titulo.length - 40)
+    const snippet = item.doc.text.slice(0, allowedText)
+    const block = `\n${badge}\nDocumento: ${item.doc.titulo}:\n${snippet}\n`
+
+    context += block
+    totalChars += block.length
+  }
+
+  return context
 }
 // ── System prompt: MINEDUC Specialist ────────────────────────────────────────
 const SYSTEM_PROMPT = `Eres un Especialista en Curriculo y Gestion Pedagogica con 20 anios de experiencia en el sistema educativo ecuatoriano. Tu mision es generar planificaciones diarias operativas que cumplan estrictamente con el formato institucional solicitado, basandote PRIORITARIAMENTE en los documentos subidos por el docente (libros, guias, planes previos) y el Curriculo Priorizado MinEduc 2025.
@@ -888,14 +922,7 @@ export async function POST(request: NextRequest) {
           if (parsedDocs.length > 0) {
             const classifications = await classifyDocuments(parsedDocs)
             detectedPlanification = classifications.some(c => c.kind === 'planificacion')
-
-            parsedDocs.forEach((d: { titulo: string; text: string }, i: number) => {
-              const cls = classifications[i]?.kind || 'referencia'
-              const badge = cls === 'planificacion'
-                ? '[TIPO: PLANIFICACION YA ELABORADA - ADAPTAR AL FORMATO, no re-inventar]'
-                : '[TIPO: MATERIAL DE REFERENCIA - usar como fuente tematica]'
-              contextoExtra += `\n${badge}\nDocumento: ${d.titulo}:\n${d.text}\n`
-            })
+            contextoExtra += compactDocsContext(parsedDocs, classifications)
           }
         }
 
@@ -937,7 +964,7 @@ export async function POST(request: NextRequest) {
     const isAdaptacionMaxTok = body.type === 'adaptacion' || body.type === 'diagnostica'
     const dynamicMaxTokens =
       body.type === 'trimestre'
-        ? 10000
+        ? 7200
         : (body.type === 'clase' || isAdaptacionMaxTok) && numSesionesEsperadas > 1
           ? Math.min(16000, 4096 + (numSesionesEsperadas * 1800))
           : 6000
@@ -1073,7 +1100,7 @@ export async function POST(request: NextRequest) {
       })
       const msg = await anthropic.messages.create({
         model: 'claude-sonnet-4-5',
-        max_tokens: dynamicMaxTokens,
+        max_tokens: body.type === 'trimestre' ? 6200 : dynamicMaxTokens,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }],
       })
