@@ -70,6 +70,8 @@ function inlineFormat(text: string): string {
   result = result.replace(/`(.+?)`/g, '<code class="px-1.5 py-0.5 rounded bg-gray-100 text-[11px] font-mono">$1</code>')
   // <br> tags
   result = result.replace(/<br\s*\/?>/gi, '<br/>')
+  // New lines inside cells / paragraphs
+  result = result.replace(/\n/g, '<br/>')
   return result
 }
 
@@ -177,7 +179,7 @@ function renderTable(lines: string[]): string {
   // Header
   html += '<thead><tr class="bg-gray-100">'
   headerCells.forEach(cell => {
-    html += `<th class="border border-gray-300 px-3 py-2 text-left font-bold text-gray-800 text-[11px]">${inlineFormat(cell)}</th>`
+    html += `<th class="border border-gray-300 px-3 py-2 text-left font-bold text-gray-800 text-[11px] align-top" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;">${inlineFormat(cell)}</th>`
   })
   html += '</tr></thead>'
 
@@ -190,7 +192,7 @@ function renderTable(lines: string[]): string {
       html += `<tr class="${bg}">`
       cells.forEach((cell, ci) => {
         const isFirstCol = ci === 0
-        html += `<td class="border border-gray-300 px-3 py-2 ${isFirstCol ? 'font-medium' : ''} text-gray-700 align-top">${inlineFormat(cell)}</td>`
+        html += `<td class="border border-gray-300 px-3 py-2 ${isFirstCol ? 'font-medium' : ''} text-gray-700 align-top" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;">${inlineFormat(cell)}</td>`
       })
       html += '</tr>'
     })

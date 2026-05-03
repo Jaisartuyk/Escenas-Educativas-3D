@@ -130,6 +130,16 @@
 /* Celdas de la tabla de planificacion: permitir wrap con saltos <br/> */
 .planificacion-content td,
 .planificacion-content th { white-space: normal; word-break: break-word; }
+.planificacion-content td p,
+.planificacion-content th p {
+  margin: 0 !important;
+}
+.planificacion-content td ul,
+.planificacion-content td ol,
+.planificacion-content th ul,
+.planificacion-content th ol {
+  margin: 0.25rem 0 0 0.75rem !important;
+}
 
 /* ── TipTap / DocxEditor ── */
 .ProseMirror { outline: none; }
