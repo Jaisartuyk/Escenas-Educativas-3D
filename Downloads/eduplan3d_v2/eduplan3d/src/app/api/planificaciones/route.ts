@@ -13,7 +13,7 @@ import { extractDocxRaw } from '@/lib/extract/extractDocxRaw'
 import { resolveYearContext } from '@/lib/academic-year/server'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -99,8 +99,9 @@ async function generateWithContinuation(opts: {
   prompt: string
   maxTokens: number
   continuationMaxPasses?: number
+  model?: string
 }) {
-  const { prompt, maxTokens, continuationMaxPasses = 2 } = opts
+  const { prompt, maxTokens, continuationMaxPasses = 2, model = 'claude-sonnet-4-5' } = opts
 
   let accumulated = ''
   let stopReason: string | null = null
@@ -121,7 +122,7 @@ async function generateWithContinuation(opts: {
         : [{ role: 'user', content: prompt }]
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
+      model,
       max_tokens: maxTokens,
       system: SYSTEM_PROMPT,
       messages,
@@ -1121,16 +1122,21 @@ export async function POST(request: NextRequest) {
     const isAdaptacionMaxTok = body.type === 'adaptacion' || body.type === 'diagnostica'
     const dynamicMaxTokens =
       body.type === 'trimestre'
-        ? 7200
+        ? 5200
         : (body.type === 'clase' || isAdaptacionMaxTok) && numSesionesEsperadas > 1
           ? Math.min(16000, 4096 + (numSesionesEsperadas * 1800))
           : 6000
+
+    const generationModel = body.type === 'trimestre'
+      ? 'claude-haiku-4-5'
+      : 'claude-sonnet-4-5'
 
     // Call Claude with system prompt + user prompt (regular)
     const regularGeneration = await generateWithContinuation({
       prompt: buildPrompt(body, contextoExtra, detectedPlanification),
       maxTokens: dynamicMaxTokens,
-      continuationMaxPasses: body.type === 'trimestre' ? 3 : 1,
+      continuationMaxPasses: body.type === 'trimestre' ? 1 : 1,
+      model: generationModel,
     })
 
     const content = regularGeneration.content
@@ -1258,6 +1264,7 @@ export async function POST(request: NextRequest) {
         prompt,
         maxTokens: body.type === 'trimestre' ? 6200 : dynamicMaxTokens,
         continuationMaxPasses: body.type === 'trimestre' ? 2 : 1,
+        model: body.type === 'trimestre' ? 'claude-sonnet-4-5' : generationModel,
       })
       const variantContent = variantGeneration.content
       const variantLabel = kind === 'diac' ? 'DIAC' : 'NEE'
