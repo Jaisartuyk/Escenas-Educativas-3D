@@ -2,7 +2,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import type { Planificacion } from '@/types/supabase'
 import {
@@ -77,8 +77,8 @@ export function PlannerClient({
   academicYearId: string | null
 }) {
   const router = useRouter()
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
-  const initialMode = searchParams?.get('mode') || 'clase'
+  const searchParams = useSearchParams()
+  const initialMode = 'clase'
   const isPlannerSoloTeacher = teacherPlan === 'planner_solo'
   const generationModes = getGenerationModes(isPlannerSoloTeacher)
 
@@ -151,6 +151,13 @@ export function PlannerClient({
   const [activeTab, setActiveTab] = useState<'regular' | 'nee_sin_disc' | 'diac'>('regular')
   const [detectedPlanification, setDetectedPlanification] = useState(false)
   const [generatingVariant, setGeneratingVariant] = useState<'nee_sin_disc' | 'diac' | null>(null)
+
+  useEffect(() => {
+    const requestedMode = searchParams.get('mode')
+    if (requestedMode && generationModes.some(m => m.id === requestedMode)) {
+      setMode(requestedMode)
+    }
+  }, [generationModes, searchParams])
 
   // Scheduling state
   const [mondayStartDate, setMondayStartDate] = useState(() => {

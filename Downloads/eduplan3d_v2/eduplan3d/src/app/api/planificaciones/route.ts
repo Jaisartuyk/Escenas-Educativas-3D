@@ -569,7 +569,8 @@ Usa tablas Markdown limpias.`.trim()
 
 // ── Clasificador de intención: ¿cada doc es referencia o planificación? ─────
 async function classifyDocuments(
-  docs: Array<{ titulo: string; text: string }>
+  docs: Array<{ titulo: string; text: string }>,
+  opts?: { heuristicOnly?: boolean }
 ): Promise<Array<{ kind: 'referencia' | 'planificacion' }>> {
   if (docs.length === 0) return []
 
@@ -596,7 +597,7 @@ async function classifyDocuments(
 
   // Si todos son claramente uno u otro, ahorrar la llamada.
   const allClear = simple.every(s => s.hits === 0 || s.hits >= 4)
-  if (allClear) {
+  if (allClear || opts?.heuristicOnly) {
     return simple.map(s => ({ kind: s.kind }))
   }
 
@@ -986,6 +987,10 @@ export async function POST(request: NextRequest) {
           ]
         }
 
+        if (body.type === 'trimestre' && refs.length > 3) {
+          refs = refs.slice(0, 3)
+        }
+
         ragStats.found = refs.length
         if (refs.length > 0) {
           const parsedResults = await Promise.all(refs.map(async (r) => {
@@ -1069,7 +1074,9 @@ export async function POST(request: NextRequest) {
           }
 
           if (parsedDocs.length > 0) {
-            const classifications = await classifyDocuments(parsedDocs)
+            const classifications = await classifyDocuments(parsedDocs, {
+              heuristicOnly: body.type === 'trimestre',
+            })
             detectedPlanification = classifications.some(c => c.kind === 'planificacion')
             contextoExtra += compactDocsContext(parsedDocs, classifications)
           }
