@@ -234,6 +234,38 @@ export function PlannerClient({
     course: s.course,
   }))
 
+  async function readApiResponse(res: Response) {
+    const raw = await res.text()
+    let data: any = null
+
+    try {
+      data = raw ? JSON.parse(raw) : {}
+    } catch {
+      data = null
+    }
+
+    if (!res.ok) {
+      const apiError =
+        data?.error ||
+        (raw?.includes('<!DOCTYPE') || raw?.includes('<html')
+          ? 'El servidor devolvio una pagina de error en lugar de JSON.'
+          : raw?.slice(0, 240)) ||
+        `Error HTTP ${res.status}`
+
+      throw new Error(
+        res.status === 504
+          ? 'La generacion tardo demasiado y el servidor corto la respuesta (504). Prueba primero con el trimestre base y luego genera NEE/DIAC por separado.'
+          : apiError
+      )
+    }
+
+    if (!data) {
+      throw new Error('La respuesta del servidor no vino en formato JSON valido.')
+    }
+
+    return data
+  }
+
   async function handleGenerate() {
     if (!subjectId) return toast.error('Selecciona una materia')
     if (mode === 'clase' && !topic.trim()) return toast.error('Ingresa el tema de la clase')
@@ -310,8 +342,7 @@ export function PlannerClient({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(trimestreBody),
           })
-          const data = await res.json()
-          if (!res.ok) throw new Error(data.error)
+          const data = await readApiResponse(res)
 
           setResult(data.planificacion)
           setVariants(data.variants || [])
@@ -362,8 +393,7 @@ export function PlannerClient({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(iterBody),
             })
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.error)
+            const data = await readApiResponse(res)
             allResults.push(data.planificacion)
             if (!firstRagStats && data.ragStats) firstRagStats = data.ragStats
           }
@@ -389,8 +419,7 @@ export function PlannerClient({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error)
+        const data = await readApiResponse(res)
         setResult(data.planificacion)
         setVariants(data.variants || [])
         setActiveTab('regular')
@@ -477,8 +506,7 @@ export function PlannerClient({
           duration: result.duration,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const data = await readApiResponse(res)
 
       const variant = data.variant as Planificacion
       setVariants(prev => {
