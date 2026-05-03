@@ -83,6 +83,53 @@ function compactDocsContext(
 
   return context
 }
+
+async function generateWithContinuation(opts: {
+  prompt: string
+  maxTokens: number
+  continuationMaxPasses?: number
+}) {
+  const { prompt, maxTokens, continuationMaxPasses = 2 } = opts
+
+  let accumulated = ''
+  let stopReason: string | null = null
+  let pass = 0
+
+  while (pass <= continuationMaxPasses) {
+    const messages: Array<{ role: 'user' | 'assistant'; content: string }> =
+      accumulated
+        ? [
+            { role: 'user', content: prompt },
+            { role: 'assistant', content: accumulated },
+            {
+              role: 'user',
+              content:
+                'Continua EXACTAMENTE desde donde quedaste. No repitas encabezados ni reinicies el documento. Sigue la misma tabla o sección hasta completar la planificación.',
+            },
+          ]
+        : [{ role: 'user', content: prompt }]
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: maxTokens,
+      system: SYSTEM_PROMPT,
+      messages,
+    })
+
+    const chunk = message.content[0].type === 'text' ? message.content[0].text : ''
+    accumulated += chunk
+    stopReason = message.stop_reason
+
+    if (stopReason !== 'max_tokens') break
+    pass += 1
+  }
+
+  return {
+    content: accumulated,
+    stopReason,
+    truncated: stopReason === 'max_tokens',
+  }
+}
 // ── System prompt: MINEDUC Specialist ────────────────────────────────────────
 const SYSTEM_PROMPT = `Eres un Especialista en Curriculo y Gestion Pedagogica con 20 anios de experiencia en el sistema educativo ecuatoriano. Tu mision es generar planificaciones diarias operativas que cumplan estrictamente con el formato institucional solicitado, basandote PRIORITARIAMENTE en los documentos subidos por el docente (libros, guias, planes previos) y el Curriculo Priorizado MinEduc 2025.
 
@@ -970,15 +1017,14 @@ export async function POST(request: NextRequest) {
           : 6000
 
     // Call Claude with system prompt + user prompt (regular)
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: dynamicMaxTokens,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: buildPrompt(body, contextoExtra, detectedPlanification) }],
+    const regularGeneration = await generateWithContinuation({
+      prompt: buildPrompt(body, contextoExtra, detectedPlanification),
+      maxTokens: dynamicMaxTokens,
+      continuationMaxPasses: body.type === 'trimestre' ? 3 : 1,
     })
 
-    const content = message.content[0].type === 'text' ? message.content[0].text : ''
-    const wasTruncated = message.stop_reason === 'max_tokens'
+    const content = regularGeneration.content
+    const wasTruncated = regularGeneration.truncated
 
     const sesiones: Array<{ numero: number; tema: string; duracion_min: number }> = []
     // Regex robusta: admite Sesión/Sesion, con/sin tilde, opcionalmente el nro pegado, opcionalmente : o - o espacio.
@@ -1098,13 +1144,12 @@ export async function POST(request: NextRequest) {
         studentName: extraFields.estudiante_nombre,
         gradoReal:   extraFields.grado_curricular_real,
       })
-      const msg = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5',
-        max_tokens: body.type === 'trimestre' ? 6200 : dynamicMaxTokens,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: prompt }],
+      const variantGeneration = await generateWithContinuation({
+        prompt,
+        maxTokens: body.type === 'trimestre' ? 6200 : dynamicMaxTokens,
+        continuationMaxPasses: body.type === 'trimestre' ? 2 : 1,
       })
-      const variantContent = msg.content[0].type === 'text' ? msg.content[0].text : ''
+      const variantContent = variantGeneration.content
       const variantLabel = kind === 'diac' ? 'DIAC' : 'NEE'
       const variantTitle = `${title.slice(0, 80)} — ${variantLabel}`.slice(0, 100)
 
