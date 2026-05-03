@@ -803,6 +803,97 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
 
+    if (body.generate_only_variant && body.parent_planificacion_id) {
+      const parentPlanId = String(body.parent_planificacion_id)
+      const variantKind = body.variant_kind === 'diac' ? 'diac' : 'nee_sin_disc'
+      const requestedNeeCodes: string[] = Array.isArray(body.nee_codes) ? body.nee_codes : []
+
+      const validNeeCodes = requestedNeeCodes.filter(c => {
+        const n = getNeeType(c)
+        if (!n) return false
+        return variantKind === 'diac'
+          ? n.category === 'con_discapacidad'
+          : n.category === 'sin_discapacidad'
+      })
+
+      if (validNeeCodes.length === 0) {
+        return NextResponse.json({ error: 'No se recibieron tipos NEE validos para generar la variante.' }, { status: 400 })
+      }
+
+      const { data: parentPlan, error: parentErr } = await (supabase as any)
+        .from('planificaciones')
+        .select('*')
+        .eq('id', parentPlanId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (parentErr || !parentPlan) {
+        return NextResponse.json({ error: 'No se encontro la planificacion base para generar la adaptacion.' }, { status: 404 })
+      }
+
+      const variantPrompt = buildNeeAdaptationPrompt({
+        regularContent: parentPlan.content,
+        kind: variantKind,
+        neeCodes: validNeeCodes,
+        subject: body.subject || parentPlan.subject,
+        grade: body.grade || parentPlan.grade,
+        topic: body.topic || parentPlan.topic,
+        duration: body.duration || parentPlan.duration,
+        type: (parentPlan.metadata as any)?.generationScope === 'trimestre' ? 'trimestre' : parentPlan.type,
+        studentName: body.diac_student_name || null,
+        gradoReal: body.diac_grado_real || null,
+      })
+
+      const variantGeneration = await generateWithContinuation({
+        prompt: variantPrompt,
+        maxTokens: (parentPlan.metadata as any)?.generationScope === 'trimestre' ? 6200 : 6000,
+        continuationMaxPasses: (parentPlan.metadata as any)?.generationScope === 'trimestre' ? 2 : 1,
+      })
+
+      const variantLabel = variantKind === 'diac' ? 'DIAC' : 'NEE'
+      const variantTitle = `${String(parentPlan.title).slice(0, 80)} — ${variantLabel}`.slice(0, 100)
+
+      const { data: savedVariant, error: vErr } = await (supabase as any)
+        .from('planificaciones')
+        .insert({
+          user_id: user.id,
+          title: variantTitle,
+          type: parentPlan.type,
+          subject: body.subject || parentPlan.subject,
+          grade: body.grade || parentPlan.grade,
+          topic: body.topic || parentPlan.topic,
+          duration: body.duration || parentPlan.duration,
+          methodologies: parentPlan.methodologies || [],
+          content: variantGeneration.content,
+          tipo_documento: variantKind,
+          parent_planificacion_id: parentPlan.id,
+          nee_tipos: validNeeCodes,
+          academic_year_id: (parentPlan as any).academic_year_id || null,
+          estudiante_nombre: body.diac_student_name || null,
+          grado_curricular_real: body.diac_grado_real || null,
+          metadata: {
+            ...((parentPlan.metadata as any) || {}),
+            variantOf: parentPlan.id,
+            neeKind: variantKind,
+            neeCodes: validNeeCodes,
+          },
+        })
+        .select()
+        .single()
+
+      if (vErr) {
+        console.error('[variant only insert error]', vErr)
+        return NextResponse.json({ error: 'No se pudo guardar la variante generada.' }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        planificacion: parentPlan,
+        variant: savedVariant,
+        variants: [savedVariant],
+        truncated: variantGeneration.truncated,
+      })
+    }
+
     // ── Persistir horas/min/días editados (B con memoria) ──
     if (body.persistHoursConfig && body.subjectId) {
       const wh = Number(body.weeklyHours)

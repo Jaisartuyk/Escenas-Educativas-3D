@@ -150,6 +150,7 @@ export function PlannerClient({
   const [variants, setVariants] = useState<Planificacion[]>([])
   const [activeTab, setActiveTab] = useState<'regular' | 'nee_sin_disc' | 'diac'>('regular')
   const [detectedPlanification, setDetectedPlanification] = useState(false)
+  const [generatingVariant, setGeneratingVariant] = useState<'nee_sin_disc' | 'diac' | null>(null)
 
   // Scheduling state
   const [mondayStartDate, setMondayStartDate] = useState(() => {
@@ -246,11 +247,12 @@ export function PlannerClient({
 
     const finalNeeSinDisc = neeSinDiscEnabled ? neeSinDiscCodes : []
     const finalNeeConDisc = neeConDiscEnabled && neeConDiscCode ? neeConDiscCode : ''
-    if (neeSinDiscEnabled && finalNeeSinDisc.length === 0) {
+    const shouldGenerateVariantsInline = !isExternalTrimesterMode
+    if (shouldGenerateVariantsInline && neeSinDiscEnabled && finalNeeSinDisc.length === 0) {
       setLoading(false)
       return toast.error('Selecciona al menos una necesidad sin discapacidad o desactiva esa adaptacion')
     }
-    if (neeConDiscEnabled && !finalNeeConDisc) {
+    if (shouldGenerateVariantsInline && neeConDiscEnabled && !finalNeeConDisc) {
       setLoading(false)
       return toast.error('Selecciona el tipo de discapacidad o desactiva el DIAC')
     }
@@ -287,8 +289,8 @@ export function PlannerClient({
         teacherName,
         institutionName,
         subjectId,
-        nee_sin_disc_codes: finalNeeSinDisc,
-        nee_con_disc_code: finalNeeConDisc,
+        nee_sin_disc_codes: shouldGenerateVariantsInline ? finalNeeSinDisc : [],
+        nee_con_disc_code: shouldGenerateVariantsInline ? finalNeeConDisc : '',
         diac_student_name: diacStudentName.trim(),
         diac_grado_real: diacGradoReal.trim(),
       }
@@ -441,6 +443,54 @@ export function PlannerClient({
       toast.error(err.message ?? 'Error al generar')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleGenerateVariant(kind: 'nee_sin_disc' | 'diac') {
+    if (!result) return
+
+    if (kind === 'nee_sin_disc') {
+      if (!neeSinDiscEnabled || neeSinDiscCodes.length === 0) {
+        return toast.error('Selecciona al menos una necesidad sin discapacidad para generar la adaptación.')
+      }
+    } else {
+      if (!neeConDiscEnabled || !neeConDiscCode) {
+        return toast.error('Selecciona el tipo de discapacidad para generar el DIAC.')
+      }
+    }
+
+    setGeneratingVariant(kind)
+    try {
+      const res = await fetch('/api/planificaciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generate_only_variant: true,
+          parent_planificacion_id: result.id,
+          variant_kind: kind,
+          nee_codes: kind === 'diac' ? [neeConDiscCode] : neeSinDiscCodes,
+          diac_student_name: kind === 'diac' ? diacStudentName.trim() : '',
+          diac_grado_real: kind === 'diac' ? diacGradoReal.trim() : '',
+          subject: result.subject,
+          grade: result.grade,
+          topic: result.topic,
+          duration: result.duration,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      const variant = data.variant as Planificacion
+      setVariants(prev => {
+        const filtered = prev.filter(v => (v as any).tipo_documento !== (variant as any).tipo_documento)
+        return [...filtered, variant]
+      })
+      setActiveTab(kind)
+      toast.success(kind === 'diac' ? 'DIAC generado' : 'Adaptación NEE generada')
+    } catch (err: any) {
+      toast.error(err.message ?? 'Error al generar la adaptación')
+    } finally {
+      setGeneratingVariant(null)
     }
   }
 
@@ -1031,7 +1081,7 @@ export function PlannerClient({
         {(mode === 'parcial' || mode === 'abp') && (
           <p className="text-[10px] text-ink4 text-center">
             {isExternalTrimesterMode
-              ? 'Se generara una planificacion trimestral basada en el PUD subido y el curriculo priorizado.'
+              ? 'Primero se generara la planificacion trimestral base. Luego podras sacar NEE o DIAC por separado desde el resultado.'
               : 'Se generaran 6 planificaciones (1 por semana del proyecto/parcial)'}
           </p>
         )}
@@ -1121,6 +1171,35 @@ export function PlannerClient({
         )}
 
         {/* Tabs (solo si hay variantes NEE) */}
+        {result && isExternalTrimesterMode && (
+          <div className="mx-6 mt-4 rounded-xl border border-surface2 bg-bg p-4 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-ink2">Adaptaciones sobre esta planificación base</p>
+              <p className="text-xs text-ink4 mt-1">
+                Genera NEE o DIAC como segundo paso para evitar cortes o timeouts en el trimestre completo.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleGenerateVariant('nee_sin_disc')}
+                disabled={generatingVariant !== null || !neeSinDiscEnabled || neeSinDiscCodes.length === 0}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
+                style={{ backgroundColor: '#7C6DFA' }}
+              >
+                {generatingVariant === 'nee_sin_disc' ? 'Generando NEE...' : 'Generar adaptación NEE'}
+              </button>
+              <button
+                onClick={() => handleGenerateVariant('diac')}
+                disabled={generatingVariant !== null || !neeConDiscEnabled || !neeConDiscCode}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
+                style={{ backgroundColor: '#0f766e' }}
+              >
+                {generatingVariant === 'diac' ? 'Generando DIAC...' : 'Generar DIAC'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {result && variants.length > 0 && (
           <div className="flex gap-1 px-6 pt-3 border-b border-surface2 bg-bg">
             {([
