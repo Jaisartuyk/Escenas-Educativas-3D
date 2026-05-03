@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { DeletePlanButton } from '@/components/planner/DeletePlanButton'
 import { PlanContent } from '@/components/planner/PlanContent'
+import { PlanVariantActions } from '@/components/planner/PlanVariantActions'
 import { getInserciones } from '@/lib/pedagogy/inserciones'
 
 // Pequeño helper de render para los badges de inserciones MinEduc.
@@ -74,6 +75,7 @@ export default async function PlanificacionDetailPage({ params }: Props) {
 
   const meta = plan.metadata || {}
   const isTrimesterPlan = meta.generationScope === 'trimestre'
+  const isRegularTrimester = isTrimesterPlan && ((plan as any).tipo_documento ?? 'regular') === 'regular'
 
   return (
     <div className={`animate-fade-in mx-auto ${isTrimesterPlan ? 'max-w-7xl' : 'max-w-4xl'}`}>
@@ -114,6 +116,18 @@ export default async function PlanificacionDetailPage({ params }: Props) {
           <DeletePlanButton id={plan.id} />
         </div>
       </div>
+
+      {isRegularTrimester && (
+        <div className="mb-6 print:hidden">
+          <PlanVariantActions
+            parentPlanId={plan.id}
+            subject={plan.subject}
+            grade={plan.grade}
+            topic={plan.topic}
+            duration={plan.duration}
+          />
+        </div>
+      )}
 
       {/* Content editable */}
       <PlanContent
