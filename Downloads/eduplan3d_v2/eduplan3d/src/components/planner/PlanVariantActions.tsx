@@ -33,6 +33,38 @@ export function PlanVariantActions({
     setNeeCodes(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code])
   }
 
+  async function readApiResponse(res: Response) {
+    const raw = await res.text()
+    let data: any = null
+
+    try {
+      data = raw ? JSON.parse(raw) : {}
+    } catch {
+      data = null
+    }
+
+    if (!res.ok) {
+      const apiError =
+        data?.error ||
+        (raw?.includes('<!DOCTYPE') || raw?.includes('<html')
+          ? 'El servidor devolvio una pagina de error en lugar de JSON.'
+          : raw?.slice(0, 240)) ||
+        `Error HTTP ${res.status}`
+
+      throw new Error(
+        res.status === 504
+          ? 'La generacion tardo demasiado y el servidor corto la respuesta (504). Vuelve a intentarlo en unos segundos.'
+          : apiError
+      )
+    }
+
+    if (!data) {
+      throw new Error('La respuesta del servidor no vino en formato JSON valido.')
+    }
+
+    return data
+  }
+
   async function generateVariant(kind: 'nee_sin_disc' | 'diac') {
     if (kind === 'nee_sin_disc' && neeCodes.length === 0) {
       return toast.error('Selecciona al menos una necesidad NEE para generar la adaptación.')
@@ -59,10 +91,7 @@ export function PlanVariantActions({
           duration,
         }),
       })
-
-      const raw = await res.text()
-      const data = raw ? JSON.parse(raw) : {}
-      if (!res.ok) throw new Error(data?.error || `Error HTTP ${res.status}`)
+      const data = await readApiResponse(res)
 
       toast.success(kind === 'diac' ? 'DIAC generado' : 'Adaptación NEE generada')
       if (data?.variant?.id) {
