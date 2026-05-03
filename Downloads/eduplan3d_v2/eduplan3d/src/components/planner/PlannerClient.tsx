@@ -1001,7 +1001,7 @@ export function PlannerClient({
         </div>
 
         {/* ── NEE: Adaptación no significativa (sin discapacidad) ── */}
-        {(mode === 'clase' || mode === 'parcial') && (
+        {(mode === 'clase' || (mode === 'parcial' && !isExternalTrimesterMode)) && (
           <div className="rounded-xl border border-surface2 bg-bg p-3 space-y-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -1036,7 +1036,7 @@ export function PlannerClient({
         )}
 
         {/* ── NEE: DIAC (con discapacidad) ── */}
-        {(mode === 'clase' || mode === 'parcial') && (
+        {(mode === 'clase' || (mode === 'parcial' && !isExternalTrimesterMode)) && (
           <div className="rounded-xl border border-surface2 bg-bg p-3 space-y-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
