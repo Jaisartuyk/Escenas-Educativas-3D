@@ -95,6 +95,106 @@ function clampPlannerContext(text: string) {
     : text
 }
 
+function compactRegularPlanForVariant(content: string, isTrimester: boolean) {
+  if (!content) return ''
+  const normalized = String(content)
+  if (!isTrimester) return normalized.slice(0, 24000)
+
+  const sectionMatches = normalized.match(/#{1,4}\s.*|[\s\S]+?(?=(\n#{1,4}\s)|$)/g) || []
+  const selected = sectionMatches
+    .filter(block =>
+      /DATOS INFORMATIVOS|TEMAS|DESTREZAS|INDICADORES|ESTRATEGIAS|RECURSOS|EVALUACION|ADAPTACIONES/i.test(block)
+    )
+    .join('\n\n')
+
+  const compacted = selected || normalized
+  return compacted.slice(0, 18000)
+}
+
+function normalizeNeeLabels(neeCodes: string[]) {
+  return neeCodes
+    .map(code => getNeeType(code))
+    .filter(Boolean)
+    .map(item => item!.label)
+}
+
+function buildTrimesterVariantAppendix(opts: {
+  kind: 'nee_sin_disc' | 'diac'
+  neeCodes: string[]
+  studentName?: string | null
+  gradoReal?: string | null
+}) {
+  const labels = normalizeNeeLabels(opts.neeCodes)
+  const labelText = labels.length > 0 ? labels.join(', ') : 'No especificado'
+  const isDiac = opts.kind === 'diac'
+
+  const estrategiaBase = isDiac
+    ? 'Ajustar objetivos y mediacion al nivel real del estudiante, con secuencias guiadas, modelado explicito, andamiaje permanente y verificacion frecuente de comprension.'
+    : 'Mantener las mismas destrezas del grupo con apoyos metodologicos, tiempo flexible, instrucciones segmentadas y mediacion multisensorial.'
+
+  const recursosBase = isDiac
+    ? 'Pictogramas, material concreto, apoyos visuales, agenda por pasos, lector acompanante o dispositivo de apoyo segun necesidad.'
+    : 'Organizadores graficos, plantillas guiadas, resaltadores, apoyos visuales, checklist de tareas y recursos digitales accesibles.'
+
+  const evaluacionBase = isDiac
+    ? 'Evaluar progreso individual respecto al grado curricular real, evidencias funcionales, desempeno observable y autonomia alcanzada.'
+    : 'Mantener el criterio del grupo, adaptando forma de respuesta, tiempo, mediacion y demostracion del aprendizaje.'
+
+  const adaptacionBase = isDiac
+    ? `Se individualiza la propuesta curricular segun el grado real${opts.gradoReal ? ` (${opts.gradoReal})` : ''}, priorizando objetivos funcionales, comprension gradual y evidencias autenticas.`
+    : 'Se conservan objetivos y destrezas del aula, ajustando metodologia, recursos, tiempo, agrupamientos y forma de evaluacion.'
+
+  const estudianteLine = opts.studentName ? `- Estudiante: ${opts.studentName}` : '- Estudiante: por completar'
+  const gradoRealLine = isDiac ? `\n- Grado curricular real: ${opts.gradoReal || 'por completar'}` : ''
+
+  return `
+---
+
+## ADAPTACIONES SOBRE ESTA PLANIFICACION BASE
+
+### DATOS DE LA ADAPTACION
+- Tipo: ${isDiac ? 'DIAC (con discapacidad)' : 'NEE sin discapacidad'}
+- Necesidades educativas: ${labelText}
+${estudianteLine}${gradoRealLine}
+
+### 2.2 Estrategias metodologicas (DUA) + Recursos ADAPTADOS
+
+| Estrategias metodologicas ADAPTADAS (DUA) | Recursos ADAPTADOS |
+| --- | --- |
+| ${estrategiaBase} | ${recursosBase} |
+
+### 2.3 Estrategias para la evaluacion ADAPTADAS
+
+| Estrategias para la evaluacion ADAPTADAS |
+| --- |
+| ${evaluacionBase} |
+
+### 3. Adaptaciones curriculares
+
+| Componente | Adaptacion |
+| --- | --- |
+| Necesidad educativa priorizada | ${labelText} |
+| Ajuste curricular | ${adaptacionBase} |
+| Mediacion docente | Seguimiento cercano, consignas breves, retroalimentacion frecuente, verificacion de comprension y apoyos graduados. |
+| Evidencias esperadas | Producciones guiadas, respuestas orales o escritas ajustadas, participacion acompanada y registro de progreso. |
+
+### JUSTIFICACION DE LA ADAPTACION
+Esta adaptacion responde a la necesidad educativa identificada y permite que el estudiante participe en la misma experiencia trimestral con apoyos pertinentes, una mediacion accesible y criterios de seguimiento ajustados a su perfil.
+`.trim()
+}
+
+function buildFastTrimesterVariantContent(opts: {
+  baseContent: string
+  kind: 'nee_sin_disc' | 'diac'
+  neeCodes: string[]
+  studentName?: string | null
+  gradoReal?: string | null
+}) {
+  const base = String(opts.baseContent || '').trim()
+  const cleanedBase = base.replace(/\n+## ADAPTACIONES SOBRE ESTA PLANIFICACION BASE[\s\S]*$/i, '').trim()
+  return `${cleanedBase}\n\n${buildTrimesterVariantAppendix(opts)}`
+}
+
 async function generateWithContinuation(opts: {
   prompt: string
   maxTokens: number
@@ -833,24 +933,34 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No se encontro la planificacion base para generar la adaptacion.' }, { status: 404 })
       }
 
-      const variantPrompt = buildNeeAdaptationPrompt({
-        regularContent: parentPlan.content,
-        kind: variantKind,
-        neeCodes: validNeeCodes,
-        subject: body.subject || parentPlan.subject,
-        grade: body.grade || parentPlan.grade,
-        topic: body.topic || parentPlan.topic,
-        duration: body.duration || parentPlan.duration,
-        type: (parentPlan.metadata as any)?.generationScope === 'trimestre' ? 'trimestre' : parentPlan.type,
-        studentName: body.diac_student_name || null,
-        gradoReal: body.diac_grado_real || null,
-      })
-
-      const variantGeneration = await generateWithContinuation({
-        prompt: variantPrompt,
-        maxTokens: (parentPlan.metadata as any)?.generationScope === 'trimestre' ? 6200 : 6000,
-        continuationMaxPasses: (parentPlan.metadata as any)?.generationScope === 'trimestre' ? 2 : 1,
-      })
+      const parentIsTrimester = (parentPlan.metadata as any)?.generationScope === 'trimestre'
+      const variantContent = parentIsTrimester
+        ? buildFastTrimesterVariantContent({
+            baseContent: parentPlan.content,
+            kind: variantKind,
+            neeCodes: validNeeCodes,
+            studentName: body.diac_student_name || null,
+            gradoReal: body.diac_grado_real || null,
+          })
+        : (
+            await generateWithContinuation({
+              prompt: buildNeeAdaptationPrompt({
+                regularContent: compactRegularPlanForVariant(parentPlan.content, parentIsTrimester),
+                kind: variantKind,
+                neeCodes: validNeeCodes,
+                subject: body.subject || parentPlan.subject,
+                grade: body.grade || parentPlan.grade,
+                topic: body.topic || parentPlan.topic,
+                duration: body.duration || parentPlan.duration,
+                type: parentPlan.type,
+                studentName: body.diac_student_name || null,
+                gradoReal: body.diac_grado_real || null,
+              }),
+              maxTokens: 5200,
+              continuationMaxPasses: 1,
+              model: 'claude-sonnet-4-5',
+            })
+          ).content
 
       const variantLabel = variantKind === 'diac' ? 'DIAC' : 'NEE'
       const variantTitle = `${String(parentPlan.title).slice(0, 80)} — ${variantLabel}`.slice(0, 100)
@@ -866,7 +976,7 @@ export async function POST(request: NextRequest) {
           topic: body.topic || parentPlan.topic,
           duration: body.duration || parentPlan.duration,
           methodologies: parentPlan.methodologies || [],
-          content: variantGeneration.content,
+          content: variantContent,
           tipo_documento: variantKind,
           parent_planificacion_id: parentPlan.id,
           nee_tipos: validNeeCodes,
@@ -892,7 +1002,7 @@ export async function POST(request: NextRequest) {
         planificacion: parentPlan,
         variant: savedVariant,
         variants: [savedVariant],
-        truncated: variantGeneration.truncated,
+        truncated: false,
       })
     }
 
