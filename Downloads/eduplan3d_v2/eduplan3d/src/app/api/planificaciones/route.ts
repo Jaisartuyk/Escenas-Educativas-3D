@@ -517,6 +517,79 @@ function buildFocusedTrimesterVariantContent(opts: {
   ].join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
+/**
+ * Post-process AI-generated markdown to fix broken tables.
+ * If a data row has MORE pipe-separated cells than the header,
+ * the extra cells get merged back into the last valid cell.
+ * This fixes the "table anidada" problem where AI puts | inside cell text.
+ */
+function sanitizeMarkdownTables(md: string): string {
+  const lines = md.split('\n')
+  const out: string[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const trimmed = lines[i].trim()
+
+    // Not a table line — pass through
+    if (!trimmed.startsWith('|')) {
+      out.push(lines[i])
+      i++
+      continue
+    }
+
+    // Collect all consecutive table lines
+    const tableLines: string[] = []
+    while (i < lines.length && lines[i].trim().startsWith('|')) {
+      tableLines.push(lines[i].trim())
+      i++
+    }
+
+    // Find header row (first non-separator line)
+    const sepRegex = /^\|[\s\-:|]+\|$/
+    const headerIdx = tableLines.findIndex(l => !sepRegex.test(l))
+    if (headerIdx === -1) {
+      // All separator? Just pass through
+      out.push(...tableLines)
+      continue
+    }
+
+    const headerLine = tableLines[headerIdx]
+    const expectedCols = headerLine.split('|').filter((_, idx, arr) =>
+      idx > 0 && idx < arr.length - 1
+    ).length
+
+    // Rebuild each line, merging excess cells
+    for (const tl of tableLines) {
+      if (sepRegex.test(tl)) {
+        // Rebuild separator with correct column count
+        out.push('|' + ' --- |'.repeat(expectedCols))
+        continue
+      }
+
+      // Split into raw cells (remove leading/trailing empty from split)
+      let rawInner = tl
+      if (rawInner.startsWith('|')) rawInner = rawInner.substring(1)
+      if (rawInner.endsWith('|')) rawInner = rawInner.substring(0, rawInner.length - 1)
+      const cells = rawInner.split('|').map(c => c.trim())
+
+      if (cells.length <= expectedCols) {
+        // Pad if needed
+        while (cells.length < expectedCols) cells.push('')
+        out.push('| ' + cells.join(' | ') + ' |')
+      } else {
+        // Too many cells — merge extras into the last valid cell
+        const fixed = cells.slice(0, expectedCols - 1)
+        const merged = cells.slice(expectedCols - 1).join(', ')
+        fixed.push(merged)
+        out.push('| ' + fixed.join(' | ') + ' |')
+      }
+    }
+  }
+
+  return out.join('\n')
+}
+
 function buildFastTrimesterVariantContent(opts: {
   baseContent: string
   kind: 'nee_sin_disc' | 'diac'
@@ -1126,7 +1199,8 @@ INSTRUCCIONES:
     ? `Como esta adaptación es trimestral, consolida TODA la planificación en UNA SOLA TABLA PRINCIPAL (Matriz Única de Adaptaciones) con EXACTAMENTE 6 columnas. Usa ESTE encabezado estricto y no agregues columnas extra al final:
 | Unidad / Temas | Destrezas con criterios de desempeño | Estrategias metodológicas | Recursos | Indicadores de evaluación | Técnicas e instrumentos |
 |---|---|---|---|---|---|
-Si la planificación original incluye rúbricas de calificación u otras tablas anexas, conviértelas a listas de texto normal. NO generes más de una tabla.`
+Si la planificación original incluye rúbricas de calificación u otras tablas anexas, conviértelas a listas de texto normal. NO generes más de una tabla.
+¡REGLA DE ORO!: ESTRICTAMENTE PROHIBIDO usar el carácter \`|\` (barra vertical) dentro del texto de las celdas. Markdown no soporta tablas anidadas. Si necesitas representar una "tabla de características" o "rúbrica" dentro de una celda, hazlo usando listas con guiones (\`-\`). Si usas \`|\` romperás el sistema.`
     : 'Si la planificación regular trae subtemas o temas dentro de tablas o bloques, consérvalos y adáptalos; no los elimines ni alteres el formato original de la tabla semanal.'}
 3. En la tabla principal, ${isSignificativa
     ? 'REESCRIBE la DCD al nivel real del estudiante. Usa códigos de DCD de ese grado. El indicador debe ser funcional/autónomo, no comparativo con el grupo.'
@@ -1289,6 +1363,9 @@ export async function POST(request: NextRequest) {
         })
       ).content
 
+      // Reparar tablas rotas (pipes internos que crean columnas fantasma)
+      const cleanedVariantContent = sanitizeMarkdownTables(variantContent || '')
+
       const variantLabel = variantKind === 'diac' ? 'DIAC' : 'NEE'
       const variantTitle = `${Array.from(String(parentPlan.title)).slice(0, 80).join('')} — ${variantLabel}`.slice(0, 100)
 
@@ -1301,7 +1378,7 @@ export async function POST(request: NextRequest) {
         topic: body.topic || parentPlan.topic,
         duration: body.duration || parentPlan.duration,
         methodologies: Array.isArray(parentPlan.methodologies) ? parentPlan.methodologies : [],
-        content: variantContent || '',
+        content: cleanedVariantContent,
         tipo_documento: variantKind,
         parent_planificacion_id: parentPlan.id,
         nee_tipos: Array.isArray(validNeeCodes) ? validNeeCodes : [],

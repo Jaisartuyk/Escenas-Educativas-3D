@@ -83,8 +83,12 @@ function parseMarkdownToNodes(md: string): DocNode[] {
       // Parse table
       const dataRows = tableLines.filter(l => !/^\|[\s\-:|]+\|$/.test(l))
       if (dataRows.length > 0) {
-        const parseRow = (line: string): string[] =>
-          line.split('|').slice(1, -1).map(c => c.trim())
+        const parseRow = (line: string): string[] => {
+          let trimmed = line.trim()
+          if (trimmed.startsWith('|')) trimmed = trimmed.substring(1)
+          if (trimmed.endsWith('|')) trimmed = trimmed.substring(0, trimmed.length - 1)
+          return trimmed.split('|').map(c => c.trim())
+        }
         const headers = parseRow(dataRows[0])
         const rows = dataRows.slice(1).map(parseRow)
         nodes.push({ type: 'table', headers, rows })

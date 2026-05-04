@@ -1,0 +1,17 @@
+# Dependencias y Compilación
+node_modules/
+.next/
+tsconfig.tsbuildinfo
+
+# Temporales y Logs
+tmp/
+*.log
+*.tmp
+debug_users.json
+git_status.txt
+letamendi_analysis.json
+letamendi_analysis.txt
+
+# Entorno y Base de Datos
+.env.local
+.supabase/

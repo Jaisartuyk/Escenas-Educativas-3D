@@ -277,6 +277,14 @@ export function ProfileDetailsPanel({
                   <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Nombres Completos</label>
                   <input value={data.mother_name || ''} onChange={e => setData({...data, mother_name: e.target.value})} placeholder="Ej. Ana Villamar" className="input-base" />
                 </div>
+                <div>
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Cédula</label>
+                  <input value={data.mother_dni || ''} onChange={e => setData({...data, mother_dni: e.target.value})} placeholder="09XXXXXXXX" className="input-base" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Cedula</label>
+                  <input value={data.father_dni || ''} onChange={e => setData({...data, father_dni: e.target.value})} placeholder="09XXXXXXXX" className="input-base" />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 flex items-center gap-1.5"><Phone size={12}/> Teléfono</label>

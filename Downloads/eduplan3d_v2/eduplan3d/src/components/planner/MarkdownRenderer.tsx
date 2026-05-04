@@ -167,19 +167,22 @@ function renderTable(lines: string[]): string {
   if (dataRows.length === 0) return ''
 
   const parseRow = (line: string): string[] => {
-    return line.split('|').slice(1, -1).map(cell => cell.trim())
+    let trimmed = line.trim()
+    if (trimmed.startsWith('|')) trimmed = trimmed.substring(1)
+    if (trimmed.endsWith('|')) trimmed = trimmed.substring(0, trimmed.length - 1)
+    return trimmed.split('|').map(cell => cell.trim())
   }
 
   const headerCells = parseRow(dataRows[0])
   const bodyRows = dataRows.slice(1)
 
   let html = '<div class="overflow-x-auto my-4 rounded-lg border border-gray-300">'
-  html += '<table class="w-full text-[11px] border-collapse">'
+  html += '<table class="w-full text-[11px] border-collapse" style="table-layout:fixed;">'
 
   // Header
   html += '<thead><tr class="bg-gray-100">'
   headerCells.forEach(cell => {
-    html += `<th class="border border-gray-300 px-3 py-2 text-left font-bold text-gray-800 text-[11px] align-top" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;">${inlineFormat(cell)}</th>`
+    html += `<th class="border border-gray-300 px-3 py-2 text-left font-bold text-gray-800 text-[11px] align-top whitespace-pre-line min-w-[120px]">${inlineFormat(cell)}</th>`
   })
   html += '</tr></thead>'
 
@@ -192,7 +195,7 @@ function renderTable(lines: string[]): string {
       html += `<tr class="${bg}">`
       cells.forEach((cell, ci) => {
         const isFirstCol = ci === 0
-        html += `<td class="border border-gray-300 px-3 py-2 ${isFirstCol ? 'font-medium' : ''} text-gray-700 align-top" style="white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;">${inlineFormat(cell)}</td>`
+        html += `<td class="border border-gray-300 px-3 py-2 ${isFirstCol ? 'font-medium' : ''} text-gray-700 align-top whitespace-pre-line">${inlineFormat(cell)}</td>`
       })
       html += '</tr>'
     })
