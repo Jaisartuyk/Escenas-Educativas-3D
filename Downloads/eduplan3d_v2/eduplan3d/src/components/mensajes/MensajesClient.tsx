@@ -83,15 +83,21 @@ function avatarColor(id: string): string {
   return palette[h % palette.length]
 }
 
-function conversationLabel(c: Conversation, meId: string): { title: string; subtitle: string; avatarId: string } {
+function conversationLabel(c: Conversation, meId: string, meRole?: string): { title: string; subtitle: string; avatarId: string } {
   if (c.type === 'bulletin') {
     return { title: c.title || 'Boletín', subtitle: c.last_message_preview || '', avatarId: c.id }
   }
-  const other = (c.participants || []).find(p => p.user_id !== meId)
+  const others = (c.participants || []).filter(p => p.user_id !== meId)
+  const other =
+    (meRole === 'parent'
+      ? others.find(p => p.user_role !== 'student' && p.user_role !== 'parent')
+      : undefined) ||
+    others.find(p => p.user_role !== 'student') ||
+    others[0]
   if (!other) return { title: 'Conversación', subtitle: c.last_message_preview || '', avatarId: c.id }
   let title = other.full_name || 'Contacto'
   let subtitle = c.last_message_preview || ''
-  if (other.user_role === 'student') title = `Representante de ${other.full_name}`
+  if (meRole !== 'parent' && other.user_role === 'student') title = `Representante de ${other.full_name}`
   return { title, subtitle, avatarId: other.user_id }
 }
 
@@ -333,11 +339,11 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
   const filteredConvs = useMemo(() => {
     if (!search.trim()) return conversations
     const s = search.toLowerCase()
-    return conversations.filter(c => {
-      const { title, subtitle } = conversationLabel(c, me.id)
+      return conversations.filter(c => {
+      const { title, subtitle } = conversationLabel(c, me.id, me.role)
       return title.toLowerCase().includes(s) || subtitle.toLowerCase().includes(s)
     })
-  }, [conversations, search, me.id])
+  }, [conversations, search, me.id, me.role])
 
   const selected = conversations.find(c => c.id === selectedId) || null
 
@@ -395,7 +401,7 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
               </p>
             </div>
           ) : filteredConvs.map(c => {
-            const { title, subtitle, avatarId } = conversationLabel(c, me.id)
+            const { title, subtitle, avatarId } = conversationLabel(c, me.id, me.role)
             const isActive = c.id === selectedId
             const isBulletin = c.type === 'bulletin'
             return (
@@ -561,9 +567,15 @@ function ThreadHeader({
   me: Me; conversation: Conversation; onBack: () => void
   onDelete?: (convId: string, isBulletin: boolean) => void
 }) {
-  const { title, avatarId } = conversationLabel(conversation, me.id)
+  const { title, avatarId } = conversationLabel(conversation, me.id, me.role)
   const isBulletin = conversation.type === 'bulletin'
-  const other = (conversation.participants || []).find(p => p.user_id !== me.id)
+  const others = (conversation.participants || []).filter(p => p.user_id !== me.id)
+  const other =
+    (me.role === 'parent'
+      ? others.find(p => p.user_role !== 'student' && p.user_role !== 'parent')
+      : undefined) ||
+    others.find(p => p.user_role !== 'student') ||
+    others[0]
   const subtitle = isBulletin
     ? `Boletín · ${(conversation.participants || []).length - 1} destinatario${(conversation.participants || []).length - 1 !== 1 ? 's' : ''}`
     : (other?.user_role === 'teacher' || other?.role === 'teacher') ? 'Docente tutor'
