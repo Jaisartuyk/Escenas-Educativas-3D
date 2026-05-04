@@ -163,23 +163,24 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
     return () => clearInterval(t)
   }, [loadConversations])
 
-  async function loadMessages(conversationId: string) {
-    setLoadingMsgs(true)
+  async function loadMessages(conversationId: string, silent = false) {
+    if (!silent && messages.length === 0) setLoadingMsgs(true)
     setMsgsError(null)
     try {
       const res = await fetch(`/api/mensajes/conversations/${conversationId}/messages`)
       const json = await res.json()
       if (!res.ok) {
         setMsgsError(json?.error || `Error ${res.status}`)
-        setMessages([])
-        setReceipts({})
+        if (!silent) setMessages([])
       } else {
         setMessages(json.messages || [])
         setReceipts(json.receipts || {})
       }
     } catch (e: any) {
-      setMsgsError(e?.message || 'Error de red')
-      setMessages([])
+      if (!silent) {
+        setMsgsError(e?.message || 'Error de red')
+        setMessages([])
+      }
     } finally {
       setLoadingMsgs(false)
     }
@@ -223,7 +224,7 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
         body: JSON.stringify({ body }),
       })
       if (res.ok) {
-        await loadMessages(selectedId)
+        await loadMessages(selectedId, true)
         loadConversations()
       } else {
         setInput(body) // devolver al textarea si falla
