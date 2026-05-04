@@ -248,7 +248,7 @@ export async function POST(req: NextRequest) {
   
   const profMap = new Map(profs.map((p: any) => [p.id, p]))
   const participants = fullParts.map((p: any) => {
-    const prof = profMap.get(p.user_id)
+    const prof = profMap.get(p.user_id) as any
     return {
       user_id: p.user_id,
       role: p.role,
