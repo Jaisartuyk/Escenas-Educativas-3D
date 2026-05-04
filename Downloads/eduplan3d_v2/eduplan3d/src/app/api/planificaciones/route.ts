@@ -185,22 +185,46 @@ Esta adaptacion responde a la necesidad educativa identificada y permite que el 
 
 function extractMarkdownSection(content: string, heading: string) {
   const normalized = String(content || '')
-  const headingText = heading.replace(/^#{1,4}\s*/, '').trim()
-  const escaped = headingText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const headingLevel = (heading.match(/^#{1,4}/)?.[0].length) || 1
-  const startRegex = new RegExp(`(^|\\n)(#{1,4})\\s*${escaped}\\s*\\n`, 'i')
-  const startMatch = normalized.match(startRegex)
-  if (!startMatch || startMatch.index == null) return ''
+  // Limpiar el heading para la busqueda (quitar #, espacios y tildes comunes)
+  const cleanSearch = heading.replace(/^#{1,4}\s*/, '').trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quitar tildes
+    .replace(/\.$/, '') // Quitar punto final si existe
 
-  const contentStart = startMatch.index + startMatch[0].length
-  const rest = normalized.slice(contentStart)
-  const boundaryRegex = new RegExp(`\\n#{1,${headingLevel}}\\s+`)
-  const boundaryMatch = rest.match(boundaryRegex)
-  const body = boundaryMatch && boundaryMatch.index != null
-    ? rest.slice(0, boundaryMatch.index).trim()
-    : rest.trim()
+  const lines = normalized.split(/\r?\n/)
+  let startIdx = -1
+  let headingLevel = 3
 
-  return `${heading}\n${body}`.trim()
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line.startsWith('#')) continue
+
+    const match = line.match(/^(#{1,4})\s*(.*)$/)
+    if (!match) continue
+
+    const level = match[1].length
+    const text = match[2].trim().toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/\.$/, '')
+
+    // Busqueda flexible: el titulo contiene o es igual al buscado
+    if (text.includes(cleanSearch) || cleanSearch.includes(text)) {
+      startIdx = i
+      headingLevel = level
+      break
+    }
+  }
+
+  if (startIdx === -1) return ''
+
+  const resultLines = [lines[startIdx]]
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    const line = lines[i]
+    const match = line.match(/^(#{1,4})\s+/)
+    if (match && match[1].length <= headingLevel) break
+    resultLines.push(line)
+  }
+
+  return resultLines.join('\n').trim()
 }
 
 function extractTitleBlock(content: string) {
@@ -215,12 +239,14 @@ function extractFirstMarkdownTable(section: string) {
   let started = false
 
   for (const line of lines) {
-    if (/^\s*\|/.test(line)) {
+    const trimmed = line.trim()
+    if (/^\|/.test(trimmed)) {
       started = true
-      tableLines.push(line.trim())
+      tableLines.push(trimmed)
       continue
     }
-    if (started) break
+    if (started && trimmed === '') continue // Permitir lineas vacias dentro de la tabla si son accidentales
+    if (started && !/^\|/.test(trimmed)) break
   }
 
   return tableLines.join('\n').trim()
@@ -379,17 +405,22 @@ function buildFocusedTrimesterVariantContent(opts: {
   const planSection = extractMarkdownSection(opts.baseContent, '### 2. PLANIFICACION')
   const adaptSection = extractMarkdownSection(opts.baseContent, '### 3. ADAPTACIONES CURRICULARES')
 
-  const table21 = parseMarkdownTable(extractFirstMarkdownTable(extractMarkdownSection(planSection, '#### 2.1 Temas + Destrezas + Indicadores')) || '')
-  const table22 = parseMarkdownTable(extractFirstMarkdownTable(extractMarkdownSection(planSection, '#### 2.2 Estrategias metodologicas (DUA) + Recursos')) || '')
-  const table23 = parseMarkdownTable(extractFirstMarkdownTable(extractMarkdownSection(planSection, '#### 2.3 Estrategias para la evaluacion')) || '')
+  const title = titleBlock || '# PLANIFICACION MICROCURRICULAR DISCIPLINAR O INTERDISCIPLINAR'
+  const dataBlock = dataSection || '### 1. DATOS INFORMATIVOS'
+
+  // Si no se encuentra la seccion de planificacion, intentar buscar por nro en el contenido completo
+  const section21Content = extractMarkdownSection(planSection || opts.baseContent, '2.1 Temas')
+  const section22Content = extractMarkdownSection(planSection || opts.baseContent, '2.2 Estrategias')
+  const section23Content = extractMarkdownSection(planSection || opts.baseContent, '2.3 Estrategias')
+
+  const table21 = parseMarkdownTable(extractFirstMarkdownTable(section21Content) || '')
+  const table22 = parseMarkdownTable(extractFirstMarkdownTable(section22Content) || '')
+  const table23 = parseMarkdownTable(extractFirstMarkdownTable(section23Content) || '')
 
   const adaptationLabel = buildAdaptationLabel(opts)
   const adaptationSummary = opts.kind === 'diac'
     ? `Reescritura significativa al grado curricular real${opts.gradoReal ? ` (${opts.gradoReal})` : ''}, mediación intensiva, evaluación por progreso individual y adecuación de recursos.`
     : 'Ajustes no significativos en metodología, recursos, tiempos, apoyos y forma de evaluación, manteniendo la destreza del grupo.'
-
-  const title = titleBlock || '# PLANIFICACION MICROCURRICULAR DISCIPLINAR O INTERDISCIPLINAR'
-  const dataBlock = dataSection || '### 1. DATOS INFORMATIVOS'
 
   const dataAdaptationTable = renderMarkdownTable(
     ['Campo', 'Valor'],
@@ -402,7 +433,7 @@ function buildFocusedTrimesterVariantContent(opts: {
   const section21 = table21
     ? renderMarkdownTable(table21.headers, adaptTrimesterRows(table21.rows, opts))
     : renderMarkdownTable(
-        ['Temas', 'Destrezas/Contenidos BT/', 'Indicadores de evaluacion/Criterio de evaluacion BT |'],
+        ['Temas', 'Destrezas/Contenidos BT/', 'Indicadores de evaluacion/Criterio de evaluacion BT'],
         [[
           'Tema por completar',
           opts.kind === 'diac'
