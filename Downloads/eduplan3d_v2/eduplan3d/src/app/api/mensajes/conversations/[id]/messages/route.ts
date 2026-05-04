@@ -12,10 +12,51 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const admin = createAdminClient()
 
-  const { data: part } = await (admin as any)
+  let part = null
+  const { data: existingPart } = await (admin as any)
     .from('conversation_participants')
     .select('conversation_id')
     .eq('conversation_id', params.id).eq('user_id', user.id).maybeSingle()
+  part = existingPart
+
+  // Si el usuario NO es participante, verificar si es un padre con acceso legítimo
+  // (padre representante del estudiante vinculado a esta conversación).
+  // Esto repara conversaciones antiguas creadas sin el padre como participante.
+  if (!part) {
+    const { data: me } = await (admin as any)
+      .from('profiles').select('id, role').eq('id', user.id).single()
+
+    if (me?.role === 'parent') {
+      // Buscar la conversación para ver de qué estudiante se trata
+      const { data: conv } = await (admin as any)
+        .from('conversations')
+        .select('id, student_id, type')
+        .eq('id', params.id)
+        .maybeSingle()
+
+      if (conv?.student_id) {
+        // Verificar que el padre tiene este estudiante vinculado
+        const { data: link } = await (admin as any)
+          .from('parent_links')
+          .select('child_id')
+          .eq('parent_id', user.id)
+          .eq('child_id', conv.student_id)
+          .maybeSingle()
+
+        if (link) {
+          // El padre tiene derecho: añadirlo como participante (reparación automática)
+          await (admin as any)
+            .from('conversation_participants')
+            .upsert(
+              { conversation_id: params.id, user_id: user.id, role: 'parent' },
+              { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+            )
+          part = { conversation_id: params.id }
+        }
+      }
+    }
+  }
+
   if (!part) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const before = req.nextUrl.searchParams.get('before')
