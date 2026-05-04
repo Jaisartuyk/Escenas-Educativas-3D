@@ -235,5 +235,33 @@ export async function POST(req: NextRequest) {
         { conversation_id: conv.id, user_id: partnerId, role: other.role === 'parent' ? 'parent' : other.role === 'student' ? 'student' : 'tutor' },
       ]
   await (admin as any).from('conversation_participants').insert(parts)
-  return NextResponse.json({ conversation: conv })
+
+  // Devolver la conversación con sus participantes para que el frontend pueda mostrarla correctamente de inmediato
+  const { data: fullParts } = await (admin as any)
+    .from('conversation_participants')
+    .select('user_id, role')
+    .eq('conversation_id', conv.id)
+  
+  const userIds = fullParts.map((p: any) => p.user_id)
+  const { data: profs } = await (admin as any)
+    .from('profiles').select('id, full_name, role').in('id', userIds)
+  
+  const profMap = new Map(profs.map((p: any) => [p.id, p]))
+  const participants = fullParts.map((p: any) => {
+    const prof = profMap.get(p.user_id) as any
+    return {
+      user_id: p.user_id,
+      role: p.role,
+      full_name: prof?.full_name || '',
+      user_role: prof?.role || ''
+    }
+  })
+
+  return NextResponse.json({ 
+    conversation: { 
+      ...conv, 
+      participants,
+      unread: 0
+    } 
+  })
 }

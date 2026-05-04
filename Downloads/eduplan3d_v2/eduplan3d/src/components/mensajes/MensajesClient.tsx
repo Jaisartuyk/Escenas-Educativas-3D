@@ -87,7 +87,7 @@ function conversationLabel(c: Conversation, meId: string): { title: string; subt
   if (c.type === 'bulletin') {
     return { title: c.title || 'Boletín', subtitle: c.last_message_preview || '', avatarId: c.id }
   }
-  const other = c.participants.find(p => p.user_id !== meId)
+  const other = (c.participants || []).find(p => p.user_id !== meId)
   if (!other) return { title: 'Conversación', subtitle: c.last_message_preview || '', avatarId: c.id }
   let title = other.full_name || 'Contacto'
   let subtitle = c.last_message_preview || ''
@@ -548,9 +548,9 @@ function ThreadHeader({
 }) {
   const { title, avatarId } = conversationLabel(conversation, me.id)
   const isBulletin = conversation.type === 'bulletin'
-  const other = conversation.participants.find(p => p.user_id !== me.id)
+  const other = (conversation.participants || []).find(p => p.user_id !== me.id)
   const subtitle = isBulletin
-    ? `Boletín · ${conversation.participants.length - 1} destinatario${conversation.participants.length - 1 !== 1 ? 's' : ''}`
+    ? `Boletín · ${(conversation.participants || []).length - 1} destinatario${(conversation.participants || []).length - 1 !== 1 ? 's' : ''}`
     : other?.user_role === 'teacher' ? 'Docente tutor'
     : other?.user_role === 'student' ? 'Representante / Estudiante'
     : 'Administración'
@@ -580,7 +580,7 @@ function ThreadHeader({
       </div>
       {isBulletin && (
         <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-ink4">
-          <Users size={12} /> {conversation.participants.length - 1}
+          <Users size={12} /> {(conversation.participants || []).length - 1}
         </div>
       )}
       {canDelete && onDelete && (
@@ -614,7 +614,7 @@ function MessageList({
     last.items.push(m)
   }
 
-  const nonMeCount = conversation.participants.filter(p => p.user_id !== conversation.created_by).length
+  const nonMeCount = (conversation.participants || []).filter(p => p.user_id !== conversation.created_by).length
 
   return (
     <>
