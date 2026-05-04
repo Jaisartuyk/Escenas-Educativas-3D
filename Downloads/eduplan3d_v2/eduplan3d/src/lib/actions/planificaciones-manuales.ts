@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sanitizePlanHtml } from '@/lib/sanitize/plan-html'
+import { createAppNotifications } from '@/lib/notifications'
 
 export type PlanManualStatus = 'borrador' | 'publicada'
 
@@ -158,7 +159,7 @@ export async function saveSupervisorNotes(input: {
 
   // Verificar que la planificación pertenece a la misma institución
   const { data: plan } = await (admin as any)
-    .from('planificaciones_manuales').select('institution_id').eq('id', input.id).single()
+    .from('planificaciones_manuales').select('institution_id, user_id, title').eq('id', input.id).single()
   if ((plan as any)?.institution_id !== prof?.institution_id) {
     return { ok: false, error: 'No autorizado' }
   }
@@ -172,6 +173,18 @@ export async function saveSupervisorNotes(input: {
     })
     .eq('id', input.id)
   if (error) return { ok: false, error: error.message }
+
+  if ((plan as any)?.user_id && (plan as any)?.user_id !== user.id) {
+    await createAppNotifications(admin as any, [{
+      userId: (plan as any).user_id,
+      category: 'planning',
+      title: 'Nueva retroalimentación en planificación',
+      body: (plan as any)?.title ? `Revisaron: ${(plan as any).title}` : 'Revisaron una de tus planificaciones.',
+      href: `/dashboard/planificaciones/${input.id}`,
+      metadata: { planId: input.id, reviewerRole: prof?.role || 'admin' },
+    }])
+  }
+
   revalidatePath('/dashboard/biblioteca')
   revalidatePath('/dashboard/planificaciones')
   revalidatePath(`/dashboard/planificaciones/${input.id}`)

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { teacherOwnsSubject, teacherOwnsAssignment } from '@/lib/auth/ownership'
+import { createStudentFamilyNotifications } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,12 @@ export async function POST(req: Request) {
   if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta materia' }, { status: 403 })
 
   const admin = createAdminClient()
+  const { data: subject } = await (admin as any)
+    .from('subjects')
+    .select('course_id, name')
+    .eq('id', body.subject_id)
+    .single()
+
   const { error } = await admin.from('assignments').insert({
     id:          body.id,
     subject_id:  body.subject_id,
@@ -31,6 +38,23 @@ export async function POST(req: Request) {
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if ((subject as any)?.course_id) {
+    const { data: enrollments } = await (admin as any)
+      .from('enrollments')
+      .select('student_id')
+      .eq('course_id', (subject as any).course_id)
+
+    const studentIds = ((enrollments || []) as any[]).map((row: any) => row.student_id).filter(Boolean)
+    await createStudentFamilyNotifications(admin as any, studentIds, {
+      category: 'assignment',
+      title: `Nueva tarea: ${body.title}`,
+      body: (subject as any)?.name ? `Materia: ${(subject as any).name}` : 'Tu docente publicó una nueva tarea.',
+      href: '/dashboard/alumno',
+      metadata: { assignmentId: body.id, subjectId: body.subject_id },
+    })
+  }
+
   return NextResponse.json({ success: true })
 }
 

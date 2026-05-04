@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createStudentFamilyNotifications } from '@/lib/notifications'
 
 type Action = 'approved' | 'rejected'
 
@@ -114,6 +115,16 @@ export async function POST(req: NextRequest) {
     if (updErr) {
       return NextResponse.json({ error: updErr.message }, { status: 500 })
     }
+
+    await createStudentFamilyNotifications(admin as any, [att.student_id], {
+      category: 'attendance',
+      title: action === 'approved' ? 'Justificación aprobada' : 'Justificación rechazada',
+      body: action === 'approved'
+        ? 'La institución revisó y aprobó tu justificación de asistencia.'
+        : 'La institución revisó tu justificación y la marcó como rechazada.',
+      href: '/dashboard/alumno',
+      metadata: { attendanceId, action },
+    })
 
     return NextResponse.json({ ok: true, attendanceId, action })
   } catch (err: any) {
