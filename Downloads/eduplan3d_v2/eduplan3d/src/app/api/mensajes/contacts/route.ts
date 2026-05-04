@@ -63,20 +63,54 @@ export async function GET(req: NextRequest) {
     >()
 
     for (const child of scopedChildren) {
+      // Primero intentar con la config de tutores del horario
       const tutors = await resolveTutorsForStudent(admin as any, child.childId)
       for (const t of tutors) {
         contacts.set(`${t.teacherId}:${child.childId}`, {
           userId: t.teacherId,
           fullName: t.teacherName,
           role: 'teacher',
-          subtitle: `${child.relationship} de ${child.fullName} · ${t.courseName}`,
+          subtitle: `Tutor · ${child.fullName} · ${t.courseName}`,
           studentId: child.childId,
         })
+      }
+
+      // Fallback: si no hay tutores configurados, mostrar todos los docentes
+      // que dictan materias en los cursos del estudiante
+      if (tutors.length === 0) {
+        const { data: enr } = await (admin as any)
+          .from('enrollments')
+          .select('course_id')
+          .eq('student_id', child.childId)
+
+        const courseIds = ((enr || []) as any[]).map((e: any) => e.course_id)
+        if (courseIds.length > 0) {
+          const { data: subjects } = await (admin as any)
+            .from('subjects')
+            .select('teacher_id, name, teacher:profiles!subjects_teacher_id_fkey(id, full_name)')
+            .in('course_id', courseIds)
+            .not('teacher_id', 'is', null)
+
+          const seenTeachers = new Set<string>()
+          for (const sub of (subjects || []) as any[]) {
+            const teacher = Array.isArray(sub.teacher) ? sub.teacher[0] : sub.teacher
+            if (!teacher?.id || seenTeachers.has(teacher.id)) continue
+            seenTeachers.add(teacher.id)
+            contacts.set(`${teacher.id}:${child.childId}`, {
+              userId: teacher.id,
+              fullName: teacher.full_name || 'Docente',
+              role: 'teacher',
+              subtitle: `Docente de ${child.fullName}`,
+              studentId: child.childId,
+            })
+          }
+        }
       }
     }
 
     return NextResponse.json({ contacts: Array.from(contacts.values()) })
   }
+
 
   if (STAFF_ROLES.includes(me.role)) {
     if (!me.institution_id) {

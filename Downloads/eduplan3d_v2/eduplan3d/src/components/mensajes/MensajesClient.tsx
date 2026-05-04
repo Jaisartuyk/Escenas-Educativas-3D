@@ -123,10 +123,12 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
   // Solo administración (admin/assistant/rector) puede publicar boletines.
   const canBroadcast = me.role === 'admin' || me.role === 'assistant' || me.role === 'rector'
 
+  // Cuando el padre cambia de hijo, resetear contactos para recargarlos con el hijo nuevo
+  const prevChildId = useRef(selectedChildId)
   useEffect(() => {
-    if (me.role === 'parent') {
+    if (me.role === 'parent' && prevChildId.current !== selectedChildId) {
       setContacts([])
-      setNewOpen(false)
+      prevChildId.current = selectedChildId
     }
   }, [me.role, selectedChildId])
 
@@ -742,8 +744,8 @@ function ContactsModal({ contacts, onClose, onPick }: { contacts: Contact[]; onC
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold truncate">{c.fullName}</p>
                 <p className="text-[11px] text-ink4 truncate flex items-center gap-1">
-                  {c.role === 'teacher' ? <GraduationCap size={10} /> : <BookOpen size={10} />}
-                  {c.subtitle || (c.role === 'teacher' ? 'Docente' : 'Estudiante')}
+                  {c.role === 'teacher' ? <GraduationCap size={10} /> : c.role === 'parent' ? <Users size={10} /> : <BookOpen size={10} />}
+                  {c.subtitle || (c.role === 'teacher' ? 'Docente' : c.role === 'parent' ? 'Representante' : 'Estudiante')}
                 </p>
               </div>
             </button>

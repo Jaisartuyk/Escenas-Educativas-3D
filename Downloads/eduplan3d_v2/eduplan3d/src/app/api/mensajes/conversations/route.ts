@@ -168,16 +168,33 @@ export async function POST(req: NextRequest) {
     const ok = tutors.some(t => t.teacherId === tutorId)
     if (!ok) return NextResponse.json({ error: 'El docente no es tutor del estudiante' }, { status: 403 })
   }
-  if (!isStaffPair && me.role === 'parent' && other.role === 'teacher') {
+  // Para padre→docente y docente→padre: validar con settings; si no hay config,
+  // verificar que el docente da clases al hijo vinculado.
+  if (!isStaffPair && (
+    (me.role === 'parent' && other.role === 'teacher') ||
+    (me.role === 'teacher' && other.role === 'parent')
+  )) {
     const tutors = await resolveTutorsForStudent(admin as any, studentId)
-    const ok = tutors.some(t => t.teacherId === tutorId)
-    if (!ok) return NextResponse.json({ error: 'El docente no es tutor del estudiante vinculado' }, { status: 403 })
-  }
-  // Caso nuevo: docente escribe a padre — validar que es tutor del hijo vinculado
-  if (!isStaffPair && me.role === 'teacher' && other.role === 'parent') {
-    const tutors = await resolveTutorsForStudent(admin as any, studentId)
-    const ok = tutors.some(t => t.teacherId === tutorId)
-    if (!ok) return NextResponse.json({ error: 'El docente no es tutor del estudiante vinculado al representante' }, { status: 403 })
+    const teacherInSettings = tutors.some(t => t.teacherId === tutorId)
+
+    if (!teacherInSettings) {
+      // Fallback: verificar que el docente realmente enseña al hijo
+      const { data: enr } = await (admin as any)
+        .from('enrollments').select('course_id').eq('student_id', studentId)
+      const courseIds = ((enr || []) as any[]).map((e: any) => e.course_id)
+      let teachesChild = false
+      if (courseIds.length > 0) {
+        const { data: subj } = await (admin as any)
+          .from('subjects').select('id')
+          .eq('teacher_id', tutorId)
+          .in('course_id', courseIds)
+          .limit(1).maybeSingle()
+        teachesChild = !!subj
+      }
+      if (!teachesChild) {
+        return NextResponse.json({ error: 'El docente no imparte clases al estudiante vinculado' }, { status: 403 })
+      }
+    }
   }
 
   // Buscar conversación directa existente entre los dos
