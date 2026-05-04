@@ -244,16 +244,27 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ partnerId: contact.userId, studentId: contact.studentId }),
       })
-      const json = await res.json()
-      if (json.conversation) {
+      
+      const text = await res.text()
+      let json: any = {}
+      try { json = JSON.parse(text) } catch (e) { 
+        throw new Error(`Error del servidor (${res.status}): El servidor no devolvió un JSON válido.`)
+      }
+
+      if (res.ok && json.conversation) {
         setNewOpen(false)
-        await loadConversations()
+        // Añadir a la lista localmente para que aparezca de inmediato sin esperar al polling
+        setConversations(prev => {
+          const exists = prev.find(c => c.id === json.conversation.id)
+          if (exists) return prev
+          return [json.conversation, ...prev]
+        })
         selectConversation(json.conversation.id)
       } else {
-        // Mostrar error sin cerrar el modal
         setChatError(json.error || `Error ${res.status}: No se pudo crear la conversación`)
       }
     } catch (e: any) {
+      console.error('Error starting chat:', e)
       setChatError(e?.message || 'Error de red al crear la conversación')
     } finally {
       setStartingChat(false)
