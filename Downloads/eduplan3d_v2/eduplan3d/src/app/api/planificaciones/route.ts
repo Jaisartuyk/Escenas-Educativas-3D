@@ -1121,22 +1121,24 @@ ${regularContent}
 ---
 
 INSTRUCCIONES:
-1. Produce UNA planificacion completa con la MISMA estructura de secciones que la regular. NO cambies el orden ni simplifiques bloques.
-2. Mantén el formato de tabla Markdown con las mismas columnas y subtítulos que tenga la regular.
-3. ${isTrimester
-    ? 'Como esta adaptación corresponde a una PLANIFICACION MICROCURRICULAR DISCIPLINAR O INTERDISCIPLINAR trimestral, debes conservar explícitamente la misma estructura de: 1) DATOS INFORMATIVOS, 2.1) tabla de TEMAS + DESTREZAS/CONTENIDOS + INDICADORES, 2.2) tabla de ESTRATEGIAS METODOLOGICAS (DUA) + RECURSOS, 2.3) ESTRATEGIAS PARA LA EVALUACION, y 3) ADAPTACIONES CURRICULARES. Los TEMAS son obligatorios también en la adaptación.'
-    : 'Si la planificación regular ya trae subtemas o temas dentro de tablas o bloques, consérvalos y adáptalos; no los elimines.'}
-4. En la tabla principal, ${isSignificativa
+1. Produce UNA planificacion completa con formato institucional.
+2. ${isTrimester
+    ? `Como esta adaptación es trimestral, consolida TODA la planificación en UNA SOLA TABLA PRINCIPAL (Matriz Única de Adaptaciones) con EXACTAMENTE 6 columnas. Usa ESTE encabezado estricto y no agregues columnas extra al final:
+| Unidad / Temas | Destrezas con criterios de desempeño | Estrategias metodológicas | Recursos | Indicadores de evaluación | Técnicas e instrumentos |
+|---|---|---|---|---|---|
+Si la planificación original incluye rúbricas de calificación u otras tablas anexas, conviértelas a listas de texto normal. NO generes más de una tabla.`
+    : 'Si la planificación regular trae subtemas o temas dentro de tablas o bloques, consérvalos y adáptalos; no los elimines ni alteres el formato original de la tabla semanal.'}
+3. En la tabla principal, ${isSignificativa
     ? 'REESCRIBE la DCD al nivel real del estudiante. Usa códigos de DCD de ese grado. El indicador debe ser funcional/autónomo, no comparativo con el grupo.'
-    : 'MANTÉN la DCD y el indicador del grado. Solo adapta las actividades, recursos y forma de evaluación.'}
-5. Si existe una columna o bloque de TEMAS en la regular, debes mantenerla completa. Cada fila o bloque de tema debe conservar su nombre temático y su alineación con destrezas e indicadores.
-6. En la columna de estrategias metodológicas aplica las adaptaciones descritas arriba.
-7. En RECURSOS incluye materiales específicos de la adaptación (pictogramas, lector de pantalla, material manipulable, etc.) además de los digitales.
-8. En EVALUACION ${isSignificativa
-    ? 'usa criterios individualizados propios del DIAC (observación de progreso, evidencias, no comparación con el grupo).'
-    : 'usa los MISMOS criterios del grupo, pero adaptados en forma (oral, tiempo extra, apoyos).'}
-9. Añade al final una sección "### JUSTIFICACION DE LA ADAPTACION" explicando brevemente por qué esta adaptación responde a la necesidad.
-10. Usa tablas Markdown limpias. Las celdas deben tener <br/> para saltos internos.`
+    : 'MANTÉN la DCD y el indicador del grado original. Solo adapta las actividades metodológicas, recursos y formas de evaluación técnica.'}
+4. En la columna de estrategias metodológicas aplica las adaptaciones pedagógicas (ej. segmentación, DUA, modelado, andamiaje).
+5. En RECURSOS incluye materiales específicos de la adaptación (pictogramas, material concreto, agenda visual, etc.) además de los regulares.
+6. En EVALUACION (Técnicas e instrumentos) ${isSignificativa
+    ? 'usa criterios individualizados propios del DIAC (observación de progreso, evidencias funcionales, oralidad).'
+    : 'usa los MISMOS criterios del grupo, pero adaptados en forma (oral, tiempo extra, apoyos visuales).'}
+7. ¡CRÍTICO! Bajo ninguna circunstancia elimines los íconos de competencias (ej. {{C}}, {{CM}}, {{CD}}, {{CS}}) ni las Inserciones Curriculares (ej. Inserción: Educación en Valores) que aparezcan en el plan original. Debes reubicar los íconos en la celda de Destrezas y las Inserciones en la celda de Estrategias según corresponda, manteniéndolos visibles.
+8. Añade al final una sección "### JUSTIFICACION DE LA ADAPTACION" explicando brevemente por qué esta adaptación responde a la necesidad del estudiante.
+9. Usa tablas Markdown limpias. Las celdas deben tener <br/> para saltos internos.`
 }
 
 export async function POST(request: NextRequest) {
@@ -1266,33 +1268,26 @@ export async function POST(request: NextRequest) {
       }
 
       const parentIsTrimester = (parentPlan.metadata as any)?.generationScope === 'trimestre'
-      const variantContent = parentIsTrimester
-        ? buildFastTrimesterVariantContent({
-            baseContent: parentPlan.content,
+      
+      const variantContent = (
+        await generateWithContinuation({
+          prompt: buildNeeAdaptationPrompt({
+            regularContent: compactRegularPlanForVariant(parentPlan.content, parentIsTrimester),
             kind: variantKind,
             neeCodes: validNeeCodes,
+            subject: body.subject || parentPlan.subject,
+            grade: body.grade || parentPlan.grade,
+            topic: body.topic || parentPlan.topic,
+            duration: body.duration || parentPlan.duration,
+            type: parentIsTrimester ? 'trimestre' : parentPlan.type,
             studentName: body.diac_student_name || null,
             gradoReal: body.diac_grado_real || null,
-          })
-        : (
-            await generateWithContinuation({
-              prompt: buildNeeAdaptationPrompt({
-                regularContent: compactRegularPlanForVariant(parentPlan.content, parentIsTrimester),
-                kind: variantKind,
-                neeCodes: validNeeCodes,
-                subject: body.subject || parentPlan.subject,
-                grade: body.grade || parentPlan.grade,
-                topic: body.topic || parentPlan.topic,
-                duration: body.duration || parentPlan.duration,
-                type: parentPlan.type,
-                studentName: body.diac_student_name || null,
-                gradoReal: body.diac_grado_real || null,
-              }),
-              maxTokens: 5200,
-              continuationMaxPasses: 1,
-              model: 'claude-sonnet-4-5',
-            })
-          ).content
+          }),
+          maxTokens: 5200,
+          continuationMaxPasses: parentIsTrimester ? 2 : 1, // El trimestre puede ser largo
+          model: parentIsTrimester ? 'claude-haiku-4-5' : 'claude-sonnet-4-5',
+        })
+      ).content
 
       const variantLabel = variantKind === 'diac' ? 'DIAC' : 'NEE'
       const variantTitle = `${Array.from(String(parentPlan.title)).slice(0, 80).join('')} — ${variantLabel}`.slice(0, 100)
