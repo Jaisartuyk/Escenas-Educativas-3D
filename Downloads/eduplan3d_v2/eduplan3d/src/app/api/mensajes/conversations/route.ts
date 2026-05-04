@@ -124,9 +124,25 @@ export async function POST(req: NextRequest) {
     participantRole = 'parent'
   } else if (me.role === 'teacher' && other.role === 'student') {
     studentId = other.id; tutorId = me.id
+  } else if (me.role === 'teacher' && other.role === 'parent') {
+    // Caso nuevo: docente escribe a padre/representante.
+    // Identificamos al hijo vinculado al padre para validar tutoría.
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, other.id, studentContext || undefined)
+    if (!linkedChild) {
+      return NextResponse.json({ error: 'El representante no tiene un estudiante vinculado' }, { status: 403 })
+    }
+    studentId = linkedChild.childId
+    tutorId = me.id
+    participantRole = 'parent'  // el otro (padre) se registra con rol 'parent'
   } else if ((me.role === 'admin' || me.role === 'assistant') && other.role === 'student') {
     studentId = other.id
     tutorId = ''
+  } else if ((me.role === 'admin' || me.role === 'assistant') && other.role === 'parent') {
+    // admin/assistant → padre: permitido, identificamos hijo principal
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, other.id, studentContext || undefined)
+    studentId = linkedChild?.childId || ''
+    tutorId = ''
+    participantRole = 'parent'
   } else if (other.role === 'admin' || other.role === 'assistant') {
     // estudiante o padre escribiendo a admin → permitido
     if (me.role === 'parent') {
@@ -156,6 +172,12 @@ export async function POST(req: NextRequest) {
     const tutors = await resolveTutorsForStudent(admin as any, studentId)
     const ok = tutors.some(t => t.teacherId === tutorId)
     if (!ok) return NextResponse.json({ error: 'El docente no es tutor del estudiante vinculado' }, { status: 403 })
+  }
+  // Caso nuevo: docente escribe a padre — validar que es tutor del hijo vinculado
+  if (!isStaffPair && me.role === 'teacher' && other.role === 'parent') {
+    const tutors = await resolveTutorsForStudent(admin as any, studentId)
+    const ok = tutors.some(t => t.teacherId === tutorId)
+    if (!ok) return NextResponse.json({ error: 'El docente no es tutor del estudiante vinculado al representante' }, { status: 403 })
   }
 
   // Buscar conversación directa existente entre los dos
@@ -190,8 +212,10 @@ export async function POST(req: NextRequest) {
         { conversation_id: conv.id, user_id: partnerId,  role: 'staff' },
       ]
     : [
-        { conversation_id: conv.id, user_id: user.id,                role: participantRole },
-        { conversation_id: conv.id, user_id: tutorId   || partnerId, role: 'tutor'   },
+        // El iniciador siempre va con su propio rol
+        { conversation_id: conv.id, user_id: user.id,   role: me.role === 'parent' ? 'parent' : me.role === 'student' ? 'student' : 'tutor' },
+        // El receptor: si es padre se registra como 'parent', si es tutor como 'tutor', si es alumno como 'student'
+        { conversation_id: conv.id, user_id: partnerId, role: other.role === 'parent' ? 'parent' : other.role === 'student' ? 'student' : 'tutor' },
       ]
   await (admin as any).from('conversation_participants').insert(parts)
   return NextResponse.json({ conversation: conv })
