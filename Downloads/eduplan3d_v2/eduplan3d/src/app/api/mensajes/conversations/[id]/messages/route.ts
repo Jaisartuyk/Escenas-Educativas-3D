@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createAppNotifications } from '@/lib/notifications'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const supabase = createClient()
@@ -157,6 +158,30 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     .from('conversation_participants')
     .update({ last_read_at: msg.created_at })
     .eq('conversation_id', params.id).eq('user_id', user.id)
+
+  const [{ data: me }, { data: participants }] = await Promise.all([
+    (admin as any).from('profiles').select('full_name').eq('id', user.id).single(),
+    (admin as any)
+      .from('conversation_participants')
+      .select('user_id')
+      .eq('conversation_id', params.id),
+  ])
+
+  const recipientIds = ((participants || []) as any[])
+    .map((p: any) => p.user_id)
+    .filter((id: string) => id && id !== user.id)
+
+  await createAppNotifications(
+    admin as any,
+    recipientIds.map((recipientId: string) => ({
+      userId: recipientId,
+      category: 'message',
+      title: `Nuevo mensaje de ${me?.full_name || 'un contacto'}`,
+      body: text.length > 140 ? `${text.slice(0, 137)}...` : text,
+      href: '/dashboard/mensajes',
+      metadata: { conversationId: params.id, senderId: user.id },
+    })),
+  )
 
   return NextResponse.json({ message: msg })
 }

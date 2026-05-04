@@ -363,15 +363,6 @@ export function Sidebar({
     }
   }, [hasMessagesItem, role, plan])
 
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    const baseTitle = 'ClassNova'
-    document.title = unreadTotal > 0 ? `(${unreadTotal}) ${baseTitle}` : baseTitle
-    return () => {
-      document.title = baseTitle
-    }
-  }, [unreadTotal])
-
   // Check if any item in a group is active
   const isGroupActive = (group: NavGroup) =>
     group.items.some(item => isActive(item.href))

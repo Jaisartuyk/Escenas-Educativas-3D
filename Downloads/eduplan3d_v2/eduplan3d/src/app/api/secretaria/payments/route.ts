@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/ownership'
+import { createStudentFamilyNotifications } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,6 +52,17 @@ export async function POST(req: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if ((data as any)?.student_id) {
+    await createStudentFamilyNotifications(admin as any, [(data as any).student_id], {
+      category: 'finance',
+      title: 'Nuevo valor registrado',
+      body: `${(data as any).description || 'Secretaría registró un nuevo cobro.'}`,
+      href: '/dashboard/finanzas',
+      metadata: { paymentId: (data as any).id, type: (data as any).type, amount: (data as any).amount },
+    })
+  }
+
   return NextResponse.json({ data })
 }
 
@@ -72,7 +84,7 @@ export async function PATCH(req: Request) {
   const admin = createAdminClient()
   const { data: existing } = await admin
     .from('payments' as any)
-    .select('institution_id')
+    .select('institution_id, student_id, status, description, amount, type')
     .eq('id', id)
     .single()
   if ((existing as any)?.institution_id !== profile.institution_id) {
@@ -90,6 +102,20 @@ export async function PATCH(req: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if ((data as any)?.student_id) {
+    const becamePaid = (existing as any)?.status !== 'pagado' && (data as any)?.status === 'pagado'
+    await createStudentFamilyNotifications(admin as any, [(data as any).student_id], {
+      category: 'finance',
+      title: becamePaid ? 'Pago registrado' : 'Actualización financiera',
+      body: becamePaid
+        ? `${(data as any).description || 'Se registró un pago.'}`
+        : `${(data as any).description || 'Secretaría actualizó un valor.'}`,
+      href: '/dashboard/finanzas',
+      metadata: { paymentId: (data as any).id, type: (data as any).type, amount: (data as any).amount, status: (data as any).status },
+    })
+  }
+
   return NextResponse.json({ data })
 }
 

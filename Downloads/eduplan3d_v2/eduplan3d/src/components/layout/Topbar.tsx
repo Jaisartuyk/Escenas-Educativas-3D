@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { signOut } from '@/lib/actions/auth'
 import type { Profile } from '@/types/supabase'
 import { AcademicYearSelector } from './AcademicYearSelector'
+import { NotificationBell } from './NotificationBell'
 
 interface Props {
   profile: Profile | null
@@ -52,6 +53,7 @@ export function Topbar({ profile, institutionName }: Props) {
       <div className="md:hidden w-10" />
 
       <div className="flex items-center gap-3">
+        <NotificationBell userId={profile?.id || null} />
         {/* Plan badge */}
         <span className={`hidden sm:inline text-[11px] font-bold px-3 py-1 rounded-full ${
           profile?.plan === 'pro'

@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createAppNotifications } from '@/lib/notifications'
 // (Helpers de tutoría ya no necesarios — solo admin crea boletines.)
 
 const PUBLISHER_ROLES = ['admin', 'assistant', 'rector']
@@ -129,6 +130,18 @@ export async function POST(req: NextRequest) {
       metadata:        { category, requiresAck, courseLabel },
     })
     .select().single()
+
+  await createAppNotifications(
+    admin as any,
+    audienceProfiles.map((profile) => ({
+      userId: profile.id,
+      category: 'message',
+      title: `Comunicado: ${title}`,
+      body: text.length > 160 ? `${text.slice(0, 157)}...` : text,
+      href: '/dashboard/mensajes',
+      metadata: { conversationId: conv.id, bulletin: true, category, requiresAck },
+    })),
+  )
 
   return NextResponse.json({ conversation: conv, message: msg, recipients: audienceProfiles.length })
 }
