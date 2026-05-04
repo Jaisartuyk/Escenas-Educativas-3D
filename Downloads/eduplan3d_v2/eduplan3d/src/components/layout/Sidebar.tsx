@@ -126,6 +126,7 @@ const NAV_STUDENT: NavItem[] = [
 
 const NAV_PARENT: NavItem[] = [
   { href: '/dashboard/alumno',       icon: '🧒', label: 'Seguimiento'   },
+  { href: '/dashboard/finanzas',     icon: '💰', label: 'Finanzas'      },
   { href: '/dashboard/notas',        icon: '📊', label: 'Mis Notas'     },
   { href: '/dashboard/libretas',     icon: '📓', label: 'Libreta'       },
   { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes'      },
