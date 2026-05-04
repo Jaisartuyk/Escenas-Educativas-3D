@@ -116,6 +116,9 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
   const [search, setSearch] = useState('')
   const [newOpen, setNewOpen] = useState(false)
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [loadingContacts, setLoadingContacts] = useState(false)
+  const [startingChat, setStartingChat] = useState(false)
+  const [chatError, setChatError] = useState<string | null>(null)
   const [bulletinOpen, setBulletinOpen] = useState(false)
   const [mobilePane, setMobilePane] = useState<'list' | 'thread'>('list')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -221,25 +224,39 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
 
   async function openNewChat() {
     setNewOpen(true)
+    setChatError(null)
     if (contacts.length === 0) {
+      setLoadingContacts(true)
       const suffix = me.role === 'parent' && selectedChildId ? `?child_id=${selectedChildId}` : ''
       const res = await fetch(`/api/mensajes/contacts${suffix}`)
       const json = await res.json()
       setContacts(json.contacts || [])
+      setLoadingContacts(false)
     }
   }
 
   async function startChatWith(contact: Contact) {
-    setNewOpen(false)
-    const res = await fetch('/api/mensajes/conversations', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ partnerId: contact.userId, studentId: contact.studentId }),
-    })
-    const json = await res.json()
-    if (json.conversation) {
-      await loadConversations()
-      selectConversation(json.conversation.id)
+    setStartingChat(true)
+    setChatError(null)
+    try {
+      const res = await fetch('/api/mensajes/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partnerId: contact.userId, studentId: contact.studentId }),
+      })
+      const json = await res.json()
+      if (json.conversation) {
+        setNewOpen(false)
+        await loadConversations()
+        selectConversation(json.conversation.id)
+      } else {
+        // Mostrar error sin cerrar el modal
+        setChatError(json.error || `Error ${res.status}: No se pudo crear la conversación`)
+      }
+    } catch (e: any) {
+      setChatError(e?.message || 'Error de red al crear la conversación')
+    } finally {
+      setStartingChat(false)
     }
   }
 
@@ -489,7 +506,10 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
       {newOpen && (
         <ContactsModal
           contacts={contacts}
-          onClose={() => setNewOpen(false)}
+          loading={loadingContacts}
+          starting={startingChat}
+          error={chatError}
+          onClose={() => { setNewOpen(false); setChatError(null) }}
           onPick={startChatWith}
         />
       )}
@@ -708,7 +728,14 @@ function MessageBubble({
   )
 }
 
-function ContactsModal({ contacts, onClose, onPick }: { contacts: Contact[]; onClose: () => void; onPick: (c: Contact) => void }) {
+function ContactsModal({ contacts, loading, starting, error, onClose, onPick }: {
+  contacts: Contact[]
+  loading?: boolean
+  starting?: boolean
+  error?: string | null
+  onClose: () => void
+  onPick: (c: Contact) => void
+}) {
   const [search, setSearch] = useState('')
   const filtered = useMemo(() => {
     if (!search.trim()) return contacts
@@ -731,15 +758,30 @@ function ContactsModal({ contacts, onClose, onPick }: { contacts: Contact[]; onC
               className="w-full pl-9 pr-3 py-2 rounded-xl bg-bg3 text-sm focus:bg-bg2 focus:ring-2 focus:ring-violet2/30 outline-none transition-all" />
           </div>
         </div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="mx-3 mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2">
+            <AlertTriangle size={15} className="text-rose-500 mt-0.5 shrink-0" />
+            <p className="text-xs text-rose-700 font-medium leading-snug">{error}</p>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-3">
+              <div className="w-6 h-6 rounded-full border-2 border-violet2 border-t-transparent animate-spin" />
+              <p className="text-xs text-ink4">Cargando contactos…</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="p-8 text-center text-ink4 text-sm">No hay contactos disponibles.</div>
           ) : filtered.map(c => (
-            <button key={c.userId + (c.studentId || '')} onClick={() => onPick(c)}
-              className="w-full text-left px-4 py-3 flex items-center gap-3 border-b border-[rgba(0,0,0,0.04)] hover:bg-bg3 transition-colors">
+            <button key={c.userId + (c.studentId || '')} onClick={() => !starting && onPick(c)}
+              disabled={starting}
+              className="w-full text-left px-4 py-3 flex items-center gap-3 border-b border-[rgba(0,0,0,0.04)] hover:bg-bg3 transition-colors disabled:opacity-50 disabled:cursor-wait">
               <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
                    style={{ backgroundColor: avatarColor(c.userId) }}>
-                {initials(c.fullName)}
+                {starting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : initials(c.fullName)}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold truncate">{c.fullName}</p>
@@ -748,6 +790,7 @@ function ContactsModal({ contacts, onClose, onPick }: { contacts: Contact[]; onC
                   {c.subtitle || (c.role === 'teacher' ? 'Docente' : c.role === 'parent' ? 'Representante' : 'Estudiante')}
                 </p>
               </div>
+              {starting && <div className="w-4 h-4 border-2 border-violet2/30 border-t-violet2 rounded-full animate-spin shrink-0" />}
             </button>
           ))}
         </div>
