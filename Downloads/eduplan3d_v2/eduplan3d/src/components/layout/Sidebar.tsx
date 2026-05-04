@@ -1,11 +1,12 @@
 // src/components/layout/Sidebar.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Logo } from '@/components/ui/Logo'
 import { Menu, X, ChevronDown } from 'lucide-react'
+import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface NavItem {
@@ -205,6 +206,7 @@ export function Sidebar({
   const isPlannerSolo = plan === 'planner_solo'
   const isAdmin = !isPlannerSolo && (role === 'admin' || role === 'assistant' || role === 'rector')
   const [open, setOpen] = useState(false)
+  const [unreadTotal, setUnreadTotal] = useState(0)
 
   // Track which groups are expanded (admin only)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
@@ -273,19 +275,26 @@ export function Sidebar({
     return filterPlannerNodes(nav)
   }
 
+  const navItems = useMemo(() => getNav(), [role, plan, plannerIaAccess])
+  const hasMessagesItem = useMemo(() => {
+    const scan = (nodes: NavNode[]) =>
+      nodes.some((node) => ('items' in node ? node.items.some((item) => item.href === '/dashboard/mensajes') : node.href === '/dashboard/mensajes'))
+    return scan(navItems)
+  }, [navItems])
+
   // Close on route change
   useEffect(() => { setOpen(false) }, [pathname])
 
   // Auto-expand active group on route change
   useEffect(() => {
-    getNav().forEach(node => {
+    navItems.forEach(node => {
       if ('items' in node) {
         if (node.items.some(item => item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href))) {
           setExpandedGroups(prev => new Set(prev).add(node.title))
         }
       }
     })
-  }, [pathname, isAdmin, role, isPlannerSolo])
+  }, [pathname, navItems, isAdmin, role, isPlannerSolo])
 
   // Close on Escape
   useEffect(() => {
@@ -316,6 +325,53 @@ export function Sidebar({
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === href : pathname.startsWith(href)
 
+  useEffect(() => {
+    if (!hasMessagesItem) return
+
+    let active = true
+    const supabase = createSupabaseClient()
+
+    async function refreshUnread() {
+      try {
+        const res = await fetch('/api/mensajes/unread-summary', { cache: 'no-store' })
+        if (!res.ok) return
+        const json = await res.json()
+        if (active) setUnreadTotal(Number(json.totalUnread || 0))
+      } catch {}
+    }
+
+    refreshUnread()
+    const interval = setInterval(refreshUnread, 30000)
+    const channel = supabase
+      .channel(`sidebar-unread-${role}-${plan || 'institutional'}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+        refreshUnread()
+      })
+      .subscribe()
+
+    const handleFocus = () => refreshUnread()
+    const handleUnreadChanged = () => refreshUnread()
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('messages:unread-changed', handleUnreadChanged as EventListener)
+
+    return () => {
+      active = false
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('messages:unread-changed', handleUnreadChanged as EventListener)
+      supabase.removeChannel(channel)
+    }
+  }, [hasMessagesItem, role, plan])
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const baseTitle = 'ClassNova'
+    document.title = unreadTotal > 0 ? `(${unreadTotal}) ${baseTitle}` : baseTitle
+    return () => {
+      document.title = baseTitle
+    }
+  }, [unreadTotal])
+
   // Check if any item in a group is active
   const isGroupActive = (group: NavGroup) =>
     group.items.some(item => isActive(item.href))
@@ -335,6 +391,11 @@ export function Sidebar({
     >
       <span className="text-base w-5 text-center flex-shrink-0">{item.icon}</span>
       <span className="truncate">{item.label}</span>
+      {item.href === '/dashboard/mensajes' && unreadTotal > 0 && (
+        <span className="ml-auto min-w-[1.35rem] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+          {unreadTotal > 99 ? '99+' : unreadTotal}
+        </span>
+      )}
     </Link>
   )
 
@@ -362,7 +423,7 @@ export function Sidebar({
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto custom-scrollbar">
         <div className="space-y-1">
-          {getNav().map((node, idx) => {
+          {navItems.map((node, idx) => {
             if ('items' in node) {
               // Es un NavGroup
               const group = node

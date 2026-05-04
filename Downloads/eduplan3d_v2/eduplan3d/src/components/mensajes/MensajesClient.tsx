@@ -9,6 +9,8 @@ import {
   Clock, AlertTriangle, CalendarDays, BookOpen, BadgeCheck, ArrowLeft,
   Users, GraduationCap, Sparkles, Trash2,
 } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 
 // ── Tipos ───────────────────────────────────────────────────────────────────
 interface Me { id: string; fullName: string; role: string }
@@ -128,6 +130,9 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
   const [bulletinOpen, setBulletinOpen] = useState(false)
   const [mobilePane, setMobilePane] = useState<'list' | 'thread'>('list')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const selectedIdRef = useRef<string | null>(null)
+  const conversationsRef = useRef<Conversation[]>([])
+  const notifiedMessageIdsRef = useRef<Set<string>>(new Set())
 
   // Solo administración (admin/assistant/rector) puede publicar boletines.
   const canBroadcast = me.role === 'admin' || me.role === 'assistant' || me.role === 'rector'
@@ -148,29 +153,72 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
     try {
       const suffix = me.role === 'parent' && selectedChildId ? `?child_id=${selectedChildId}` : ''
       const res = await fetch(`/api/mensajes/conversations${suffix}`)
-      if (!res.ok) return // No limpiar la lista si falla la petición
+      if (!res.ok) return [] as Conversation[] // No limpiar la lista si falla la petición
       const json = await res.json()
       if (json.conversations) {
+        const nextConversations = json.conversations as Conversation[]
         setConversations(prev => {
           // Mantener conversaciones que acabamos de crear y que quizás aún no llegan en el GET
-          const newlyCreated = prev.filter(p => p.last_message_at === null && !json.conversations.find((c: any) => c.id === p.id))
-          return [...newlyCreated, ...json.conversations]
+          const newlyCreated = prev.filter(p => p.last_message_at === null && !nextConversations.find((c: any) => c.id === p.id))
+          return [...newlyCreated, ...nextConversations]
         })
+        conversationsRef.current = nextConversations
+        return nextConversations
       }
     } catch (e) {
       console.error('Error loading conversations:', e)
     } finally {
       setLoadingConvs(false)
     }
+    return [] as Conversation[]
   }, [me.role, selectedChildId])
 
   useEffect(() => { loadConversations() }, [loadConversations])
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId
+  }, [selectedId])
+
+  useEffect(() => {
+    conversationsRef.current = conversations
+  }, [conversations])
 
   // Polling cada 20s
   useEffect(() => {
     const t = setInterval(() => { loadConversations() }, 20000)
     return () => clearInterval(t)
   }, [loadConversations])
+
+  useEffect(() => {
+    const supabase = createSupabaseClient()
+    const channel = supabase
+      .channel(`mensajes-live-${me.id}-${selectedChildId || 'all'}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+        const incoming = payload.new as any
+        if (!incoming?.id || incoming.sender_id === me.id) return
+        if (notifiedMessageIdsRef.current.has(incoming.id)) return
+        notifiedMessageIdsRef.current.add(incoming.id)
+
+        const activeConversationId = selectedIdRef.current
+        const refreshedConversations = await loadConversations()
+        window.dispatchEvent(new Event('messages:unread-changed'))
+
+        if (activeConversationId && incoming.conversation_id === activeConversationId) {
+          await loadMessages(activeConversationId, true)
+          return
+        }
+
+        const conv = (refreshedConversations || conversationsRef.current).find((c) => c.id === incoming.conversation_id)
+        const title = conv ? conversationLabel(conv, me.id, me.role).title : 'Nuevo mensaje'
+
+        toast.success(`Nuevo mensaje de ${title}`, { duration: 4000 })
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadConversations, me.id, me.role, selectedChildId])
 
   async function loadMessages(conversationId: string, silent = false) {
     if (!silent && messages.length === 0) setLoadingMsgs(true)
@@ -195,7 +243,10 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
     }
     // Marcar leído
     fetch(`/api/mensajes/conversations/${conversationId}/read`, { method: 'POST' })
-      .then(() => loadConversations())
+      .then(() => {
+        loadConversations()
+        window.dispatchEvent(new Event('messages:unread-changed'))
+      })
       .catch(() => {})
   }
 
@@ -235,6 +286,7 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
       if (res.ok) {
         await loadMessages(selectedId, true)
         loadConversations()
+        window.dispatchEvent(new Event('messages:unread-changed'))
       } else {
         setInput(body) // devolver al textarea si falla
       }
