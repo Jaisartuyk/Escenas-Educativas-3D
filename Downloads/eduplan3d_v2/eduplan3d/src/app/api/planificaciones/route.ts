@@ -187,9 +187,20 @@ function extractMarkdownSection(content: string, heading: string) {
   const normalized = String(content || '')
   const headingText = heading.replace(/^#{1,4}\s*/, '').trim()
   const escaped = headingText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const regex = new RegExp(`(^|\\n)#{1,4}\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n#{1,4}\\s|$)`, 'i')
-  const match = normalized.match(regex)
-  return match ? `${heading}\n${match[2].trim()}` : ''
+  const headingLevel = (heading.match(/^#{1,4}/)?.[0].length) || 1
+  const startRegex = new RegExp(`(^|\\n)(#{1,4})\\s*${escaped}\\s*\\n`, 'i')
+  const startMatch = normalized.match(startRegex)
+  if (!startMatch || startMatch.index == null) return ''
+
+  const contentStart = startMatch.index + startMatch[0].length
+  const rest = normalized.slice(contentStart)
+  const boundaryRegex = new RegExp(`\\n#{1,${headingLevel}}\\s+`)
+  const boundaryMatch = rest.match(boundaryRegex)
+  const body = boundaryMatch && boundaryMatch.index != null
+    ? rest.slice(0, boundaryMatch.index).trim()
+    : rest.trim()
+
+  return `${heading}\n${body}`.trim()
 }
 
 function extractTitleBlock(content: string) {
