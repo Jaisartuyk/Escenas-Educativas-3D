@@ -142,7 +142,7 @@ export function NotificationBell({ userId }: { userId?: string | null }) {
       >
         <Bell size={17} className="text-ink2" />
         {unreadTotal > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[1.35rem] h-[1.35rem] px-1.5 rounded-full bg-rose-600 text-white text-[11px] font-extrabold leading-none flex items-center justify-center shadow-md ring-2 ring-bg2">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[1.35rem] h-[1.35rem] px-1.5 rounded-full bg-red-600 text-white text-[11px] font-extrabold leading-none flex items-center justify-center shadow-md ring-2 ring-white">
             {unreadTotal > 99 ? '99+' : unreadTotal}
           </span>
         )}
