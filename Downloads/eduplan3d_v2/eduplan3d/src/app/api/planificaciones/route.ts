@@ -185,7 +185,8 @@ Esta adaptacion responde a la necesidad educativa identificada y permite que el 
 
 function extractMarkdownSection(content: string, heading: string) {
   const normalized = String(content || '')
-  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const headingText = heading.replace(/^#{1,4}\s*/, '').trim()
+  const escaped = headingText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(`(^|\\n)#{1,4}\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n#{1,4}\\s|$)`, 'i')
   const match = normalized.match(regex)
   return match ? `${heading}\n${match[2].trim()}` : ''
