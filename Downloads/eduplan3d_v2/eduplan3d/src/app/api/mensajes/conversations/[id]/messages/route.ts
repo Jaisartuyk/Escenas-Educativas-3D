@@ -109,10 +109,41 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (text.length > 4000) return NextResponse.json({ error: 'Mensaje demasiado largo' }, { status: 400 })
 
   const admin = createAdminClient()
-  const { data: part } = await (admin as any)
+
+  let part = null
+  const { data: existingPart } = await (admin as any)
     .from('conversation_participants')
     .select('conversation_id')
     .eq('conversation_id', params.id).eq('user_id', user.id).maybeSingle()
+  part = existingPart
+
+  if (!part) {
+    const { data: me } = await (admin as any)
+      .from('profiles').select('id, role').eq('id', user.id).single()
+
+    if (me?.role === 'parent') {
+      const { data: conv } = await (admin as any)
+        .from('conversations').select('id, student_id').eq('id', params.id).maybeSingle()
+
+      if (conv?.student_id) {
+        const { data: link } = await (admin as any)
+          .from('parent_links')
+          .select('child_id')
+          .eq('parent_id', user.id).eq('child_id', conv.student_id).maybeSingle()
+
+        if (link) {
+          await (admin as any)
+            .from('conversation_participants')
+            .upsert(
+              { conversation_id: params.id, user_id: user.id, role: 'parent' },
+              { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+            )
+          part = { conversation_id: params.id }
+        }
+      }
+    }
+  }
+
   if (!part) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const { data: msg, error } = await (admin as any)
