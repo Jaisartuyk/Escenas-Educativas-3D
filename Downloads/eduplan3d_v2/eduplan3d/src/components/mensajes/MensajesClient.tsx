@@ -137,11 +137,22 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
 
   // ── Carga ──
   const loadConversations = useCallback(async () => {
-    setLoadingConvs(true)
-    const res = await fetch('/api/mensajes/conversations')
-    const json = await res.json()
-    setConversations(json.conversations || [])
-    setLoadingConvs(false)
+    try {
+      const res = await fetch('/api/mensajes/conversations')
+      if (!res.ok) return // No limpiar la lista si falla la petición
+      const json = await res.json()
+      if (json.conversations) {
+        setConversations(prev => {
+          // Mantener conversaciones que acabamos de crear y que quizás aún no llegan en el GET
+          const newlyCreated = prev.filter(p => p.last_message_at === null && !json.conversations.find((c: any) => c.id === p.id))
+          return [...newlyCreated, ...json.conversations]
+        })
+      }
+    } catch (e) {
+      console.error('Error loading conversations:', e)
+    } finally {
+      setLoadingConvs(false)
+    }
   }, [])
 
   useEffect(() => { loadConversations() }, [loadConversations])
@@ -551,8 +562,8 @@ function ThreadHeader({
   const other = (conversation.participants || []).find(p => p.user_id !== me.id)
   const subtitle = isBulletin
     ? `Boletín · ${(conversation.participants || []).length - 1} destinatario${(conversation.participants || []).length - 1 !== 1 ? 's' : ''}`
-    : other?.user_role === 'teacher' ? 'Docente tutor'
-    : other?.user_role === 'student' ? 'Representante / Estudiante'
+    : (other?.user_role === 'teacher' || other?.role === 'teacher') ? 'Docente tutor'
+    : (other?.user_role === 'student' || other?.role === 'student') ? 'Representante / Estudiante'
     : 'Administración'
 
   // Permiso para eliminar:
