@@ -131,6 +131,8 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
   useEffect(() => {
     if (me.role === 'parent' && prevChildId.current !== selectedChildId) {
       setContacts([])
+      setSelectedId(null)
+      setMessages([])
       prevChildId.current = selectedChildId
     }
   }, [me.role, selectedChildId])
@@ -138,7 +140,8 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
   // ── Carga ──
   const loadConversations = useCallback(async () => {
     try {
-      const res = await fetch('/api/mensajes/conversations')
+      const suffix = me.role === 'parent' && selectedChildId ? `?child_id=${selectedChildId}` : ''
+      const res = await fetch(`/api/mensajes/conversations${suffix}`)
       if (!res.ok) return // No limpiar la lista si falla la petición
       const json = await res.json()
       if (json.conversations) {
@@ -153,7 +156,7 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
     } finally {
       setLoadingConvs(false)
     }
-  }, [])
+  }, [me.role, selectedChildId])
 
   useEffect(() => { loadConversations() }, [loadConversations])
 

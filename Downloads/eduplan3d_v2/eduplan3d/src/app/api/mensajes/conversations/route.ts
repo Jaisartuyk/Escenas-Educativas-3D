@@ -7,21 +7,57 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveTutorsForStudent, resolveStudentsForTutor } from '@/lib/mensajes/access'
 import { getPrimaryLinkedChildForParent } from '@/lib/parents'
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const admin = createAdminClient()
 
+  const { data: me } = await (admin as any)
+    .from('profiles')
+    .select('id, role, institution_id')
+    .eq('id', user.id)
+    .single()
+  if (!me) return NextResponse.json({ error: 'Perfil no encontrado' }, { status: 404 })
+
+  const requestedChildId = req.nextUrl.searchParams.get('child_id')
+
   const { data: parts } = await (admin as any)
     .from('conversation_participants')
     .select('conversation_id, last_read_at')
     .eq('user_id', user.id)
-  const convIds = ((parts || []) as any[]).map(p => p.conversation_id)
+  const partRows = (parts || []) as any[]
+  const convIdSet = new Set<string>(partRows.map(p => p.conversation_id))
+
+  if (me.role === 'parent') {
+    const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id, requestedChildId || undefined)
+    if (!linkedChild) return NextResponse.json({ conversations: [] })
+
+    const { data: parentConvs } = await (admin as any)
+      .from('conversations')
+      .select('id')
+      .eq('student_id', linkedChild.childId)
+      .eq('type', 'direct')
+
+    for (const conv of ((parentConvs || []) as any[])) {
+      convIdSet.add(conv.id)
+      if (!partRows.some(p => p.conversation_id === conv.id)) {
+        partRows.push({ conversation_id: conv.id, last_read_at: null })
+      }
+      await (admin as any)
+        .from('conversation_participants')
+        .upsert(
+          { conversation_id: conv.id, user_id: user.id, role: 'parent' },
+          { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
+        )
+    }
+  }
+
+  const convIds = Array.from(convIdSet)
   if (convIds.length === 0) return NextResponse.json({ conversations: [] })
 
-  const lastReadMap = new Map<string, string | null>(((parts || []) as any[]).map(p => [p.conversation_id, p.last_read_at]))
+  const lastReadMap = new Map<string, string | null>(partRows.map(p => [p.conversation_id, p.last_read_at]))
 
   const { data: convs } = await (admin as any)
     .from('conversations')
