@@ -183,6 +183,297 @@ Esta adaptacion responde a la necesidad educativa identificada y permite que el 
 `.trim()
 }
 
+function extractMarkdownSection(content: string, heading: string) {
+  const normalized = String(content || '')
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(^|\\n)#{1,4}\\s*${escaped}\\s*\\n([\\s\\S]*?)(?=\\n#{1,4}\\s|$)`, 'i')
+  const match = normalized.match(regex)
+  return match ? `${heading}\n${match[2].trim()}` : ''
+}
+
+function extractTitleBlock(content: string) {
+  const normalized = String(content || '').trim()
+  const marker = normalized.search(/\n#{1,4}\s*1\.\s*DATOS INFORMATIVOS/i)
+  return marker > 0 ? normalized.slice(0, marker).trim() : ''
+}
+
+function extractFirstMarkdownTable(section: string) {
+  const lines = String(section || '').split(/\r?\n/)
+  const tableLines: string[] = []
+  let started = false
+
+  for (const line of lines) {
+    if (/^\s*\|/.test(line)) {
+      started = true
+      tableLines.push(line.trim())
+      continue
+    }
+    if (started) break
+  }
+
+  return tableLines.join('\n').trim()
+}
+
+function parseMarkdownTable(tableMarkdown: string) {
+  const lines = String(tableMarkdown || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+
+  if (lines.length < 2) return null
+
+  const parseRow = (line: string) =>
+    line
+      .replace(/^\|/, '')
+      .replace(/\|$/, '')
+      .split('|')
+      .map(cell => cell.trim())
+
+  const headers = parseRow(lines[0])
+  const rows = lines
+    .slice(2)
+    .filter(line => /^\s*\|/.test(line))
+    .map(parseRow)
+    .filter(row => row.length > 0)
+
+  return { headers, rows }
+}
+
+function renderMarkdownTable(headers: string[], rows: string[][]) {
+  const safeRows = rows.filter(row => row.length > 0)
+  if (headers.length === 0 || safeRows.length === 0) return ''
+
+  const normalizeRow = (row: string[]) =>
+    headers.map((_, i) => (row[i] || '').trim())
+
+  return [
+    `| ${headers.join(' | ')} |`,
+    `| ${headers.map(() => '---').join(' | ')} |`,
+    ...safeRows.map(row => `| ${normalizeRow(row).join(' | ')} |`),
+  ].join('\n')
+}
+
+function summarizeCell(text: string, maxSegments = 2, maxChars = 320) {
+  const normalized = String(text || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\r/g, '')
+    .replace(/\n{2,}/g, '\n')
+    .trim()
+
+  if (!normalized) return ''
+
+  const segments = normalized
+    .split(/\n|(?=\s*[-•])/)
+    .map(item => item.trim())
+    .filter(Boolean)
+
+  const picked = (segments.length > 0 ? segments : [normalized])
+    .slice(0, maxSegments)
+    .join('<br/>')
+
+  return picked.length > maxChars
+    ? `${picked.slice(0, maxChars - 1).trim()}…`
+    : picked
+}
+
+function buildAdaptationLabel(opts: {
+  kind: 'nee_sin_disc' | 'diac'
+  neeCodes: string[]
+  studentName?: string | null
+  gradoReal?: string | null
+}) {
+  const labels = normalizeNeeLabels(opts.neeCodes)
+  const labelText = labels.length > 0 ? labels.join(', ') : 'No especificado'
+  const typeLabel = opts.kind === 'diac' ? 'DIAC (con discapacidad)' : 'NEE sin discapacidad'
+  const studentLine = opts.studentName ? `<br/>Estudiante: ${opts.studentName}` : ''
+  const gradoLine = opts.kind === 'diac' ? `<br/>Grado real: ${opts.gradoReal || 'por completar'}` : ''
+  return `${typeLabel}<br/>Necesidad: ${labelText}${studentLine}${gradoLine}`
+}
+
+function adaptTrimesterRows(rows: string[][], opts: {
+  kind: 'nee_sin_disc' | 'diac'
+  neeCodes: string[]
+  studentName?: string | null
+  gradoReal?: string | null
+}) {
+  return rows.map(row => {
+    const [tema = '', destrezas = '', indicadores = ''] = row
+    const baseDestrezas = summarizeCell(destrezas, 2, 420)
+    const baseIndicadores = summarizeCell(indicadores, 2, 360)
+    const needText = normalizeNeeLabels(opts.neeCodes).join(', ') || 'la necesidad identificada'
+
+    const adaptedDestrezas = opts.kind === 'diac'
+      ? `${baseDestrezas}<br/><strong>Adaptación DIAC:</strong> reformular la destreza al grado curricular real${opts.gradoReal ? ` (${opts.gradoReal})` : ''}, priorizando avance funcional y andamiaje sostenido para ${needText}.`
+      : `${baseDestrezas}<br/><strong>Adaptación NEE:</strong> mantener la destreza del grupo con apoyos metodológicos, segmentación de consignas y tiempo flexible para ${needText}.`
+
+    const adaptedIndicadores = opts.kind === 'diac'
+      ? `${baseIndicadores}<br/><strong>Seguimiento DIAC:</strong> valorar progreso individual, autonomía, comprensión guiada y logro respecto al punto de partida.`
+      : `${baseIndicadores}<br/><strong>Seguimiento NEE:</strong> usar el mismo criterio del grupo, ajustando forma de respuesta, apoyo y tiempo de demostración.`
+
+    return [
+      summarizeCell(tema, 2, 180),
+      adaptedDestrezas,
+      adaptedIndicadores,
+    ]
+  })
+}
+
+function adaptMethodologyRows(rows: string[][], opts: {
+  kind: 'nee_sin_disc' | 'diac'
+  neeCodes: string[]
+}) {
+  const needText = normalizeNeeLabels(opts.neeCodes).join(', ') || 'la necesidad identificada'
+  return rows.map(row => {
+    const [estrategias = '', recursos = ''] = row
+    const baseStrategies = summarizeCell(estrategias, 3, 420)
+    const baseResources = summarizeCell(recursos, 3, 260)
+
+    const adaptedStrategies = opts.kind === 'diac'
+      ? `${baseStrategies}<br/><strong>Foco DIAC:</strong> mediación individualizada, modelado explícito, objetivos graduados y apoyos permanentes para ${needText}.`
+      : `${baseStrategies}<br/><strong>Foco NEE:</strong> ajustes no significativos, instrucciones breves, ejemplos guiados, repetición espaciada y verificación frecuente para ${needText}.`
+
+    const adaptedResources = opts.kind === 'diac'
+      ? `${baseResources}<br/><strong>Apoyos DIAC:</strong> pictogramas, material concreto, agenda visual, lector acompañante o herramienta de acceso según necesidad.`
+      : `${baseResources}<br/><strong>Apoyos NEE:</strong> organizadores gráficos, plantillas, apoyos visuales, checklist y opciones accesibles de participación.`
+
+    return [adaptedStrategies, adaptedResources]
+  })
+}
+
+function adaptEvaluationRows(rows: string[][], opts: {
+  kind: 'nee_sin_disc' | 'diac'
+  neeCodes: string[]
+}) {
+  const needText = normalizeNeeLabels(opts.neeCodes).join(', ') || 'la necesidad identificada'
+  return rows.map(row => {
+    const [evaluacion = ''] = row
+    const baseEval = summarizeCell(evaluacion, 3, 420)
+    const adaptedEval = opts.kind === 'diac'
+      ? `${baseEval}<br/><strong>Aplicación DIAC:</strong> priorizar evidencias funcionales, progreso individual y autonomía creciente para ${needText}.`
+      : `${baseEval}<br/><strong>Aplicación NEE:</strong> mantener el criterio del grupo con apoyos, formatos alternativos y tiempo extendido cuando sea necesario para ${needText}.`
+    return [adaptedEval]
+  })
+}
+
+function buildFocusedTrimesterVariantContent(opts: {
+  baseContent: string
+  kind: 'nee_sin_disc' | 'diac'
+  neeCodes: string[]
+  studentName?: string | null
+  gradoReal?: string | null
+}) {
+  const titleBlock = extractTitleBlock(opts.baseContent)
+  const dataSection = extractMarkdownSection(opts.baseContent, '### 1. DATOS INFORMATIVOS')
+  const planSection = extractMarkdownSection(opts.baseContent, '### 2. PLANIFICACION')
+  const adaptSection = extractMarkdownSection(opts.baseContent, '### 3. ADAPTACIONES CURRICULARES')
+
+  const table21 = parseMarkdownTable(extractFirstMarkdownTable(extractMarkdownSection(planSection, '#### 2.1 Temas + Destrezas + Indicadores')) || '')
+  const table22 = parseMarkdownTable(extractFirstMarkdownTable(extractMarkdownSection(planSection, '#### 2.2 Estrategias metodologicas (DUA) + Recursos')) || '')
+  const table23 = parseMarkdownTable(extractFirstMarkdownTable(extractMarkdownSection(planSection, '#### 2.3 Estrategias para la evaluacion')) || '')
+
+  const adaptationLabel = buildAdaptationLabel(opts)
+  const adaptationSummary = opts.kind === 'diac'
+    ? `Reescritura significativa al grado curricular real${opts.gradoReal ? ` (${opts.gradoReal})` : ''}, mediación intensiva, evaluación por progreso individual y adecuación de recursos.`
+    : 'Ajustes no significativos en metodología, recursos, tiempos, apoyos y forma de evaluación, manteniendo la destreza del grupo.'
+
+  const title = titleBlock || '# PLANIFICACION MICROCURRICULAR DISCIPLINAR O INTERDISCIPLINAR'
+  const dataBlock = dataSection || '### 1. DATOS INFORMATIVOS'
+
+  const dataAdaptationTable = renderMarkdownTable(
+    ['Campo', 'Valor'],
+    [
+      ['Tipo de adaptación', adaptationLabel],
+      ['Enfoque pedagógico', adaptationSummary],
+    ]
+  )
+
+  const section21 = table21
+    ? renderMarkdownTable(table21.headers, adaptTrimesterRows(table21.rows, opts))
+    : renderMarkdownTable(
+        ['Temas', 'Destrezas/Contenidos BT/', 'Indicadores de evaluacion/Criterio de evaluacion BT |'],
+        [[
+          'Tema por completar',
+          opts.kind === 'diac'
+            ? 'Reformular la destreza al grado real del estudiante y conservar competencias {{C}}, {{CM}}, {{CD}}, {{CS}} cuando apliquen.'
+            : 'Mantener la destreza del grupo con apoyos metodológicos y conservar las competencias ya visibles {{C}}, {{CM}}, {{CD}}, {{CS}}.',
+          opts.kind === 'diac'
+            ? 'Valorar progreso funcional, comprensión guiada y autonomía.'
+            : 'Aplicar el mismo criterio del grupo con adecuaciones de respuesta y tiempo.',
+        ]]
+      )
+
+  const section22 = table22
+    ? renderMarkdownTable(table22.headers, adaptMethodologyRows(table22.rows, opts))
+    : renderMarkdownTable(
+        ['Estrategias metodologicas (DUA)', 'Recursos'],
+        [[
+          opts.kind === 'diac'
+            ? 'Mediación individualizada, modelado explícito, secuencia guiada e integración de inserciones curriculares con sus íconos visibles.'
+            : 'Ajustes no significativos, segmentación de consignas, trabajo guiado y mantenimiento de inserciones curriculares con sus íconos visibles.',
+          opts.kind === 'diac'
+            ? 'Pictogramas, material concreto, apoyos visuales y herramientas de acceso.'
+            : 'Organizadores gráficos, apoyos visuales, plantillas y recursos accesibles.',
+        ]]
+      )
+
+  const section23 = table23
+    ? renderMarkdownTable(table23.headers, adaptEvaluationRows(table23.rows, opts))
+    : renderMarkdownTable(
+        ['Estrategias para la evaluacion'],
+        [[
+          opts.kind === 'diac'
+            ? 'Seguimiento por progreso individual, autonomía y evidencias funcionales.'
+            : 'Mismo criterio del grupo, con apoyos, tiempo extendido y formatos alternativos de respuesta.',
+        ]]
+      )
+
+  const section3Table = renderMarkdownTable(
+    ['Componente', 'Adaptacion'],
+    [
+      ['Necesidad educativa priorizada', normalizeNeeLabels(opts.neeCodes).join(', ') || 'No especificada'],
+      ['Ajuste curricular', adaptationSummary],
+      ['Mediacion docente', opts.kind === 'diac'
+        ? 'Seguimiento individual, andamiaje permanente, anticipación de tareas, modelado explícito y verificación frecuente.'
+        : 'Consignas breves, apoyo visual, tiempo flexible, repetición espaciada y monitoreo cercano.'],
+      ['Evidencias esperadas', opts.kind === 'diac'
+        ? 'Producciones funcionales, respuestas guiadas, participación acompañada y autonomía progresiva.'
+        : 'Desempeño con apoyos, participación sostenida y respuestas adaptadas en forma.'],
+    ]
+  )
+
+  const baseAdaptSection = adaptSection ? summarizeCell(adaptSection.replace(/^### 3\.\s*ADAPTACIONES CURRICULARES/i, ''), 4, 600) : ''
+  const baseAdaptNote = baseAdaptSection
+    ? `\n\n**Referencia institucional de la base:**<br/>${baseAdaptSection}`
+    : ''
+
+  return [
+    title,
+    '',
+    '### 1. DATOS INFORMATIVOS',
+    dataBlock.replace(/^### 1\.\s*DATOS INFORMATIVOS/i, '').trim(),
+    '',
+    '### DATOS DE LA ADAPTACION',
+    dataAdaptationTable,
+    '',
+    '### 2. PLANIFICACION DE ADAPTACIONES CURRICULARES',
+    '',
+    '#### 2.1 Temas + Destrezas + Indicadores ADAPTADOS',
+    section21,
+    '',
+    '#### 2.2 Estrategias metodologicas (DUA) + Recursos ADAPTADOS',
+    section22,
+    '',
+    '#### 2.3 Estrategias para la evaluacion ADAPTADAS',
+    section23,
+    '',
+    '### 3. ADAPTACIONES CURRICULARES',
+    section3Table + baseAdaptNote,
+    '',
+    '### JUSTIFICACION DE LA ADAPTACION',
+    'Esta variante reorganiza la planificación trimestral desde un enfoque netamente adaptado, manteniendo la lógica curricular, las competencias visibles {{C}}, {{CM}}, {{CD}}, {{CS}} y las inserciones curriculares con sus íconos cuando ya forman parte de la experiencia base.',
+  ].join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
 function buildFastTrimesterVariantContent(opts: {
   baseContent: string
   kind: 'nee_sin_disc' | 'diac'
@@ -190,9 +481,7 @@ function buildFastTrimesterVariantContent(opts: {
   studentName?: string | null
   gradoReal?: string | null
 }) {
-  const base = String(opts.baseContent || '').trim()
-  const cleanedBase = base.replace(/\n+## ADAPTACIONES SOBRE ESTA PLANIFICACION BASE[\s\S]*$/i, '').trim()
-  return `${cleanedBase}\n\n${buildTrimesterVariantAppendix(opts)}`
+  return buildFocusedTrimesterVariantContent(opts)
 }
 
 async function generateWithContinuation(opts: {
