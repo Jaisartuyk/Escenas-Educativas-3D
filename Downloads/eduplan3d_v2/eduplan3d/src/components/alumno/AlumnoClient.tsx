@@ -38,6 +38,35 @@ export function AlumnoClient({
   const viewedStudent = studentProfile || profile
   const effectiveStudentId = viewedStudent?.id || profile?.id
 
+  // ── Dynamic theme: emerald/teal for parents, violet/indigo for students
+  const theme = isParentView
+    ? {
+        bannerFrom: 'from-emerald-700',
+        bannerVia: 'via-teal-700',
+        bannerTo: 'to-emerald-800',
+        tabActive: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/25 scale-[1.02]',
+        tabShadow: 'shadow-emerald-500/20',
+        accentText: 'text-emerald-600',
+        accentBg: 'bg-emerald-100 dark:bg-emerald-900/30',
+        accentBorder: 'border-emerald-200',
+        pill: 'bg-white/10 backdrop-blur-md border border-white/20 text-white/90',
+        statNum: 'text-emerald-400',
+        iconColor: 'text-emerald-300',
+      }
+    : {
+        bannerFrom: 'from-violet-600',
+        bannerVia: 'via-indigo-600',
+        bannerTo: 'to-purple-700',
+        tabActive: 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25 scale-[1.02]',
+        tabShadow: 'shadow-indigo-500/20',
+        accentText: 'text-violet-600',
+        accentBg: 'bg-violet-100 dark:bg-violet-900/30',
+        accentBorder: 'border-violet-200',
+        pill: 'bg-white/10 backdrop-blur-md border border-white/20 text-white/90',
+        statNum: 'text-emerald-400',
+        iconColor: 'text-yellow-300',
+      }
+
   const currentDayIndex = new Date().getDay()
   const defaultDay = currentDayIndex >= 1 && currentDayIndex <= 5 ? DIAS_SEMANA[currentDayIndex - 1] : 'Lunes'
   const [selectedDay, setSelectedDay] = useState<string>(defaultDay)
@@ -234,57 +263,91 @@ export function AlumnoClient({
     <div className="max-w-7xl mx-auto space-y-8 pb-20 animate-fade-in px-4 sm:px-0">
       
       {/* ── PREMIUM HEADER BANNER ── */}
-      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-violet-600 via-indigo-600 to-purple-700 shadow-xl shadow-indigo-500/20 p-8 sm:p-12 mb-8">
-        {/* Abstract decor */}
-        <div className="absolute top-0 right-0 -m-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 -m-20 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 right-1/4 w-32 h-32 bg-cyan-400/20 rounded-full blur-2xl" />
+      {isParentView ? (
+        /* ── PARENT BANNER: professional, structured, supervisory feel ── */
+        <div className={`relative overflow-hidden rounded-[2rem] bg-gradient-to-br ${theme.bannerFrom} ${theme.bannerVia} ${theme.bannerTo} shadow-xl shadow-emerald-900/30 p-8 sm:p-10 mb-8`}>
+          {/* Geometric decor - clean lines, no abstract blobs */}
+          <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full blur-3xl" />
+          <div className="absolute -bottom-10 -left-10 w-64 h-64 border border-white/10 rounded-full" />
+          <div className="absolute -bottom-6 -left-6 w-48 h-48 border border-white/10 rounded-full" />
 
-        <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
-          <div className="text-center sm:text-left">
-            <h1 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight drop-shadow-sm mb-2">
-              Hola, {profile.full_name?.split(' ')[0] || (isParentView ? 'Representante' : 'Estudiante')} 👋
-            </h1>
-            {isParentView && (
-              <p className="text-white/85 text-sm sm:text-base font-medium mb-3">
-                Seguimiento de {viewedStudent.full_name || 'tu estudiante'}
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div>
+              {/* Label badge */}
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 border border-white/20 text-white/80 text-[11px] font-bold uppercase tracking-widest mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                Panel de Representante
+              </div>
+              <h1 className="font-display text-2xl sm:text-4xl font-black text-white tracking-tight drop-shadow-sm mb-1">
+                {profile.full_name?.split(' ')[0] || 'Representante'}
+              </h1>
+              <p className="text-white/75 text-sm sm:text-base font-medium">
+                Seguimiento académico de <span className="text-white font-bold">{viewedStudent.full_name || 'tu estudiante'}</span>
               </p>
-            )}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white/90 text-sm font-medium">
-              <Award size={16} className="text-yellow-300" />
-              {courses.map((c: any) => `${c.name} ${c.parallel || ''}`.trim()).join(' / ')}
             </div>
-          </div>
-          
-          <div className="hidden sm:flex items-center gap-4 bg-black/20 backdrop-blur-md rounded-2xl p-4 border border-white/10 shadow-inner">
-            <div className="text-center px-4 border-r border-white/10">
-              <div className="text-3xl font-black text-white">{subjects.length}</div>
-              <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">Materias</div>
-            </div>
-            <div className="text-center px-4">
-              <div className="text-3xl font-black text-emerald-400">{merits.length}</div>
-              <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">Méritos</div>
+
+            {/* Stats panel */}
+            <div className="flex items-stretch gap-3 w-full sm:w-auto">
+              {[
+                { value: subjects.length, label: 'Materias', color: 'text-white' },
+                { value: missingAssignments.length, label: 'Pendientes', color: 'text-amber-300' },
+                { value: attendanceIssues.length, label: 'Faltas/Atrasos', color: attendanceIssues.length > 0 ? 'text-rose-300' : 'text-white' },
+              ].map((s, i) => (
+                <div key={i} className="flex-1 sm:flex-none flex flex-col items-center justify-center bg-black/20 backdrop-blur-md rounded-2xl p-4 sm:px-6 border border-white/10 text-center">
+                  <div className={`text-2xl sm:text-3xl font-black ${s.color}`}>{s.value}</div>
+                  <div className="text-[9px] font-bold text-white/50 uppercase tracking-widest mt-1">{s.label}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        /* ── STUDENT BANNER: vibrant, energetic, motivational ── */
+        <div className={`relative overflow-hidden rounded-[2rem] bg-gradient-to-br ${theme.bannerFrom} ${theme.bannerVia} ${theme.bannerTo} shadow-xl shadow-indigo-500/20 p-8 sm:p-12 mb-8`}>
+          <div className="absolute top-0 right-0 -m-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 -m-20 w-64 h-64 bg-pink-500/20 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 right-1/4 w-32 h-32 bg-cyan-400/20 rounded-full blur-2xl" />
+
+          <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-end justify-between gap-6">
+            <div className="text-center sm:text-left">
+              <h1 className="font-display text-3xl sm:text-5xl font-black text-white tracking-tight drop-shadow-sm mb-2">
+                Hola, {profile.full_name?.split(' ')[0] || 'Estudiante'} 👋
+              </h1>
+              <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full ${theme.pill} text-sm font-medium`}>
+                <Award size={16} className={theme.iconColor} />
+                {courses.map((c: any) => `${c.name} ${c.parallel || ''}`.trim()).join(' / ')}
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-4 bg-black/20 backdrop-blur-md rounded-2xl p-4 border border-white/10 shadow-inner">
+              <div className="text-center px-4 border-r border-white/10">
+                <div className="text-3xl font-black text-white">{subjects.length}</div>
+                <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">Materias</div>
+              </div>
+              <div className="text-center px-4">
+                <div className={`text-3xl font-black ${theme.statNum}`}>{merits.length}</div>
+                <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">Méritos</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── MODERN TABS ── */}
       <div className="sticky top-4 z-40 p-1.5 bg-surface/80 backdrop-blur-xl border border-surface2 rounded-2xl shadow-sm overflow-x-auto custom-scrollbar flex gap-1">
         {[
-          { id: 'resumen', icon: <BarChart2 size={18}/>, label: 'Resumen' },
-          { id: 'tareas', icon: <BookOpen size={18}/>, label: 'Tareas' },
-          { id: 'horario', icon: <CalendarDays size={18}/>, label: 'Horario' },
-          { id: 'calificaciones', icon: <CheckCircle2 size={18}/>, label: 'Promedios' },
+          { id: 'resumen', icon: <BarChart2 size={18}/>, label: isParentView ? 'Resumen General' : 'Resumen' },
+          { id: 'tareas', icon: <BookOpen size={18}/>, label: isParentView ? 'Tareas' : 'Tareas' },
+          { id: 'horario', icon: <CalendarDays size={18}/>, label: isParentView ? 'Horario Escolar' : 'Horario' },
+          { id: 'calificaciones', icon: <CheckCircle2 size={18}/>, label: isParentView ? 'Calificaciones' : 'Promedios' },
           { id: 'asistencia', icon: <Clock3 size={18}/>, label: 'Asistencia' },
-          { id: 'comportamiento', icon: <Star size={18}/>, label: 'Docencia' },
+          { id: 'comportamiento', icon: <Star size={18}/>, label: isParentView ? 'Conducta' : 'Docencia' },
         ].map(t => {
           const isActive = activeTab === t.id
           return (
             <button key={t.id} onClick={() => setActiveTab(t.id as any)}
               className={`flex-1 flex justify-center items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 whitespace-nowrap ${
                 isActive 
-                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25 scale-[1.02]' 
+                  ? theme.tabActive
                   : 'text-ink3 hover:bg-[rgba(0,0,0,0.04)] hover:text-ink'
               }`}>
               {t.icon} <span className="hidden sm:inline">{t.label}</span>
@@ -298,7 +361,10 @@ export function AlumnoClient({
         {activeTab === 'resumen' && (
           <div className="space-y-8">
             <h2 className="font-display text-2xl font-bold flex items-center gap-3">
-              <span className="p-2 bg-violet-100 dark:bg-violet-900/30 text-violet-600 rounded-xl">📊</span> Visión General
+              <span className={`p-2 ${theme.accentBg} ${theme.accentText} rounded-xl`}>
+                {isParentView ? '👪' : '📊'}
+              </span>
+              {isParentView ? 'Seguimiento del Estudiante' : 'Visión General'}
             </h2>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -382,7 +448,7 @@ export function AlumnoClient({
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <h2 className="font-display text-2xl font-bold flex items-center gap-3">
                   <span className="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-xl"><BookOpen size={20}/></span> 
-                  Historial de Tareas
+                  {isParentView ? `Tareas de ${viewedStudent.full_name?.split(' ')[0] || 'tu hijo/a'}` : 'Historial de Tareas'}
                 </h2>
                 <div className="flex items-center gap-3 bg-surface p-1.5 rounded-xl border border-surface2">
                   <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 rounded-lg border border-amber-100">
@@ -1063,7 +1129,7 @@ export function AlumnoClient({
           <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
              <h2 className="font-display text-2xl font-bold flex items-center gap-3 mb-6">
                 <span className="p-2 bg-teal-100 dark:bg-teal-900/30 text-teal-600 rounded-xl"><Trophy size={20}/></span> 
-                Desempeño y Observaciones
+                {isParentView ? 'Conducta y Observaciones Docentes' : 'Desempeño y Observaciones'}
              </h2>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                {behaviors.length > 0 ? behaviors.map((b: any) => {
@@ -1096,8 +1162,8 @@ export function AlumnoClient({
             {/* Header and Day Picker */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <h2 className="font-display text-2xl font-bold flex items-center gap-3">
-                <span className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><CalendarDays size={20}/></span> 
-                Horario Institucional
+                <span className={`p-2 ${isParentView ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600'} rounded-xl`}><CalendarDays size={20}/></span> 
+                {isParentView ? 'Horario Escolar del Estudiante' : 'Horario Institucional'}
               </h2>
               
               {/* Day Tabs */}
@@ -1208,8 +1274,8 @@ export function AlumnoClient({
         {activeTab === 'calificaciones' && (
           <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
             <h2 className="font-display text-2xl font-bold flex items-center gap-3 mb-6">
-              <span className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-xl"><Award size={20}/></span> 
-              Libreta de Calificaciones
+              <span className={`p-2 ${isParentView ? `${theme.accentBg} ${theme.accentText}` : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'} rounded-xl`}><Award size={20}/></span> 
+              {isParentView ? `Rendimiento Académico de ${viewedStudent.full_name?.split(' ')[0] || 'tu hijo/a'}` : 'Libreta de Calificaciones'}
             </h2>
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                {subjects.map((sub:any) => {
