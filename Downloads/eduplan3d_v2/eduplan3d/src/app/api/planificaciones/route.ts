@@ -310,7 +310,7 @@ function summarizeCell(text: string, maxSegments = 2, maxChars = 320) {
     .join('<br/>')
 
   return picked.length > maxChars
-    ? `${picked.slice(0, maxChars - 1).trim()}…`
+    ? `${Array.from(picked).slice(0, maxChars - 1).join('').trim()}…`
     : picked
 }
 
@@ -1295,33 +1295,40 @@ export async function POST(request: NextRequest) {
           ).content
 
       const variantLabel = variantKind === 'diac' ? 'DIAC' : 'NEE'
-      const variantTitle = `${String(parentPlan.title).slice(0, 80)} — ${variantLabel}`.slice(0, 100)
+      const variantTitle = `${Array.from(String(parentPlan.title)).slice(0, 80).join('')} — ${variantLabel}`.slice(0, 100)
+
+      const rawPayload = {
+        user_id: user.id,
+        title: variantTitle,
+        type: parentPlan.type,
+        subject: body.subject || parentPlan.subject,
+        grade: body.grade || parentPlan.grade,
+        topic: body.topic || parentPlan.topic,
+        duration: body.duration || parentPlan.duration,
+        methodologies: Array.isArray(parentPlan.methodologies) ? parentPlan.methodologies : [],
+        content: variantContent || '',
+        tipo_documento: variantKind,
+        parent_planificacion_id: parentPlan.id,
+        nee_tipos: Array.isArray(validNeeCodes) ? validNeeCodes : [],
+        academic_year_id: (parentPlan as any).academic_year_id || null,
+        estudiante_nombre: body.diac_student_name || null,
+        grado_curricular_real: body.diac_grado_real || null,
+        metadata: {
+          ...(typeof parentPlan.metadata === 'object' && parentPlan.metadata !== null ? parentPlan.metadata : {}),
+          variantOf: parentPlan.id,
+          neeKind: variantKind,
+          neeCodes: Array.isArray(validNeeCodes) ? validNeeCodes : [],
+        },
+      }
+      
+      // Sanitización profunda: Remover null bytes y emojis rotos (orphaned surrogates \uD800-\uDFFF)
+      let payloadString = JSON.stringify(rawPayload).replace(/\\u0000/g, '')
+      payloadString = payloadString.replace(/\\ud[89a-f][0-9a-f]{2}/gi, '')
+      const safePayload = JSON.parse(payloadString)
 
       const { data: savedVariant, error: vErr } = await (supabase as any)
         .from('planificaciones')
-        .insert({
-          user_id: user.id,
-          title: variantTitle,
-          type: parentPlan.type,
-          subject: body.subject || parentPlan.subject,
-          grade: body.grade || parentPlan.grade,
-          topic: body.topic || parentPlan.topic,
-          duration: body.duration || parentPlan.duration,
-          methodologies: parentPlan.methodologies || [],
-          content: variantContent,
-          tipo_documento: variantKind,
-          parent_planificacion_id: parentPlan.id,
-          nee_tipos: validNeeCodes,
-          academic_year_id: (parentPlan as any).academic_year_id || null,
-          estudiante_nombre: body.diac_student_name || null,
-          grado_curricular_real: body.diac_grado_real || null,
-          metadata: {
-            ...((parentPlan.metadata as any) || {}),
-            variantOf: parentPlan.id,
-            neeKind: variantKind,
-            neeCodes: validNeeCodes,
-          },
-        })
+        .insert([safePayload])
         .select()
         .single()
 
