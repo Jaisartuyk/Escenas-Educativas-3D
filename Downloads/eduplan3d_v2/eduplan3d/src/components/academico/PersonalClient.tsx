@@ -7,7 +7,18 @@ import { createInstitutionUser } from '@/lib/actions/users'
 import { ProfileDetailsPanel } from './ProfileDetailsPanel'
 import { ImportarEstudiantesModal } from './ImportarEstudiantesModal'
 
-export function PersonalClient({ institutionId, teachers, students, parents = [], horariosDocentes, directoryMetadata, courses = [] }: { institutionId: string, teachers: any[], students: any[], parents?: any[], horariosDocentes: any[], directoryMetadata: any, courses?: any[] }) {
+const LETAMENDI_NAME = 'UNIDAD EDUCATIVA PARTICULAR CORONEL MIGUEL DE LETAMENDI'
+
+function normalizeInstitutionName(value: string | null | undefined) {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+}
+
+export function PersonalClient({ institutionId, currentRole, institutionName, teachers, students, parents = [], horariosDocentes, directoryMetadata, courses = [] }: { institutionId: string, currentRole: string, institutionName: string, teachers: any[], students: any[], parents?: any[], horariosDocentes: any[], directoryMetadata: any, courses?: any[] }) {
   const [loading, setLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
   const [showRegistrarForm, setShowRegistrarForm] = useState(false)
@@ -15,6 +26,7 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
   
   // Local state for optimistic updates
   const [localMetaData, setLocalMetaData] = useState(directoryMetadata || {})
+  const isRestrictedSecretary = currentRole === 'secretary' && normalizeInstitutionName(institutionName) === LETAMENDI_NAME
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -31,6 +43,7 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
     parent_password: '',
     parent_phone: '',
   })
+  const effectiveRole = isRestrictedSecretary ? 'student' : formData.role
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,7 +51,7 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
       return toast.error("Nombre, cédula y contraseña son obligatorios")
     }
 
-    if (formData.role === 'student' && formData.create_parent_account) {
+    if (effectiveRole === 'student' && formData.create_parent_account) {
       if (!formData.parent_full_name || !formData.parent_dni || !formData.parent_password) {
         return toast.error("Para crear el acceso del representante necesitamos nombre, cédula y contraseña inicial")
       }
@@ -53,10 +66,10 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
       dni: formData.dni,
       email,
       password: formData.password,
-      role: formData.role,
+      role: effectiveRole,
       institution_id: institutionId,
-      ...(formData.role === 'student' && formData.course_id ? { course_id: formData.course_id } : {}),
-      ...(formData.role === 'student' && formData.create_parent_account ? {
+      ...(effectiveRole === 'student' && formData.course_id ? { course_id: formData.course_id } : {}),
+      ...(effectiveRole === 'student' && formData.create_parent_account ? {
         parentAccount: {
           full_name: formData.parent_full_name,
           dni: formData.parent_dni,
@@ -72,12 +85,12 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
     if (res.error) {
       toast.error(res.error)
     } else {
-      const msg = formData.role === 'student'
+      const msg = effectiveRole === 'student'
         ? (formData.create_parent_account ? 'Estudiante y representante creados' : 'Estudiante creado/matriculado')
         : 
-                  formData.role === 'teacher' ? 'Docente creado' :
-                  formData.role === 'secretary' ? 'Secretaría creada' : 
-                  formData.role === 'supervisor' ? 'Supervisor creado' : 'Rector creado'
+                  effectiveRole === 'teacher' ? 'Docente creado' :
+                  effectiveRole === 'secretary' ? 'Secretaría creada' : 
+                  effectiveRole === 'supervisor' ? 'Supervisor creado' : 'Rector creado'
       
       toast.success(`${msg} exitosamente`)
       if (res.warning) toast((res.warning as string), { icon: 'ℹ️' })
@@ -106,8 +119,12 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
                 <UserPlus size={20} />
               </div>
               <div>
-                <h3 className="font-bold text-violet2 text-base drop-shadow-sm">Empadronar Nuevo Personal o Alumno</h3>
-                <p className="text-sm text-ink3">Registro individual con credenciales.</p>
+                <h3 className="font-bold text-violet2 text-base drop-shadow-sm">
+                  {isRestrictedSecretary ? 'Empadronar Nuevo Alumno' : 'Empadronar Nuevo Personal o Alumno'}
+                </h3>
+                <p className="text-sm text-ink3">
+                  {isRestrictedSecretary ? 'Secretaría puede registrar únicamente estudiantes en esta institución.' : 'Registro individual con credenciales.'}
+                </p>
               </div>
             </div>
             <button className="btn-primary text-sm px-5 py-2 font-bold tracking-wide flex-shrink-0">Abrir Registro</button>
@@ -140,14 +157,19 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-bg/50 p-5 rounded-xl border border-[rgba(0,0,0,0.02)]">
             <div className="space-y-1">
               <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Rol Asignado</label>
-              <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as any})} className="input-base">
+              <select value={effectiveRole} onChange={e => setFormData({...formData, role: e.target.value as any})} disabled={isRestrictedSecretary} className="input-base">
                 <option value="student">Estudiante</option>
-                <option value="teacher">Profesor (Docente)</option>
-                <option value="secretary">Secretaría / Administrativo</option>
-                <option value="supervisor">Supervisor / Inspector</option>
-                <option value="rector">Rector / Autoridad</option>
+                {!isRestrictedSecretary && <option value="teacher">Profesor (Docente)</option>}
+                {!isRestrictedSecretary && <option value="secretary">Secretaría / Administrativo</option>}
+                {!isRestrictedSecretary && <option value="supervisor">Supervisor / Inspector</option>}
+                {!isRestrictedSecretary && <option value="rector">Rector / Autoridad</option>}
               </select>
             </div>
+            {isRestrictedSecretary && (
+              <div className="md:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                En Letamendi, el rol de secretaría solo puede crear alumnos desde este módulo.
+              </div>
+            )}
             <div className="space-y-1">
               <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Nombre Completo</label>
               <input type="text" required value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} placeholder="Ej. Juan Pérez" className="input-base" />
@@ -177,7 +199,7 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
                 </p>
               </div>
             )}
-            {formData.role === 'student' && courses.length > 0 && (
+            {effectiveRole === 'student' && courses.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-ink3 uppercase tracking-wider">Curso a Matricular</label>
                 <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="input-base">
@@ -187,7 +209,7 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
                 <p className="text-[10px] text-ink4">Se matriculará automáticamente al guardar.</p>
               </div>
             )}
-            {formData.role === 'student' && (
+            {effectiveRole === 'student' && (
               <div className="md:col-span-2 rounded-2xl border border-[rgba(124,109,250,0.12)] bg-[rgba(124,109,250,0.04)] p-4 space-y-4">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -372,6 +394,8 @@ export function PersonalClient({ institutionId, teachers, students, parents = []
           user={selectedUser}
           metadata={localMetaData[selectedUser.id] || {}}
           institutionId={institutionId}
+          currentRole={currentRole}
+          institutionName={institutionName}
           onClose={() => setSelectedUser(null)}
           onUpdate={(newMeta) => setLocalMetaData((prev:any) => ({ ...prev, [selectedUser.id]: newMeta }))}
         />

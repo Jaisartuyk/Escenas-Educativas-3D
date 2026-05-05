@@ -17,6 +17,8 @@ interface Props {
   parents: any[]
   horariosDocentes: any[]
   institutionId: string
+  currentRole: string
+  institutionName: string
   directoryMetadata: any
   tutores: Record<string, string>
 }
@@ -24,7 +26,7 @@ interface Props {
 export function AcademicoClient({
   initialCourses, initialStudents, initialSubjects, initialEnrollments,
   initialAssignments = [], initialGrades = [], initialCategories = [],
-  teachers, parents, horariosDocentes, institutionId, directoryMetadata, tutores
+  teachers, parents, horariosDocentes, institutionId, currentRole, institutionName, directoryMetadata, tutores
 }: Props) {
   const [activeTab, setActiveTab] = useState<'cursos' | 'matriculas' | 'personal' | 'promocion'>('cursos')
   const [courses]    = useState(initialCourses)
@@ -315,6 +317,8 @@ export function AcademicoClient({
         {activeTab === 'personal' && (
           <PersonalClient
             institutionId={institutionId}
+            currentRole={currentRole}
+            institutionName={institutionName}
             teachers={teachers}
             parents={parents}
             students={initialStudents}

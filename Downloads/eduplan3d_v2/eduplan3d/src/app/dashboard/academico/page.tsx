@@ -60,7 +60,7 @@ export default async function AcademicoPage() {
 
       // Leer settings de la institución con adminClient (evita bloqueo de RLS)
       admin.from('institutions' as any)
-        .select('settings')
+        .select('settings, name')
         .eq('id', instId)
         .single(),
 
@@ -80,6 +80,7 @@ export default async function AcademicoPage() {
     : { data: [] }
 
   const instSettings     = (instRes.data as any)?.settings || {}
+  const institutionName  = (instRes.data as any)?.name || ''
   const directoryMetadata = instSettings.directory || {}
   const horariosDocentes  = instSettings.horarios?.docentes || []
 
@@ -149,6 +150,8 @@ export default async function AcademicoPage() {
         parents={parentsRes.data            || []}
         horariosDocentes={horariosDocentes}
         institutionId={instId}
+        currentRole={profile.role}
+        institutionName={institutionName}
         directoryMetadata={directoryMetadata}
         tutores={tutores}
       />
