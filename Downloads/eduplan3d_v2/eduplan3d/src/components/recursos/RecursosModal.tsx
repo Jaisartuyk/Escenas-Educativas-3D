@@ -5,7 +5,16 @@ import { useState, useEffect } from 'react'
 import { X, Youtube, BookOpen, Lightbulb, ExternalLink, RefreshCw } from 'lucide-react'
 
 interface ResourceData {
-  youtube: Array<{ title: string; search_query: string; description: string }>
+  youtube: Array<{
+    title: string
+    search_query: string
+    description: string
+    video_id?: string
+    embed_url?: string
+    watch_url?: string
+    thumbnail_url?: string
+    channel_title?: string
+  }>
   academic: Array<{ title: string; source: string; link_suggestion: string }>
   interactive: { title: string; platform: string; description: string }
   pedagogical_tip: string
@@ -21,6 +30,7 @@ export function RecursosModal({
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<ResourceData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [selectedVideoIndex, setSelectedVideoIndex] = useState(0)
 
   const fetchResources = async () => {
     setLoading(true)
@@ -38,6 +48,7 @@ export function RecursosModal({
       if (!res.ok) throw new Error('Error al obtener recursos')
       const json = await res.json()
       setData(json)
+      setSelectedVideoIndex(0)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -48,6 +59,8 @@ export function RecursosModal({
   useEffect(() => {
     fetchResources()
   }, [subject])
+
+  const selectedVideo = data?.youtube?.[selectedVideoIndex]
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -99,19 +112,78 @@ export function RecursosModal({
                 <h3 className="text-lg font-bold text-ink flex items-center gap-2">
                   <Youtube className="text-rose-500" size={20} /> Videos de YouTube
                 </h3>
+                {selectedVideo?.embed_url ? (
+                  <div className="rounded-3xl border border-surface2 bg-black overflow-hidden shadow-sm">
+                    <div className="aspect-video">
+                      <iframe
+                        src={selectedVideo.embed_url}
+                        title={selectedVideo.title}
+                        className="h-full w-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                        allowFullScreen
+                      />
+                    </div>
+                    <div className="bg-surface p-4 space-y-1">
+                      <p className="font-bold text-sm text-ink">{selectedVideo.title}</p>
+                      {selectedVideo.channel_title ? (
+                        <p className="text-xs text-ink3">{selectedVideo.channel_title}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {data.youtube.map((v, i) => (
-                    <div key={i} className="bg-surface2/50 border border-surface2 rounded-2xl p-4 flex flex-col hover:border-violet/20 transition-colors">
-                      <p className="font-bold text-sm text-ink mb-1 line-clamp-2">{v.title}</p>
-                      <p className="text-[10px] text-ink3 mb-3">{v.description}</p>
-                      <a 
-                        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(v.search_query)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-auto flex items-center justify-center gap-2 py-2 bg-white border border-surface2 rounded-xl text-[10px] font-bold text-ink hover:bg-violet hover:text-white hover:border-violet transition-all"
-                      >
-                        <Youtube size={12} /> Buscar Video
-                      </a>
+                    <div
+                      key={i}
+                      className={`bg-surface2/50 border rounded-2xl overflow-hidden flex flex-col transition-colors ${
+                        selectedVideoIndex === i ? 'border-violet shadow-sm' : 'border-surface2 hover:border-violet/20'
+                      }`}
+                    >
+                      {v.thumbnail_url ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVideoIndex(i)}
+                          className="block w-full text-left"
+                        >
+                          <img
+                            src={v.thumbnail_url}
+                            alt={v.title}
+                            className="w-full aspect-video object-cover"
+                          />
+                        </button>
+                      ) : null}
+                      <div className="p-4 flex flex-col flex-1">
+                        <p className="font-bold text-sm text-ink mb-1 line-clamp-2">{v.title}</p>
+                        {v.channel_title ? (
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-ink3 mb-2">
+                            {v.channel_title}
+                          </p>
+                        ) : null}
+                        <p className="text-[10px] text-ink3 mb-3">{v.description}</p>
+                        <div className="mt-auto flex flex-col gap-2">
+                          {v.embed_url ? (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedVideoIndex(i)}
+                              className="flex items-center justify-center gap-2 py-2 bg-violet text-white rounded-xl text-[10px] font-bold hover:bg-violet2 transition-all"
+                            >
+                              <Youtube size={12} /> Ver aqui
+                            </button>
+                          ) : null}
+                          <a
+                            href={
+                              v.watch_url ||
+                              `https://www.youtube.com/results?search_query=${encodeURIComponent(v.search_query)}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 py-2 bg-white border border-surface2 rounded-xl text-[10px] font-bold text-ink hover:bg-violet hover:text-white hover:border-violet transition-all"
+                          >
+                            <ExternalLink size={12} /> Abrir en YouTube
+                          </a>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
