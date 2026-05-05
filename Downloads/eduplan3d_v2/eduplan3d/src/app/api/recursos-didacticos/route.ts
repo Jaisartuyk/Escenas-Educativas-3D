@@ -20,11 +20,35 @@ REGLAS:
 5. Devuelve la respuesta en formato JSON estructurado sin texto extra fuera del JSON.`
 
 type RecursosPayload = {
-  youtube: Array<{ title: string; search_query: string; description: string }>
+  youtube: Array<{
+    title: string
+    search_query: string
+    description: string
+    video_id?: string
+    embed_url?: string
+    watch_url?: string
+    thumbnail_url?: string
+    channel_title?: string
+  }>
   academic: Array<{ title: string; source: string; link_suggestion: string }>
   interactive: { title: string; platform: string; description: string }
   pedagogical_tip: string
 }
+
+type YoutubeApiSearchItem = {
+  id?: { videoId?: string }
+  snippet?: {
+    title?: string
+    channelTitle?: string
+    thumbnails?: {
+      high?: { url?: string }
+      medium?: { url?: string }
+      default?: { url?: string }
+    }
+  }
+}
+
+const youtubeApiKey = process.env.YOUTUBE_API_KEY
 
 function extractJsonObject(text: string): RecursosPayload | null {
   const cleaned = text
@@ -88,6 +112,68 @@ function buildFallbackResources(subject: string, grade: string, topics?: string 
   }
 }
 
+async function enrichYoutubeResources(
+  resources: RecursosPayload['youtube']
+): Promise<RecursosPayload['youtube']> {
+  if (!youtubeApiKey || resources.length === 0) {
+    return resources
+  }
+
+  const enriched = await Promise.all(
+    resources.map(async (resource) => {
+      try {
+        const params = new URLSearchParams({
+          key: youtubeApiKey,
+          part: 'snippet',
+          q: resource.search_query,
+          type: 'video',
+          maxResults: '1',
+          regionCode: 'EC',
+          relevanceLanguage: 'es',
+          safeSearch: 'moderate',
+          videoEmbeddable: 'true',
+        })
+
+        const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store',
+        })
+
+        if (!response.ok) {
+          return resource
+        }
+
+        const json = (await response.json()) as { items?: YoutubeApiSearchItem[] }
+        const first = json.items?.[0]
+        const videoId = first?.id?.videoId
+
+        if (!videoId) {
+          return resource
+        }
+
+        const thumbnail =
+          first?.snippet?.thumbnails?.high?.url ||
+          first?.snippet?.thumbnails?.medium?.url ||
+          first?.snippet?.thumbnails?.default?.url
+
+        return {
+          ...resource,
+          title: first?.snippet?.title?.trim() || resource.title,
+          video_id: videoId,
+          embed_url: `https://www.youtube.com/embed/${videoId}`,
+          watch_url: `https://www.youtube.com/watch?v=${videoId}`,
+          thumbnail_url: thumbnail,
+          channel_title: first?.snippet?.channelTitle?.trim() || undefined,
+        }
+      } catch {
+        return resource
+      }
+    })
+  )
+
+  return enriched
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = createClient()
@@ -125,7 +211,9 @@ Formato JSON:
 }`
 
     if (!anthropic) {
-      return NextResponse.json(buildFallbackResources(subject, grade, topics))
+      const fallback = buildFallbackResources(subject, grade, topics)
+      fallback.youtube = await enrichYoutubeResources(fallback.youtube)
+      return NextResponse.json(fallback)
     }
 
     try {
@@ -140,14 +228,19 @@ Formato JSON:
       const parsed = extractJsonObject(text)
 
       if (parsed) {
+        parsed.youtube = await enrichYoutubeResources(parsed.youtube)
         return NextResponse.json(parsed)
       }
 
       console.error('Error parsing AI response for recursos-didacticos:', text)
-      return NextResponse.json(buildFallbackResources(subject, grade, topics))
+      const fallback = buildFallbackResources(subject, grade, topics)
+      fallback.youtube = await enrichYoutubeResources(fallback.youtube)
+      return NextResponse.json(fallback)
     } catch (aiError) {
       console.error('Error generating didactic resources with AI:', aiError)
-      return NextResponse.json(buildFallbackResources(subject, grade, topics))
+      const fallback = buildFallbackResources(subject, grade, topics)
+      fallback.youtube = await enrichYoutubeResources(fallback.youtube)
+      return NextResponse.json(fallback)
     }
   } catch (error: any) {
     console.error('Error en API recursos-didacticos:', error)
