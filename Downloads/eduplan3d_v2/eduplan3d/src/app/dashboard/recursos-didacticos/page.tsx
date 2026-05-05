@@ -10,27 +10,27 @@ export default async function RecursosDidacticosPage() {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) redirect('/auth/login')
 
-  const { data: profile } = await supabase
+  const { data: profile } = await (supabase as any)
     .from('profiles')
     .select('plan')
     .eq('id', user.id)
     .single()
 
   // Solo accesible para docentes externos (planner_solo)
-  if (profile?.plan !== 'planner_solo') {
+  if ((profile as any)?.plan !== 'planner_solo') {
     redirect('/dashboard')
   }
 
   // Obtener las materias del docente
-  const { data: subjects } = await supabase
+  const { data: subjects } = await (supabase as any)
     .from('planner_subjects')
     .select('*')
     .eq('user_id', user.id)
     .order('materia', { ascending: true })
 
   // Para cada materia, buscar si tiene planificaciones para obtener temas de referencia
-  const subjectsWithContext = await Promise.all((subjects || []).map(async (s) => {
-    const { data: recentPlans } = await supabase
+  const subjectsWithContext = await Promise.all(((subjects as any[]) || []).map(async (s: any) => {
+    const { data: recentPlans } = await (supabase as any)
       .from('planificaciones')
       .select('topic, created_at')
       .eq('user_id', user.id)
@@ -41,7 +41,7 @@ export default async function RecursosDidacticosPage() {
 
     return {
       ...s,
-      recentTopics: recentPlans?.map(p => p.topic).join(', ') || null
+      recentTopics: ((recentPlans as any[]) || []).map((p: any) => p.topic).join(', ') || null
     }
   }))
 
