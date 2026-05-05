@@ -15,9 +15,11 @@ Tu mision es sugerir recursos didacticos de alta calidad (YouTube, articulos cie
 REGLAS:
 1. Sugiere recursos que sean pedagogicamente solidos y adecuados para el nivel del estudiante.
 2. Prioriza fuentes en espanol.
-3. Para YouTube, sugiere terminos de busqueda especificos o tipos de videos.
-4. Para articulos, sugiere repositorios o portales educativos confiables.
-5. Devuelve la respuesta en formato JSON estructurado sin texto extra fuera del JSON.`
+3. Si recibes temas reales de planificacion, debes basarte en ellos de forma prioritaria y explicita. No te desvienes a recursos generales si ya existe una planificacion creada.
+4. Solo si NO hay temas de planificacion puedes sugerir recursos generales de la materia y nivel.
+5. Para YouTube, sugiere terminos de busqueda especificos o tipos de videos.
+6. Para articulos, sugiere repositorios o portales educativos confiables.
+7. Devuelve la respuesta en formato JSON estructurado sin texto extra fuera del JSON.`
 
 type RecursosPayload = {
   youtube: Array<{
@@ -71,44 +73,67 @@ function extractJsonObject(text: string): RecursosPayload | null {
 
 function buildFallbackResources(subject: string, grade: string, topics?: string | null): RecursosPayload {
   const topicHint = topics?.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 3)
+  const hasPlannedTopics = Boolean(topicHint && topicHint.length > 0)
   const mainTopic = topicHint?.[0] || `contenidos clave de ${subject}`
+  const secondaryTopic = topicHint?.[1] || mainTopic
+  const tertiaryTopic = topicHint?.[2] || secondaryTopic
 
   return {
     youtube: [
       {
-        title: `Explicacion guiada de ${mainTopic}`,
-        search_query: `${subject} ${grade} ${mainTopic} explicacion para estudiantes Ecuador`,
-        description: 'Busca un video breve de introduccion con ejemplos claros y vocabulario acorde al nivel.',
+        title: hasPlannedTopics ? `Explicacion guiada de ${mainTopic}` : `Explicacion guiada de ${subject}`,
+        search_query: hasPlannedTopics
+          ? `${subject} ${grade} ${mainTopic} explicacion para estudiantes Ecuador`
+          : `${subject} ${grade} explicacion para estudiantes Ecuador`,
+        description: hasPlannedTopics
+          ? `Busca un video breve centrado especificamente en el tema planificado: ${mainTopic}.`
+          : 'Busca un video breve de introduccion con ejemplos claros y vocabulario acorde al nivel.',
       },
       {
-        title: `Ejercicios resueltos de ${subject}`,
-        search_query: `${subject} ${grade} ejercicios resueltos ${mainTopic}`,
-        description: 'Prioriza videos con desarrollo paso a paso para reforzar comprension y practica.',
+        title: hasPlannedTopics ? `Ejercicios resueltos sobre ${secondaryTopic}` : `Ejercicios resueltos de ${subject}`,
+        search_query: hasPlannedTopics
+          ? `${subject} ${grade} ejercicios resueltos ${secondaryTopic}`
+          : `${subject} ${grade} ejercicios resueltos`,
+        description: hasPlannedTopics
+          ? `Prioriza videos de practica paso a paso sobre ${secondaryTopic}.`
+          : 'Prioriza videos con desarrollo paso a paso para reforzar comprension y practica.',
       },
       {
-        title: `Clase interactiva o repaso de ${mainTopic}`,
-        search_query: `${subject} ${grade} repaso interactivo ${mainTopic}`,
-        description: 'Ideal para cierre de clase o retroalimentacion despues de una actividad escrita.',
+        title: hasPlannedTopics ? `Repaso interactivo de ${tertiaryTopic}` : `Clase interactiva o repaso de ${mainTopic}`,
+        search_query: hasPlannedTopics
+          ? `${subject} ${grade} repaso interactivo ${tertiaryTopic}`
+          : `${subject} ${grade} repaso interactivo ${mainTopic}`,
+        description: hasPlannedTopics
+          ? `Ideal para cerrar o retroalimentar el tema planificado ${tertiaryTopic}.`
+          : 'Ideal para cierre de clase o retroalimentacion despues de una actividad escrita.',
       },
     ],
     academic: [
       {
-        title: `Lecturas y materiales de apoyo sobre ${mainTopic}`,
+        title: hasPlannedTopics ? `Lecturas y materiales de apoyo sobre ${mainTopic}` : `Lecturas y materiales de apoyo sobre ${subject}`,
         source: 'Google Academico / repositorios universitarios',
-        link_suggestion: `${subject} ${mainTopic} site:scholar.google.com OR site:educarecuador.gob.ec`,
+        link_suggestion: hasPlannedTopics
+          ? `${subject} ${mainTopic} site:scholar.google.com OR site:educarecuador.gob.ec`
+          : `${subject} ${grade} site:scholar.google.com OR site:educarecuador.gob.ec`,
       },
       {
-        title: `Guias didacticas de ${subject} para ${grade}`,
+        title: hasPlannedTopics ? `Guias didacticas de ${secondaryTopic}` : `Guias didacticas de ${subject} para ${grade}`,
         source: 'Ministerio de Educacion / portales educativos',
-        link_suggestion: `${subject} ${grade} guia didactica Ecuador pdf`,
+        link_suggestion: hasPlannedTopics
+          ? `${subject} ${secondaryTopic} ${grade} guia didactica Ecuador pdf`
+          : `${subject} ${grade} guia didactica Ecuador pdf`,
       },
     ],
     interactive: {
-      title: `Actividad interactiva de ${mainTopic}`,
+      title: hasPlannedTopics ? `Actividad interactiva de ${mainTopic}` : `Actividad interactiva de ${subject}`,
       platform: 'Wordwall / Genially / Liveworksheets',
-      description: 'Usa un recurso interactivo corto para activar conocimientos previos o cerrar la sesion con verificacion rapida.',
+      description: hasPlannedTopics
+        ? `Usa un recurso interactivo corto centrado en ${mainTopic} para activar conocimientos previos o cerrar la sesion.`
+        : 'Usa un recurso interactivo corto para activar conocimientos previos o cerrar la sesion con verificacion rapida.',
     },
-    pedagogical_tip: `Usa los recursos de forma secuencial: activa con un video corto, profundiza con una lectura guiada y cierra con una actividad interactiva centrada en ${mainTopic}.`,
+    pedagogical_tip: hasPlannedTopics
+      ? `Usa los recursos de forma secuencial y mantente fiel a los temas planificados (${(topicHint || []).join(', ')}): activa con un video puntual, profundiza con una lectura guiada y cierra con una actividad interactiva del mismo eje.`
+      : `Usa los recursos de forma secuencial: activa con un video corto, profundiza con una lectura guiada y cierra con una actividad interactiva centrada en ${mainTopic}.`,
   }
 }
 
@@ -192,6 +217,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Materia y grado son requeridos' }, { status: 400 })
     }
 
+    const hasPlannedTopics = typeof topics === 'string' && topics.trim().length > 0
+
     const prompt = `Materia: ${subject}
 Grado: ${grade}
 Temas recientes planificados: ${topics || 'No hay temas especificos; sugiere recursos generales para esta materia y nivel.'}
@@ -208,7 +235,11 @@ Formato JSON:
   "academic": [{ "title": "...", "source": "...", "link_suggestion": "..." }],
   "interactive": { "title": "...", "platform": "...", "description": "..." },
   "pedagogical_tip": "..."
-}`
+}
+
+${hasPlannedTopics
+  ? 'IMPORTANTE: como si existen temas de planificacion, cada recurso debe alinearse explicitamente con esos temas y no con la materia en general.'
+  : 'IMPORTANTE: como no existen temas de planificacion, puedes sugerir recursos generales pero siempre adecuados a la materia y al grado.'}`
 
     if (!anthropic) {
       const fallback = buildFallbackResources(subject, grade, topics)
