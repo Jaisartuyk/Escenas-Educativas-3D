@@ -181,6 +181,7 @@ const NAV_PLANNER_SOLO: NavItem[] = [
   { href: '/dashboard/calendario',   icon: '📅', label: 'Calendario'      },
   { href: '/dashboard/historial',    icon: '📂', label: 'Historial'       },
   { href: '/dashboard/biblioteca',   icon: '📚', label: 'Mis Materias'    },
+  { href: '/dashboard/recursos-didacticos', icon: '🎓', label: 'Recursos Didácticos' },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'   },
 ]
 
