@@ -2,6 +2,49 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { createClient as createServerClient } from '@/lib/supabase/server'
+
+const LETAMENDI_NAME = 'UNIDAD EDUCATIVA PARTICULAR CORONEL MIGUEL DE LETAMENDI'
+
+function normalizeInstitutionName(value: string | null | undefined) {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+}
+
+async function getActorContext() {
+  const supabase = createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado', user: null, profile: null, institutionName: null }
+
+  const { data: profile } = await (supabase as any)
+    .from('profiles')
+    .select('id, role, institution_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) return { error: 'Perfil no encontrado', user, profile: null, institutionName: null }
+
+  const { data: institution } = await (supabase as any)
+    .from('institutions')
+    .select('name')
+    .eq('id', (profile as any).institution_id)
+    .maybeSingle()
+
+  return {
+    error: null,
+    user,
+    profile,
+    institutionName: (institution as any)?.name || null,
+  }
+}
+
+function isRestrictedLetamendiSecretary(role: string | null | undefined, institutionName: string | null | undefined) {
+  return role === 'secretary' && normalizeInstitutionName(institutionName) === LETAMENDI_NAME
+}
 
 function buildParentLogin(email: string | undefined, dni: string | undefined, studentId: string, relationship: 'MADRE' | 'PADRE' | 'OTRO') {
   const normalizedEmail = email?.trim()
@@ -43,6 +86,19 @@ export async function createInstitutionUser(data: {
     is_primary?: boolean
   }
 }) {
+  const actor = await getActorContext()
+  if (actor.error || !actor.profile) {
+    return { error: actor.error || 'No autenticado' }
+  }
+
+  if ((actor.profile as any).institution_id !== data.institution_id) {
+    return { error: 'No autorizado para esta institución.' }
+  }
+
+  if (isRestrictedLetamendiSecretary((actor.profile as any).role, actor.institutionName) && data.role !== 'student') {
+    return { error: 'En Letamendi, secretaría solo puede crear alumnos.' }
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
@@ -548,6 +604,15 @@ export async function updateUserPlan(userId: string, newPlan: string) {
 }
 
 export async function deleteInstitutionUser(userId: string) {
+  const actor = await getActorContext()
+  if (actor.error || !actor.profile) {
+    return { error: actor.error || 'No autenticado' }
+  }
+
+  if (isRestrictedLetamendiSecretary((actor.profile as any).role, actor.institutionName)) {
+    return { error: 'En Letamendi, secretaría no puede eliminar miembros.' }
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 

@@ -6,16 +6,31 @@ import toast from 'react-hot-toast'
 import { updateProfileMetadata, deleteInstitutionUser, createParentAccessFromStudentProfile } from '@/lib/actions/users'
 import { createClient } from '@/lib/supabase/client'
 
+const LETAMENDI_NAME = 'UNIDAD EDUCATIVA PARTICULAR CORONEL MIGUEL DE LETAMENDI'
+
+function normalizeInstitutionName(value: string | null | undefined) {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+}
+
 export function ProfileDetailsPanel({ 
   user, 
   metadata, 
   institutionId, 
+  currentRole,
+  institutionName,
   onClose,
   onUpdate
 }: { 
   user: any, 
   metadata: any, 
   institutionId: string, 
+  currentRole: string,
+  institutionName: string,
   onClose: () => void,
   onUpdate: (meta: any) => void
 }) {
@@ -53,6 +68,7 @@ export function ProfileDetailsPanel({
 
   const isStudent = user.role === 'student'
   const isParent = user.role === 'parent'
+  const canDeleteMembers = !(currentRole === 'secretary' && normalizeInstitutionName(institutionName) === LETAMENDI_NAME)
 
   const representativeConfigs = [
     {
@@ -510,15 +526,17 @@ export function ProfileDetailsPanel({
                 {loading ? 'Guardando...' : <><Save size={18}/> Guardar Perfil</>}
               </button>
               
-              <div className="pt-4 border-t border-dashed border-[rgba(0,0,0,0.05)]">
-                <button 
-                  onClick={() => setShowConfirmDelete(true)} 
-                  disabled={loading}
-                  className="w-full py-2.5 text-xs font-bold text-red-500/60 hover:text-red-500 flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Trash2 size={14} /> Eliminar Miembro del Sistema
-                </button>
-              </div>
+              {canDeleteMembers && (
+                <div className="pt-4 border-t border-dashed border-[rgba(0,0,0,0.05)]">
+                  <button 
+                    onClick={() => setShowConfirmDelete(true)} 
+                    disabled={loading}
+                    className="w-full py-2.5 text-xs font-bold text-red-500/60 hover:text-red-500 flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Trash2 size={14} /> Eliminar Miembro del Sistema
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex flex-col gap-3 animate-fade-in">
