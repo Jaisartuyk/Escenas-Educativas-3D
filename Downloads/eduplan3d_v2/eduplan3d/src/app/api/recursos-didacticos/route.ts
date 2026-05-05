@@ -1,46 +1,122 @@
-// src/app/api/recursos-didacticos/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60 // 1 minute is enough for this
+export const maxDuration = 60
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null
 
-const SYSTEM_PROMPT = `Eres un experto en curación de contenidos educativos para el sistema escolar de Ecuador.
-Tu misión es sugerir recursos didácticos de alta calidad (YouTube, artículos científicos, juegos interactivos) basados en los temas de planificación que se te proporcionen.
+const SYSTEM_PROMPT = `Eres un experto en curacion de contenidos educativos para el sistema escolar de Ecuador.
+Tu mision es sugerir recursos didacticos de alta calidad (YouTube, articulos cientificos, juegos interactivos) basados en los temas de planificacion que se te proporcionen.
 
 REGLAS:
-1. Sugiere recursos que sean pedagógicamente sólidos y adecuados para el nivel (grado) del estudiante.
-2. Prioriza fuentes en español.
-3. Para YouTube, sugiere términos de búsqueda específicos o tipos de videos (ej. "Experimentos sencillos de fotosíntesis").
-4. Para artículos, sugiere repositorios como Repositorio Investigo (U. Vigo) o Portales de la Complutense si el tema es avanzado, o portales como Educarecuador para temas básicos.
-5. Devuelve la respuesta en formato JSON estructurado.`
+1. Sugiere recursos que sean pedagogicamente solidos y adecuados para el nivel del estudiante.
+2. Prioriza fuentes en espanol.
+3. Para YouTube, sugiere terminos de busqueda especificos o tipos de videos.
+4. Para articulos, sugiere repositorios o portales educativos confiables.
+5. Devuelve la respuesta en formato JSON estructurado sin texto extra fuera del JSON.`
+
+type RecursosPayload = {
+  youtube: Array<{ title: string; search_query: string; description: string }>
+  academic: Array<{ title: string; source: string; link_suggestion: string }>
+  interactive: { title: string; platform: string; description: string }
+  pedagogical_tip: string
+}
+
+function extractJsonObject(text: string): RecursosPayload | null {
+  const cleaned = text
+    .replace(/```json/gi, '```')
+    .replace(/```/g, '')
+    .trim()
+
+  const firstBrace = cleaned.indexOf('{')
+  const lastBrace = cleaned.lastIndexOf('}')
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) return null
+
+  const candidate = cleaned.slice(firstBrace, lastBrace + 1)
+
+  try {
+    return JSON.parse(candidate) as RecursosPayload
+  } catch {
+    return null
+  }
+}
+
+function buildFallbackResources(subject: string, grade: string, topics?: string | null): RecursosPayload {
+  const topicHint = topics?.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 3)
+  const mainTopic = topicHint?.[0] || `contenidos clave de ${subject}`
+
+  return {
+    youtube: [
+      {
+        title: `Explicacion guiada de ${mainTopic}`,
+        search_query: `${subject} ${grade} ${mainTopic} explicacion para estudiantes Ecuador`,
+        description: 'Busca un video breve de introduccion con ejemplos claros y vocabulario acorde al nivel.',
+      },
+      {
+        title: `Ejercicios resueltos de ${subject}`,
+        search_query: `${subject} ${grade} ejercicios resueltos ${mainTopic}`,
+        description: 'Prioriza videos con desarrollo paso a paso para reforzar comprension y practica.',
+      },
+      {
+        title: `Clase interactiva o repaso de ${mainTopic}`,
+        search_query: `${subject} ${grade} repaso interactivo ${mainTopic}`,
+        description: 'Ideal para cierre de clase o retroalimentacion despues de una actividad escrita.',
+      },
+    ],
+    academic: [
+      {
+        title: `Lecturas y materiales de apoyo sobre ${mainTopic}`,
+        source: 'Google Academico / repositorios universitarios',
+        link_suggestion: `${subject} ${mainTopic} site:scholar.google.com OR site:educarecuador.gob.ec`,
+      },
+      {
+        title: `Guias didacticas de ${subject} para ${grade}`,
+        source: 'Ministerio de Educacion / portales educativos',
+        link_suggestion: `${subject} ${grade} guia didactica Ecuador pdf`,
+      },
+    ],
+    interactive: {
+      title: `Actividad interactiva de ${mainTopic}`,
+      platform: 'Wordwall / Genially / Liveworksheets',
+      description: 'Usa un recurso interactivo corto para activar conocimientos previos o cerrar la sesion con verificacion rapida.',
+    },
+    pedagogical_tip: `Usa los recursos de forma secuencial: activa con un video corto, profundiza con una lectura guiada y cierra con una actividad interactiva centrada en ${mainTopic}.`,
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
 
     const { subject, grade, topics } = await req.json()
 
     if (!subject || !grade) {
-      return NextResponse.json({ error: 'Materia y Grado son requeridos' }, { status: 400 })
+      return NextResponse.json({ error: 'Materia y grado son requeridos' }, { status: 400 })
     }
 
     const prompt = `Materia: ${subject}
 Grado: ${grade}
-Temas recientes planificados: ${topics || 'No hay temas específicos, sugiere recursos generales para esta materia y nivel.'}
+Temas recientes planificados: ${topics || 'No hay temas especificos; sugiere recursos generales para esta materia y nivel.'}
 
-Por favor, genera un "Kit de Recursos Didácticos" que incluya:
-1. 3 Videos de YouTube (título y qué buscar).
-2. 2 Recursos Académicos (artículos, PDFs de repositorios).
-3. 1 Recurso Interactivo o Juego (tipo Genially, Wordwall o simulación).
-4. Un breve consejo pedagógico sobre cómo usar estos materiales en clase.
+Genera un kit de recursos didacticos que incluya:
+1. 3 videos de YouTube (titulo, busqueda y descripcion).
+2. 2 recursos academicos (titulo, fuente y sugerencia de busqueda o enlace).
+3. 1 recurso interactivo o juego.
+4. Un breve consejo pedagogico.
 
-Formato de respuesta JSON:
+Formato JSON:
 {
   "youtube": [{ "title": "...", "search_query": "...", "description": "..." }],
   "academic": [{ "title": "...", "source": "...", "link_suggestion": "..." }],
@@ -48,29 +124,33 @@ Formato de respuesta JSON:
   "pedagogical_tip": "..."
 }`
 
-    const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20240620',
-      max_tokens: 1500,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const text = message.content[0].type === 'text' ? message.content[0].text : ''
-    
-    // Attempt to parse JSON from response
-    try {
-      const jsonStart = text.indexOf('{')
-      const jsonEnd = text.lastIndexOf('}') + 1
-      const jsonStr = text.substring(jsonStart, jsonEnd)
-      const data = JSON.parse(jsonStr)
-      return NextResponse.json(data)
-    } catch (parseError) {
-      console.error('Error parsing AI response:', text)
-      return NextResponse.json({ error: 'Error al procesar la respuesta de la IA' }, { status: 500 })
+    if (!anthropic) {
+      return NextResponse.json(buildFallbackResources(subject, grade, topics))
     }
 
+    try {
+      const message = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20240620',
+        max_tokens: 1500,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
+      })
+
+      const text = message.content[0]?.type === 'text' ? message.content[0].text : ''
+      const parsed = extractJsonObject(text)
+
+      if (parsed) {
+        return NextResponse.json(parsed)
+      }
+
+      console.error('Error parsing AI response for recursos-didacticos:', text)
+      return NextResponse.json(buildFallbackResources(subject, grade, topics))
+    } catch (aiError) {
+      console.error('Error generating didactic resources with AI:', aiError)
+      return NextResponse.json(buildFallbackResources(subject, grade, topics))
+    }
   } catch (error: any) {
     console.error('Error en API recursos-didacticos:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Error interno' }, { status: 500 })
   }
 }
