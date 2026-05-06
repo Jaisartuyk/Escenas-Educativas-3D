@@ -24,7 +24,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) redirect('/auth/login')
 
-  const { data: profile } = await (supabase as any)
+  // Usamos admin client para leer el perfil porque el usuario ya está
+  // autenticado (línea 24). El admin client bypassa RLS y evita conflictos
+  // con las políticas de seguridad de la tabla profiles.
+  const admin = createAdminClient()
+  const { data: profile } = await (admin as any)
     .from('profiles')
     .select('id, full_name, institution_id, plan, email, role, planner_ia_enabled')
     .eq('id', user!.id)
@@ -37,7 +41,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // ── Fetch Institution Data ──────────────────────────────────────────────────
   let institution = null
   if (profile?.institution_id) {
-    const { data } = await (supabase as any)
+    const { data } = await (admin as any)
       .from('institutions')
       .select('name, settings, planner_ia_enabled')
       .eq('id', profile.institution_id)
@@ -58,7 +62,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let viewingYearId: string | null  = null
 
   if (profile?.institution_id) {
-    const admin = createAdminClient()
     const { data: yearsData } = await (admin as any)
       .from('academic_years')
       .select('*')
