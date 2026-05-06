@@ -258,9 +258,39 @@ export function AcademicoClient({
                     {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name} {c.parallel}</option>)}
                   </select>
                 </div>
-                <div className="text-xs text-ink3 space-x-4">
-                  <span><b>{filteredStudents.length}</b> estudiantes</span>
-                  <span><b>{courseSubjects.length}</b> materias</span>
+                <div className="flex items-center gap-4">
+                  <div className="text-xs text-ink3 space-x-4">
+                    <span><b>{filteredStudents.length}</b> estudiantes</span>
+                    <span><b>{courseSubjects.length}</b> materias</span>
+                  </div>
+                  {filteredStudents.length > 0 && (
+                    <button
+                      onClick={() => {
+                        const courseName = selectedCourse ? `${selectedCourse.name}${selectedCourse.parallel ? '_' + selectedCourse.parallel : ''}` : 'curso'
+                        const subjectNames = courseSubjects.map((s: any) => s.name)
+                        const header = ['#', 'Nombre Completo', 'Email', ...subjectNames]
+                        const rows = filteredStudents.map((student: any, idx: number) => {
+                          const base = [String(idx + 1), student.full_name || '', student.email || '']
+                          const subjectMarks = subjectNames.map(() => '✓')
+                          return [...base, ...subjectMarks]
+                        })
+                        const csvContent = [header, ...rows]
+                          .map(row => row.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(','))
+                          .join('\n')
+                        const BOM = '\uFEFF'
+                        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `nomina_${courseName.replace(/\s+/g, '_')}.csv`
+                        a.click()
+                        URL.revokeObjectURL(url)
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-teal/10 text-teal border border-teal/20 hover:bg-teal/20 transition-colors"
+                    >
+                      📥 Exportar Lista
+                    </button>
+                  )}
                 </div>
               </div>
 
