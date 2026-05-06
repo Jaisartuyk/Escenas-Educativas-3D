@@ -405,28 +405,39 @@ export async function POST(req: Request) {
     // ── 2b. Cursos (con deduplicación inteligente) ─────────────────────────
     const { data: existingCourses } = await admin
       .from('courses' as any)
-      .select('id, name')
+      .select('id, name, parallel')
       .eq('institution_id', instId)
 
     // Normalize: remove accents, extra spaces, lowercase for comparison
     const normalize = (s: string) => normalizeText(s)
 
-    const courseMap: Record<string, string> = {}        // exact name → id
-    const normalizedMap: Record<string, string> = {}    // normalized name → exact name
+    const courseMap: Record<string, string> = {}        // display name → id
+    const normalizedMap: Record<string, string> = {}    // normalized name → display name
     ;(existingCourses as any[] || []).forEach((c: any) => {
-      courseMap[c.name] = c.id
+      // Build display name matching the horarios format: "8VO A" = name + parallel
+      const displayName = c.parallel ? `${c.name} ${c.parallel}`.trim() : c.name
+      courseMap[c.name] = c.id            // exact DB name → id
+      courseMap[displayName] = c.id       // combined display name → id
       normalizedMap[normalize(c.name)] = c.name
+      normalizedMap[normalize(displayName)] = displayName
     })
 
     // Only create courses that don't already exist (checking normalized names)
     const newCourseNames = (body.config?.cursos || []).filter((c: string) => {
+      // Normalize extra spaces in the config name first
+      const cleanName = c.replace(/\s+/g, ' ').trim()
       // Skip if exact match exists
+      if (courseMap[cleanName]) {
+        courseMap[c] = courseMap[cleanName]
+        return false
+      }
       if (courseMap[c]) return false
       // Skip if normalized match exists (e.g. "INICIAL 1" vs "Inicial 1")
       const norm = normalize(c)
       if (normalizedMap[norm]) {
         // Map this config name to the existing course id
-        courseMap[c] = courseMap[normalizedMap[norm]]
+        const matchedDisplay = normalizedMap[norm]
+        courseMap[c] = courseMap[matchedDisplay]
         return false
       }
       return true
@@ -437,10 +448,20 @@ export async function POST(req: Request) {
         const nid = randomUUID()
         courseMap[c] = nid
         normalizedMap[normalize(c)] = c
+        // Extract parallel from course name (e.g. "8VO A" → name="8VO", parallel="A")
+        const parts = c.replace(/\s+/g, ' ').trim().split(' ')
+        let courseName = c
+        let parallel: string | null = null
+        // If last part is a single letter (A, B, C...), treat it as parallel
+        if (parts.length >= 2 && /^[A-Z]$/i.test(parts[parts.length - 1])) {
+          parallel = parts.pop()!.toUpperCase()
+          courseName = parts.join(' ')
+        }
         return {
           id: nid,
           institution_id: instId,
-          name: c,
+          name: courseName,
+          parallel,
           level: bodyNivel || null,
           shift: bodyJornada || null,
         }

@@ -86,6 +86,10 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
   const [newEmail, setNewEmail] = useState('')
   const [savingEmail, setSavingEmail] = useState(false)
 
+  // ── Member search & filter state ──
+  const [memberSearch, setMemberSearch] = useState('')
+  const [memberRoleFilter, setMemberRoleFilter] = useState('all')
+
   // Cargar catálogo global de nombres de materias
   useEffect(() => {
     fetch('/api/institucion/subjects')
@@ -384,11 +388,97 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
       )}
 
       {/* ─── MIEMBROS ─── */}
-      {tab === 'miembros' && (
+      {tab === 'miembros' && (() => {
+        const searchQuery = memberSearch.toLowerCase().trim()
+        const filtered = members
+          .filter(m => {
+            // Filtro por rol
+            if (memberRoleFilter !== 'all' && m.role !== memberRoleFilter) return false
+            // Filtro por búsqueda
+            if (searchQuery) {
+              const nameMatch = (m.full_name || '').toLowerCase().includes(searchQuery)
+              const emailMatch = (m.email || '').toLowerCase().includes(searchQuery)
+              return nameMatch || emailMatch
+            }
+            return true
+          })
+          .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+
+        // Conteo por rol
+        const roleCounts = members.reduce((acc, m) => {
+          acc[m.role] = (acc[m.role] || 0) + 1
+          return acc
+        }, {} as Record<string, number>)
+
+        return (
         <div>
-          <p className="text-sm text-ink3 mb-4">{members.length} miembro{members.length !== 1 ? 's' : ''} en esta institución</p>
+          {/* Barra de búsqueda y filtros */}
+          <div className="card p-4 mb-4">
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Buscador */}
+              <div className="flex-1 min-w-[240px] relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink4 text-sm">🔍</span>
+                <input
+                  type="text"
+                  value={memberSearch}
+                  onChange={e => setMemberSearch(e.target.value)}
+                  placeholder="Buscar por nombre o correo..."
+                  className="input-base w-full pl-9 text-sm"
+                />
+                {memberSearch && (
+                  <button
+                    onClick={() => setMemberSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink4 hover:text-ink2 text-xs"
+                  >✕</button>
+                )}
+              </div>
+              {/* Filtro por rol */}
+              <select
+                value={memberRoleFilter}
+                onChange={e => setMemberRoleFilter(e.target.value)}
+                className="input-base text-sm py-2 px-3 min-w-[160px]"
+              >
+                <option value="all">Todos los roles ({members.length})</option>
+                {Object.entries(roleCounts).sort((a, b) => b[1] - a[1]).map(([role, count]) => (
+                  <option key={role} value={role}>
+                    {ROLE_LABELS[role] ?? role} ({count})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {/* Resumen de conteo */}
+            <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-[rgba(0,0,0,0.04)]">
+              <span className="text-xs text-ink3">
+                <b className="text-ink">{filtered.length}</b> de {members.length} miembro{members.length !== 1 ? 's' : ''}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(roleCounts).sort((a, b) => b[1] - a[1]).map(([role, count]) => (
+                  <button
+                    key={role}
+                    onClick={() => setMemberRoleFilter(memberRoleFilter === role ? 'all' : role)}
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full cursor-pointer transition-all ${
+                      memberRoleFilter === role
+                        ? ROLE_COLORS[role] + ' ring-2 ring-offset-1 ring-violet/30'
+                        : ROLE_COLORS[role] + ' opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    {ROLE_LABELS[role] ?? role} · {count}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Lista de miembros */}
+          {filtered.length === 0 ? (
+            <div className="card p-10 text-center text-ink3">
+              <p className="text-3xl mb-3">🔍</p>
+              <p className="text-sm font-medium">No se encontraron miembros</p>
+              <p className="text-xs mt-1">Prueba con otro término de búsqueda o cambia el filtro</p>
+            </div>
+          ) : (
           <div className="flex flex-col gap-3">
-            {members.map(m => (
+            {filtered.map(m => (
               <div key={m.id} className="card p-4">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet to-violet2 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
@@ -436,8 +526,10 @@ export function InstitucionClient({ institution, members, courses, subjects, tea
               </div>
             ))}
           </div>
+          )}
         </div>
-      )}
+        )
+      })()}
 
       {/* ─── CURSOS ─── */}
       {tab === 'cursos' && (
