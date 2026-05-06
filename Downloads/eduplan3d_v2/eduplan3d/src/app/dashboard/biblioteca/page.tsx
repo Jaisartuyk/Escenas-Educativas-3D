@@ -22,7 +22,8 @@ export default async function BibliotecaPage() {
     .eq('id', user.id)
     .single()
 
-  const isAdmin = ['admin', 'assistant', 'supervisor', 'rector'].includes(profile?.role)
+  const isAdmin = ['admin', 'assistant', 'supervisor', 'rector', 'secretary'].includes(profile?.role)
+  const isSecretary = profile?.role === 'secretary'
   const instId = profile?.institution_id
   const isPlannerSolo = (profile as any)?.plan === 'planner_solo'
 
@@ -109,17 +110,24 @@ export default async function BibliotecaPage() {
       instSettings?.logo_url
         ?? (institutionName.toUpperCase().includes('LETAMENDI') ? '/icon/logo-institucion.png' : null)
 
+    // Secretary: solo planificaciones publicadas, sin recursos
+    const filteredManuales = isSecretary
+      ? ((manuales as any[]) || []).filter((m: any) => m.status === 'published')
+      : (manuales as any) || []
+
     return (
       <div className="animate-fade-in max-w-6xl mx-auto">
         <div className="mb-6">
           <h1 className="font-display text-3xl font-bold tracking-tight">Planificaciones Docentes</h1>
           <p className="text-ink3 text-sm mt-1">
-            Visualiza las planificaciones, borradores y recursos de los docentes de tu institución.
+            {isSecretary
+              ? 'Consulta las planificaciones publicadas por los docentes de la institución.'
+              : 'Visualiza las planificaciones, borradores y recursos de los docentes de tu institución.'}
           </p>
         </div>
         <AdminPlanificacionesClient
-          manuales={(manuales as any) || []}
-          recursos={recursos}
+          manuales={filteredManuales}
+          recursos={isSecretary ? [] : recursos}
           teachers={(teachers as any) || []}
           institutionName={institutionName}
           logoUrl={logoUrl}

@@ -146,6 +146,15 @@ const NAV_SECRETARY: NavNode[] = [
       { href: '/dashboard/institucion',  icon: '🏢', label: 'Institución' },
     ],
   },
+  {
+    title: 'Consultas Académicas',
+    icon: '📚',
+    color: 'from-amber/20 to-amber/5',
+    items: [
+      { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
+      { href: '/dashboard/biblioteca',   icon: '📋', label: 'Planificaciones' },
+    ],
+  },
   { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración'},
 ]
 
