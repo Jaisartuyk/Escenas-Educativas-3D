@@ -86,7 +86,8 @@ export function AcademicoClient({
           {courses.map((course: any) => {
             const courseSubjects  = subjects.filter((s: any) => s.course_id === course.id)
             const studentCount    = enrollments.filter((e: any) => e.course_id === course.id).length
-            const tutor           = tutores[course.name] || '—'
+            const tutorKey         = course.parallel ? `${course.name} ${course.parallel}`.trim() : course.name
+            const tutor           = tutores[tutorKey] || tutores[course.name] || '—'
             const isOpen          = !!expanded[course.id]
 
             return (
