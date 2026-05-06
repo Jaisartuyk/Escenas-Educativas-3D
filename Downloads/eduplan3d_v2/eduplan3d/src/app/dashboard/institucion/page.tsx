@@ -2,6 +2,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { InstitucionClient } from '@/components/institucion/InstitucionClient'
 
 export const metadata: Metadata = { title: 'Mi Institución' }
@@ -15,7 +16,8 @@ export default async function InstitucionPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await (supabase as any)
+  const admin = createAdminClient()
+  const { data: profile } = await (admin as any)
     .from('profiles')
     .select('id, full_name, institution_id, role')
     .eq('id', user!.id)
@@ -26,15 +28,13 @@ export default async function InstitucionPage() {
   const isAdmin = ['admin', 'assistant', 'secretary', 'rector'].includes(profile.role)
   if (!isAdmin) redirect('/dashboard')
 
-  const { data: institution } = await (supabase as any)
+  const { data: institution } = await (admin as any)
     .from('institutions')
     .select('*')
     .eq('id', profile.institution_id)
     .single()
 
-  // Usamos el cliente admin para saltar RLS en esta página administrativa del servidor
-  const { createAdminClient } = await import('@/lib/supabase/admin')
-  const admin = createAdminClient()
+  // Datos institucionales con admin client (ya definido arriba)
 
   // Miembros de esta institución
   const { data: members } = await admin

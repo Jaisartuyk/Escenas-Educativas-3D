@@ -13,7 +13,8 @@ export default async function AcademicoPage() {
 
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await (supabase as any)
+  const admin = createAdminClient()
+  const { data: profile } = await (admin as any)
     .from('profiles')
     .select('institution_id, role')
     .eq('id', user.id)
@@ -23,7 +24,6 @@ export default async function AcademicoPage() {
   const isAdmin = ['admin', 'assistant', 'secretary', 'rector'].includes(profile.role)
   if (!isAdmin) redirect('/dashboard')
 
-  const admin = createAdminClient()
   const instId: string = profile.institution_id
 
   // ── Paso 1: todas las queries independientes en paralelo ────────────────────
