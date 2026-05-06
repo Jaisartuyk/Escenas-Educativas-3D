@@ -18,7 +18,7 @@ function normalizeInstitutionName(value: string | null | undefined) {
     .toUpperCase()
 }
 
-export function PersonalClient({ institutionId, currentRole, institutionName, teachers, students, parents = [], horariosDocentes, directoryMetadata, courses = [] }: { institutionId: string, currentRole: string, institutionName: string, teachers: any[], students: any[], parents?: any[], horariosDocentes: any[], directoryMetadata: any, courses?: any[] }) {
+export function PersonalClient({ institutionId, currentRole, institutionName, teachers, students, parents = [], horariosDocentes, directoryMetadata, courses = [], enrollments: enrollmentsRef = [] }: { institutionId: string, currentRole: string, institutionName: string, teachers: any[], students: any[], parents?: any[], horariosDocentes: any[], directoryMetadata: any, courses?: any[], enrollments?: any[] }) {
   const [loading, setLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
   const [showRegistrarForm, setShowRegistrarForm] = useState(false)
@@ -27,6 +27,12 @@ export function PersonalClient({ institutionId, currentRole, institutionName, te
   // Local state for optimistic updates
   const [localMetaData, setLocalMetaData] = useState(directoryMetadata || {})
   const isRestrictedSecretary = currentRole === 'secretary' && normalizeInstitutionName(institutionName) === LETAMENDI_NAME
+
+  // Search & filter state
+  const [searchTeachers, setSearchTeachers] = useState('')
+  const [searchStudents, setSearchStudents] = useState('')
+  const [searchParents, setSearchParents] = useState('')
+  const [filterStudentCourse, setFilterStudentCourse] = useState('all')
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -321,71 +327,153 @@ export function PersonalClient({ institutionId, currentRole, institutionName, te
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* ── PERSONAL / DOCENTES ── */}
         <div className="bg-bg border border-surface rounded-2xl p-5">
-           <h4 className="font-bold mb-4 text-violet2 uppercase text-xs tracking-wider">Personal de la Institución ({teachers.length})</h4>
-           <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-             {teachers.map(t => {
-               const meta = localMetaData[t.id] || {}
-               return (
-               <div key={t.id} onClick={() => setSelectedUser(t)} className="p-3 bg-surface rounded-xl border border-[rgba(0,0,0,0.02)] cursor-pointer hover:bg-[rgba(124,109,250,0.05)] transition-colors flex items-center gap-3">
-                 {meta.avatar_url ? (
-                   <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-violet2" />
-                 ) : (
-                   <div className="w-10 h-10 rounded-full bg-[rgba(124,109,250,0.15)] flex items-center justify-center text-violet2 font-bold text-xs">{t.full_name.charAt(0)}</div>
-                 )}
-                 <div>
-                   <p className="font-medium text-sm">{t.full_name}</p>
-                   <p className="text-xs text-ink4">{t.email}</p>
+           <h4 className="font-bold mb-3 text-violet2 uppercase text-xs tracking-wider">Personal de la Institución ({teachers.length})</h4>
+           <input
+             type="text"
+             value={searchTeachers}
+             onChange={e => setSearchTeachers(e.target.value)}
+             placeholder="🔍 Buscar docente..."
+             className="input-base w-full text-xs mb-3"
+           />
+           {(() => {
+             const q = searchTeachers.toLowerCase().trim()
+             const filtered = teachers
+               .filter(t => {
+                 if (!q) return true
+                 return (t.full_name || '').toLowerCase().includes(q) || (t.email || '').toLowerCase().includes(q)
+               })
+               .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+             return (
+               <>
+                 {q && <p className="text-[10px] text-ink4 mb-2">{filtered.length} de {teachers.length} encontrados</p>}
+                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                   {filtered.map(t => {
+                     const meta = localMetaData[t.id] || {}
+                     return (
+                     <div key={t.id} onClick={() => setSelectedUser(t)} className="p-3 bg-surface rounded-xl border border-[rgba(0,0,0,0.02)] cursor-pointer hover:bg-[rgba(124,109,250,0.05)] transition-colors flex items-center gap-3">
+                       {meta.avatar_url ? (
+                         <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-violet2" />
+                       ) : (
+                         <div className="w-10 h-10 rounded-full bg-[rgba(124,109,250,0.15)] flex items-center justify-center text-violet2 font-bold text-xs">{t.full_name.charAt(0)}</div>
+                       )}
+                       <div>
+                         <p className="font-medium text-sm">{t.full_name}</p>
+                         <p className="text-xs text-ink4">{t.email}</p>
+                       </div>
+                     </div>
+                     )
+                   })}
+                   {filtered.length === 0 && <p className="text-xs text-ink4 italic text-center py-4">{q ? 'Sin resultados' : 'Sin profesores verificados.'}</p>}
                  </div>
-               </div>
-               )
-             })}
-             {teachers.length === 0 && <p className="text-xs text-ink4 italic">Sin profesores verificados.</p>}
-           </div>
+               </>
+             )
+           })()}
         </div>
+
+        {/* ── ALUMNOS ── */}
         <div className="bg-bg border border-surface rounded-2xl p-5">
-           <h4 className="font-bold mb-4 text-teal">Alumnos Inscritos ({students.length})</h4>
-           <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-             {students.map(s => {
-               const meta = localMetaData[s.id] || {}
-               return (
-               <div key={s.id} onClick={() => setSelectedUser(s)} className="p-3 bg-[rgba(38,215,180,0.05)] text-teal rounded-xl border border-[rgba(38,215,180,0.1)] cursor-pointer hover:bg-[rgba(38,215,180,0.1)] transition-colors flex items-center gap-3">
-                 {meta.avatar_url ? (
-                   <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-teal" />
-                 ) : (
-                   <div className="w-10 h-10 rounded-full bg-[rgba(38,215,180,0.15)] flex items-center justify-center text-teal font-bold text-xs">{s.full_name.charAt(0)}</div>
-                 )}
-                 <div>
-                   <p className="font-medium text-sm">{s.full_name}</p>
-                   <p className="text-xs opacity-70">{s.email}</p>
+           <h4 className="font-bold mb-3 text-teal">Alumnos Inscritos ({students.length})</h4>
+           <input
+             type="text"
+             value={searchStudents}
+             onChange={e => setSearchStudents(e.target.value)}
+             placeholder="🔍 Buscar alumno..."
+             className="input-base w-full text-xs mb-2"
+           />
+           {courses.length > 0 && (
+             <select
+               value={filterStudentCourse}
+               onChange={e => setFilterStudentCourse(e.target.value)}
+               className="input-base w-full text-xs mb-3"
+             >
+               <option value="all">Todos los cursos</option>
+               {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name} {c.parallel}</option>)}
+             </select>
+           )}
+           {(() => {
+             const q = searchStudents.toLowerCase().trim()
+             const filtered = students
+               .filter(s => {
+                 if (filterStudentCourse !== 'all') {
+                   const enrolled = (enrollmentsRef || []).some((e: any) => e.student_id === s.id && e.course_id === filterStudentCourse)
+                   if (!enrolled) return false
+                 }
+                 if (!q) return true
+                 return (s.full_name || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q)
+               })
+               .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+             return (
+               <>
+                 {(q || filterStudentCourse !== 'all') && <p className="text-[10px] text-ink4 mb-2">{filtered.length} de {students.length} encontrados</p>}
+                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                   {filtered.map(s => {
+                     const meta = localMetaData[s.id] || {}
+                     return (
+                     <div key={s.id} onClick={() => setSelectedUser(s)} className="p-3 bg-[rgba(38,215,180,0.05)] text-teal rounded-xl border border-[rgba(38,215,180,0.1)] cursor-pointer hover:bg-[rgba(38,215,180,0.1)] transition-colors flex items-center gap-3">
+                       {meta.avatar_url ? (
+                         <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-teal" />
+                       ) : (
+                         <div className="w-10 h-10 rounded-full bg-[rgba(38,215,180,0.15)] flex items-center justify-center text-teal font-bold text-xs">{s.full_name.charAt(0)}</div>
+                       )}
+                       <div>
+                         <p className="font-medium text-sm">{s.full_name}</p>
+                         <p className="text-xs opacity-70">{s.email}</p>
+                       </div>
+                     </div>
+                     )
+                   })}
+                   {filtered.length === 0 && <p className="text-xs text-ink4 italic text-center py-4">{q || filterStudentCourse !== 'all' ? 'Sin resultados' : 'Sin alumnos verificados.'}</p>}
                  </div>
-               </div>
-               )
-             })}
-             {students.length === 0 && <p className="text-xs text-ink4 italic">Sin alumnos verificados.</p>}
-           </div>
+               </>
+             )
+           })()}
          </div>
+
+        {/* ── REPRESENTANTES ── */}
         <div className="bg-bg border border-surface rounded-2xl p-5">
-           <h4 className="font-bold mb-4 text-amber-500 uppercase text-xs tracking-wider">Representantes ({parents.length})</h4>
-           <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-             {parents.map(p => {
-               const meta = localMetaData[p.id] || {}
-               return (
-               <div key={p.id} onClick={() => setSelectedUser(p)} className="p-3 bg-[rgba(248,210,90,0.08)] rounded-xl border border-[rgba(248,210,90,0.18)] cursor-pointer hover:bg-[rgba(248,210,90,0.13)] transition-colors flex items-center gap-3">
-                 {meta.avatar_url ? (
-                   <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-amber-400" />
-                 ) : (
-                   <div className="w-10 h-10 rounded-full bg-[rgba(248,210,90,0.18)] flex items-center justify-center text-amber-600 font-bold text-xs">{p.full_name.charAt(0)}</div>
-                 )}
-                 <div>
-                   <p className="font-medium text-sm">{p.full_name}</p>
-                   <p className="text-xs text-ink4">{p.email}</p>
+           <h4 className="font-bold mb-3 text-amber-500 uppercase text-xs tracking-wider">Representantes ({parents.length})</h4>
+           <input
+             type="text"
+             value={searchParents}
+             onChange={e => setSearchParents(e.target.value)}
+             placeholder="🔍 Buscar representante..."
+             className="input-base w-full text-xs mb-3"
+           />
+           {(() => {
+             const q = searchParents.toLowerCase().trim()
+             const filtered = parents
+               .filter(p => {
+                 if (!q) return true
+                 return (p.full_name || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q)
+               })
+               .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+             return (
+               <>
+                 {q && <p className="text-[10px] text-ink4 mb-2">{filtered.length} de {parents.length} encontrados</p>}
+                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                   {filtered.map(p => {
+                     const meta = localMetaData[p.id] || {}
+                     return (
+                     <div key={p.id} onClick={() => setSelectedUser(p)} className="p-3 bg-[rgba(248,210,90,0.08)] rounded-xl border border-[rgba(248,210,90,0.18)] cursor-pointer hover:bg-[rgba(248,210,90,0.13)] transition-colors flex items-center gap-3">
+                       {meta.avatar_url ? (
+                         <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-amber-400" />
+                       ) : (
+                         <div className="w-10 h-10 rounded-full bg-[rgba(248,210,90,0.18)] flex items-center justify-center text-amber-600 font-bold text-xs">{p.full_name.charAt(0)}</div>
+                       )}
+                       <div>
+                         <p className="font-medium text-sm">{p.full_name}</p>
+                         <p className="text-xs text-ink4">{p.email}</p>
+                       </div>
+                     </div>
+                     )
+                   })}
+                   {filtered.length === 0 && <p className="text-xs text-ink4 italic text-center py-4">{q ? 'Sin resultados' : 'Sin representantes con acceso aún.'}</p>}
                  </div>
-               </div>
-               )
-             })}
-             {parents.length === 0 && <p className="text-xs text-ink4 italic">Sin representantes con acceso aún.</p>}
-           </div>
+               </>
+             )
+           })()}
          </div>
       </div>
 
