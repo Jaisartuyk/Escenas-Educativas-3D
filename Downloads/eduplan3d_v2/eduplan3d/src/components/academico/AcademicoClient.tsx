@@ -101,7 +101,7 @@ export function AcademicoClient({
                     <div className="w-8 h-8 rounded-lg bg-[rgba(124,109,250,0.12)] flex items-center justify-center flex-shrink-0">
                       <GraduationCap size={15} className="text-violet2" />
                     </div>
-                    <span className="font-semibold text-sm text-ink truncate">{course.name}</span>
+                    <span className="font-semibold text-sm text-ink truncate">{course.name}{course.parallel ? ` — ${course.parallel}` : ''}</span>
                   </div>
 
                   {/* Tutor */}
