@@ -272,11 +272,11 @@ export function AcademicoClient({
                         const header = ['#', 'Nombre Completo', 'Email', ...subjectNames]
                         const rows = filteredStudents.map((student: any, idx: number) => {
                           const base = [String(idx + 1), student.full_name || '', student.email || '']
-                          const subjectMarks = subjectNames.map(() => '✓')
+                          const subjectMarks = subjectNames.map(() => 'X')
                           return [...base, ...subjectMarks]
                         })
-                        const csvContent = [header, ...rows]
-                          .map(row => row.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(','))
+                        const csvContent = ['sep=;', ...[header, ...rows]
+                          .map(row => row.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(';'))]
                           .join('\n')
                         const BOM = '\uFEFF'
                         const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
