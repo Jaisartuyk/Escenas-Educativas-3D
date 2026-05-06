@@ -35,6 +35,7 @@ export function AcademicoClient({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [promoCourseId, setPromoCourseId] = useState<string>(initialCourses[0]?.id || '')
   const [nominaCourseId, setNominaCourseId] = useState<string>(initialCourses[0]?.id || '')
+  const [nominaSearch, setNominaSearch] = useState('')
   const supabase = createClient()
 
   function toggleExpand(id: string) {
@@ -244,6 +245,10 @@ export function AcademicoClient({
             .filter((e: any) => e.course_id === nominaCourseId)
             .map((e: any) => initialStudents.find((s: any) => s.id === e.student_id))
             .filter(Boolean)
+            .filter((s: any) => {
+              if (!nominaSearch.trim()) return true
+              return s.full_name?.toLowerCase().includes(nominaSearch.toLowerCase())
+            })
             .sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || ''))
           const courseSubjects = subjects.filter((s: any) => s.course_id === nominaCourseId)
           const selectedCourse = courses.find((c: any) => c.id === nominaCourseId)
@@ -254,10 +259,23 @@ export function AcademicoClient({
               <div className="p-5 bg-surface rounded-2xl border border-surface2 flex flex-wrap gap-4 items-end">
                 <div className="flex-1 min-w-[200px] space-y-1">
                   <label className="text-xs text-ink4 font-medium px-1">Filtrar por Curso</label>
-                  <select value={nominaCourseId} onChange={e => setNominaCourseId(e.target.value)}
+                  <select value={nominaCourseId} onChange={e => {
+                    setNominaCourseId(e.target.value)
+                    setNominaSearch('') // Reset search when course changes
+                  }}
                     className="w-full bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet">
                     {courses.map((c: any) => <option key={c.id} value={c.id}>{c.name} {c.parallel}</option>)}
                   </select>
+                </div>
+                <div className="flex-1 min-w-[200px] space-y-1">
+                  <label className="text-xs text-ink4 font-medium px-1">Buscar por Nombre</label>
+                  <input
+                    type="text"
+                    value={nominaSearch}
+                    onChange={e => setNominaSearch(e.target.value)}
+                    placeholder="🔍 Nombre del alumno..."
+                    className="w-full bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet"
+                  />
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-xs text-ink3 space-x-4">
@@ -356,6 +374,7 @@ export function AcademicoClient({
             horariosDocentes={horariosDocentes}
             directoryMetadata={directoryMetadata}
             courses={courses}
+            enrollments={enrollments}
           />
         )}
 
