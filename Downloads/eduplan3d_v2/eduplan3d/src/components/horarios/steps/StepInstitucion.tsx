@@ -265,7 +265,7 @@ export function StepInstitucion({ config, onChange, onNext, docentes = [], horas
         <h2 className="font-display text-base font-bold tracking-tight mb-1">Tutores por curso</h2>
         <p className="text-[11px] text-ink4 mb-4">Selecciona el docente tutor de cada curso. Solo aparecen docentes cargados en el paso anterior.</p>
         <div className="grid grid-cols-2 gap-3">
-          {[...new Set(config.cursos.map(c => c.replace(/\s+/g, ' ').trim()))].map(curso => {
+          {Array.from(new Set(config.cursos.map(c => c.replace(/\s+/g, ' ').trim()))).map(curso => {
             const current = config.tutores[curso] ?? ''
             // Build label for selected teacher
             const selectedDoc = docentes.find(d => {
