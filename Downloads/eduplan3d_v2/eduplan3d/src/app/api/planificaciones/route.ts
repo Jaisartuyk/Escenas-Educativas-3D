@@ -619,7 +619,7 @@ function splitThemeSegments(text: string) {
     .filter(Boolean)
 }
 
-function capTrimesterUnitLabel(text: string, unitMap: Map<string, string>) {
+function capTrimesterUnitLabel(text: string, unitMap: Map<string, string>, trimesterNumber: number) {
   const normalized = String(text || '')
   const match = normalized.match(/UNIDAD\s*(\d+)\s*:\s*([^\n|]+)/i)
   if (!match) return normalized
@@ -627,10 +627,13 @@ function capTrimesterUnitLabel(text: string, unitMap: Map<string, string>) {
   const originalNumber = Number(match[1])
   const unitTitle = match[2].trim()
   const sourceKey = `${originalNumber}:${unitTitle}`.toLowerCase()
+  const trimesterIndex = Number.isFinite(trimesterNumber) && trimesterNumber > 0 ? trimesterNumber : 1
+  const unitStart = ((trimesterIndex - 1) * 2) + 1
 
   if (!unitMap.has(sourceKey)) {
-    const nextIndex = Math.min(unitMap.size + 1, 2)
-    unitMap.set(sourceKey, `UNIDAD ${nextIndex}: ${unitTitle}`)
+    const nextIndex = Math.min(unitMap.size, 1)
+    const targetUnitNumber = unitStart + nextIndex
+    unitMap.set(sourceKey, `UNIDAD ${targetUnitNumber}: ${unitTitle}`)
   }
 
   return normalized.replace(/UNIDAD\s*\d+\s*:\s*[^\n|]+/i, unitMap.get(sourceKey) || normalized)
@@ -664,7 +667,7 @@ function splitIndicatorSegments(text: string) {
     .filter(Boolean)
 }
 
-function normalizeTrimesterRows(rows: string[][]) {
+function normalizeTrimesterRows(rows: string[][], trimesterNumber: number) {
   const normalizedRows: string[][] = []
   const unitMap = new Map<string, string>()
 
@@ -680,7 +683,7 @@ function normalizeTrimesterRows(rows: string[][]) {
 
     if (!multipleThemes && !multipleDcds && !multipleIndicators) {
       normalizedRows.push([
-        summarizeCell(capTrimesterUnitLabel(tema, unitMap), 4, 500),
+        summarizeCell(capTrimesterUnitLabel(tema, unitMap, trimesterNumber), 4, 500),
         summarizeCell(destrezas, 4, 900),
         summarizeCell(indicadores, 4, 900),
       ])
@@ -691,7 +694,7 @@ function normalizeTrimesterRows(rows: string[][]) {
     for (let i = 0; i < rowCount; i++) {
       const rawTheme = themes[i] || themes[themes.length - 1] || tema
       normalizedRows.push([
-        summarizeCell(capTrimesterUnitLabel(rawTheme, unitMap), 3, 220),
+        summarizeCell(capTrimesterUnitLabel(rawTheme, unitMap, trimesterNumber), 3, 220),
         summarizeCell(dcds[i] || dcds[dcds.length - 1] || destrezas, 3, 520),
         summarizeCell(inds[i] || inds[inds.length - 1] || indicadores, 3, 520),
       ])
@@ -704,6 +707,7 @@ function normalizeTrimesterRows(rows: string[][]) {
 function normalizeTrimesterPlanContent(opts: {
   content: string
   institutionName: string
+  trimestre?: number | null
 }) {
   const sanitized = sanitizeMarkdownTables(String(opts.content || ''))
   const titleBlock = extractTitleBlock(sanitized)
@@ -722,8 +726,9 @@ function normalizeTrimesterPlanContent(opts: {
   ].filter(Boolean).join('\n')
 
   const section21Table = parseMarkdownTable(extractFirstMarkdownTable(section21Content) || '')
+  const trimesterNumber = Math.max(1, Number(opts.trimestre) || 1)
   const normalized21 = section21Table
-    ? renderMarkdownTable(section21Table.headers, normalizeTrimesterRows(section21Table.rows))
+    ? renderMarkdownTable(section21Table.headers, normalizeTrimesterRows(section21Table.rows, trimesterNumber))
     : extractFirstMarkdownTable(section21Content)
 
   const section22Table = extractFirstMarkdownTable(section22Content)
@@ -977,7 +982,9 @@ OBLIGATORIO SOBRE COMPETENCIAS E INSERCIONES:
 11. El encabezado institucional NO puede usar placeholders como "Nombre de la institucion" o "Institucion Educativa"; debe escribir el nombre real de la institucion.
 12. En 2.1 esta PROHIBIDO agrupar varios temas distintos en una sola fila con vietas o bullets. Cada tema principal o subtema debe salir en su propia fila, con su DCD principal y su indicador completo en la misma fila.
 13. Si un trimestre previo del mismo curso ya usa este formato, conserva la misma densidad visual: varias filas claras y compactas, no una sola fila gigante por unidad.
-14. El trimestre debe organizarse en MAXIMO 2 unidades didacticas principales. Si el PUD o material trae mas bloques, sintetizalos dentro de solo dos unidades coherentes; no generes UNIDAD 3 ni UNIDAD 4.`.trim()
+14. El trimestre debe organizarse en MAXIMO 2 unidades didacticas principales.
+15. La numeracion de unidades debe continuar a lo largo del ano lectivo: Trimestre 1 usa Unidad 1 y 2; Trimestre 2 usa Unidad 3 y 4; Trimestre 3 usa Unidad 5 y 6.
+16. Si el PUD o material trae mas bloques, sintetizalos dentro de esas dos unidades coherentes del trimestre correspondiente; no agregues una tercera unidad dentro del mismo trimestre.`.trim()
   }
 
   if (type === 'clase') {
@@ -1833,6 +1840,7 @@ export async function POST(request: NextRequest) {
       content = normalizeTrimesterPlanContent({
         content,
         institutionName: body.institutionName || 'Institución Educativa',
+        trimestre: body.trimestre,
       })
     } else {
       content = sanitizeMarkdownTables(content || '')
