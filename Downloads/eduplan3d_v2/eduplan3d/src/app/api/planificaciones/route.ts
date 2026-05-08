@@ -619,6 +619,23 @@ function splitThemeSegments(text: string) {
     .filter(Boolean)
 }
 
+function capTrimesterUnitLabel(text: string, unitMap: Map<string, string>) {
+  const normalized = String(text || '')
+  const match = normalized.match(/UNIDAD\s*(\d+)\s*:\s*([^\n|]+)/i)
+  if (!match) return normalized
+
+  const originalNumber = Number(match[1])
+  const unitTitle = match[2].trim()
+  const sourceKey = `${originalNumber}:${unitTitle}`.toLowerCase()
+
+  if (!unitMap.has(sourceKey)) {
+    const nextIndex = Math.min(unitMap.size + 1, 2)
+    unitMap.set(sourceKey, `UNIDAD ${nextIndex}: ${unitTitle}`)
+  }
+
+  return normalized.replace(/UNIDAD\s*\d+\s*:\s*[^\n|]+/i, unitMap.get(sourceKey) || normalized)
+}
+
 function splitDcdSegments(text: string) {
   const normalized = String(text || '')
     .replace(/<br\s*\/?>/gi, '\n')
@@ -649,6 +666,7 @@ function splitIndicatorSegments(text: string) {
 
 function normalizeTrimesterRows(rows: string[][]) {
   const normalizedRows: string[][] = []
+  const unitMap = new Map<string, string>()
 
   for (const row of rows) {
     const [tema = '', destrezas = '', indicadores = ''] = row
@@ -662,7 +680,7 @@ function normalizeTrimesterRows(rows: string[][]) {
 
     if (!multipleThemes && !multipleDcds && !multipleIndicators) {
       normalizedRows.push([
-        summarizeCell(tema, 4, 500),
+        summarizeCell(capTrimesterUnitLabel(tema, unitMap), 4, 500),
         summarizeCell(destrezas, 4, 900),
         summarizeCell(indicadores, 4, 900),
       ])
@@ -671,8 +689,9 @@ function normalizeTrimesterRows(rows: string[][]) {
 
     const rowCount = Math.max(themes.length, dcds.length, inds.length)
     for (let i = 0; i < rowCount; i++) {
+      const rawTheme = themes[i] || themes[themes.length - 1] || tema
       normalizedRows.push([
-        summarizeCell(themes[i] || themes[themes.length - 1] || tema, 3, 220),
+        summarizeCell(capTrimesterUnitLabel(rawTheme, unitMap), 3, 220),
         summarizeCell(dcds[i] || dcds[dcds.length - 1] || destrezas, 3, 520),
         summarizeCell(inds[i] || inds[inds.length - 1] || indicadores, 3, 520),
       ])
@@ -957,7 +976,8 @@ OBLIGATORIO SOBRE COMPETENCIAS E INSERCIONES:
 10. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.
 11. El encabezado institucional NO puede usar placeholders como "Nombre de la institucion" o "Institucion Educativa"; debe escribir el nombre real de la institucion.
 12. En 2.1 esta PROHIBIDO agrupar varios temas distintos en una sola fila con vietas o bullets. Cada tema principal o subtema debe salir en su propia fila, con su DCD principal y su indicador completo en la misma fila.
-13. Si un trimestre previo del mismo curso ya usa este formato, conserva la misma densidad visual: varias filas claras y compactas, no una sola fila gigante por unidad.`.trim()
+13. Si un trimestre previo del mismo curso ya usa este formato, conserva la misma densidad visual: varias filas claras y compactas, no una sola fila gigante por unidad.
+14. El trimestre debe organizarse en MAXIMO 2 unidades didacticas principales. Si el PUD o material trae mas bloques, sintetizalos dentro de solo dos unidades coherentes; no generes UNIDAD 3 ni UNIDAD 4.`.trim()
   }
 
   if (type === 'clase') {
