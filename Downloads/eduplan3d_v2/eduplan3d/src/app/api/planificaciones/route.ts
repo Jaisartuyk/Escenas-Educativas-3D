@@ -590,6 +590,149 @@ function sanitizeMarkdownTables(md: string): string {
   return out.join('\n')
 }
 
+function extractInstitutionYear(content: string) {
+  const normalized = String(content || '')
+  const match = normalized.match(/A(?:ñ|n)o lectivo:\s*([0-9]{4}\s*-\s*[0-9]{4})/i)
+  if (match?.[1]) return match[1].replace(/\s+/g, '')
+  const loose = normalized.match(/(20\d{2}\s*-\s*20\d{2})/)
+  return loose?.[1]?.replace(/\s+/g, '') || ''
+}
+
+function splitThemeSegments(text: string) {
+  const normalized = String(text || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\r/g, '')
+    .trim()
+
+  if (!normalized) return []
+
+  const bulletSegments = normalized
+    .split(/\n(?=[•\-*])|<br\/>(?=[•\-*])/i)
+    .map(item => item.replace(/^[•\-*]\s*/, '').trim())
+    .filter(Boolean)
+
+  if (bulletSegments.length > 1) return bulletSegments
+
+  return normalized
+    .split(/\n+/)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function splitDcdSegments(text: string) {
+  const normalized = String(text || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\r/g, '')
+    .trim()
+
+  if (!normalized) return []
+
+  return normalized
+    .split(/(?=(?:LL|EFL|M|CN|CS|EF|EA|CE)\.\d+\.\d+(?:\.\d+)?\.)/g)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function splitIndicatorSegments(text: string) {
+  const normalized = String(text || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\r/g, '')
+    .trim()
+
+  if (!normalized) return []
+
+  return normalized
+    .split(/(?=(?:I|CE)\.[A-ZÑ]+(?:\.[A-ZÑ]+)?\.\d+\.\d+(?:\.\d+)?\.)/g)
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function normalizeTrimesterRows(rows: string[][]) {
+  const normalizedRows: string[][] = []
+
+  for (const row of rows) {
+    const [tema = '', destrezas = '', indicadores = ''] = row
+    const themes = splitThemeSegments(tema)
+    const dcds = splitDcdSegments(destrezas)
+    const inds = splitIndicatorSegments(indicadores)
+
+    const multipleThemes = themes.length > 1
+    const multipleDcds = dcds.length > 1
+    const multipleIndicators = inds.length > 1
+
+    if (!multipleThemes && !multipleDcds && !multipleIndicators) {
+      normalizedRows.push([
+        summarizeCell(tema, 4, 500),
+        summarizeCell(destrezas, 4, 900),
+        summarizeCell(indicadores, 4, 900),
+      ])
+      continue
+    }
+
+    const rowCount = Math.max(themes.length, dcds.length, inds.length)
+    for (let i = 0; i < rowCount; i++) {
+      normalizedRows.push([
+        summarizeCell(themes[i] || themes[themes.length - 1] || tema, 3, 220),
+        summarizeCell(dcds[i] || dcds[dcds.length - 1] || destrezas, 3, 520),
+        summarizeCell(inds[i] || inds[inds.length - 1] || indicadores, 3, 520),
+      ])
+    }
+  }
+
+  return normalizedRows
+}
+
+function normalizeTrimesterPlanContent(opts: {
+  content: string
+  institutionName: string
+}) {
+  const sanitized = sanitizeMarkdownTables(String(opts.content || ''))
+  const titleBlock = extractTitleBlock(sanitized)
+  const dataSection = extractMarkdownSection(sanitized, '### 1. DATOS INFORMATIVOS')
+  const section21Content = extractMarkdownSection(sanitized, '2.1 Temas')
+  const section22Content = extractMarkdownSection(sanitized, '2.2 Estrategias')
+  const section23Content = extractMarkdownSection(sanitized, '2.3 Estrategias')
+  const adaptSection = extractMarkdownSection(sanitized, '### 3. ADAPTACIONES CURRICULARES')
+
+  const schoolYear = extractInstitutionYear(titleBlock || sanitized)
+  const normalizedTitle = [
+    '# PLANIFICACIÓN MICROCURRICULAR DISCIPLINAR',
+    `**${opts.institutionName || 'Institución Educativa'}**`,
+    schoolYear ? `**Año lectivo: ${schoolYear}**` : '',
+    '---',
+  ].filter(Boolean).join('\n')
+
+  const section21Table = parseMarkdownTable(extractFirstMarkdownTable(section21Content) || '')
+  const normalized21 = section21Table
+    ? renderMarkdownTable(section21Table.headers, normalizeTrimesterRows(section21Table.rows))
+    : extractFirstMarkdownTable(section21Content)
+
+  const section22Table = extractFirstMarkdownTable(section22Content)
+  const section23Table = extractFirstMarkdownTable(section23Content)
+  const adaptTable = extractFirstMarkdownTable(adaptSection)
+
+  return [
+    normalizedTitle,
+    '',
+    '### 1. DATOS INFORMATIVOS',
+    dataSection.replace(/^### 1\.\s*DATOS INFORMATIVOS/i, '').trim(),
+    '',
+    '### 2. PLANIFICACIÓN',
+    '',
+    '#### 2.1 Temas + Destrezas + Indicadores',
+    normalized21 || '',
+    '',
+    '#### 2.2 Estrategias metodológicas (DUA) + Recursos',
+    section22Table || '',
+    '',
+    '#### 2.3 Estrategias para la evaluación',
+    section23Table || '',
+    '',
+    '### 3. ADAPTACIONES CURRICULARES',
+    adaptTable || adaptSection.replace(/^### 3\.\s*ADAPTACIONES CURRICULARES/i, '').trim(),
+  ].join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
 function buildFastTrimesterVariantContent(opts: {
   baseContent: string
   kind: 'nee_sin_disc' | 'diac'
@@ -811,7 +954,10 @@ OBLIGATORIO SOBRE COMPETENCIAS E INSERCIONES:
 7. No dejes celdas visualmente vacias ni indicadores resumidos por referencia; si el mismo indicador aplica a dos DCDs distintas, repitelo completo para mantener la tabla pareja.
 8. Si el PUD subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
 9. No inventes periodos semanales ni parciales. Este documento resume y organiza el trimestre completo.
-10. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.`.trim()
+10. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.
+11. El encabezado institucional NO puede usar placeholders como "Nombre de la institucion" o "Institucion Educativa"; debe escribir el nombre real de la institucion.
+12. En 2.1 esta PROHIBIDO agrupar varios temas distintos en una sola fila con vietas o bullets. Cada tema principal o subtema debe salir en su propia fila, con su DCD principal y su indicador completo en la misma fila.
+13. Si un trimestre previo del mismo curso ya usa este formato, conserva la misma densidad visual: varias filas claras y compactas, no una sola fila gigante por unidad.`.trim()
   }
 
   if (type === 'clase') {
@@ -1660,8 +1806,17 @@ export async function POST(request: NextRequest) {
       model: generationModel,
     })
 
-    const content = regularGeneration.content
+    let content = regularGeneration.content
     const wasTruncated = regularGeneration.truncated
+
+    if (body.type === 'trimestre') {
+      content = normalizeTrimesterPlanContent({
+        content,
+        institutionName: body.institutionName || 'Institución Educativa',
+      })
+    } else {
+      content = sanitizeMarkdownTables(content || '')
+    }
 
     const sesiones: Array<{ numero: number; tema: string; duracion_min: number }> = []
     // Regex robusta: admite Sesión/Sesion, con/sin tilde, opcionalmente el nro pegado, opcionalmente : o - o espacio.
