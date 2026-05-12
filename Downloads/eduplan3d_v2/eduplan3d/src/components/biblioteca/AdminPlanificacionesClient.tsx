@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   Search,
   MessageSquare,
+  Printer,
 } from 'lucide-react'
 
 interface Teacher {
@@ -440,8 +441,8 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
       )}
 
       {manualPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 print:bg-white print:p-0">
+          <div className="flex max-h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl print:max-h-none print:w-full print:shadow-none print:rounded-none">
             <div className="flex items-start justify-between border-b border-line p-5">
               <div className="min-w-0 flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -458,31 +459,80 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
                   {manualPreview.subject_name} · {manualPreview.course_name}
                 </p>
               </div>
-              <button
-                onClick={() => setManualPreview(null)}
-                className="ml-3 p-1 text-ink3 hover:text-ink"
-              >
-                ✕
-              </button>
+              <div className="ml-3 flex items-center gap-2">
+                {manualPreview.status === 'publicada' && (
+                  <button
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-violet-700 print:hidden"
+                  >
+                    <Printer size={14} /> Descargar PDF
+                  </button>
+                )}
+                <button
+                  onClick={() => setManualPreview(null)}
+                  className="p-1 text-ink3 hover:text-ink print:hidden"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-            {isLetamendi && manualPreview.type === 'anual' && (
-              <div className="flex items-center gap-4 border-b border-gray-200 bg-white px-6 py-4">
-                {logoUrl && (
-                  <img src={logoUrl} alt="Logo" className="h-14 w-auto object-contain" />
-                )}
-                <div className="flex-1 text-center">
-                  <p className="text-sm font-bold uppercase text-gray-800">{institutionName}</p>
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Planificación Curricular Anual</p>
+            {isLetamendi && manualPreview.type === 'anual' ? (
+              <div className="plan-doc-header px-8 pt-8 pb-4">
+                <div className="letamendi-annual-header">
+                  <div className="letamendi-annual-header__top">
+                    <div className="letamendi-annual-header__logo">
+                      {logoUrl ? (
+                        <img src={logoUrl} alt="Logo" className="w-16 h-16 object-contain" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg border border-dashed border-ink4 flex items-center justify-center text-[9px] text-ink4 text-center px-1">
+                          Logo
+                        </div>
+                      )}
+                    </div>
+                    <div className="letamendi-annual-header__title">
+                      {institutionName}
+                    </div>
+                    <div className="letamendi-annual-header__year">
+                      <div className="font-bold">Año lectivo:</div>
+                      <div>2026 - 2027</div>
+                    </div>
+                  </div>
+                  <div className="letamendi-annual-header__plan-title">PLAN CURRICULAR ANUAL</div>
                 </div>
-                {logoUrl && (
-                  <img src={logoUrl} alt="" className="h-14 w-auto object-contain opacity-0" aria-hidden />
-                )}
+              </div>
+            ) : (
+              <div className="plan-doc-header px-8 pt-8 pb-4">
+                <div className="flex items-center gap-4 border-b-2 border-black pb-3">
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt="Logo"
+                      className="w-16 h-16 object-contain"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-lg border border-dashed border-ink4 flex items-center justify-center text-[9px] text-ink4 text-center px-1">
+                      Logo
+                    </div>
+                  )}
+                  <div className="flex-1 text-center">
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-ink">
+                      {(institutionName || '').toUpperCase()}
+                    </h2>
+                    <p className="text-[10px] font-semibold tracking-widest text-ink3 mt-0.5 uppercase">
+                      Planificación Microcurricular
+                    </p>
+                    <p className="text-[10px] font-semibold tracking-wider text-ink3 mt-1">
+                      {manualPreview.subject_name} · {manualPreview.course_name}
+                    </p>
+                  </div>
+                  <div className="w-16" />
+                </div>
               </div>
             )}
             <div className="flex-1 overflow-y-auto p-6">
               {sanitizedPreviewHtml ? (
                 <div
-                  className="plan-readonly-preview"
+                  className="plan-readonly-preview plan-editor-prose"
                   dangerouslySetInnerHTML={{ __html: sanitizedPreviewHtml }}
                 />
               ) : (
@@ -490,8 +540,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
                   El docente aún no ha agregado contenido a esta planificación.
                 </p>
               )}
-
-              <div className="mt-6 border-t border-line pt-4">
+              <div className="mt-6 border-t border-line pt-4 print:hidden">
                 <div className="mb-2 flex items-center gap-2">
                   <MessageSquare size={15} className="text-blue-600" />
                   <p className="text-xs font-bold uppercase tracking-wide text-blue-800">Retroalimentación al docente</p>
@@ -503,7 +552,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
                   rows={4}
                   className="w-full rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-ink outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                 />
-                <div className="mt-2 flex items-center justify-end gap-3">
+                <div className="mt-2 flex items-center justify-end gap-3 print:hidden">
                   {manualPreview.supervisor_notes && !notesText && (
                     <p className="text-xs text-ink3 italic">El campo está vacío — guardar eliminará la retroalimentación actual.</p>
                   )}
@@ -519,29 +568,113 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
             </div>
           </div>
           <style jsx global>{`
-            .plan-readonly-preview h1,
-            .plan-readonly-preview h2,
-            .plan-readonly-preview h3 { color: #4c1d95; font-weight: 700; margin: 1em 0 .4em; }
-            .plan-readonly-preview h1 { font-size: 22px; }
-            .plan-readonly-preview h2 { font-size: 18px; }
-            .plan-readonly-preview h3 { font-size: 15px; }
-            .plan-readonly-preview p { margin: .5em 0; }
-            .plan-readonly-preview table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 13px; }
-            .plan-readonly-preview td, .plan-readonly-preview th { border: 1px solid #d1d5db; padding: 6px 8px; vertical-align: top; }
-            .plan-readonly-preview th { background: #f3f4f6; font-weight: 700; text-align: left; }
-            .plan-readonly-preview ul, .plan-readonly-preview ol { padding-left: 1.4em; margin: .5em 0; }
-            .plan-readonly-preview strong { color: #4c1d95; }
-            .plan-readonly-preview .letamendi-plan-table td,
-            .plan-readonly-preview .letamendi-plan-table th { border: 1px solid #111; }
-            .plan-readonly-preview .letamendi-plan-table .section-title td { background: #1a237e; color: white; font-weight: 700; font-size: 13px; }
-            .plan-readonly-preview .letamendi-plan-table td.comp-c  { background: #00ACC1 !important; color: white; text-align: center; font-weight: bold; }
-            .plan-readonly-preview .letamendi-plan-table td.comp-cm { background: #1565C0 !important; color: white; text-align: center; font-weight: bold; }
-            .plan-readonly-preview .letamendi-plan-table td.comp-cd { background: #E64A19 !important; color: white; text-align: center; font-weight: bold; }
-            .plan-readonly-preview .letamendi-plan-table td.comp-cs { background: #F9A825 !important; color: white; text-align: center; font-weight: bold; }
-            .plan-readonly-preview .letamendi-plan-table td.comp-c p,
-            .plan-readonly-preview .letamendi-plan-table td.comp-cm p,
-            .plan-readonly-preview .letamendi-plan-table td.comp-cd p,
-            .plan-readonly-preview .letamendi-plan-table td.comp-cs p { color: white !important; }
+            .plan-readonly-preview {
+              font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              color: #111;
+              line-height: 1.55;
+              font-size: 14px;
+            }
+            .plan-editor-prose h1 { font-size: 22px; font-weight: 700; color: #4c1d95; margin: 1em 0 .4em; }
+            .plan-editor-prose h2 { font-size: 18px; font-weight: 700; color: #4c1d95; margin: .9em 0 .3em; }
+            .plan-editor-prose h3 { font-size: 15px; font-weight: 700; color: #4c1d95; margin: .8em 0 .3em; }
+            .plan-editor-prose p { margin: .5em 0; }
+            .plan-editor-prose strong { color: #4c1d95; }
+            .plan-editor-prose ul, .plan-editor-prose ol { margin: .5em 0; padding-left: 1.4em; }
+            .plan-editor-prose li { margin: 3px 0; }
+            .plan-editor-prose table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 14px 0;
+              font-size: 13px;
+            }
+            .plan-editor-prose th,
+            .plan-editor-prose td {
+              border: 1px solid #d1d5db;
+              padding: 6px 8px;
+              vertical-align: top;
+              min-width: 80px;
+            }
+            .plan-editor-prose th {
+              background: #f3f4f6;
+              font-weight: 700;
+              text-align: left;
+            }
+            .plan-editor-prose .letamendi-plan-table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 0 0 14px 0;
+              font-size: 12px;
+            }
+            .plan-editor-prose .letamendi-plan-table th,
+            .plan-editor-prose .letamendi-plan-table td {
+              border: 1px solid #111;
+              padding: 4px 6px;
+              vertical-align: top;
+            }
+            .plan-editor-prose .letamendi-plan-table th {
+              background: #f8f8f8;
+              font-weight: 700;
+              text-align: center;
+            }
+            .plan-editor-prose .letamendi-plan-table .section-title td {
+              font-weight: 700;
+              background: #f8f8f8;
+              color: #111;
+              text-transform: uppercase;
+            }
+            .plan-editor-prose .letamendi-plan-table td.comp-c  { background: #00ACC1 !important; color: white !important; text-align: center; font-weight: bold; padding: 12px 8px; }
+            .plan-editor-prose .letamendi-plan-table td.comp-cm { background: #1565C0 !important; color: white !important; text-align: center; font-weight: bold; padding: 12px 8px; }
+            .plan-editor-prose .letamendi-plan-table td.comp-cd { background: #E64A19 !important; color: white !important; text-align: center; font-weight: bold; padding: 12px 8px; }
+            .plan-editor-prose .letamendi-plan-table td.comp-cs { background: #F9A825 !important; color: white !important; text-align: center; font-weight: bold; padding: 12px 8px; }
+            .plan-editor-prose .letamendi-plan-table td.comp-c p,
+            .plan-editor-prose .letamendi-plan-table td.comp-cm p,
+            .plan-editor-prose .letamendi-plan-table td.comp-cd p,
+            .plan-editor-prose .letamendi-plan-table td.comp-cs p { color: white !important; margin: 3px 0; }
+            .plan-editor-prose .letamendi-plan-table td.comp-c strong,
+            .plan-editor-prose .letamendi-plan-table td.comp-cm strong,
+            .plan-editor-prose .letamendi-plan-table td.comp-cd strong,
+            .plan-editor-prose .letamendi-plan-table td.comp-cs strong { color: white !important; font-size: 20px; display: block; }
+            
+            .letamendi-annual-header {
+              border: 1px solid #111;
+              margin-bottom: 12px;
+            }
+            .letamendi-annual-header__top {
+              display: grid;
+              grid-template-columns: 126px 1fr 122px;
+              align-items: stretch;
+            }
+            .letamendi-annual-header__logo,
+            .letamendi-annual-header__title,
+            .letamendi-annual-header__year {
+              border-right: 1px solid #111;
+              min-height: 96px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 10px;
+              text-align: center;
+            }
+            .letamendi-annual-header__year {
+              border-right: none;
+              flex-direction: column;
+              gap: 10px;
+              font-size: 12px;
+              font-weight: 600;
+            }
+            .letamendi-annual-header__title {
+              font-size: 22px;
+              font-weight: 800;
+              line-height: 1.1;
+              padding: 12px 18px;
+            }
+            .letamendi-annual-header__plan-title {
+              border-top: 1px solid #111;
+              text-align: center;
+              font-weight: 800;
+              font-size: 14px;
+              padding: 4px 8px;
+            }
           `}</style>
         </div>
       )}
