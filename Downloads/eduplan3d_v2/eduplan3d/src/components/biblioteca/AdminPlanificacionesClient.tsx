@@ -441,8 +441,8 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
       )}
 
       {manualPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 print:bg-white print:p-0">
-          <div className="flex max-h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl print:max-h-none print:w-full print:shadow-none print:rounded-none">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-20 print:bg-white print:p-0">
+          <div className="flex max-h-[calc(100vh-120px)] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl print:max-h-none print:w-full print:shadow-none print:rounded-none">
             <div className="flex items-start justify-between border-b border-line p-5">
               <div className="min-w-0 flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
