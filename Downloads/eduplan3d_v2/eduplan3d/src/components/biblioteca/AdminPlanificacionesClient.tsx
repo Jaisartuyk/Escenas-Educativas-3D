@@ -206,7 +206,8 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
   }
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className={`space-y-6 ${manualPreview ? 'print:hidden' : ''}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {selectedTeacherId ? (
           <div className="flex items-center gap-4">
@@ -439,6 +440,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
           </section>
         </div>
       )}
+      </div>
 
       {manualPreview && (
         <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-20 print:static print:overflow-visible print:inset-auto print:bg-white print:p-0">
@@ -678,6 +680,6 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
           `}</style>
         </div>
       )}
-    </div>
+    </>
   )
 }
