@@ -441,8 +441,8 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
       )}
 
       {manualPreview && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-20 print:bg-white print:p-0">
-          <div className="flex max-h-[calc(100vh-120px)] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl print:max-h-none print:w-full print:shadow-none print:rounded-none">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-20 print:static print:overflow-visible print:inset-auto print:bg-white print:p-0">
+          <div className="flex max-h-[calc(100vh-120px)] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl print:max-h-none print:w-full print:shadow-none print:rounded-none print:overflow-visible">
             <div className="flex items-start justify-between border-b border-line p-5">
               <div className="min-w-0 flex-1">
                 <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -463,7 +463,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
                 {manualPreview.status === 'publicada' && (
                   <button
                     onClick={() => window.print()}
-                    className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-violet-700 print:hidden"
+                    className="flex items-center gap-1.5 rounded-xl bg-violet px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-violet2 print:hidden"
                   >
                     <Printer size={14} /> Descargar PDF
                   </button>
@@ -529,7 +529,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
                 </div>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6 print:overflow-visible print:p-0">
               {sanitizedPreviewHtml ? (
                 <div
                   className="plan-readonly-preview plan-editor-prose"
