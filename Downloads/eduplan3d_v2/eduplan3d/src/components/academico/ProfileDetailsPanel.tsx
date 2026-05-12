@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { X, Camera, Phone, Mail, User2, Save, Trash2, AlertTriangle, KeyRound, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { updateProfileMetadata, deleteInstitutionUser, createParentAccessFromStudentProfile } from '@/lib/actions/users'
+import { updateProfileMetadata, deleteInstitutionUser, createParentAccessFromStudentProfile, updateUserProfileCore } from '@/lib/actions/users'
 import { createClient } from '@/lib/supabase/client'
 
 const LETAMENDI_NAME = 'UNIDAD EDUCATIVA PARTICULAR CORONEL MIGUEL DE LETAMENDI'
@@ -37,6 +37,7 @@ export function ProfileDetailsPanel({
   const [loading, setLoading] = useState(false)
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
   const [data, setData] = useState(metadata || {})
+  const [coreData, setCoreData] = useState({ full_name: user.full_name, email: user.email })
   const [avatarUrl, setAvatarUrl] = useState(metadata?.avatar_url || null)
   const [creatingRepresentative, setCreatingRepresentative] = useState<'MADRE' | 'PADRE' | 'OTRO' | null>(null)
   const [creatingParent, setCreatingParent] = useState(false)
@@ -111,6 +112,17 @@ export function ProfileDetailsPanel({
 
   const handleSave = async () => {
     setLoading(true)
+    
+    // Guardar datos core (nombre, email) si cambiaron
+    if (coreData.full_name !== user.full_name || coreData.email !== user.email) {
+      const coreRes = await updateUserProfileCore(user.id, { full_name: coreData.full_name, email: coreData.email })
+      if (coreRes.error) {
+        toast.error('Error al actualizar datos principales: ' + coreRes.error)
+        setLoading(false)
+        return
+      }
+    }
+
     const payload = { ...data, avatar_url: avatarUrl }
     const res = await updateProfileMetadata(institutionId, user.id, payload)
     if (res.error) {
@@ -119,6 +131,10 @@ export function ProfileDetailsPanel({
       toast.success('Perfil actualizado')
       onUpdate(payload) // Optimistic UI update
       onClose() // Auto-close modal
+      // Recargar para que los cambios core se reflejen en la lista principal si es necesario
+      if (coreData.full_name !== user.full_name) {
+        window.location.reload()
+      }
     }
     setLoading(false)
   }
@@ -244,8 +260,8 @@ export function ProfileDetailsPanel({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div className="w-full max-w-md bg-surface border-l border-[rgba(120,100,255,0.15)] h-full shadow-2xl flex flex-col animate-slide-left" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] flex justify-center items-start pt-20 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div className="w-full max-w-md bg-surface rounded-2xl h-[calc(100vh-120px)] shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b border-[rgba(0,0,0,0.05)] flex items-center justify-between">
           <h2 className="font-display font-bold text-lg">Ficha del Personal</h2>
           <button onClick={onClose} className="p-2 hover:bg-[rgba(0,0,0,0.1)] rounded-full transition-colors"><X size={18} /></button>
@@ -267,8 +283,12 @@ export function ProfileDetailsPanel({
               </div>
               <input type="file" ref={fileRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
             </div>
-            <h3 className="font-bold text-lg text-center">{user.full_name}</h3>
-            <p className="text-xs text-ink3 uppercase tracking-wider font-bold">
+            <input 
+              value={coreData.full_name} 
+              onChange={e => setCoreData({...coreData, full_name: e.target.value})} 
+              className="font-bold text-lg text-center bg-transparent border-b border-transparent hover:border-violet2 focus:border-violet2 outline-none transition-colors px-2 py-1 w-full max-w-[80%]" 
+            />
+            <p className="text-xs text-ink3 uppercase tracking-wider font-bold mt-1">
               {user.role === 'student' ? 'Estudiante' : 
                user.role === 'parent' ? 'Representante' :
                user.role === 'teacher' ? 'Docente' :
@@ -280,8 +300,12 @@ export function ProfileDetailsPanel({
           {/* Form Section */}
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-semibold text-ink3 uppercase tracking-wider flex items-center gap-1.5 mb-1.5"><Mail size={12}/> Email (Sistema)</label>
-              <input readOnly value={user.email} className="w-full bg-surface border border-transparent rounded-xl px-4 py-2.5 text-sm text-ink3 cursor-not-allowed" />
+              <label className="text-xs font-semibold text-ink3 uppercase tracking-wider flex items-center gap-1.5 mb-1.5"><Mail size={12}/> Email / Usuario (Sistema)</label>
+              <input 
+                value={coreData.email} 
+                onChange={e => setCoreData({...coreData, email: e.target.value})} 
+                className="input-base" 
+              />
             </div>
             
             {isStudent ? (
