@@ -583,6 +583,46 @@ export async function updateProfileMetadata(institutionId: string, userId: strin
   return { success: true }
 }
 
+export async function updateUserProfileCore(userId: string, data: { full_name?: string, dni?: string, email?: string }) {
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  // 1. Update auth.users (email and user_metadata for full_name/dni)
+  const authUpdate: any = {}
+  if (data.email) authUpdate.email = data.email
+  if (data.full_name || data.dni) {
+    authUpdate.user_metadata = {}
+    if (data.full_name) authUpdate.user_metadata.full_name = data.full_name
+    if (data.dni) authUpdate.user_metadata.dni = data.dni
+  }
+
+  if (Object.keys(authUpdate).length > 0) {
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, authUpdate)
+    if (authError) return { error: authError.message }
+  }
+
+  // 2. Update profiles table
+  const profileUpdate: any = {}
+  if (data.email) profileUpdate.email = data.email
+  if (data.full_name) profileUpdate.full_name = data.full_name
+
+  if (Object.keys(profileUpdate).length > 0) {
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update(profileUpdate)
+      .eq('id', userId)
+
+    if (profileError) return { error: profileError.message }
+  }
+
+  revalidatePath('/dashboard/academico')
+  revalidatePath('/dashboard/secretaria')
+  return { success: true }
+}
+
 export async function updateUserPlan(userId: string, newPlan: string) {
   const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
