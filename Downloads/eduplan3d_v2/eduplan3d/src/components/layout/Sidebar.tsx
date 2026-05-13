@@ -480,18 +480,6 @@ export function Sidebar({
               <p className="text-[10px] text-ink3">Usar sin navegador</p>
             </div>
           </button>
-        )}
-        {/* Plan chip */}
-        <Link
-          href="/dashboard/configuracion?tab=plan"
-          className="flex items-center gap-2 p-3 rounded-xl bg-[rgba(124,109,250,0.08)] border border-[rgba(124,109,250,0.18)] hover:border-[rgba(124,109,250,0.35)] transition-colors"
-        >
-          <span className="text-sm">⚡</span>
-          <div>
-            <p className="text-xs font-bold text-violet2">Plan Starter</p>
-            <p className="text-[10px] text-ink3">Mejorar a Pro →</p>
-          </div>
-        </Link>
       </div>
     </>
   )
