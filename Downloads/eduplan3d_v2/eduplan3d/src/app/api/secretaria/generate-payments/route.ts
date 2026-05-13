@@ -4,11 +4,34 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export const dynamic = 'force-dynamic'
 
-// POST — generate pending payments for all enrolled students who don't have them yet
+type EnrollmentRow = {
+  student_id: string
+  course_id: string
+}
+
+type CourseRow = {
+  id: string
+  name: string
+  parallel: string | null
+  shift: string | null
+}
+
+type ExistingPayment = {
+  student_id: string
+  type: string
+  description: string | null
+}
+
+// POST - generate pending payments for all enrolled students who do not have them yet
 export async function POST() {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const admin = createAdminClient()
 
@@ -24,41 +47,53 @@ export async function POST() {
 
   const instId = profile.institution_id
 
-  // Get all enrollments with course info and financial settings
   const [coursesRes, instRes] = await Promise.all([
     admin.from('courses').select('id, name, parallel, shift').eq('institution_id', instId),
-    admin.from('institutions').select('settings').eq('id', instId).single()
+    admin.from('institutions').select('settings').eq('id', instId).single(),
   ])
 
-  const courses = coursesRes.data || []
+  const courses = ((coursesRes.data || []) as CourseRow[])
   const financial = (instRes.data as any)?.settings?.financial || {}
 
-  const courseIds = (courses || []).map((c: any) => c.id)
-  if (courseIds.length === 0) return NextResponse.json({ generated: 0 })
+  const courseIds = courses.map((c) => c.id)
+  if (courseIds.length === 0) {
+    return NextResponse.json({ generated: 0 })
+  }
 
-  const coursesById: Record<string, any> = {}
-    ; (courses || []).forEach((c: any) => { coursesById[c.id] = c })
+  const coursesById: Record<string, CourseRow> = {}
+  for (const course of courses) {
+    coursesById[course.id] = course
+  }
 
   const { data: enrollments } = await admin
     .from('enrollments')
     .select('student_id, course_id')
     .in('course_id', courseIds)
 
-  if (!enrollments || enrollments.length === 0) return NextResponse.json({ generated: 0 })
+  if (!enrollments || enrollments.length === 0) {
+    return NextResponse.json({ generated: 0 })
+  }
 
-  // Get all existing payments per student to check for gaps
+  const enrollmentByStudent = new Map<string, EnrollmentRow>()
+  for (const enrollment of enrollments as EnrollmentRow[]) {
+    if (!enrollmentByStudent.has(enrollment.student_id)) {
+      enrollmentByStudent.set(enrollment.student_id, enrollment)
+    }
+  }
+
   const { data: existingPayments } = await admin
     .from('payments' as any)
     .select('student_id, type, description')
     .eq('institution_id', instId)
 
-  const paymentsByStudent: Record<string, any[]> = {}
-  ;(existingPayments || []).forEach((p: any) => {
-    if (!paymentsByStudent[p.student_id]) paymentsByStudent[p.student_id] = []
-    paymentsByStudent[p.student_id].push(p)
-  })
+  const paymentsByStudent: Record<string, ExistingPayment[]> = {}
+  for (const payment of (existingPayments || []) as ExistingPayment[]) {
+    if (!paymentsByStudent[payment.student_id]) {
+      paymentsByStudent[payment.student_id] = []
+    }
+    paymentsByStudent[payment.student_id].push(payment)
+  }
 
-  // Generate payments only for students who don't have any
   const now = new Date()
   const year = now.getFullYear()
   const pensionMonths = [
@@ -73,56 +108,66 @@ export async function POST() {
     { idx: 0, name: 'enero' },
     { idx: 1, name: 'febrero' },
   ]
+
   const allPayments: any[] = []
+  const plannedKeys = new Set<string>()
 
-  for (const enr of enrollments) {
-    const studentPayments = paymentsByStudent[enr.student_id] || []
-    const course = coursesById[enr.course_id]
+  for (const enrollment of Array.from(enrollmentByStudent.values())) {
+    const studentPayments = paymentsByStudent[enrollment.student_id] || []
+    const course = coursesById[enrollment.course_id]
     const courseName = course ? `${course.name} ${course.parallel || ''}`.trim() : ''
-
-    // 1. Check Matrícula
-    const hasMatricula = studentPayments.some(p => p.type === 'matricula')
     const shift = (course?.shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina') as 'matutina' | 'vespertina'
     const prices = financial[shift] || { matricula: 35, pension: 60 }
 
+    const hasMatricula = studentPayments.some((payment) => payment.type === 'matricula')
     if (!hasMatricula) {
       const matriculaDue = new Date(year, now.getMonth(), now.getDate() + 15)
-      allPayments.push({
-        institution_id: instId,
-        student_id: enr.student_id,
-        amount: prices.matricula || 35,
-        description: `Matricula ${year} — ${courseName}`,
-        type: 'matricula',
-        status: 'pendiente',
-        due_date: matriculaDue.toISOString().split('T')[0],
-      })
+      const key = `${enrollment.student_id}::matricula::${year}`
+      if (!plannedKeys.has(key)) {
+        plannedKeys.add(key)
+        allPayments.push({
+          institution_id: instId,
+          student_id: enrollment.student_id,
+          amount: prices.matricula || 35,
+          description: `Matricula ${year} - ${courseName}`,
+          type: 'matricula',
+          status: 'pendiente',
+          due_date: matriculaDue.toISOString().split('T')[0],
+        })
+      }
     }
 
-    // 2. Check each Pension
-    pensionMonths.forEach((mObj) => {
-      const pensionYear = mObj.idx < 4 ? year + 1 : year
-      const due = new Date(pensionYear, mObj.idx, 5)
-      
-      const hasThisPension = studentPayments.some(p => 
-        p.type === 'pension' && (p.description || '').toLowerCase().includes(mObj.name)
+    for (const month of pensionMonths) {
+      const pensionYear = month.idx < 4 ? year + 1 : year
+      const due = new Date(pensionYear, month.idx, 5)
+      const hasThisPension = studentPayments.some(
+        (payment) => payment.type === 'pension' && (payment.description || '').toLowerCase().includes(month.name)
       )
 
       if (!hasThisPension) {
-        allPayments.push({
-          institution_id: instId,
-          student_id: enr.student_id,
-          amount: prices.pension || 60,
-          description: `Pension ${mObj.name.charAt(0).toUpperCase() + mObj.name.slice(1)} ${pensionYear} — ${courseName}`,
-          type: 'pension',
-          status: 'pendiente',
-          due_date: due.toISOString().split('T')[0],
-        })
+        const key = `${enrollment.student_id}::pension::${pensionYear}-${month.idx}`
+        if (!plannedKeys.has(key)) {
+          plannedKeys.add(key)
+          allPayments.push({
+            institution_id: instId,
+            student_id: enrollment.student_id,
+            amount: prices.pension || 60,
+            description: `Pension ${month.name.charAt(0).toUpperCase() + month.name.slice(1)} ${pensionYear} - ${courseName}`,
+            type: 'pension',
+            status: 'pendiente',
+            due_date: due.toISOString().split('T')[0],
+          })
+        }
       }
-    })
+    }
   }
 
   if (allPayments.length > 0) {
-    await admin.from('payments' as any).insert(allPayments)
+    const { error } = await admin.from('payments' as any).insert(allPayments)
+    if (error) {
+      console.error('[secretaria/generate-payments] insert error', error)
+      return NextResponse.json({ error: error.message, generated: 0 }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ generated: allPayments.length })
