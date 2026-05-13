@@ -58,7 +58,10 @@ export default async function PlanificadorPage() {
       .select('id, name, course_id, weekly_hours, days_of_week, course:courses(id, name, parallel, level, shift)')
       .eq('teacher_id', user.id)
       .order('name', { ascending: true })
-    subjects = data || []
+    subjects = (data || []).filter((s: any) => {
+      const n = (s.name || '').toUpperCase()
+      return !n.includes('INSTRUCCION MILITAR') && !n.includes('INSTRUCCIÓN MILITAR')
+    })
   }
 
   // Schedule config (period duration)
