@@ -58,6 +58,7 @@ export default async function LibretasPage({
     { data: subjects },
     { data: categories },
     { data: scheduleConfig },
+    { data: instData },
   ] = await Promise.all([
     admin.from('courses').select('*').eq('institution_id', instId),
     admin.from('enrollments').select('*, student:profiles(id, full_name, email)'),
@@ -67,7 +68,7 @@ export default async function LibretasPage({
     admin.from('institutions').select('settings').eq('id', instId).single(),
   ])
 
-  const instSettings = (institutions as any)?.settings || {}
+  const instSettings = (instData as any)?.settings || {}
   const libretasPublished = !!instSettings.libretas_published
 
   // For teachers: only show the course(s) they are tutor of
