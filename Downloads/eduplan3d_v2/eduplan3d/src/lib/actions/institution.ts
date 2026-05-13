@@ -175,3 +175,28 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
   revalidatePath('/dashboard/secretaria')
   return { updated: updatedCount }
 }
+
+export async function updateLibretasVisibility(id: string, isPublished: boolean): Promise<{ error?: string }> {
+  const admin = createAdminClient()
+  
+  // 1. Get current settings
+  const { data: inst } = await (admin as any)
+    .from('institutions')
+    .select('settings')
+    .eq('id', id)
+    .single()
+    
+  const oldSettings = inst?.settings || {}
+  const newSettings = { ...oldSettings, libretas_published: isPublished }
+  
+  // 2. Update
+  const { error } = await (admin as any)
+    .from('institutions')
+    .update({ settings: newSettings })
+    .eq('id', id)
+    
+  if (error) return { error: error.message }
+  
+  revalidatePath('/dashboard/libretas')
+  return {}
+}
