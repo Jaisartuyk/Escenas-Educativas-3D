@@ -480,6 +480,7 @@ export function Sidebar({
               <p className="text-[10px] text-ink3">Usar sin navegador</p>
             </div>
           </button>
+        )}
       </div>
     </>
   )
