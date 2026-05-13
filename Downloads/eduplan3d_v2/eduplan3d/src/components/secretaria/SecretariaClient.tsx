@@ -132,6 +132,31 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     [payments]
   )
 
+  const filteredStudents = useMemo(() => {
+    let list = students || []
+    if (allowedStudentIds !== null) {
+      list = list.filter((s: any) => allowedStudentIds.has(s.id))
+    }
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase()
+      list = list.filter((s: any) => (s.full_name || '').toLowerCase().includes(q))
+    }
+    
+    // Si hay un filtro de estado o tipo, solo mostramos alumnos que tengan al menos un pago que coincida
+    if (filterStatus !== 'todos' || filterType !== 'todos') {
+      list = list.filter((s: any) => {
+        const studentPayments = enrichedPayments.filter((p: any) => p.student_id === s.id)
+        if (studentPayments.length === 0) return false
+        
+        const matchStatus = filterStatus === 'todos' || studentPayments.some((p: any) => p.computedStatus === filterStatus)
+        const matchType = filterType === 'todos' || studentPayments.some((p: any) => p.type === filterType)
+        
+        return matchStatus && matchType
+      })
+    }
+    return list
+  }, [students, allowedStudentIds, searchTerm, filterStatus, filterType, enrichedPayments])
+
   const filtered = useMemo(() => {
     let list = enrichedPayments
     if (allowedStudentIds !== null) {
@@ -169,17 +194,15 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
   // ── Table view: build pivot data (student × month) ──────────────────────
   const tableData = useMemo(() => {
-    // Get unique students with payments
-    const studentIds = Array.from(new Set(filtered.map((p: any) => p.student_id)))
-
-    return studentIds.map(sid => {
-      const student = students.find((s: any) => s.id === sid)
+    return filteredStudents.map(student => {
+      const sid = student.id
       const stuCourseIds = studentCourses[sid] || []
       const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
       const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
 
-      // Student's payments mapped by month
-      const studentPayments = filtered.filter((p: any) => p.student_id === sid)
+      // Student's payments mapped by month (from all payments, not just filtered ones, 
+      // unless we want the cell colors to react to filters too)
+      const studentPayments = enrichedPayments.filter((p: any) => p.student_id === sid)
       const matricula = studentPayments.find((p: any) => p.type === 'matricula')
 
       // Map payments to months
@@ -221,7 +244,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         monthPayments,
       }
     }).sort((a, b) => a.name.localeCompare(b.name))
-  }, [filtered, students, studentCourses, coursesById])
+  }, [filteredStudents, enrichedPayments, studentCourses, coursesById])
 
   // Group tableData by shift
   const tableByShift = useMemo(() => {
