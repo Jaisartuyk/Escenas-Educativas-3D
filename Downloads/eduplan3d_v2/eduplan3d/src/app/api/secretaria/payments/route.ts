@@ -7,7 +7,7 @@ import { createStudentFamilyNotifications } from '@/lib/notifications'
 export const dynamic = 'force-dynamic'
 
 // Roles autorizados a gestionar pagos
-const PAYMENT_ROLES = new Set(['admin', 'assistant'])
+const PAYMENT_ROLES = new Set(['admin', 'secretary', 'rector', 'assistant'])
 
 // GET — all payments for teacher's/admin's institution
 export async function GET() {
