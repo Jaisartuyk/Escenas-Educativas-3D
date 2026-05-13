@@ -165,7 +165,13 @@ export default async function BibliotecaPage() {
           Recursos curriculares y planificaciones organizadas por materia y curso.
         </p>
       </div>
-      <BibliotecaTabsClient subjects={subjects || []} role={profile?.role} />
+      <BibliotecaTabsClient 
+        subjects={(subjects || []).filter((s: any) => {
+          const n = (s.name || '').toUpperCase()
+          return !n.includes('INSTRUCCION MILITAR') && !n.includes('INSTRUCCIÓN MILITAR')
+        })} 
+        role={profile?.role} 
+      />
     </div>
   )
 }
