@@ -171,7 +171,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase()
       list = list.filter((p: any) => {
-        const student = students.find((s: any) => s.id === p.student_id)
+        const student = (students || []).find((s: any) => s.id === p.student_id)
         return (student?.full_name || '').toLowerCase().includes(q) ||
                (p.description || '').toLowerCase().includes(q)
       })
@@ -194,7 +194,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
   // ── Table view: build pivot data (student × month) ──────────────────────
   const tableData = useMemo(() => {
-    return filteredStudents.map(student => {
+    return (filteredStudents as any[]).map((student: any) => {
       const sid = student.id
       const stuCourseIds = studentCourses[sid] || []
       const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
