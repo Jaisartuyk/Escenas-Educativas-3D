@@ -34,6 +34,31 @@ function formatMoney(n: number) {
   return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(n)
 }
 
+function paymentSortScore(payment: any) {
+  const status = getPaymentStatus(payment)
+  const statusScore =
+    status === 'pagado' ? 4 :
+    status === 'proximo' ? 3 :
+    status === 'pendiente' ? 2 :
+    status === 'atrasado' ? 1 : 0
+
+  const dueTime = payment?.due_date ? new Date(`${payment.due_date}T00:00:00`).getTime() : 0
+  const createdTime = payment?.created_at ? new Date(payment.created_at).getTime() : 0
+
+  return { statusScore, dueTime, createdTime }
+}
+
+function pickPreferredPayment(payments: any[]) {
+  if (!payments.length) return null
+  return [...payments].sort((a, b) => {
+    const sa = paymentSortScore(a)
+    const sb = paymentSortScore(b)
+    if (sb.statusScore !== sa.statusScore) return sb.statusScore - sa.statusScore
+    if (sb.dueTime !== sa.dueTime) return sb.dueTime - sa.dueTime
+    return sb.createdTime - sa.createdTime
+  })[0]
+}
+
 const MESES = ['May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr']
 const MESES_FULL = ['mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre', 'enero', 'febrero', 'marzo', 'abril']
 
@@ -203,10 +228,12 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       // Student's payments mapped by month (from all payments, not just filtered ones, 
       // unless we want the cell colors to react to filters too)
       const studentPayments = enrichedPayments.filter((p: any) => p.student_id === sid)
-      const matricula = studentPayments.find((p: any) => p.type === 'matricula')
+      const matricula = pickPreferredPayment(
+        studentPayments.filter((p: any) => p.type === 'matricula')
+      )
 
       // Map payments to months
-      const monthPayments: Record<string, any> = {}
+      const monthPaymentsByKey: Record<string, any[]> = {}
       studentPayments.filter((p: any) => p.type === 'pension').forEach((p: any) => {
         // Try to match month from description or due_date
         const desc = (p.description || '').toLowerCase()
@@ -231,8 +258,15 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         }
 
         if (matchedMonth) {
-          monthPayments[matchedMonth] = p
+          if (!monthPaymentsByKey[matchedMonth]) monthPaymentsByKey[matchedMonth] = []
+          monthPaymentsByKey[matchedMonth].push(p)
         }
+      })
+
+      const monthPayments: Record<string, any> = {}
+      Object.entries(monthPaymentsByKey).forEach(([month, monthGroup]) => {
+        const preferred = pickPreferredPayment(monthGroup)
+        if (preferred) monthPayments[month] = preferred
       })
 
       return {
