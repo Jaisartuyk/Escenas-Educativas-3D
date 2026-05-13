@@ -25,12 +25,33 @@ export default async function SecretariaPage() {
 
   const instId = profile.institution_id
 
+  // Función para obtener todos los pagos saltando el límite de 1000 de Supabase
+  async function fetchAllPayments() {
+    let allData: any[] = []
+    let from = 0
+    const step = 1000
+    while (true) {
+      const { data, error } = await admin
+        .from('payments' as any)
+        .select('*')
+        .eq('institution_id', instId)
+        .order('created_at', { ascending: false })
+        .range(from, from + step - 1)
+        
+      if (error || !data || data.length === 0) break
+      allData = allData.concat(data)
+      if (data.length < step) break
+      from += step
+    }
+    return allData
+  }
+
   // Cargar datos en paralelo con adminClient
-  const [studentsRes, coursesRes, enrollsRes, paymentsRes, instRes] = await Promise.all([
+  const [studentsRes, coursesRes, enrollsRes, paymentsData, instRes] = await Promise.all([
     admin.from('profiles').select('id, full_name, email').eq('institution_id', instId).eq('role', 'student').order('full_name'),
     admin.from('courses').select('id, name, parallel, level, shift').eq('institution_id', instId),
     admin.from('enrollments').select('course_id, student_id'),
-    admin.from('payments' as any).select('*').eq('institution_id', instId).order('created_at', { ascending: false }).limit(5000),
+    fetchAllPayments(),
     admin.from('institutions').select('settings').eq('id', instId).single(),
   ])
 
@@ -47,7 +68,7 @@ export default async function SecretariaPage() {
         students={studentsRes.data || []}
         courses={coursesRes.data || []}
         enrollments={enrollsRes.data || []}
-        initialPayments={paymentsRes.data || []}
+        initialPayments={paymentsData || []}
         financialSettings={instSettings.financial || {}}
       />
     </div>

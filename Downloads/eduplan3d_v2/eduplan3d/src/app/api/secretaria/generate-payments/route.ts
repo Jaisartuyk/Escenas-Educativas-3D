@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { v4 as uuidv4 } from 'uuid'
 
 export const dynamic = 'force-dynamic'
 
@@ -154,7 +155,7 @@ export async function POST() {
       if (!plannedKeys.has(key)) {
         plannedKeys.add(key)
         allPayments.push({
-          id: crypto.randomUUID(),
+          id: uuidv4(),
           institution_id: instId,
           student_id: enrollment.student_id,
           amount: prices.matricula || 35,
@@ -176,7 +177,7 @@ export async function POST() {
         if (!plannedKeys.has(key)) {
           plannedKeys.add(key)
           allPayments.push({
-            id: crypto.randomUUID(),
+            id: uuidv4(),
             institution_id: instId,
             student_id: enrollment.student_id,
             amount: prices.pension || 60,

@@ -19,15 +19,27 @@ export async function GET() {
   if (!profile?.institution_id) return NextResponse.json({ data: [] })
 
   const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('payments' as any)
-    .select('*')
-    .eq('institution_id', profile.institution_id)
-    .order('created_at', { ascending: false })
-    .limit(5000)
+  
+  let allData: any[] = []
+  let from = 0
+  const step = 1000
+  while (true) {
+    const { data, error } = await admin
+      .from('payments' as any)
+      .select('*')
+      .eq('institution_id', profile.institution_id)
+      .order('created_at', { ascending: false })
+      .range(from, from + step - 1)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ data: data || [] })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!data || data.length === 0) break
+    
+    allData = allData.concat(data)
+    if (data.length < step) break
+    from += step
+  }
+
+  return NextResponse.json({ data: allData })
 }
 
 // POST — create a new payment (solo admin/assistant, forzando institution_id)
