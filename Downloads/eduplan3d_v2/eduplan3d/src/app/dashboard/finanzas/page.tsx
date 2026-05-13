@@ -159,6 +159,21 @@ export default async function FinanzasPage({
       return aTs - bTs
     })[0]
 
+  let nextDueStyles = 'border-emerald-200 bg-emerald-50 text-emerald-800'
+  let nextDueTextStyles = 'text-emerald-700'
+  if (nextDue) {
+    if (nextDue.computedStatus === 'atrasado') {
+      nextDueStyles = 'border-rose-200 bg-rose-50 text-rose-800'
+      nextDueTextStyles = 'text-rose-700'
+    } else if (nextDue.computedStatus === 'proximo') {
+      nextDueStyles = 'border-amber-200 bg-amber-50 text-amber-800'
+      nextDueTextStyles = 'text-amber-700'
+    } else {
+      nextDueStyles = 'border-slate-200 bg-slate-50 text-slate-800'
+      nextDueTextStyles = 'text-slate-700'
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {profile.role === 'parent' && selectedChildId && (
@@ -182,9 +197,11 @@ export default async function FinanzasPage({
             </p>
           </div>
 
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            <p className="font-semibold">Próximo movimiento</p>
-            <p className="text-xs mt-1 text-emerald-700">
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${nextDueStyles}`}>
+            <p className="font-semibold">
+              {nextDue?.computedStatus === 'atrasado' ? 'Pago atrasado' : 'Próximo movimiento'}
+            </p>
+            <p className={`text-xs mt-1 ${nextDueTextStyles}`}>
               {nextDue
                 ? `${formatType(nextDue.type)} · ${formatMoney(Number(nextDue.amount || 0))} · vence ${formatDate(nextDue.due_date)}`
                 : 'No hay cobros pendientes por ahora.'}
