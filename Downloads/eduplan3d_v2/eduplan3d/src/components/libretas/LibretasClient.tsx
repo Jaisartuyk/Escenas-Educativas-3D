@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Printer, FileText } from 'lucide-react'
+import { useState, useMemo, useTransition } from 'react'
+import { Printer, FileText, Eye, EyeOff } from 'lucide-react'
+import { updateLibretasVisibility } from '@/lib/actions/institution'
+import toast from 'react-hot-toast'
 
 // ── Escala cualitativa MINEDUC ──────────────────────────────────────────────
 function cualitativo(score: number | null): string {
@@ -35,12 +37,14 @@ interface Props {
   tutores?: Record<string, string>
   attendance?: any[]
   behaviors?: any[]
+  libretasPublished?: boolean
+  institutionId?: string
 }
 
 export function LibretasClient({
   role, institutionName, courses, enrollments, subjects, assignments, grades,
   categories, currentUserId, parcialesCount = 2, tutores = {},
-  attendance = [], behaviors = [],
+  attendance = [], behaviors = [], libretasPublished = false, institutionId,
 }: Props) {
   const isFamilyRole = role === 'student' || role === 'parent'
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '')
@@ -48,6 +52,24 @@ export function LibretasClient({
   const [trimestre, setTrimestre] = useState(1)
   const [view, setView] = useState<'mensual' | 'trimestral' | 'anual'>('mensual')
   const [parcialSel, setParcialSel] = useState(1)
+  
+  const [isPending, startTransition] = useTransition()
+  const [isPublished, setIsPublished] = useState(libretasPublished)
+
+  const handleTogglePublish = () => {
+    if (!institutionId) return
+    const newState = !isPublished
+    setIsPublished(newState)
+    startTransition(async () => {
+      const { error } = await updateLibretasVisibility(institutionId, newState)
+      if (error) {
+        toast.error('Error al actualizar: ' + error)
+        setIsPublished(!newState) // revert
+      } else {
+        toast.success(newState ? 'Libretas visibles para padres' : 'Libretas ocultas para padres')
+      }
+    })
+  }
 
   // ── Derived data ────────────────────────────────────────────────────────
   const studentsInCourse = useMemo(() => {
@@ -246,6 +268,30 @@ export function LibretasClient({
             className="bg-violet hover:bg-violet2 disabled:opacity-50 text-white px-5 py-2 h-10 rounded-xl text-sm font-medium transition-all shadow-glow flex items-center gap-2">
             <Printer size={16} /> Imprimir
           </button>
+          
+          {['admin', 'secretary', 'rector'].includes(role) && (
+            <button
+              onClick={handleTogglePublish}
+              disabled={isPending}
+              className={`flex items-center gap-2 px-5 py-2 h-10 rounded-xl text-sm font-bold transition-all border ${
+                isPublished 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                  : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+              } ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isPublished ? (
+                <>
+                  <Eye className="w-4 h-4" />
+                  Visible a Padres
+                </>
+              ) : (
+                <>
+                  <EyeOff className="w-4 h-4" />
+                  Oculto a Padres
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
