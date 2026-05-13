@@ -20,6 +20,34 @@ type ExistingPayment = {
   student_id: string
   type: string
   description: string | null
+  due_date?: string | null
+}
+
+function hasMatriculaForYear(payments: ExistingPayment[], year: number) {
+  return payments.some((payment) => {
+    if (payment.type !== 'matricula') return false
+    if (payment.due_date) {
+      const due = new Date(`${payment.due_date}T00:00:00`)
+      if (!Number.isNaN(due.getTime()) && due.getFullYear() === year) return true
+    }
+    return (payment.description || '').includes(String(year))
+  })
+}
+
+function hasPensionForMonth(payments: ExistingPayment[], monthName: string, targetYear: number, monthIndex: number) {
+  return payments.some((payment) => {
+    if (payment.type !== 'pension') return false
+
+    if (payment.due_date) {
+      const due = new Date(`${payment.due_date}T00:00:00`)
+      if (!Number.isNaN(due.getTime())) {
+        return due.getFullYear() === targetYear && due.getMonth() === monthIndex
+      }
+    }
+
+    const description = (payment.description || '').toLowerCase()
+    return description.includes(monthName) && description.includes(String(targetYear))
+  })
 }
 
 // POST - generate pending payments for all enrolled students who do not have them yet
@@ -83,7 +111,7 @@ export async function POST() {
 
   const { data: existingPayments } = await admin
     .from('payments' as any)
-    .select('student_id, type, description')
+    .select('student_id, type, description, due_date')
     .eq('institution_id', instId)
 
   const paymentsByStudent: Record<string, ExistingPayment[]> = {}
@@ -119,7 +147,7 @@ export async function POST() {
     const shift = (course?.shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina') as 'matutina' | 'vespertina'
     const prices = financial[shift] || { matricula: 35, pension: 60 }
 
-    const hasMatricula = studentPayments.some((payment) => payment.type === 'matricula')
+    const hasMatricula = hasMatriculaForYear(studentPayments, year)
     if (!hasMatricula) {
       const matriculaDue = new Date(year, now.getMonth(), now.getDate() + 15)
       const key = `${enrollment.student_id}::matricula::${year}`
@@ -140,9 +168,7 @@ export async function POST() {
     for (const month of pensionMonths) {
       const pensionYear = month.idx < 4 ? year + 1 : year
       const due = new Date(pensionYear, month.idx, 5)
-      const hasThisPension = studentPayments.some(
-        (payment) => payment.type === 'pension' && (payment.description || '').toLowerCase().includes(month.name)
-      )
+      const hasThisPension = hasPensionForMonth(studentPayments, month.name, pensionYear, month.idx)
 
       if (!hasThisPension) {
         const key = `${enrollment.student_id}::pension::${pensionYear}-${month.idx}`
