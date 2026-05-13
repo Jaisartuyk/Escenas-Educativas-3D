@@ -154,6 +154,7 @@ export async function POST() {
       if (!plannedKeys.has(key)) {
         plannedKeys.add(key)
         allPayments.push({
+          id: crypto.randomUUID(),
           institution_id: instId,
           student_id: enrollment.student_id,
           amount: prices.matricula || 35,
@@ -175,6 +176,7 @@ export async function POST() {
         if (!plannedKeys.has(key)) {
           plannedKeys.add(key)
           allPayments.push({
+            id: crypto.randomUUID(),
             institution_id: instId,
             student_id: enrollment.student_id,
             amount: prices.pension || 60,
@@ -188,13 +190,20 @@ export async function POST() {
     }
   }
 
+  let successCount = 0
+
   if (allPayments.length > 0) {
-    const { error } = await admin.from('payments' as any).insert(allPayments)
-    if (error) {
-      console.error('[secretaria/generate-payments] insert error', error)
-      return NextResponse.json({ error: error.message, generated: 0 }, { status: 500 })
+    const CHUNK_SIZE = 500
+    for (let i = 0; i < allPayments.length; i += CHUNK_SIZE) {
+      const chunk = allPayments.slice(i, i + CHUNK_SIZE)
+      const { error } = await admin.from('payments' as any).insert(chunk)
+      if (error) {
+        console.error('[secretaria/generate-payments] insert error', error)
+        return NextResponse.json({ error: error.message, generated: successCount }, { status: 500 })
+      }
+      successCount += chunk.length
     }
   }
 
-  return NextResponse.json({ generated: allPayments.length })
+  return NextResponse.json({ generated: successCount })
 }

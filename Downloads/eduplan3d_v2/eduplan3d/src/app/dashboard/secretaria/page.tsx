@@ -30,7 +30,7 @@ export default async function SecretariaPage() {
     admin.from('profiles').select('id, full_name, email').eq('institution_id', instId).eq('role', 'student').order('full_name'),
     admin.from('courses').select('id, name, parallel, level, shift').eq('institution_id', instId),
     admin.from('enrollments').select('course_id, student_id'),
-    admin.from('payments' as any).select('*').eq('institution_id', instId).order('created_at', { ascending: false }),
+    admin.from('payments' as any).select('*').eq('institution_id', instId).order('created_at', { ascending: false }).limit(5000),
     admin.from('institutions').select('settings').eq('id', instId).single(),
   ])
 

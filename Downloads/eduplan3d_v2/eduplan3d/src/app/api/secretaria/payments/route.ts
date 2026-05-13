@@ -24,6 +24,7 @@ export async function GET() {
     .select('*')
     .eq('institution_id', profile.institution_id)
     .order('created_at', { ascending: false })
+    .limit(5000)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ data: data || [] })
