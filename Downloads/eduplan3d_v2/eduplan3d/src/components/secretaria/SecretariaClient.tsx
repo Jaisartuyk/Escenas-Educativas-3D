@@ -225,16 +225,22 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
       const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
 
-      // Student's payments mapped by month (from all payments, not just filtered ones, 
-      // unless we want the cell colors to react to filters too)
+      // Student's payments mapped by month (ahora usamos los pagos que pasan los filtros)
       const studentPayments = enrichedPayments.filter((p: any) => p.student_id === sid)
+      
+      const cellPayments = studentPayments.filter((p: any) => {
+        const matchStatus = filterStatus === 'todos' || p.computedStatus === filterStatus
+        const matchType = filterType === 'todos' || p.type === filterType
+        return matchStatus && matchType
+      })
+
       const matricula = pickPreferredPayment(
-        studentPayments.filter((p: any) => p.type === 'matricula')
+        cellPayments.filter((p: any) => p.type === 'matricula')
       )
 
       // Map payments to months
       const monthPaymentsByKey: Record<string, any[]> = {}
-      studentPayments.filter((p: any) => p.type === 'pension').forEach((p: any) => {
+      cellPayments.filter((p: any) => p.type === 'pension').forEach((p: any) => {
         // Try to match month from description or due_date
         const desc = (p.description || '').toLowerCase()
         let matchedMonth = ''
@@ -440,16 +446,19 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     setGenerating(true)
     try {
       const res = await fetch('/api/secretaria/generate-payments', { method: 'POST' })
-      const { generated } = await res.json()
-      if (generated > 0) {
-        toast.success(`${generated} cobros generados`)
+      const dataJson = await res.json()
+      
+      if (!res.ok) {
+        toast.error(dataJson.error || 'Error al generar cobros')
+      } else if (dataJson.generated > 0) {
+        toast.success(`${dataJson.generated} cobros generados`)
         const r2 = await fetch('/api/secretaria/payments')
         const { data } = await r2.json()
         if (data) setPayments(data)
       } else {
         toast.success('Todos los estudiantes ya tienen cobros')
       }
-    } catch { toast.error('Error al generar') }
+    } catch { toast.error('Error de red al generar') }
     finally { setGenerating(false) }
   }
 
