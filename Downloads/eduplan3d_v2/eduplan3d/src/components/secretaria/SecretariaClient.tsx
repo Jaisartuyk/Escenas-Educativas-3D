@@ -804,13 +804,21 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
            TABLE VIEW — Pivot: students × months
            ══════════════════════════════════════════════════════════════════ */}
         {viewMode === 'tabla' && (
-          filtered.length === 0 ? (
+          tableData.length === 0 ? (
             <div className="px-5 py-16 text-center">
               <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: 'rgba(124,109,250,0.08)' }}>
                 <CreditCard size={28} style={{ color: '#7C6DFA' }} />
               </div>
-              <p className="text-ink3 font-medium">No hay registros financieros</p>
-              <p className="text-ink4 text-sm mt-1">Emite un cobro para comenzar</p>
+              <p className="text-ink3 font-medium">
+                {filterShift !== 'todos' || filterCourse !== 'todos' || searchTerm.trim()
+                  ? 'No hay estudiantes para este filtro'
+                  : 'No hay estudiantes matriculados para mostrar'}
+              </p>
+              <p className="text-ink4 text-sm mt-1">
+                {filterShift !== 'todos' || filterCourse !== 'todos' || searchTerm.trim()
+                  ? 'Prueba con otro curso, turno o búsqueda.'
+                  : 'Cuando existan matrículas activas, aquí verás su matriz de cobros.'}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
