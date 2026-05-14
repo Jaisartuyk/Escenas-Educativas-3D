@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
   const category: string = ['academico','administrativo','evento','urgente'].includes(body?.category) ? body.category : 'administrativo'
   const requiresAck: boolean = !!body?.requiresAck
   const scope: Scope = body?.scope
+  const inputMetadata = body?.metadata || {}
 
   if (!title || !text) return NextResponse.json({ error: 'title y body requeridos' }, { status: 400 })
   if (!scope) return NextResponse.json({ error: 'scope requerido' }, { status: 400 })
@@ -127,7 +128,7 @@ export async function POST(req: NextRequest) {
       sender_id:       me.id,
       body:            text,
       kind:            'bulletin',
-      metadata:        { category, requiresAck, courseLabel },
+      metadata:        { ...inputMetadata, category, requiresAck, courseLabel },
     })
     .select().single()
 
