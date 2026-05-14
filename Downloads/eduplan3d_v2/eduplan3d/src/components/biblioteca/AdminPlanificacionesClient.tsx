@@ -15,6 +15,7 @@ import {
   Search,
   MessageSquare,
   Printer,
+  Trash2,
 } from 'lucide-react'
 
 interface Teacher {
@@ -98,6 +99,7 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
   const [manualPreview, setManualPreview] = useState<PlanManual | null>(null)
   const [notesText, setNotesText] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const isLetamendi = (institutionName || '').toUpperCase().includes('LETAMENDI')
 
@@ -202,6 +204,29 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
       toast.success('Retroalimentación guardada')
     } else {
       toast.error('Error al guardar: ' + r.error)
+    }
+  }
+
+  async function handleDeleteManual(id: string, title: string) {
+    if (!confirm(`¿Estás seguro de eliminar la planificación "${title}"?\n\nEsta acción no se puede deshacer.`)) return
+    
+    setDeletingId(id)
+    try {
+      const { deletePlanificacionManualAsAdmin } = await import('@/lib/actions/planificaciones-manuales')
+      const r = await deletePlanificacionManualAsAdmin({ id })
+      if (r.ok) {
+        toast.success('Planificación eliminada')
+        // In a real app, we might need router.refresh() if it doesn't auto-update,
+        // but the server action already calls revalidatePath. We can also optimistically remove it from state if needed.
+        // Wait, manuales comes from props, so a hard refresh or router.refresh is best.
+        window.location.reload()
+      } else {
+        toast.error('Error al eliminar: ' + r.error)
+      }
+    } catch (e: any) {
+      toast.error('Error de red')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -352,9 +377,22 @@ export function AdminPlanificacionesClient({ manuales, recursos, teachers, insti
                         <FileText size={18} />
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <span className="rounded-lg bg-violet/5 px-2 py-0.5 text-[9px] font-black uppercase text-ink3">
-                          {TIPO_EMOJI[item.type] || 'DOC'} {TIPO_LABEL[item.type] || 'Doc'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteManual(item.id, item.title);
+                            }}
+                            disabled={deletingId === item.id}
+                            className="rounded-full p-1 text-ink4 hover:bg-rose-100 hover:text-rose-600 transition-colors disabled:opacity-50"
+                            title="Eliminar planificación"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                          <span className="rounded-lg bg-violet/5 px-2 py-0.5 text-[9px] font-black uppercase text-ink3">
+                            {TIPO_EMOJI[item.type] || 'DOC'} {TIPO_LABEL[item.type] || 'Doc'}
+                          </span>
+                        </div>
                         <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
                           item.status === 'publicada'
                             ? 'bg-emerald-100 text-emerald-700'

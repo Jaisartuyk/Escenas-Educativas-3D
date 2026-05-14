@@ -211,3 +211,36 @@ export async function setPlanificacionManualStatus(input: {
   revalidatePath('/dashboard/planificaciones')
   return { ok: true }
 }
+
+/**
+ * Elimina una planificación manual. Solo roles admin/assistant/supervisor/rector.
+ */
+export async function deletePlanificacionManualAsAdmin(input: { id: string }): Promise<{ ok: boolean; error?: string }> {
+  const sb = createServerClient()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return { ok: false, error: 'No autenticado' }
+  const admin = createAdminClient()
+
+  const { data: prof } = await (admin as any)
+    .from('profiles').select('role, institution_id').eq('id', user.id).single()
+  if (!['admin', 'assistant', 'supervisor', 'rector'].includes(prof?.role)) {
+    return { ok: false, error: 'No autorizado' }
+  }
+
+  const { data: plan } = await (admin as any)
+    .from('planificaciones_manuales').select('institution_id').eq('id', input.id).single()
+  if ((plan as any)?.institution_id !== prof?.institution_id) {
+    return { ok: false, error: 'No autorizado' }
+  }
+
+  const { error } = await (admin as any)
+    .from('planificaciones_manuales')
+    .delete()
+    .eq('id', input.id)
+  
+  if (error) return { ok: false, error: error.message }
+
+  revalidatePath('/dashboard/biblioteca')
+  revalidatePath('/dashboard/planificaciones')
+  return { ok: true }
+}
