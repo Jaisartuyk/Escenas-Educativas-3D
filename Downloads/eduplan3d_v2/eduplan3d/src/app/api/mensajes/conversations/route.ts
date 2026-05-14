@@ -353,8 +353,8 @@ export async function POST(req: NextRequest) {
               { conversation_id: existingByContext.id, user_id: partnerId, role: 'staff' },
             ]
           : [
-              { conversation_id: existingByContext.id, user_id: user.id,   role: me.role === 'parent' ? 'parent' : me.role === 'student' ? 'student' : 'tutor' },
-              { conversation_id: existingByContext.id, user_id: partnerId, role: other.role === 'parent' ? 'parent' : other.role === 'student' ? 'student' : 'tutor' },
+              { conversation_id: existingByContext.id, user_id: user.id,   role: me.role === 'parent' ? 'parent' : me.role === 'student' ? 'student' : 'staff' },
+              { conversation_id: existingByContext.id, user_id: partnerId, role: other.role === 'parent' ? 'parent' : other.role === 'student' ? 'student' : 'staff' },
             ]
 
         await (admin as any)
@@ -415,11 +415,15 @@ export async function POST(req: NextRequest) {
       ]
     : [
         // El iniciador siempre va con su propio rol
-        { conversation_id: conv.id, user_id: user.id,   role: me.role === 'parent' ? 'parent' : me.role === 'student' ? 'student' : 'tutor' },
-        // El receptor: si es padre se registra como 'parent', si es tutor como 'tutor', si es alumno como 'student'
-        { conversation_id: conv.id, user_id: partnerId, role: other.role === 'parent' ? 'parent' : other.role === 'student' ? 'student' : 'tutor' },
+        { conversation_id: conv.id, user_id: user.id,   role: me.role === 'parent' ? 'parent' : me.role === 'student' ? 'student' : 'staff' },
+        // El receptor: si es padre se registra como 'parent', si es tutor como 'staff', si es alumno como 'student'
+        { conversation_id: conv.id, user_id: partnerId, role: other.role === 'parent' ? 'parent' : other.role === 'student' ? 'student' : 'staff' },
       ]
-  await (admin as any).from('conversation_participants').insert(parts)
+  const { error: partsError } = await (admin as any).from('conversation_participants').insert(parts)
+  if (partsError) {
+    console.error('Error inserting participants:', partsError)
+    return NextResponse.json({ error: 'Error interno: no se pudieron añadir los participantes. Detalle: ' + partsError.message }, { status: 500 })
+  }
 
   // Devolver la conversación con sus participantes para que el frontend pueda mostrarla correctamente de inmediato
   const { data: fullParts } = await (admin as any)
