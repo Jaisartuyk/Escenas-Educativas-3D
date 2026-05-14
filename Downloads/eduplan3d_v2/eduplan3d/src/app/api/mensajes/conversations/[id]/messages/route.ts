@@ -49,7 +49,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
           await (admin as any)
             .from('conversation_participants')
             .upsert(
-              { conversation_id: params.id, user_id: user.id, role: 'parent' },
+              { conversation_id: params.id, user_id: user.id, role: 'staff' },
               { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
             )
           part = { conversation_id: params.id }
@@ -105,8 +105,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const body = await req.json()
+  const metadata = body?.metadata || {}
   const text: string = String(body?.body ?? '').trim()
-  if (!text) return NextResponse.json({ error: 'Mensaje vacío' }, { status: 400 })
+  
+  if (!text && !metadata.imageUrl) return NextResponse.json({ error: 'Mensaje o imagen requerida' }, { status: 400 })
   if (text.length > 4000) return NextResponse.json({ error: 'Mensaje demasiado largo' }, { status: 400 })
 
   const admin = createAdminClient()
@@ -136,7 +138,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           await (admin as any)
             .from('conversation_participants')
             .upsert(
-              { conversation_id: params.id, user_id: user.id, role: 'parent' },
+              { conversation_id: params.id, user_id: user.id, role: 'staff' },
               { onConflict: 'conversation_id,user_id', ignoreDuplicates: true }
             )
           part = { conversation_id: params.id }
@@ -149,7 +151,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const { data: msg, error } = await (admin as any)
     .from('messages')
-    .insert({ conversation_id: params.id, sender_id: user.id, body: text, kind: 'text' })
+    .insert({ conversation_id: params.id, sender_id: user.id, body: text, kind: 'text', metadata })
     .select('id, conversation_id, sender_id, body, kind, metadata, created_at').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
