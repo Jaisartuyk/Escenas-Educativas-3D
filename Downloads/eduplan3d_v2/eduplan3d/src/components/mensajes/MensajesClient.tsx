@@ -951,7 +951,7 @@ function BulletinModal({
   me: Me
   broadcastCourses: Array<{ id: string; name: string; parallel: string | null }>
   onClose: () => void
-  onPublish: (p: { title: string; body: string; category: string; requiresAck: boolean; scope: 'institution' | { courseIds: string[] } }) =>
+  onPublish: (p: { title: string; body: string; category: string; requiresAck: boolean; scope: 'institution' | { courseIds: string[] }; metadata?: any }) =>
     Promise<{ ok: boolean; recipients?: number; error?: string }>
 }) {
   const [title, setTitle] = useState('')
