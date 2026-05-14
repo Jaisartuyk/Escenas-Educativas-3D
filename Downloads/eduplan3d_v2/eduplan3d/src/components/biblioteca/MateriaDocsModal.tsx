@@ -7,6 +7,15 @@ import { createClient } from '@/lib/supabase/client'
 import toast from 'react-hot-toast'
 import { X, Upload, FileText, Trash2, Download, Eye } from 'lucide-react'
 import { FilePreview } from '@/components/ui/FilePreview'
+import {
+  buildPlannerDocStats,
+  getPlannerDocKindMeta,
+  inferPlannerDocKind,
+  normalizePlannerDocKind,
+  PLANNER_DOC_KIND_OPTIONS,
+  type PlannerDocKind,
+  type PlannerDocStats,
+} from '@/lib/planner-documents'
 
 export interface PlannerSubject {
   id: string
@@ -19,6 +28,7 @@ export interface PlannerSubject {
 interface RefDoc {
   id: string
   titulo: string
+  doc_kind: string | null
   storage_path: string
   file_name: string | null
   file_type: string | null
@@ -50,15 +60,17 @@ export function MateriaDocsModal({
   subject: PlannerSubject
   colorClass: { bg: string; border: string; text: string; solid: string }
   onClose: () => void
-  onCountChange?: (n: number) => void
+  onCountChange?: (stats: PlannerDocStats) => void
 }) {
   const supabase = createClient()
   const [docs, setDocs] = useState<RefDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [updatingDocId, setUpdatingDocId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [titulo, setTitulo] = useState('')
+  const [docKind, setDocKind] = useState<PlannerDocKind>('general')
   const [previewId, setPreviewId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -68,6 +80,9 @@ export function MateriaDocsModal({
     if (f && !titulo.trim()) {
       const base = f.name.replace(/\.[^.]+$/, '').replace(/_/g, ' ').trim()
       setTitulo(base.slice(0, 120))
+    }
+    if (f) {
+      setDocKind(inferPlannerDocKind({ titulo, fileName: f.name }))
     }
   }
 
@@ -83,7 +98,7 @@ export function MateriaDocsModal({
     const list = data || []
     setDocs(list)
     setLoading(false)
-    onCountChange?.(list.length)
+    onCountChange?.(buildPlannerDocStats(list))
   }
 
   async function handleUpload(e: React.FormEvent) {
@@ -114,6 +129,7 @@ export function MateriaDocsModal({
           user_id:            user.id,
           planner_subject_id: subject.id,
           titulo:             titulo.trim(),
+          doc_kind:           docKind,
           storage_path:       path,
           file_name:          selectedFile.name,
           file_type:          selectedFile.type,
@@ -124,6 +140,7 @@ export function MateriaDocsModal({
       toast.success('Documento agregado ✓', { id: t })
       setSelectedFile(null)
       setTitulo('')
+      setDocKind('general')
       loadDocs()
     } catch (err: any) {
       toast.error(err.message || 'Error', { id: t })
@@ -143,6 +160,34 @@ export function MateriaDocsModal({
       loadDocs()
     } catch (err: any) {
       toast.error(err.message, { id: t })
+    }
+  }
+
+  async function handleUpdateDocKind(doc: RefDoc, nextKind: PlannerDocKind) {
+    const currentKind = normalizePlannerDocKind(doc.doc_kind, {
+      titulo: doc.titulo,
+      fileName: doc.file_name,
+    })
+    if (currentKind === nextKind) return
+
+    setUpdatingDocId(doc.id)
+    try {
+      const { error } = await (supabase as any)
+        .from('planner_reference_docs')
+        .update({ doc_kind: nextKind })
+        .eq('id', doc.id)
+      if (error) throw error
+
+      const nextDocs = docs.map(item =>
+        item.id === doc.id ? { ...item, doc_kind: nextKind } : item
+      )
+      setDocs(nextDocs)
+      onCountChange?.(buildPlannerDocStats(nextDocs))
+      toast.success('Tipo de documento actualizado')
+    } catch (err: any) {
+      toast.error(err.message || 'No se pudo actualizar el tipo')
+    } finally {
+      setUpdatingDocId(null)
     }
   }
 
@@ -208,6 +253,26 @@ export function MateriaDocsModal({
                 placeholder="Ej: Libro del Ministerio — 8vo EGB"
                 className="input-base"
               />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-ink3 uppercase tracking-wider mb-1.5">
+                Tipo de documento *
+              </label>
+              <select
+                value={docKind}
+                onChange={e => setDocKind(e.target.value as PlannerDocKind)}
+                className="input-base"
+              >
+                {PLANNER_DOC_KIND_OPTIONS.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} - {option.description}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-ink4 mt-1">
+                Usa <strong>PUD</strong> para clase diaria y unidad didactica. Usa <strong>PCA</strong> para trimestre completo.
+              </p>
             </div>
 
             <div
@@ -301,6 +366,11 @@ export function MateriaDocsModal({
                 {docs.map(doc => {
                   const url = getUrl(doc.storage_path)
                   const pdfFile = isPdf(doc.file_type, doc.file_name)
+                  const normalizedKind = normalizePlannerDocKind(doc.doc_kind, {
+                    titulo: doc.titulo,
+                    fileName: doc.file_name,
+                  })
+                  const kindMeta = getPlannerDocKindMeta(normalizedKind)
                   return (
                     <div key={doc.id}>
                       <div className="flex items-center gap-3 p-3 rounded-xl border border-[rgba(0,0,0,0.06)] bg-bg hover:bg-surface transition-colors">
@@ -312,7 +382,26 @@ export function MateriaDocsModal({
                             {' · '}
                             {new Date(doc.created_at).toLocaleDateString('es-EC', { day: '2-digit', month: 'short', year: '2-digit' })}
                           </p>
+                          <div className="mt-1 flex items-center gap-2 flex-wrap">
+                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold ${kindMeta.className}`}>
+                              {kindMeta.label}
+                            </span>
+                            <span className="text-[10px] text-ink4">{kindMeta.shortHint}</span>
+                          </div>
                         </div>
+                        <select
+                          value={normalizedKind}
+                          onChange={e => handleUpdateDocKind(doc, e.target.value as PlannerDocKind)}
+                          disabled={updatingDocId === doc.id}
+                          className="rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-2 py-1 text-[11px] font-semibold text-ink2"
+                          title="Tipo de documento"
+                        >
+                          {PLANNER_DOC_KIND_OPTIONS.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                         {pdfFile && (
                           <button
                             onClick={() => setPreviewId(previewId === doc.id ? null : doc.id)}
