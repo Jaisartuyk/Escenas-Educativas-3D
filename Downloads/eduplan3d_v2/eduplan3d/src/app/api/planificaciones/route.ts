@@ -11,6 +11,7 @@ import { buildCompetenciasPromptBlock } from '@/lib/pedagogy/competencias-clave'
 import { isEFLSubject } from '@/lib/pedagogy/subject-types'
 import { extractDocxRaw } from '@/lib/extract/extractDocxRaw'
 import { resolveYearContext } from '@/lib/academic-year/server'
+import { filterPlannerDocsForGeneration } from '@/lib/planner-documents'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -924,13 +925,13 @@ ${cuadernilloRef}${extraNotes}${insercionesBlock}${competenciasBlock}${ragContex
     return `Genera una PLANIFICACION MICROCURRICULAR DISCIPLINAR O INTERDISCIPLINAR para un trimestre completo, siguiendo el formato oficial 2026 del documento de referencia.
 ${commonHeader}
 - Alcance: trimestre completo
-- Tema o eje articulador del trimestre: ${topic || 'Tomar del PUD y de los materiales subidos'}
+- Tema o eje articulador del trimestre: ${topic || 'Tomar del PCA y de los materiales subidos'}
 
 REGLA CENTRAL PARA DOCENTES EXTERNOS:
-- Si en los documentos subidos existe un PUD, una planificacion microcurricular, un plan de unidad o un documento equivalente, ese material es la FUENTE BASE para organizar el trimestre.
-- Debes tomar de ese PUD: secuencia de contenidos, objetivos, destrezas, indicadores, estrategias y temporalidad.
+- Si en los documentos subidos existe un PCA o una planificacion curricular anual equivalente, ese material es la FUENTE BASE para organizar el trimestre.
+- Debes tomar de ese PCA: secuencia macro de contenidos, objetivos, destrezas, indicadores y el marco del trimestre que corresponde.
 - Luego debes VALIDAR y AJUSTAR esa base con el bloque del CURRICULO PRIORIZADO MinEduc 2025 para completar o corregir competencias clave, inserciones curriculares e indicadores cuando corresponda.
-- Si el PUD no trae explicitas las competencias o inserciones, infierelas a partir de la DCD, la actividad y el curriculo priorizado, sin inventar DCD fuera del contexto provisto.
+- Si el PCA no trae explicitas las competencias o inserciones, infierelas a partir de la DCD, la actividad y el curriculo priorizado, sin inventar DCD fuera del contexto provisto.
 
 ESTRUCTURA DE SALIDA OBLIGATORIA (usa tablas Markdown limpias):
 
@@ -953,12 +954,12 @@ Debes producir estas tres tablas, en este orden:
 #### 2.1 Temas + Destrezas + Indicadores
 | Temas | Destrezas/Contenidos BT/ | Indicadores de evaluacion/Criterio de evaluacion BT |
 |---|---|---|
-| Tema, subtema, bloque o experiencia de aprendizaje que se desprende del PUD para ese tramo del trimestre. Debe ser concreto y legible; no dejes esta columna vacia. | Lista organizada de DCDs y/o contenidos del trimestre tomados del PUD. Cada DCD debe conservar su codigo textual y llevar al final sus competencias clave entre llaves dobles, por ejemplo {{C}} o {{CM,CD}}. Usa una sola DCD principal por bloque o fila visual para que la lectura sea compacta. | Lista alineada de indicadores oficiales o criterios de evaluacion correspondientes exactamente a la DCD del lado izquierdo. Debes repetir el indicador completo en cada caso; no uses abreviaturas sueltas como "I.LL.4.7.2." sin descripcion. |
+| Tema, subtema, bloque o experiencia de aprendizaje que se desprende del PCA para ese tramo del trimestre. Debe ser concreto y legible; no dejes esta columna vacia. | Lista organizada de DCDs y/o contenidos del trimestre tomados del PCA. Cada DCD debe conservar su codigo textual y llevar al final sus competencias clave entre llaves dobles, por ejemplo {{C}} o {{CM,CD}}. Usa una sola DCD principal por bloque o fila visual para que la lectura sea compacta. | Lista alineada de indicadores oficiales o criterios de evaluacion correspondientes exactamente a la DCD del lado izquierdo. Debes repetir el indicador completo en cada caso; no uses abreviaturas sueltas como "I.LL.4.7.2." sin descripcion. |
 
 #### 2.2 Estrategias metodologicas (DUA) + Recursos
 | Estrategias metodologicas (DUA) | Recursos |
 |---|---|
-| Organiza la secuencia metodologica del trimestre tomando como base el PUD subido. Integra aqui las inserciones curriculares seleccionadas o inferidas para el trimestre, pero aterrizadas en acciones reales de aula. Deben sentirse naturales dentro de las experiencias, no como lista decorativa. Cada insercion debe verse con su icono y etiqueta corta, por ejemplo [🌱 Sostenible], [🚩 Civica], [🤝 Socioemocional], [💰 Financiera], [🚲 Vial]. | Recursos concretos, materiales, textos, TIC, manipulativos y apoyos que se desprenden del PUD y de las actividades del trimestre. Si un recurso responde a una insercion curricular, marcalo tambien con el mismo formato visual [emoji etiqueta]. |
+| Organiza la secuencia metodologica del trimestre tomando como base el PCA subido. Integra aqui las inserciones curriculares seleccionadas o inferidas para el trimestre, pero aterrizadas en acciones reales de aula. Deben sentirse naturales dentro de las experiencias, no como lista decorativa. Cada insercion debe verse con su icono y etiqueta corta, por ejemplo [🌱 Sostenible], [🚩 Civica], [🤝 Socioemocional], [💰 Financiera], [🚲 Vial]. | Recursos concretos, materiales, textos, TIC, manipulativos y apoyos que se desprenden del PCA y de las actividades del trimestre. Si un recurso responde a una insercion curricular, marcalo tambien con el mismo formato visual [emoji etiqueta]. |
 
 #### 2.3 Estrategias para la evaluacion
 | Estrategias para la evaluacion |
@@ -976,7 +977,7 @@ OBLIGATORIO SOBRE COMPETENCIAS E INSERCIONES:
 5. En la tabla 2.1, la columna TEMAS es obligatoria y debe alinearse con cada DCD e indicador. No dejes temas genericos vacios ni repetidos sin sentido.
 6. En la tabla 2.1, evita bloques desbalanceados: por cada DCD o contenido principal del lado izquierdo debe existir su indicador completo del lado derecho, en el mismo nivel de detalle.
 7. No dejes celdas visualmente vacias ni indicadores resumidos por referencia; si el mismo indicador aplica a dos DCDs distintas, repitelo completo para mantener la tabla pareja.
-8. Si el PUD subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
+8. Si el PCA subido ya tiene una orientacion metodologica clara, respetala y solo enriquecela con curriculo priorizado.
 9. No inventes periodos semanales ni parciales. Este documento resume y organiza el trimestre completo.
 10. No expliques el proceso ni hables de la IA; entrega solo la planificacion final.
 11. El encabezado institucional NO puede usar placeholders como "Nombre de la institucion" o "Institucion Educativa"; debe escribir el nombre real de la institucion.
@@ -1003,6 +1004,13 @@ ${commonHeader}${eflHint}
 - Tema central de la semana: ${topic}
 - Total semanal: ${totalMin} minutos (${numSesiones} sesiones de ${minPorSesion} min cada una)
 ${isAporte ? '- NOTA: Es Semana 6 (APORTE). La última sesión debe contener evaluación sumativa.' : ''}
+
+REGLA CENTRAL PARA DOCENTES EXTERNOS:
+- Si existe un PUD subido para esta materia y curso, ese PUD es la fuente principal.
+- Debes identificar dentro del PUD: trimestre ${trimestre}, parcial/unidad ${parcial} y semana ${semana}.
+- Usa solo los temas y destrezas de esa unidad del PUD; no mezcles contenido de otros trimestres, parciales o unidades.
+- Distribuye los temas reales de la unidad a lo largo de las 6 semanas del parcial. Si un tema es extenso, puede ocupar dos semanas consecutivas.
+- Para esta solicitud genera solamente lo que corresponde a la semana ${semana}, manteniendo la continuidad de la secuencia del PUD.
 
 ### 1. ENCABEZADO COMÚN
 Tabla con: Institucion, Docente, Asignatura, Grado, Trimestre, Parcial, Semana, Total semanal (${totalMin} min en ${numSesiones} sesiones).
@@ -1045,6 +1053,13 @@ ${commonHeader}${eflHint}
 - Duración: ${minPorSesion} minutos (1 sesión)
 ${isAporte ? '- NOTA: Es Semana 6 (APORTE). La evaluación debe ser sumativa.' : ''}
 
+REGLA CENTRAL PARA DOCENTES EXTERNOS:
+- Si existe un PUD subido para esta materia y curso, ese PUD es la fuente principal.
+- Debes identificar dentro del PUD: trimestre ${trimestre}, parcial/unidad ${parcial} y semana ${semana}.
+- Usa solo los temas y destrezas de esa unidad del PUD; no mezcles contenido de otros trimestres, parciales o unidades.
+- Distribuye los temas reales de la unidad a lo largo de las 6 semanas del parcial. Si un tema es extenso, puede ocupar dos semanas consecutivas.
+- Para esta solicitud genera solamente lo que corresponde a la semana ${semana}, manteniendo la continuidad de la secuencia del PUD.
+
 ### 1. ENCABEZADO
 Tabla con: Institucion, Docente, Asignatura, Grado, Tiempo, Trimestre, Semana.
 
@@ -1082,6 +1097,12 @@ ${commonHeader}
 - ${unitLabel}${cefrLine}
 - Tema central / Topic: ${topic || 'A determinar según el currículo del nivel'}
 - Duración estimada: 2-3 semanas (estructura granular EFL, NO 6 semanas como otras materias)
+
+REGLA CENTRAL PARA DOCENTES EXTERNOS:
+- Si existe un PUD subido para esta materia y curso, ese PUD es la fuente principal.
+- Debes identificar dentro del PUD: trimestre ${trimestre}, parcial/unidad ${parcial} y la unidad didactica correspondiente.
+- Toma los temas reales de esa unidad desde el PUD y desarrolla solamente esa unidad, sin mezclar otras.
+- Conserva el orden y la progresion de los temas del PUD. Si la unidad tiene pocos temas, profundizalos; si tiene muchos, sintetizalos sin salir de la unidad seleccionada.
 
 ESTRUCTURA OBLIGATORIA (formato MinEduc EFL):
 
@@ -1145,6 +1166,12 @@ USA tablas Markdown limpias. Tono profesional pero amigable. Mezcla inglés y es
     return `Genera una UNIDAD DIDACTICA COMPLETA (6 semanas) con formato MINEDUC:
 ${commonHeader}
 - Tema central: ${topic || 'A determinar segun curriculo'}
+
+REGLA CENTRAL PARA DOCENTES EXTERNOS:
+- Si existe un PUD subido para esta materia y curso, ese PUD es la fuente principal.
+- Debes identificar dentro del PUD: trimestre ${trimestre}, parcial/unidad ${parcial} y la unidad didactica correspondiente.
+- Toma los temas reales de esa unidad desde el PUD y desarrolla solamente esa unidad, sin mezclar otras.
+- Conserva el orden y la progresion de los temas del PUD. Si la unidad tiene pocos temas, profundizalos; si tiene muchos, sintetizalos sin salir de la unidad seleccionada.
 
 Estructura obligatoria:
 1. DATOS INFORMATIVOS (tabla)
@@ -1632,11 +1659,13 @@ export async function POST(request: NextRequest) {
         if (isPlannerSolo && body.subjectId) {
           const { data: docs } = await (supabase as any)
             .from('planner_reference_docs')
-            .select('storage_path, titulo, file_type, file_name')
+            .select('storage_path, titulo, file_type, file_name, doc_kind')
             .eq('user_id', user.id)
             .eq('planner_subject_id', body.subjectId)
 
-          refs = (docs || [])
+          const filteredDocs = filterPlannerDocsForGeneration(docs || [], body.type)
+
+          refs = filteredDocs
             .filter((d: any) => {
               const ext = (d.file_name?.split('.').pop() || '').toLowerCase()
               return d.file_type?.includes('pdf') || d.file_type?.includes('officedocument') || ['pdf', 'doc', 'docx'].includes(ext)
@@ -1657,11 +1686,13 @@ export async function POST(request: NextRequest) {
             body.subjectId
               ? (supabase as any)
                   .from('planner_reference_docs')
-                  .select('storage_path, titulo, file_type, file_name')
+                  .select('storage_path, titulo, file_type, file_name, doc_kind')
                   .eq('user_id', user.id)
                   .eq('planner_subject_id', body.subjectId)
               : Promise.resolve({ data: [] as any[] }),
           ])
+
+          const filteredMateriaDocs = filterPlannerDocsForGeneration(docsByMateria || [], body.type)
 
           refs = [
             ...((docsLegacy || []) as any[]).map((d: any) => ({
@@ -1669,7 +1700,7 @@ export async function POST(request: NextRequest) {
               bucket: 'submissions',
               titulo: d.titulo || 'Documento adjunto',
             })),
-            ...((docsByMateria || []) as any[])
+            ...(filteredMateriaDocs as any[])
               .filter((d: any) => {
                 const ext = (d.file_name?.split('.').pop() || '').toLowerCase()
                 return d.file_type?.includes('pdf') || d.file_type?.includes('officedocument') || ['pdf', 'doc', 'docx'].includes(ext)

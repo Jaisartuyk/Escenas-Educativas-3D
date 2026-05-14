@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { Plus, BookOpen, Trash2, X, FileText, Sparkles } from 'lucide-react'
 import { MateriaDocsModal, type PlannerSubject } from './MateriaDocsModal'
+import { buildPlannerDocStats, type PlannerDocStats } from '@/lib/planner-documents'
 
 // ── Paleta de colores determinista por materia ────────────────────────────────
 const PALETTE: Array<{ bg: string; border: string; text: string; solid: string; chip: string }> = [
@@ -53,7 +54,7 @@ export function MisMateriasPlanner() {
   const [openSubject, setOpenSubject] = useState<PlannerSubject | null>(null)
 
   // Doc counts per subject
-  const [docCounts, setDocCounts] = useState<Record<string, number>>({})
+  const [docCounts, setDocCounts] = useState<Record<string, PlannerDocStats>>({})
 
   useEffect(() => {
     loadSubjects()
@@ -72,10 +73,18 @@ export function MisMateriasPlanner() {
     if (list.length > 0) {
       const { data: docs } = await (supabase as any)
         .from('planner_reference_docs')
-        .select('planner_subject_id')
-      const counts: Record<string, number> = {}
+        .select('planner_subject_id, doc_kind, titulo, file_name')
+      const counts: Record<string, PlannerDocStats> = {}
       ;(docs || []).forEach((d: any) => {
-        counts[d.planner_subject_id] = (counts[d.planner_subject_id] || 0) + 1
+        const key = d.planner_subject_id
+        const current = counts[key] || { total: 0, pud: 0, pca: 0, general: 0 }
+        const next = buildPlannerDocStats([{ doc_kind: d.doc_kind, titulo: d.titulo, file_name: d.file_name }])
+        counts[key] = {
+          total: current.total + next.total,
+          pud: current.pud + next.pud,
+          pca: current.pca + next.pca,
+          general: current.general + next.general,
+        }
       })
       setDocCounts(counts)
     }
@@ -137,7 +146,7 @@ export function MisMateriasPlanner() {
   }
 
   const totalDocs = useMemo(
-    () => Object.values(docCounts).reduce((a, b) => a + b, 0),
+    () => Object.values(docCounts).reduce((a, b) => a + b.total, 0),
     [docCounts]
   )
 
@@ -309,7 +318,7 @@ export function MisMateriasPlanner() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {subjects.map(s => {
             const c = colorFor(s.id)
-            const count = docCounts[s.id] || 0
+            const stats = docCounts[s.id] || { total: 0, pud: 0, pca: 0, general: 0 }
             const cursoLabel = [s.curso, s.paralelo].filter(Boolean).join(' ')
             return (
               <div
@@ -347,8 +356,18 @@ export function MisMateriasPlanner() {
                     </span>
                   )}
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/60 text-ink3 flex items-center gap-1">
-                    <FileText className="w-3 h-3" /> {count} material{count !== 1 ? 'es' : ''}
+                    <FileText className="w-3 h-3" /> {stats.total} material{stats.total !== 1 ? 'es' : ''}
                   </span>
+                  {stats.pud > 0 && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-700">
+                      PUD {stats.pud}
+                    </span>
+                  )}
+                  {stats.pca > 0 && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
+                      PCA {stats.pca}
+                    </span>
+                  )}
                 </div>
 
                 {/* Click hint */}
@@ -367,7 +386,7 @@ export function MisMateriasPlanner() {
           subject={openSubject}
           colorClass={colorFor(openSubject.id)}
           onClose={() => { setOpenSubject(null); loadSubjects() }}
-          onCountChange={(n) => setDocCounts(prev => ({ ...prev, [openSubject.id]: n }))}
+          onCountChange={(stats) => setDocCounts(prev => ({ ...prev, [openSubject.id]: stats }))}
         />
       )}
     </div>
