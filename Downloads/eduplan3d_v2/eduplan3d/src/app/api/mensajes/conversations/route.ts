@@ -353,8 +353,8 @@ export async function POST(req: NextRequest) {
               { conversation_id: existingByContext.id, user_id: partnerId, role: 'staff' },
             ]
           : [
-              { conversation_id: existingByContext.id, user_id: user.id,   role: me.role === 'parent' ? 'parent' : me.role === 'student' ? 'student' : 'staff' },
-              { conversation_id: existingByContext.id, user_id: partnerId, role: other.role === 'parent' ? 'parent' : other.role === 'student' ? 'student' : 'staff' },
+              { conversation_id: existingByContext.id, user_id: user.id,   role: me.role === 'student' ? 'student' : 'staff' },
+              { conversation_id: existingByContext.id, user_id: partnerId, role: other.role === 'student' ? 'student' : 'staff' },
             ]
 
         await (admin as any)
@@ -414,10 +414,10 @@ export async function POST(req: NextRequest) {
         { conversation_id: conv.id, user_id: partnerId,  role: 'staff' },
       ]
     : [
-        // El iniciador siempre va con su propio rol
-        { conversation_id: conv.id, user_id: user.id,   role: me.role === 'parent' ? 'parent' : me.role === 'student' ? 'student' : 'staff' },
-        // El receptor: si es padre se registra como 'parent', si es tutor como 'staff', si es alumno como 'student'
-        { conversation_id: conv.id, user_id: partnerId, role: other.role === 'parent' ? 'parent' : other.role === 'student' ? 'student' : 'staff' },
+        // El iniciador siempre va con su propio rol (si es estudiante va 'student', si no, 'staff')
+        { conversation_id: conv.id, user_id: user.id,   role: me.role === 'student' ? 'student' : 'staff' },
+        // El receptor: si es estudiante va 'student', si no, 'staff' (para pasar la restricción de Supabase)
+        { conversation_id: conv.id, user_id: partnerId, role: other.role === 'student' ? 'student' : 'staff' },
       ]
   const { error: partsError } = await (admin as any).from('conversation_participants').insert(parts)
   if (partsError) {
