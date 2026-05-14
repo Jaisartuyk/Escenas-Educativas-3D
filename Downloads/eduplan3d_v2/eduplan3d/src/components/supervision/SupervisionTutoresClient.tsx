@@ -114,6 +114,7 @@ export function SupervisionTutoresClient({
     const tutorSubjects = subjects.filter(s => tutorCourseIds.includes(s.course_id))
     const tutorAssignments = assignments.filter(a => tutorSubjects.map(s => s.id).includes(a.subject_id))
     const tutorGrades = grades.filter(g => tutorAssignments.map(a => a.id).includes(g.assignment_id))
+    const tutorAttendance = attendance.filter(att => tutorSubjects.map(s => s.id).includes(att.subject_id))
 
     return (
       <div className="space-y-6">
@@ -213,10 +214,65 @@ export function SupervisionTutoresClient({
           )}
 
           {activeTab === 'asistencia' && (
-             <div className="card p-8 text-center text-ink3">
-               <Calendar className="mx-auto mb-4 opacity-20" size={48} />
-               <p>Módulo de historial de asistencia detallado del tutor en desarrollo.</p>
-               <p className="text-xs mt-2 italic">Puedes ver el reporte de asistencia por materia en el panel de Docencia.</p>
+             <div className="card p-0 bg-surface border border-surface2 overflow-hidden">
+               <div className="p-5 border-b border-surface2 bg-bg/50">
+                 <h3 className="text-lg font-bold text-ink">Reporte de Asistencia del Curso</h3>
+                 <p className="text-xs text-ink3 mt-1">Acumulado de presencias, atrasos y faltas en todas las materias dictadas.</p>
+               </div>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left text-sm">
+                   <thead className="bg-[rgba(0,0,0,0.02)]">
+                     <tr className="border-b border-surface2 text-xs text-ink3 uppercase tracking-wider">
+                       <th className="px-5 py-4 font-bold">Estudiante</th>
+                       <th className="px-5 py-4 font-bold text-center">Presente</th>
+                       <th className="px-5 py-4 font-bold text-center">Atraso</th>
+                       <th className="px-5 py-4 font-bold text-center">Falta</th>
+                       <th className="px-5 py-4 font-bold text-right">% Asistencia</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-surface2/50">
+                     {tutorEnrollments.map((en, i) => {
+                       const studentAtt = tutorAttendance.filter(a => a.student_id === en.student_id)
+                       const total = studentAtt.length
+                       const presents = studentAtt.filter(a => a.status === 'present').length
+                       const lates = studentAtt.filter(a => a.status === 'late').length
+                       const absents = studentAtt.filter(a => a.status === 'absent').length
+                       const excused = studentAtt.filter(a => a.status === 'excused').length
+                       
+                       // Consideramos excused y lates como presente para el cálculo del porcentaje
+                       const percent = total > 0 ? ((presents + lates + excused) / total) * 100 : 100
+
+                       return (
+                         <tr key={en.id} className={`hover:bg-bg/50 ${i % 2 === 0 ? '' : 'bg-[rgba(0,0,0,0.015)]'}`}>
+                           <td className="px-5 py-4">
+                             <p className="font-bold text-ink">{en.student.full_name}</p>
+                             <p className="text-[10px] text-ink4">{en.student.email}</p>
+                           </td>
+                           <td className="px-5 py-4 text-center font-bold text-teal">{presents}</td>
+                           <td className="px-5 py-4 text-center font-bold text-amber-600">{lates}</td>
+                           <td className="px-5 py-4 text-center font-bold text-rose-600">{absents}</td>
+                           <td className="px-5 py-4 text-right">
+                             <span className={`inline-flex items-center justify-center px-2 py-1 rounded-lg font-bold text-xs ${
+                               percent < 70 ? 'bg-rose-100 text-rose-700' :
+                               percent < 85 ? 'bg-amber-100 text-amber-700' : 'bg-teal/10 text-teal'
+                             }`}>
+                               {percent.toFixed(0)}%
+                             </span>
+                           </td>
+                         </tr>
+                       )
+                     })}
+                     {tutorEnrollments.length === 0 && (
+                       <tr>
+                         <td colSpan={5} className="px-5 py-12 text-center text-ink3">
+                           <Users size={32} className="mx-auto mb-3 opacity-20" />
+                           <p>No hay estudiantes registrados en este curso.</p>
+                         </td>
+                       </tr>
+                     )}
+                   </tbody>
+                 </table>
+               </div>
              </div>
           )}
 
