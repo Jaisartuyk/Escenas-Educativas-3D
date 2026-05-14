@@ -114,6 +114,7 @@ export function SupervisionTutoresClient({
     const tutorSubjects = subjects.filter(s => tutorCourseIds.includes(s.course_id))
     const tutorAssignments = assignments.filter(a => tutorSubjects.map(s => s.id).includes(a.subject_id))
     const tutorGrades = grades.filter(g => tutorAssignments.map(a => a.id).includes(g.assignment_id))
+    const tutorAttendance = attendance.filter(att => tutorSubjects.map(s => s.id).includes(att.subject_id))
 
     return (
       <div className="space-y-6">
