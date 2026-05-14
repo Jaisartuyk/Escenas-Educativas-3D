@@ -10,7 +10,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveTutorsForStudent } from '@/lib/mensajes/access'
 import { getLinkedChildrenForParent } from '@/lib/parents'
 
-const STAFF_ROLES = ['admin', 'assistant', 'teacher', 'rector', 'supervisor', 'horarios_only']
+const STAFF_ROLES = ['admin', 'assistant', 'teacher', 'rector', 'supervisor', 'horarios_only', 'secretary']
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Administrador',
@@ -19,6 +19,7 @@ const ROLE_LABEL: Record<string, string> = {
   rector: 'Rector/a',
   supervisor: 'Supervisor/a',
   horarios_only: 'Coordinacion de horarios',
+  secretary: 'Secretaria',
 }
 
 export async function GET(req: NextRequest) {
@@ -161,6 +162,23 @@ export async function GET(req: NextRequest) {
             studentId: link.child_id,
           })
         }
+      }
+    } else if (me.role === 'admin' || me.role === 'assistant' || me.role === 'secretary' || me.role === 'rector') {
+      // Exponer a TODOS los padres y estudiantes de la institución
+      const { data: extraUsers } = await (admin as any)
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('institution_id', me.institution_id)
+        .in('role', ['parent', 'student'])
+
+      for (const p of ((extraUsers || []) as any[])) {
+        staffContacts.push({
+          userId: p.id,
+          fullName: p.full_name || (p.role === 'parent' ? 'Representante' : 'Estudiante'),
+          role: p.role,
+          subtitle: p.role === 'parent' ? 'Representante' : 'Estudiante',
+          studentId: undefined,
+        })
       }
     }
 

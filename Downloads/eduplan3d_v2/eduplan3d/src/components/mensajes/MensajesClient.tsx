@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   MessageSquare, Send, Search, Plus, Megaphone, X, CheckCheck, Check,
   Clock, AlertTriangle, CalendarDays, BookOpen, BadgeCheck, ArrowLeft,
-  Users, GraduationCap, Sparkles, Trash2,
+  Users, GraduationCap, Sparkles, Trash2, Image as ImageIcon, Loader2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
@@ -120,6 +120,7 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [msgsError, setMsgsError] = useState<string | null>(null)
   const [input, setInput] = useState('')
+  const [attachment, setAttachment] = useState<File | null>(null)
   const [sending, setSending] = useState(false)
   const [search, setSearch] = useState('')
   const [newOpen, setNewOpen] = useState(false)
@@ -134,8 +135,8 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
   const conversationsRef = useRef<Conversation[]>([])
   const notifiedMessageIdsRef = useRef<Set<string>>(new Set())
 
-  // Solo administración (admin/assistant/rector) puede publicar boletines.
-  const canBroadcast = me.role === 'admin' || me.role === 'assistant' || me.role === 'rector'
+  // Solo administración (admin/assistant/rector/secretary) puede publicar boletines.
+  const canBroadcast = me.role === 'admin' || me.role === 'assistant' || me.role === 'rector' || me.role === 'secretary'
 
   // Cuando el padre cambia de hijo, resetear contactos para recargarlos con el hijo nuevo
   const prevChildId = useRef(selectedChildId)
@@ -273,23 +274,49 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
   }, [selectedId])
 
   async function send() {
-    if (!selectedId || !input.trim() || sending) return
+    if (!selectedId || (!input.trim() && !attachment) || sending) return
     setSending(true)
     const body = input.trim()
-    setInput('')
+    let imageUrl = undefined
+
     try {
+      if (attachment) {
+        const supabase = createSupabaseClient()
+        const ext = attachment.name.split('.').pop()
+        const filename = `${me.id}_${Date.now()}.${ext}`
+        const { data, error } = await supabase.storage
+          .from('chat_media')
+          .upload(filename, attachment, { cacheControl: '3600', upsert: false })
+
+        if (error) {
+          toast.error('Error subiendo imagen: ' + error.message)
+          setSending(false)
+          return
+        }
+
+        const { data: publicData } = supabase.storage.from('chat_media').getPublicUrl(data.path)
+        imageUrl = publicData.publicUrl
+      }
+
+      setInput('')
+      setAttachment(null)
+
       const res = await fetch(`/api/mensajes/conversations/${selectedId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({ body, metadata: imageUrl ? { imageUrl } : {} }),
       })
+
       if (res.ok) {
         await loadMessages(selectedId, true)
         loadConversations()
         window.dispatchEvent(new Event('messages:unread-changed'))
       } else {
-        setInput(body) // devolver al textarea si falla
+        setInput(body)
+        if (imageUrl) toast.error('Mensaje no enviado, pero la imagen se subió')
       }
+    } catch (e: any) {
+      toast.error('Error de red')
     } finally {
       setSending(false)
     }
@@ -351,7 +378,7 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
 
   async function publishBulletin(payload: {
     title: string; body: string; category: string; requiresAck: boolean;
-    scope: 'institution' | { courseIds: string[] }
+    scope: 'institution' | { courseIds: string[] }; metadata?: any
   }) {
     const res = await fetch('/api/mensajes/bulletins', {
       method: 'POST',
@@ -555,7 +582,24 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
             {/* Composer */}
             {selected.type !== 'bulletin' || selected.created_by === me.id ? (
               <div className="p-3 md:p-4 border-t border-[rgba(0,0,0,0.06)] bg-bg2">
+                {attachment && (
+                  <div className="mb-3 flex items-center gap-2 bg-violet/10 border border-violet/20 rounded-xl p-2 w-max">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={URL.createObjectURL(attachment)} alt="Adjunto" className="h-12 w-12 object-cover rounded-lg" />
+                    <div className="text-xs">
+                      <p className="font-semibold text-violet2 truncate max-w-[150px]">{attachment.name}</p>
+                      <button onClick={() => setAttachment(null)} className="text-rose-500 hover:underline mt-0.5">Quitar adjunto</button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-end gap-2">
+                  <label className="h-10 w-10 shrink-0 rounded-full bg-surface text-ink4 hover:bg-surface2 hover:text-ink cursor-pointer flex items-center justify-center transition-all border border-surface2">
+                    <input type="file" accept="image/*" className="hidden" onChange={e => {
+                      if (e.target.files?.[0]) setAttachment(e.target.files[0])
+                      e.target.value = ''
+                    }} />
+                    <ImageIcon size={18} />
+                  </label>
                   <textarea
                     value={input}
                     onChange={e => setInput(e.target.value)}
@@ -568,10 +612,10 @@ export function MensajesClient({ me, institutionName, broadcastCourses, selected
                   />
                   <button
                     onClick={send}
-                    disabled={!input.trim() || sending}
+                    disabled={(!input.trim() && !attachment) || sending}
                     className="h-10 w-10 shrink-0 rounded-full bg-violet text-white hover:bg-violet2 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center shadow-sm transition-all"
                     title="Enviar">
-                    <Send size={16} />
+                    {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                   </button>
                 </div>
               </div>
@@ -773,6 +817,12 @@ function MessageBubble({
             )}
           </div>
           <div className="px-4 py-3">
+            {m.metadata?.imageUrl && (
+              <div className="mb-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={m.metadata.imageUrl} alt="Imagen adjunta" className="rounded-xl max-h-80 w-auto object-contain bg-black/5" />
+              </div>
+            )}
             <p className="text-sm text-ink leading-relaxed whitespace-pre-wrap">{m.body}</p>
             {isBulletinOwner && requiresAck && (
               <div className="mt-3 pt-3 border-t border-[rgba(0,0,0,0.06)] flex items-center gap-2 text-[11px] text-ink3">
@@ -807,6 +857,12 @@ function MessageBubble({
             ? 'bg-violet text-white rounded-br-md'
             : 'bg-bg2 text-ink border border-[rgba(0,0,0,0.04)] rounded-bl-md'
         }`}>
+          {m.metadata?.imageUrl && (
+            <div className="mb-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={m.metadata.imageUrl} alt="Imagen adjunta" className="rounded-lg max-h-60 w-auto object-contain bg-black/10" />
+            </div>
+          )}
           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.body}</p>
           <div className={`text-[10px] mt-0.5 flex items-center gap-1 ${isMine ? 'text-white/70 justify-end' : 'text-ink4'}`}>
             {fmtTime(m.created_at)}
@@ -904,6 +960,7 @@ function BulletinModal({
   const [requiresAck, setRequiresAck] = useState(true)
   const [scopeKind, setScopeKind] = useState<'institution'|'courses'>(me.role === 'admin' || me.role === 'assistant' ? 'institution' : 'courses')
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set())
+  const [attachment, setAttachment] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -911,12 +968,32 @@ function BulletinModal({
 
   async function handlePublish() {
     setError(null)
-    if (!title.trim() || !body.trim()) { setError('Título y mensaje son requeridos'); return }
+    if (!title.trim() || (!body.trim() && !attachment)) { setError('Título y mensaje (o imagen) son requeridos'); return }
     const scope: 'institution' | { courseIds: string[] } =
       scopeKind === 'institution' ? 'institution' : { courseIds: Array.from(selectedCourses) }
     if (scopeKind === 'courses' && selectedCourses.size === 0) { setError('Selecciona al menos un curso'); return }
     setBusy(true)
-    const res = await onPublish({ title: title.trim(), body: body.trim(), category, requiresAck, scope })
+    
+    let imageUrl = undefined
+    if (attachment) {
+      try {
+        const supabase = createSupabaseClient()
+        const ext = attachment.name.split('.').pop()
+        const filename = `${me.id}_bulletin_${Date.now()}.${ext}`
+        const { data, error: upErr } = await supabase.storage
+          .from('chat_media')
+          .upload(filename, attachment, { cacheControl: '3600', upsert: false })
+        if (upErr) throw upErr
+        const { data: publicData } = supabase.storage.from('chat_media').getPublicUrl(data.path)
+        imageUrl = publicData.publicUrl
+      } catch (e: any) {
+        setError('Error subiendo imagen: ' + e.message)
+        setBusy(false)
+        return
+      }
+    }
+
+    const res = await onPublish({ title: title.trim(), body: body.trim(), category, requiresAck, scope, metadata: imageUrl ? { imageUrl } : {} })
     setBusy(false)
     if (!res.ok) setError(res.error || 'No se pudo publicar')
   }
@@ -1013,7 +1090,26 @@ function BulletinModal({
           </div>
           {/* Mensaje */}
           <div>
-            <label className="text-[11px] uppercase tracking-wide font-bold text-ink4 block mb-1.5">Mensaje</label>
+            <label className="text-[11px] uppercase tracking-wide font-bold text-ink4 block mb-1.5 flex justify-between items-center">
+              <span>Mensaje</span>
+              <label className="text-violet2 hover:text-violet transition-colors cursor-pointer flex items-center gap-1 font-semibold text-[10px]">
+                <ImageIcon size={12} /> Adjuntar imagen
+                <input type="file" accept="image/*" className="hidden" onChange={e => {
+                  if (e.target.files?.[0]) setAttachment(e.target.files[0])
+                  e.target.value = ''
+                }} />
+              </label>
+            </label>
+            {attachment && (
+              <div className="mb-3 flex items-center gap-2 bg-violet/10 border border-violet/20 rounded-xl p-2 w-max">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={URL.createObjectURL(attachment)} alt="Adjunto" className="h-12 w-12 object-cover rounded-lg" />
+                <div className="text-xs pr-2">
+                  <p className="font-semibold text-violet2 truncate max-w-[150px]">{attachment.name}</p>
+                  <button onClick={() => setAttachment(null)} className="text-rose-500 hover:underline mt-0.5">Quitar</button>
+                </div>
+              </div>
+            )}
             <textarea value={body} onChange={e => setBody(e.target.value)} rows={6} maxLength={3000}
               placeholder="Escribe el comunicado con el detalle necesario…"
               className="w-full px-3 py-2 rounded-xl bg-bg3 text-sm focus:bg-bg2 focus:ring-2 focus:ring-amber-400/40 outline-none resize-none" />

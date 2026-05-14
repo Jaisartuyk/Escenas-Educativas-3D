@@ -157,9 +157,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const result = Array.from(deduped.values()).sort(
-    (a, b) => toEpoch(b.last_message_at || b.created_at) - toEpoch(a.last_message_at || a.created_at)
-  )
+  const result = Array.from(deduped.values())
+    .filter(c => c.type !== 'direct' || (c.participants && c.participants.length > 1))
+    .sort((a, b) => toEpoch(b.last_message_at || b.created_at) - toEpoch(a.last_message_at || a.created_at))
 
   return NextResponse.json({ conversations: result })
 }
@@ -189,12 +189,12 @@ export async function POST(req: NextRequest) {
   // Validar emparejamiento.
   // Casos permitidos:
   //  A) staff↔staff: cualquier rol del staff (admin, assistant, teacher,
-  //     rector, supervisor, horarios_only) puede mensajear a cualquier otro
+  //     rector, supervisor, horarios_only, secretary) puede mensajear a cualquier otro
   //     staff de su misma institución (mensajería interna).
   //  B) student↔teacher: solo si el docente es tutor del curso del estudiante.
-  //  C) admin/assistant↔student: permitido (admin puede contactar cualquier
+  //  C) admin/assistant/secretary↔student: permitido (admin puede contactar cualquier
   //     estudiante de su institución).
-  const STAFF_ROLES = ['admin', 'assistant', 'teacher', 'rector', 'supervisor', 'horarios_only']
+  const STAFF_ROLES = ['admin', 'assistant', 'teacher', 'rector', 'supervisor', 'horarios_only', 'secretary']
   const meIsStaff    = STAFF_ROLES.includes(me.role)
   const otherIsStaff = STAFF_ROLES.includes(other.role)
 
@@ -228,17 +228,17 @@ export async function POST(req: NextRequest) {
     studentId = linkedChild.childId
     tutorId = me.id
     participantRole = 'parent'  // el otro (padre) se registra con rol 'parent'
-  } else if ((me.role === 'admin' || me.role === 'assistant') && other.role === 'student') {
+  } else if ((me.role === 'admin' || me.role === 'assistant' || me.role === 'secretary') && other.role === 'student') {
     studentId = other.id
     tutorId = ''
-  } else if ((me.role === 'admin' || me.role === 'assistant') && other.role === 'parent') {
-    // admin/assistant → padre: permitido, identificamos hijo principal
+  } else if ((me.role === 'admin' || me.role === 'assistant' || me.role === 'secretary') && other.role === 'parent') {
+    // admin/assistant/secretary → padre: permitido, identificamos hijo principal
     const linkedChild = await getPrimaryLinkedChildForParent(admin as any, other.id, studentContext || undefined)
     studentId = linkedChild?.childId || ''
     tutorId = ''
     participantRole = 'parent'
-  } else if (other.role === 'admin' || other.role === 'assistant') {
-    // estudiante o padre escribiendo a admin → permitido
+  } else if (other.role === 'admin' || other.role === 'assistant' || other.role === 'secretary') {
+    // estudiante o padre escribiendo a admin/secretary → permitido
     if (me.role === 'parent') {
       const linkedChild = await getPrimaryLinkedChildForParent(admin as any, me.id, studentContext || undefined)
       studentId = linkedChild?.childId || ''
