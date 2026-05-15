@@ -175,6 +175,19 @@ export function HorariosClient() {
     toast.success('Horario generado ✓')
   }, [state.config, state.docentes, state.horasPorCurso, state.docentePorCurso])
 
+  const handleGenerarParcial = useCallback((cursosAFiltrar: string[]) => {
+    const horario = generarHorario(
+      state.config, 
+      state.docentes, 
+      state.horasPorCurso, 
+      state.docentePorCurso,
+      state.horario,
+      cursosAFiltrar
+    )
+    updateState(s => ({ ...s, horario, step: 3 }), true)
+    toast.success(`Horario actualizado para ${cursosAFiltrar.join(', ')} ✓`)
+  }, [state.config, state.docentes, state.horasPorCurso, state.docentePorCurso, state.horario])
+
   async function handleExport() {
     const t = toast.loading('Generando Excel...')
     try {
@@ -430,6 +443,7 @@ export function HorariosClient() {
               state={state}
               onBack={() => setTab(1)}
               onGenerar={handleGenerar}
+              onGenerarParcial={handleGenerarParcial}
             />
           )}
           {state.step === 3 && (

@@ -52,7 +52,9 @@ export function generarHorario(
   config: InstitucionConfig,
   docentes: Docente[],
   horasPorCurso: HorasPorCurso,
-  docentePorCurso?: Record<string, Record<string, string>>
+  docentePorCurso?: Record<string, Record<string, string>>,
+  currentHorario?: HorarioGrid,
+  cursosAFiltrar?: string[]
 ): HorarioGrid {
   const { cursos } = config
   const useAcomp = config.acompanamiento !== false
@@ -61,6 +63,12 @@ export function generarHorario(
   function initHorario(): HorarioGrid {
     const h: HorarioGrid = {}
     cursos.forEach(c => {
+      // Si estamos en modo parcial y NO es un curso a filtrar, preservamos el horario actual
+      if (cursosAFiltrar && !cursosAFiltrar.includes(c) && currentHorario && currentHorario[c]) {
+        h[c] = JSON.parse(JSON.stringify(currentHorario[c]))
+        return
+      }
+
       const { nPeriodos: np, recesos } = getCursoStructure(config, c)
       h[c] = {} as Record<Dia, string[]>
       DIAS.forEach(d => {
@@ -82,14 +90,16 @@ export function generarHorario(
     horasLabels: string[]
   }
   const entries: Entry[] = []
-  cursos.forEach(c => {
+  
+  // Solo generamos entradas para los cursos solicitados (o todos si no hay filtro)
+  const cursosAProcesar = cursosAFiltrar || cursos
+
+  cursosAProcesar.forEach(c => {
     const { nPeriodos: np, horarios: horasLabels, recesos } = getCursoStructure(config, c)
     const validPeriods = Array.from({ length: np }, (_, i) => i).filter(i => !recesos.includes(i))
     const hm = horasPorCurso[c] ?? {}
     Object.entries(hm)
       .filter(([, h]) => h > 0)
-      // Orden interno: materias con más horas primero (mejora heurística de
-      // colocación temprana cuando hay empates de dificultad)
       .sort(([, a], [, b]) => b - a)
       .forEach(([materia, horas]) => {
         const doc = getDocForMateria(materia, docentes, config.jornada, config.nivel, docentePorCurso, c)
@@ -137,6 +147,28 @@ export function generarHorario(
     const horario = initHorario()
     const docBusy: Record<string, Set<string>> = {}
     const usoPorDia: Record<string, number> = {}
+
+    // Si hay generación parcial, pre-poblar ocupación de docentes desde otros cursos
+    if (cursosAFiltrar && currentHorario) {
+      cursos.forEach(c => {
+        if (cursosAFiltrar.includes(c)) return
+        const { nPeriodos: np, horarios: hLabels } = getCursoStructure(config, c)
+        DIAS.forEach(d => {
+          currentHorario[c][d]?.forEach((m, p) => {
+            if (!m || m === 'RECESO' || m === 'ACOMPAÑAMIENTO' || m === 'SALIDA') return
+            const doc = getDocForMateria(m, docentes, config.jornada, config.nivel, docentePorCurso, c)
+            if (doc !== '—') {
+              const label = hLabels[p] ?? String(p)
+              const bk = `${d}|${label}`
+              if (!docBusy[bk]) docBusy[bk] = new Set()
+              docBusy[bk].add(doc)
+            }
+            const kDia = `${c}|${m}|${d}`
+            usoPorDia[kDia] = (usoPorDia[kDia] ?? 0) + 1
+          })
+        })
+      })
+    }
     let placedCount = 0
     let iterations = 0
 
