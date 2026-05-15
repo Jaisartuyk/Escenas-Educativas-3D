@@ -182,11 +182,13 @@ export async function GET(req: Request) {
   // Set of matching course IDs for this slot
   const matchingCourseIds = new Set(matchingCourses.map((c: any) => c.id))
 
-  if (dbSubjects && dbCourses) {
-    // Build full course map for level/shift lookup
-    const allCourseMap: Record<string, any> = {}
+  // Build full course map for level/shift lookup
+  const allCourseMap: Record<string, any> = {}
+  if (dbCourses) {
     ;(dbCourses as any[]).forEach((c: any) => { allCourseMap[c.id] = c })
+  }
 
+  if (dbSubjects && dbCourses) {
     ;(dbSubjects as any[]).forEach((sub: any) => {
       if (!sub.teacher_id) return
       const course = allCourseMap[sub.course_id]
