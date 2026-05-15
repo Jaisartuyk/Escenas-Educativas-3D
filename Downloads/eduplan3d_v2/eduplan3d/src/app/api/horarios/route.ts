@@ -182,11 +182,13 @@ export async function GET(req: Request) {
   // Set of matching course IDs for this slot
   const matchingCourseIds = new Set(matchingCourses.map((c: any) => c.id))
 
-  if (dbSubjects && dbCourses) {
-    // Build full course map for level/shift lookup
-    const allCourseMap: Record<string, any> = {}
+  // Build full course map for level/shift lookup
+  const allCourseMap: Record<string, any> = {}
+  if (dbCourses) {
     ;(dbCourses as any[]).forEach((c: any) => { allCourseMap[c.id] = c })
+  }
 
+  if (dbSubjects && dbCourses) {
     ;(dbSubjects as any[]).forEach((sub: any) => {
       if (!sub.teacher_id) return
       const course = allCourseMap[sub.course_id]
@@ -258,7 +260,20 @@ export async function GET(req: Request) {
     }
 
     ;(dbSubjects as any[]).forEach((sub: any) => {
-      const courseName = courseIdToName[sub.course_id]
+      let courseName = courseIdToName[sub.course_id]
+      
+      // Respaldo: si el ID no coincide, intentar buscar por nombre de curso en el slot actual
+      if (!courseName) {
+        const subCourse = allCourseMap[sub.course_id]
+        if (subCourse) {
+          const subCourseDisplayName = subCourse.parallel ? `${subCourse.name} ${subCourse.parallel}`.trim() : subCourse.name
+          // Si el nombre del curso de la materia coincide con uno de los nombres del slot
+          if (horariosConfig.config.cursos.includes(subCourseDisplayName)) {
+            courseName = subCourseDisplayName
+          }
+        }
+      }
+
       if (!courseName) return // skip subjects from non-matching courses
 
       if (!horasPorCurso[courseName]) horasPorCurso[courseName] = {}
