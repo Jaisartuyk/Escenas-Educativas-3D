@@ -1,6 +1,4 @@
-'use client'
-// src/components/horarios/steps/StepGenerar.tsx
-
+import { useState } from 'react'
 import type { HorariosState } from '@/types/horarios'
 import { getDocForMateria } from '@/lib/horarios/generator'
 
@@ -8,12 +6,18 @@ interface Props {
   state: HorariosState
   onBack: () => void
   onGenerar: () => void
+  onGenerarParcial: (cursos: string[]) => void
 }
 
-export function StepGenerar({ state, onBack, onGenerar }: Props) {
+export function StepGenerar({ state, onBack, onGenerar, onGenerarParcial }: Props) {
   const { config, docentes, horasPorCurso } = state
+  const [selectedCursos, setSelectedCursos] = useState<string[]>([])
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
+  const toggleCurso = (c: string) => {
+    setSelectedCursos(prev => 
+      prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
+    )
+  }
   let totalPeriodos = 0
   let sinDocente    = 0
   const materiasSinDocente: { materia: string; curso: string }[] = []
@@ -163,15 +167,51 @@ export function StepGenerar({ state, onBack, onGenerar }: Props) {
       </div>
 
       {/* CTA */}
-      <div className="card p-8 text-center mb-5">
-        <div className="text-4xl mb-4">📅</div>
-        <h3 className="font-display text-lg font-bold mb-2">Listo para generar</h3>
-        <p className="text-ink3 text-sm mb-6 max-w-md mx-auto">
-          El sistema distribuirá automáticamente todas las materias sin que ningún docente aparezca en dos cursos al mismo tiempo. Luego podrás editar celda por celda.
-        </p>
-        <button onClick={onGenerar} className="btn-primary text-base px-10 py-3.5">
-          ✨ Generar horario automático
-        </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-5">
+        <div className="card p-8 text-center border-dashed border-2 border-[rgba(124,109,250,0.2)]">
+          <div className="text-3xl mb-3">🔄</div>
+          <h3 className="font-display text-lg font-bold mb-2">Generación Total</h3>
+          <p className="text-[11px] text-ink3 mb-6">
+            Borra TODO el horario actual y genera uno nuevo desde cero para todos los cursos.
+          </p>
+          <button onClick={onGenerar} className="btn-secondary w-full py-3 text-sm">
+            💥 Resetear y generar todo
+          </button>
+        </div>
+
+        <div className="card p-8 text-center border-2 border-[rgba(38,215,180,0.3)] bg-[rgba(38,215,180,0.02)]">
+          <div className="text-3xl mb-3">🧠</div>
+          <h3 className="font-display text-lg font-bold mb-2">Generación Inteligente</h3>
+          <p className="text-[11px] text-ink3 mb-4">
+            Genera SOLO los cursos seleccionados respetando el trabajo ya hecho en los demás.
+          </p>
+          
+          <div className="flex flex-wrap justify-center gap-2 mb-6">
+            {config.cursos.map(c => (
+              <button
+                key={c}
+                onClick={() => toggleCurso(c)}
+                className={`text-[10px] px-3 py-1.5 rounded-lg border transition-all ${
+                  selectedCursos.includes(c)
+                    ? 'bg-teal border-teal text-white font-bold'
+                    : 'bg-bg border-ink4 text-ink3 hover:border-teal'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+
+          <button 
+            onClick={() => onGenerarParcial(selectedCursos)} 
+            disabled={selectedCursos.length === 0}
+            className={`btn-primary w-full py-3 text-sm flex items-center justify-center gap-2 ${
+              selectedCursos.length === 0 ? 'opacity-50 grayscale cursor-not-allowed' : ''
+            }`}
+          >
+            ✨ Generar {selectedCursos.length > 0 ? `(${selectedCursos.length} cursos)` : ''}
+          </button>
+        </div>
       </div>
 
       <button onClick={onBack} className="btn-secondary px-6 py-2.5">← Atrás</button>
