@@ -258,7 +258,20 @@ export async function GET(req: Request) {
     }
 
     ;(dbSubjects as any[]).forEach((sub: any) => {
-      const courseName = courseIdToName[sub.course_id]
+      let courseName = courseIdToName[sub.course_id]
+      
+      // Respaldo: si el ID no coincide, intentar buscar por nombre de curso en el slot actual
+      if (!courseName) {
+        const subCourse = allCourseMap[sub.course_id]
+        if (subCourse) {
+          const subCourseDisplayName = subCourse.parallel ? `${subCourse.name} ${subCourse.parallel}`.trim() : subCourse.name
+          // Si el nombre del curso de la materia coincide con uno de los nombres del slot
+          if (horariosConfig.config.cursos.includes(subCourseDisplayName)) {
+            courseName = subCourseDisplayName
+          }
+        }
+      }
+
       if (!courseName) return // skip subjects from non-matching courses
 
       if (!horasPorCurso[courseName]) horasPorCurso[courseName] = {}
