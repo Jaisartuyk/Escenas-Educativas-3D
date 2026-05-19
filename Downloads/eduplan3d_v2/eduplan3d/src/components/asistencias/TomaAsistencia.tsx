@@ -1,16 +1,43 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+
+type SubjectOption = {
+  id: string
+  name: string
+  course?: {
+    id?: string
+    name?: string | null
+    parallel?: string | null
+  } | null
+}
+
+type StudentOption = {
+  id: string
+  full_name?: string | null
+  email?: string | null
+}
+
+type SharedAttendancePolicy = {
+  sharedMode: boolean
+  authorityTeacherName: string | null
+  authoritySubjectName: string | null
+  authoritySource: 'tutor' | 'first-hour' | 'fallback'
+  canTeacherEdit: boolean
+  dayLabel: string
+  courseLabel: string
+}
 
 export function TomaAsistencia() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [subjects, setSubjects] = useState<any[]>([])
+  const [subjects, setSubjects] = useState<SubjectOption[]>([])
   const [selectedSubject, setSelectedSubject] = useState<string>('')
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0])
-  const [students, setStudents] = useState<any[]>([])
+  const [students, setStudents] = useState<StudentOption[]>([])
   const [attendance, setAttendance] = useState<Record<string, string>>({})
+  const [sharedPolicy, setSharedPolicy] = useState<SharedAttendancePolicy | null>(null)
   const [message, setMessage] = useState({ text: '', type: '' })
 
   const supabase = createClient()
@@ -20,72 +47,89 @@ export function TomaAsistencia() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await (supabase as any)
+      const { data } = await (supabase as any)
         .from('subjects')
         .select('id, name, course:courses(id, name, parallel)')
         .eq('teacher_id', user.id as string)
 
-      if (data) {
-        setSubjects(data)
-        if (data.length > 0) setSelectedSubject((data as any[])[0].id)
-      }
+      const nextSubjects = ((data || []) as SubjectOption[])
+      setSubjects(nextSubjects)
+      if (nextSubjects.length > 0) setSelectedSubject(nextSubjects[0].id)
       setLoading(false)
     }
+
     loadSubjects()
-  }, [])
+  }, [supabase])
 
   useEffect(() => {
     async function loadStudents() {
       if (!selectedSubject) {
         setStudents([])
+        setAttendance({})
+        setSharedPolicy(null)
         return
       }
 
       setLoading(true)
-      const sub = subjects.find(s => s.id === selectedSubject)
-      if (!sub?.course?.id) {
+      setMessage({ text: '', type: '' })
+      const subject = subjects.find(item => item.id === selectedSubject)
+      if (!subject?.course?.id) {
         setStudents([])
+        setAttendance({})
+        setSharedPolicy(null)
         setLoading(false)
         return
       }
 
-      // Obtener estudiantes usando la inscripción y luego extraer perfiles
       const { data: enrollments } = await supabase
         .from('enrollments')
         .select('student_id, profiles!inner(id, full_name, email)')
-        .eq('course_id', sub.course.id)
+        .eq('course_id', subject.course.id)
 
-      const studentList = (enrollments || [])
-        .map((e: any) => e.profiles)
+      const studentList = ((enrollments || []) as any[])
+        .map(enrollment => enrollment.profiles)
         .filter(Boolean)
-        // Ordenar alfabéticamente
-        .sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || ''))
+        .sort((a: StudentOption, b: StudentOption) => (a.full_name || '').localeCompare(b.full_name || ''))
 
-      // Consultar asistencia existente para la fecha
-      const { data: existingAtt } = await (supabase as any)
-        .from('attendance')
-        .select('student_id, status')
-        .eq('subject_id', selectedSubject)
-        .eq('date', date)
+      let existingAttendance: Array<{ student_id: string; status: string }> = []
+      let nextPolicy: SharedAttendancePolicy | null = null
 
-      const currentAtt: Record<string, string> = {}
-      if (existingAtt && existingAtt.length > 0) {
-        existingAtt.forEach((a: any) => {
-          currentAtt[a.student_id] = a.status
+      try {
+        const response = await fetch(`/api/docente/attendance?subjectId=${selectedSubject}&date=${date}`, {
+          cache: 'no-store',
+        })
+        const payload = await response.json().catch(() => null)
+
+        if (!response.ok) {
+          throw new Error(payload?.error || 'No se pudo cargar la asistencia oficial del curso.')
+        }
+
+        existingAttendance = Array.isArray(payload?.data) ? payload.data : []
+        nextPolicy = payload?.policy || null
+      } catch (error: any) {
+        console.error(error)
+        setMessage({ text: error.message || 'No se pudo cargar la asistencia oficial del curso.', type: 'error' })
+      }
+
+      const nextAttendance: Record<string, string> = {}
+      if (existingAttendance.length > 0) {
+        existingAttendance.forEach(entry => {
+          nextAttendance[entry.student_id] = entry.status
         })
       } else {
-        studentList.forEach((s: any) => {
-          currentAtt[s.id] = 'present' // Por defecto presentes
+        studentList.forEach((student: StudentOption) => {
+          nextAttendance[student.id] = 'present'
         })
       }
 
       setStudents(studentList)
-      setAttendance(currentAtt)
+      setAttendance(nextAttendance)
+      setSharedPolicy(nextPolicy)
       setLoading(false)
     }
 
     loadStudents()
-  }, [selectedSubject, date, subjects])
+  }, [selectedSubject, date, subjects, supabase])
 
   const handleSave = async () => {
     if (!selectedSubject) return
@@ -93,32 +137,26 @@ export function TomaAsistencia() {
     setMessage({ text: '', type: '' })
 
     try {
-      const sub = subjects.find(s => s.id === selectedSubject)
-      let institution_id = null
+      const response = await fetch('/api/docente/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject_id: selectedSubject,
+          date,
+          entries: students.map(student => ({
+            student_id: student.id,
+            status: attendance[student.id] || 'present',
+          })),
+        }),
+      })
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: prof } = await (supabase as any).from('profiles').select('institution_id').eq('id', user.id as string).single()
-      if (prof && 'institution_id' in prof) institution_id = (prof as any).institution_id
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(payload?.error || 'No se pudo guardar la asistencia.')
+      }
 
-      // Borrar existentes para esa fecha y materia (para simplificar update/insert)
-      await (supabase as any)
-        .from('attendance')
-        .delete()
-        .eq('subject_id', selectedSubject)
-        .eq('date', date)
-
-      const inserts = students.map(s => ({
-        subject_id: selectedSubject,
-        student_id: s.id,
-        institution_id,
-        date,
-        status: attendance[s.id] || 'present'
-      }))
-
-      if (inserts.length > 0) {
-        const { error } = await (supabase as any).from('attendance').insert(inserts)
-        if (error) throw error
+      if (payload?.policy) {
+        setSharedPolicy(payload.policy)
       }
 
       setMessage({ text: 'Asistencia guardada correctamente.', type: 'success' })
@@ -126,128 +164,161 @@ export function TomaAsistencia() {
       console.error(error)
       setMessage({ text: 'Error al guardar la asistencia: ' + error.message, type: 'error' })
     }
+
     setSaving(false)
   }
 
   const markAllAs = (status: string) => {
-    const newAtt = { ...attendance }
-    students.forEach(s => newAtt[s.id] = status)
-    setAttendance(newAtt)
+    const nextAttendance = { ...attendance }
+    students.forEach(student => {
+      nextAttendance[student.id] = status
+    })
+    setAttendance(nextAttendance)
   }
 
-  if (loading && subjects.length === 0) return <div className="text-center py-10">Cargando materias...</div>
+  const editingLocked = !!sharedPolicy && !sharedPolicy.canTeacherEdit
+  const authorityContext = sharedPolicy?.authoritySource === 'first-hour' && sharedPolicy.authoritySubjectName
+    ? ` desde la primera hora (${sharedPolicy.authoritySubjectName})`
+    : sharedPolicy?.authoritySource === 'tutor'
+      ? ' como docente titular del curso'
+      : ''
+
+  if (loading && subjects.length === 0) {
+    return <div className="text-center py-10">Cargando materias...</div>
+  }
 
   return (
     <div className="space-y-6">
-      {/* ── Filtros ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="block text-xs font-semibold text-ink2 mb-1.5 uppercase">Materia</label>
+          <label className="mb-1.5 block text-xs font-semibold uppercase text-ink2">Materia</label>
           <select
             value={selectedSubject}
-            onChange={e => setSelectedSubject(e.target.value)}
-            className="w-full h-11 bg-surface text-ink border border-surface2 rounded-xl px-4 appearance-none"
+            onChange={event => setSelectedSubject(event.target.value)}
+            className="h-11 w-full appearance-none rounded-xl border border-surface2 bg-surface px-4 text-ink"
           >
             {subjects.length === 0 && <option value="">No tienes materias asignadas</option>}
-            {subjects.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.course?.name} - {s.name}
+            {subjects.map(subject => (
+              <option key={subject.id} value={subject.id}>
+                {subject.course?.name} - {subject.name}
               </option>
             ))}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-ink2 mb-1.5 uppercase">Fecha</label>
+          <label className="mb-1.5 block text-xs font-semibold uppercase text-ink2">Fecha</label>
           <input
             type="date"
             value={date}
-            onChange={e => setDate(e.target.value)}
-            className="w-full h-11 bg-surface text-ink border border-surface2 rounded-xl px-4"
+            onChange={event => setDate(event.target.value)}
+            className="h-11 w-full rounded-xl border border-surface2 bg-surface px-4 text-ink"
           />
         </div>
       </div>
 
       {message.text && (
-        <div className={`p-4 rounded-xl text-sm ${message.type === 'success' ? 'bg-teal/10 text-teal' : 'bg-rose/10 text-rose'}`}>
+        <div className={`rounded-xl p-4 text-sm ${message.type === 'success' ? 'bg-teal/10 text-teal' : 'bg-rose/10 text-rose'}`}>
           {message.text}
         </div>
       )}
 
-      {/* ── Lista de estudiantes ── */}
+      {sharedPolicy?.sharedMode && (
+        <div className={`rounded-xl border p-4 text-sm ${editingLocked ? 'border-amber/20 bg-amber/10 text-amber' : 'border-sky-200 bg-sky/10 text-sky-700'}`}>
+          {editingLocked
+            ? `La asistencia oficial de ${sharedPolicy.courseLabel} del ${sharedPolicy.dayLabel} la registra ${sharedPolicy.authorityTeacherName || 'el docente responsable'}${authorityContext}. Aquí verás la misma asistencia que se comparte al resto de materias.`
+            : `Estás registrando la asistencia oficial de ${sharedPolicy.courseLabel} para ${sharedPolicy.dayLabel}. Esta toma se reflejará en todas las materias del curso para esta fecha.`}
+        </div>
+      )}
+
       {selectedSubject && (
-        <div className="bg-surface border border-surface2 rounded-2xl overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-surface2 flex justify-between items-center bg-[rgba(0,0,0,0.02)]">
+        <div className="overflow-hidden rounded-2xl border border-surface2 bg-surface shadow-sm">
+          <div className="flex items-center justify-between border-b border-surface2 bg-[rgba(0,0,0,0.02)] p-4">
             <h3 className="font-bold text-ink">Estudiantes ({students.length})</h3>
             <div className="flex gap-2">
-              <button onClick={() => markAllAs('present')} className="text-xs bg-teal/10 text-teal px-3 py-1.5 rounded-lg hover:bg-teal/20 transition-colors">Todos Presentes</button>
-              <button onClick={() => markAllAs('absent')} className="text-xs bg-rose/10 text-rose px-3 py-1.5 rounded-lg hover:bg-rose/20 transition-colors">Todos Ausentes</button>
+              <button
+                onClick={() => markAllAs('present')}
+                disabled={editingLocked}
+                className="rounded-lg bg-teal/10 px-3 py-1.5 text-xs text-teal transition-colors hover:bg-teal/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Todos Presentes
+              </button>
+              <button
+                onClick={() => markAllAs('absent')}
+                disabled={editingLocked}
+                className="rounded-lg bg-rose/10 px-3 py-1.5 text-xs text-rose transition-colors hover:bg-rose/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Todos Ausentes
+              </button>
             </div>
           </div>
-          
+
           {loading ? (
             <div className="p-10 text-center text-ink3">Cargando estudiantes...</div>
           ) : students.length === 0 ? (
             <div className="p-10 text-center text-ink3">No hay estudiantes inscritos en este curso.</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-surface2 text-xs text-ink3 uppercase">
-                    <th className="p-4 font-medium min-w-[200px]">Estudiante</th>
-                    <th className="p-4 font-medium text-center w-24">Presente</th>
-                    <th className="p-4 font-medium text-center w-24">Atraso</th>
-                    <th className="p-4 font-medium text-center w-24">Falta</th>
+                  <tr className="border-b border-surface2 text-xs uppercase text-ink3">
+                    <th className="min-w-[200px] p-4 font-medium">Estudiante</th>
+                    <th className="w-24 p-4 text-center font-medium">Presente</th>
+                    <th className="w-24 p-4 text-center font-medium">Atraso</th>
+                    <th className="w-24 p-4 text-center font-medium">Falta</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface2/50">
-                  {students.map(s => (
-                    <tr key={s.id} className="hover:bg-[rgba(0,0,0,0.01)] transition-colors">
+                  {students.map(student => (
+                    <tr key={student.id} className="transition-colors hover:bg-[rgba(0,0,0,0.01)]">
                       <td className="p-4">
-                        <p className="font-semibold text-ink text-sm">{s.full_name || 'Sin nombre'}</p>
-                        <p className="text-xs text-ink3 truncate">{s.email}</p>
+                        <p className="text-sm font-semibold text-ink">{student.full_name || 'Sin nombre'}</p>
+                        <p className="truncate text-xs text-ink3">{student.email}</p>
                       </td>
                       <td className="p-4 text-center">
-                        <label className="flex items-center justify-center cursor-pointer relative group">
+                        <label className="group relative flex cursor-pointer items-center justify-center">
                           <input
                             type="radio"
-                            name={`att-${s.id}`}
+                            name={`att-${student.id}`}
                             value="present"
-                            checked={attendance[s.id] === 'present'}
-                            onChange={() => setAttendance(prev => ({ ...prev, [s.id]: 'present' }))}
-                            className="peer w-5 h-5 opacity-0 absolute"
+                            checked={attendance[student.id] === 'present'}
+                            onChange={() => setAttendance(prev => ({ ...prev, [student.id]: 'present' }))}
+                            disabled={editingLocked}
+                            className="peer absolute h-5 w-5 opacity-0"
                           />
-                          <div className="w-6 h-6 rounded-full border-2 border-surface2 peer-checked:border-teal peer-checked:bg-teal flex items-center justify-center transition-all">
-                            <span className="text-white text-xs opacity-0 peer-checked:opacity-100">✓</span>
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface2 transition-all peer-checked:border-teal peer-checked:bg-teal">
+                            <span className="text-xs text-white opacity-0 peer-checked:opacity-100">✓</span>
                           </div>
                         </label>
                       </td>
                       <td className="p-4 text-center">
-                        <label className="flex items-center justify-center cursor-pointer relative group">
+                        <label className="group relative flex cursor-pointer items-center justify-center">
                           <input
                             type="radio"
-                            name={`att-${s.id}`}
+                            name={`att-${student.id}`}
                             value="late"
-                            checked={attendance[s.id] === 'late'}
-                            onChange={() => setAttendance(prev => ({ ...prev, [s.id]: 'late' }))}
-                            className="peer w-5 h-5 opacity-0 absolute"
+                            checked={attendance[student.id] === 'late'}
+                            onChange={() => setAttendance(prev => ({ ...prev, [student.id]: 'late' }))}
+                            disabled={editingLocked}
+                            className="peer absolute h-5 w-5 opacity-0"
                           />
-                          <div className="w-6 h-6 rounded-full border-2 border-surface2 peer-checked:border-amber peer-checked:bg-amber flex items-center justify-center transition-all">
-                            <span className="text-white text-xs opacity-0 peer-checked:opacity-100">⏱</span>
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface2 transition-all peer-checked:border-amber peer-checked:bg-amber">
+                            <span className="text-xs text-white opacity-0 peer-checked:opacity-100">⏱</span>
                           </div>
                         </label>
                       </td>
                       <td className="p-4 text-center">
-                        <label className="flex items-center justify-center cursor-pointer relative group">
+                        <label className="group relative flex cursor-pointer items-center justify-center">
                           <input
                             type="radio"
-                            name={`att-${s.id}`}
+                            name={`att-${student.id}`}
                             value="absent"
-                            checked={attendance[s.id] === 'absent'}
-                            onChange={() => setAttendance(prev => ({ ...prev, [s.id]: 'absent' }))}
-                            className="peer w-5 h-5 opacity-0 absolute"
+                            checked={attendance[student.id] === 'absent'}
+                            onChange={() => setAttendance(prev => ({ ...prev, [student.id]: 'absent' }))}
+                            disabled={editingLocked}
+                            className="peer absolute h-5 w-5 opacity-0"
                           />
-                          <div className="w-6 h-6 rounded-full border-2 border-surface2 peer-checked:border-rose peer-checked:bg-rose flex items-center justify-center transition-all">
-                            <span className="text-white text-xs opacity-0 peer-checked:opacity-100">✗</span>
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface2 transition-all peer-checked:border-rose peer-checked:bg-rose">
+                            <span className="text-xs text-white opacity-0 peer-checked:opacity-100">✕</span>
                           </div>
                         </label>
                       </td>
@@ -257,13 +328,13 @@ export function TomaAsistencia() {
               </table>
             </div>
           )}
-          
+
           {students.length > 0 && (
-            <div className="p-4 border-t border-surface2 bg-[rgba(0,0,0,0.02)] flex justify-end">
+            <div className="flex justify-end border-t border-surface2 bg-[rgba(0,0,0,0.02)] p-4">
               <button
                 onClick={handleSave}
-                disabled={saving}
-                className="bg-violet2 hover:bg-violet text-white font-medium py-2.5 px-6 rounded-xl transition-all shadow-md shadow-violet/20 hover:shadow-violet/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={saving || editingLocked}
+                className="rounded-xl bg-violet2 px-6 py-2.5 font-medium text-white shadow-md shadow-violet/20 transition-all hover:bg-violet hover:shadow-violet/40 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving ? 'Guardando...' : 'Guardar Asistencia'}
               </button>
