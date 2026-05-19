@@ -14,6 +14,7 @@ const LETAMENDI_PLANIFICACION_EXCLUDED = new Set([
   'futbol',
   'laboratorio',
   'instruccion militar',
+  'animacion a la lectura',
 ])
 
 const LETAMENDI_LIBRETAS_EXCLUDED = new Set([
