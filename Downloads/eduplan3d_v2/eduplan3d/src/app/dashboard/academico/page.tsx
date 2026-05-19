@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { AcademicoClient } from '@/components/academico/AcademicoClient'
+import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -83,6 +84,7 @@ export default async function AcademicoPage() {
   const institutionName  = (instRes.data as any)?.name || ''
   const directoryMetadata = instSettings.directory || {}
   const horariosDocentes  = instSettings.horarios?.docentes || []
+  const visibleSubjects = filterSubjectsForInstitution(institutionName, (subjectsRes.data as any[]) || [])
 
   // Combinar tutores de todas las fuentes:
   //   1. schedule_configs.tutores (legado, una sola fila por institución)
@@ -105,7 +107,7 @@ export default async function AcademicoPage() {
   })
 
   // ── Paso 3: assignments, grades, categories para Promoción ──────────────
-  const subjectIds = (subjectsRes.data || []).map((s: any) => s.id)
+  const subjectIds = visibleSubjects.map((s: any) => s.id)
   let assignmentsData: any[] = []
   let gradesData: any[] = []
 
@@ -141,7 +143,7 @@ export default async function AcademicoPage() {
       <AcademicoClient
         initialCourses={coursesRes.data    || []}
         initialStudents={studentsRes.data   || []}
-        initialSubjects={subjectsRes.data   || []}
+        initialSubjects={visibleSubjects}
         initialEnrollments={enrollments     || []}
         initialAssignments={assignmentsData}
         initialGrades={gradesData}

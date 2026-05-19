@@ -17,6 +17,12 @@ const LETAMENDI_PLANIFICACION_EXCLUDED = new Set([
   'animacion a la lectura',
 ])
 
+const LETAMENDI_GLOBAL_HIDDEN = new Set([
+  'lengua',
+  'matematicas',
+  'ed financiera',
+])
+
 const LETAMENDI_LIBRETAS_EXCLUDED = new Set([
   'atencion a padres',
   'natacion',
@@ -37,10 +43,19 @@ function isLetamendiInstitution(institutionName: string | null | undefined): boo
   return (institutionName || '').toUpperCase().includes('LETAMENDI')
 }
 
+export function shouldHideSubjectInInstitution(
+  institutionName: string | null | undefined,
+  subjectName: string | null | undefined,
+): boolean {
+  if (!isLetamendiInstitution(institutionName)) return false
+  return LETAMENDI_GLOBAL_HIDDEN.has(normalizeSubjectName(subjectName))
+}
+
 export function shouldHideSubjectInPlanificaciones(
   institutionName: string | null | undefined,
   subjectName: string | null | undefined,
 ): boolean {
+  if (shouldHideSubjectInInstitution(institutionName, subjectName)) return true
   if (!isLetamendiInstitution(institutionName)) return false
   return LETAMENDI_PLANIFICACION_EXCLUDED.has(normalizeSubjectName(subjectName))
 }
@@ -49,8 +64,16 @@ export function shouldHideSubjectInLibretas(
   institutionName: string | null | undefined,
   subjectName: string | null | undefined,
 ): boolean {
+  if (shouldHideSubjectInInstitution(institutionName, subjectName)) return true
   if (!isLetamendiInstitution(institutionName)) return false
   return LETAMENDI_LIBRETAS_EXCLUDED.has(normalizeSubjectName(subjectName))
+}
+
+export function filterSubjectsForInstitution<T extends SubjectLike>(
+  institutionName: string | null | undefined,
+  subjects: T[],
+): T[] {
+  return subjects.filter((subject) => !shouldHideSubjectInInstitution(institutionName, subject.name))
 }
 
 export function filterSubjectsForPlanificaciones<T extends SubjectLike>(
