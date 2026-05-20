@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { v4 as uuidv4 } from 'uuid'
+import { v5 as uuidv5 } from 'uuid'
 
 export const dynamic = 'force-dynamic'
+
+const PAYMENT_NAMESPACE = '5ff6c6b6-89ca-4e58-b8c6-b20fb690db5e'
 
 type EnrollmentRow = {
   student_id: string
@@ -18,10 +20,15 @@ type CourseRow = {
 }
 
 type ExistingPayment = {
+  id?: string
   student_id: string
   type: string
   description: string | null
   due_date?: string | null
+}
+
+function buildPaymentId(institutionId: string, studentId: string, type: 'matricula' | 'pension', cycleKey: string) {
+  return uuidv5(`${institutionId}:${studentId}:${type}:${cycleKey}`, PAYMENT_NAMESPACE)
 }
 
 function hasMatriculaForYear(payments: ExistingPayment[], year: number) {
@@ -112,7 +119,7 @@ export async function POST() {
 
   const { data: existingPayments } = await admin
     .from('payments' as any)
-    .select('student_id, type, description, due_date')
+    .select('id, student_id, type, description, due_date')
     .eq('institution_id', instId)
 
   const paymentsByStudent: Record<string, ExistingPayment[]> = {}
@@ -155,7 +162,7 @@ export async function POST() {
       if (!plannedKeys.has(key)) {
         plannedKeys.add(key)
         allPayments.push({
-          id: uuidv4(),
+          id: buildPaymentId(instId, enrollment.student_id, 'matricula', String(year)),
           institution_id: instId,
           student_id: enrollment.student_id,
           amount: prices.matricula || 35,
@@ -177,7 +184,7 @@ export async function POST() {
         if (!plannedKeys.has(key)) {
           plannedKeys.add(key)
           allPayments.push({
-            id: uuidv4(),
+            id: buildPaymentId(instId, enrollment.student_id, 'pension', `${pensionYear}-${month.idx}`),
             institution_id: instId,
             student_id: enrollment.student_id,
             amount: prices.pension || 60,
@@ -197,7 +204,7 @@ export async function POST() {
     const CHUNK_SIZE = 500
     for (let i = 0; i < allPayments.length; i += CHUNK_SIZE) {
       const chunk = allPayments.slice(i, i + CHUNK_SIZE)
-      const { error } = await admin.from('payments' as any).insert(chunk)
+      const { error } = await admin.from('payments' as any).upsert(chunk, { onConflict: 'id' })
       if (error) {
         console.error('[secretaria/generate-payments] insert error', error)
         return NextResponse.json({ error: error.message, generated: successCount }, { status: 500 })
