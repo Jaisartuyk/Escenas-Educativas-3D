@@ -105,6 +105,12 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const [editingId, setEditingId]     = useState<string | null>(null)
   const [editAmount, setEditAmount]   = useState('')
   const [editDueDate, setEditDueDate] = useState('')
+  function getConfigAmount(type: 'matricula' | 'pension') {
+    if (filterShift === 'vespertina') {
+      return type === 'matricula' ? finConfig.vespertina.matricula : finConfig.vespertina.pension
+    }
+    return type === 'matricula' ? finConfig.matutina.matricula : finConfig.matutina.pension
+  }
 
   // ── Mappings ────────────────────────────────────────────────────────────
   const coursesById = useMemo(() => {
@@ -468,9 +474,11 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     setSaving(false)
     if (res.error) toast.error('Error al guardar configuración')
     else {
-      toast.success('Configuración guardada y cobros sincronizados')
+      const r2 = await fetch('/api/secretaria/payments')
+      const dataJson = await r2.json()
+      if (dataJson?.data) setPayments(dataJson.data)
+      toast.success(`Configuración guardada${typeof res.updated === 'number' ? ` y ${res.updated} cobros sincronizados` : ' y cobros sincronizados'}`)
       setShowConfig(false)
-      window.location.reload()
     }
   }
 
@@ -689,7 +697,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 { value: 'pension',   label: 'Pension',   icon: CalendarDays,   color: '#f59e0b' },
                 { value: 'otro',      label: 'Otro',      icon: CreditCard,     color: '#64748b' },
               ] as const).map(({ value, label, icon: Ic, color }) => (
-                <button key={value} type="button" onClick={() => { setNewType(value); setNewAmount(value === 'matricula' ? '35' : value === 'pension' ? '60' : '') }}
+                <button key={value} type="button" onClick={() => { setNewType(value); setNewAmount(value === 'otro' ? '' : String(getConfigAmount(value))) }}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
                     newType === value ? 'text-white shadow-md' : 'bg-bg border-surface2 text-ink3 hover:border-ink4'
                   }`}
