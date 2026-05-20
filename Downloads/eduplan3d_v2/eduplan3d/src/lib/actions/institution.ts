@@ -70,7 +70,7 @@ export async function joinInstitution(code: string): Promise<{ error?: string }>
   return {}
 }
 
-export async function updateInstitutionFinancial(id: string, financial: any): Promise<{ error?: string }> {
+export async function updateInstitutionFinancial(id: string, financial: any): Promise<{ error?: string, updated?: number }> {
   const admin = createAdminClient()
   
   // 1. Get current settings
@@ -92,10 +92,11 @@ export async function updateInstitutionFinancial(id: string, financial: any): Pr
   if (error) return { error: error.message }
 
   // 3. Auto-sync pending payments
-  await syncPendingPayments(id)
+  const syncResult = await syncPendingPayments(id)
+  if (syncResult.error) return { error: syncResult.error }
   
   revalidatePath('/dashboard/secretaria')
-  return {}
+  return { updated: syncResult.updated || 0 }
 }
 
 export async function syncPendingPayments(institutionId: string): Promise<{ updated?: number, error?: string }> {
@@ -116,7 +117,7 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
   // 2. Get students and their shifts
   const { data: courses } = await (admin as any)
     .from('courses')
-    .select('id, shift')
+    .select('id, name, parallel, shift')
     .eq('institution_id', institutionId)
     
   const courseIds = courses?.map((c: any) => c.id) || []
@@ -138,9 +139,9 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
   // 3. Get pending payments (only matricula and pension)
   const { data: pending } = await (admin as any)
     .from('payments')
-    .select('id, student_id, type, amount')
+    .select('id, student_id, type, amount, status, description, due_date, institution_id')
     .eq('institution_id', institutionId)
-    .eq('status', 'pendiente')
+    .neq('status', 'pagado')
     .in('type', ['matricula', 'pension'])
     
   if (!pending || pending.length === 0) return { updated: 0 }
@@ -154,7 +155,7 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
     const targetAmount = p.type === 'matricula' ? prices.matricula : prices.pension
     
     if (p.amount !== targetAmount) {
-      updates.push({ id: p.id, amount: targetAmount })
+      updates.push({ ...p, amount: targetAmount, institution_id: institutionId })
       updatedCount++
     }
   })
@@ -163,11 +164,7 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
   if (updates.length > 0) {
     const { error } = await (admin as any)
       .from('payments')
-      .upsert(updates.map(u => ({ 
-        id: u.id, 
-        amount: u.amount,
-        institution_id: institutionId 
-      })), { onConflict: 'id' })
+      .upsert(updates, { onConflict: 'id' })
       
     if (error) return { error: error.message }
   }
