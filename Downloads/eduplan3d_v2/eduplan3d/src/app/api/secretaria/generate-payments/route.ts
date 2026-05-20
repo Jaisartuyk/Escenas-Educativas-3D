@@ -23,6 +23,8 @@ type ExistingPayment = {
   id?: string
   student_id: string
   type: string
+  status?: string | null
+  amount?: number | null
   description: string | null
   due_date?: string | null
 }
@@ -56,6 +58,10 @@ function hasPensionForMonth(payments: ExistingPayment[], monthName: string, targ
     const description = (payment.description || '').toLowerCase()
     return description.includes(monthName) && description.includes(String(targetYear))
   })
+}
+
+function isPaid(payment: ExistingPayment) {
+  return payment.status === 'pagado'
 }
 
 // POST - generate pending payments for all enrolled students who do not have them yet
@@ -119,7 +125,7 @@ export async function POST() {
 
   const { data: existingPayments } = await admin
     .from('payments' as any)
-    .select('id, student_id, type, description, due_date')
+    .select('id, student_id, type, status, amount, description, due_date')
     .eq('institution_id', instId)
 
   const paymentsByStudent: Record<string, ExistingPayment[]> = {}
@@ -155,8 +161,8 @@ export async function POST() {
     const shift = (course?.shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina') as 'matutina' | 'vespertina'
     const prices = financial[shift] || { matricula: 35, pension: 60 }
 
-    const hasMatricula = hasMatriculaForYear(studentPayments, year)
-    if (!hasMatricula) {
+    const hasPaidMatricula = studentPayments.some((payment) => isPaid(payment) && hasMatriculaForYear([payment], year))
+    if (!hasPaidMatricula) {
       const matriculaDue = new Date(year, now.getMonth(), now.getDate() + 15)
       const key = `${enrollment.student_id}::matricula::${year}`
       if (!plannedKeys.has(key)) {
@@ -177,9 +183,9 @@ export async function POST() {
     for (const month of pensionMonths) {
       const pensionYear = month.idx < 4 ? year + 1 : year
       const due = new Date(pensionYear, month.idx, 5)
-      const hasThisPension = hasPensionForMonth(studentPayments, month.name, pensionYear, month.idx)
+      const hasPaidPension = studentPayments.some((payment) => isPaid(payment) && hasPensionForMonth([payment], month.name, pensionYear, month.idx))
 
-      if (!hasThisPension) {
+      if (!hasPaidPension) {
         const key = `${enrollment.student_id}::pension::${pensionYear}-${month.idx}`
         if (!plannedKeys.has(key)) {
           plannedKeys.add(key)
