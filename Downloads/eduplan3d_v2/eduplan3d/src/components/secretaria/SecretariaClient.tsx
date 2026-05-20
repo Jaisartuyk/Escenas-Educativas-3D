@@ -115,6 +115,12 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     return map
   }, [courses])
 
+  const studentsById = useMemo(() => {
+    const map: Record<string, any> = {}
+    ;(students || []).forEach((student: any) => { map[student.id] = student })
+    return map
+  }, [students])
+
   const studentCourses = useMemo(() => {
     const map: Record<string, string[]> = {}
     ;(enrollments || []).forEach((e: any) => {
@@ -164,31 +170,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     [payments]
   )
 
-  const filteredStudents = useMemo(() => {
-    let list = students || []
-    if (allowedStudentIds !== null) {
-      list = list.filter((s: any) => allowedStudentIds.has(s.id))
-    }
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase()
-      list = list.filter((s: any) => (s.full_name || '').toLowerCase().includes(q))
-    }
-    
-    // Si hay un filtro de estado o tipo, solo mostramos alumnos que tengan al menos un pago que coincida
-    if (filterStatus !== 'todos' || filterType !== 'todos') {
-      list = list.filter((s: any) => {
-        const studentPayments = enrichedPayments.filter((p: any) => p.student_id === s.id)
-        if (studentPayments.length === 0) return false
-        
-        const matchStatus = filterStatus === 'todos' || studentPayments.some((p: any) => p.computedStatus === filterStatus)
-        const matchType = filterType === 'todos' || studentPayments.some((p: any) => p.type === filterType)
-        
-        return matchStatus && matchType
-      })
-    }
-    return list
-  }, [students, allowedStudentIds, searchTerm, filterStatus, filterType, enrichedPayments])
-
   const filtered = useMemo(() => {
     let list = enrichedPayments
     if (allowedStudentIds !== null) {
@@ -203,13 +184,34 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase()
       list = list.filter((p: any) => {
-        const student = (students || []).find((s: any) => s.id === p.student_id)
+        const student = studentsById[p.student_id]
         return (student?.full_name || '').toLowerCase().includes(q) ||
                (p.description || '').toLowerCase().includes(q)
       })
     }
     return list
-  }, [enrichedPayments, filterStatus, filterType, searchTerm, students, allowedStudentIds])
+  }, [enrichedPayments, filterStatus, filterType, searchTerm, studentsById, allowedStudentIds])
+
+  const paymentMatchedStudentIds = useMemo(() => {
+    return new Set(filtered.map((payment: any) => payment.student_id).filter(Boolean))
+  }, [filtered])
+
+  const filteredStudents = useMemo(() => {
+    let list = students || []
+    if (allowedStudentIds !== null) {
+      list = list.filter((s: any) => allowedStudentIds.has(s.id))
+    }
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase()
+      list = list.filter((s: any) => (s.full_name || '').toLowerCase().includes(q))
+    }
+    
+    // Si hay un filtro de estado o tipo, solo mostramos alumnos que tengan al menos un pago que coincida
+    if (filterStatus !== 'todos' || filterType !== 'todos') {
+      list = list.filter((s: any) => paymentMatchedStudentIds.has(s.id))
+    }
+    return list
+  }, [students, allowedStudentIds, searchTerm, filterStatus, filterType, paymentMatchedStudentIds])
 
   const stats = useMemo(() => {
     const all = enrichedPayments
@@ -233,14 +235,8 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
       const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
 
-      // Student's payments mapped by month (ahora usamos los pagos que pasan los filtros)
-      const studentPayments = enrichedPayments.filter((p: any) => p.student_id === sid)
-      
-      const cellPayments = studentPayments.filter((p: any) => {
-        const matchStatus = filterStatus === 'todos' || p.computedStatus === filterStatus
-        const matchType = filterType === 'todos' || p.type === filterType
-        return matchStatus && matchType
-      })
+      // Student's payments mapped by month (usamos la lista ya filtrada para que tabla y lista coincidan)
+      const cellPayments = filtered.filter((p: any) => p.student_id === sid)
 
       const matricula = pickPreferredPayment(
         cellPayments.filter((p: any) => p.type === 'matricula')
@@ -292,7 +288,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         monthPayments,
       }
     }).sort((a, b) => a.name.localeCompare(b.name))
-  }, [filteredStudents, enrichedPayments, studentCourses, coursesById])
+  }, [filteredStudents, filtered, studentCourses, coursesById])
 
   // Group tableData by shift
   const tableByShift = useMemo(() => {
