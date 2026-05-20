@@ -24,6 +24,9 @@ export function getAppliedAmount(payment: PaymentWithAbonos) {
 
   if (abonosTotal > 0) return abonosTotal
   if (payment.status === 'pagado') return Number(payment.amount || 0)
+  // Si el status en DB es 'parcial' pero los abonos no están cargados,
+  // devolvemos un valor mínimo positivo para que el computedStatus sea 'parcial'
+  if (payment.status === 'parcial') return 0.001
   return 0
 }
 
