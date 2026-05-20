@@ -88,7 +88,7 @@ export async function POST(req: Request) {
   const { data: updatedPayment, error: updateError } = await admin
     .from('payments' as any)
     .update({
-      status: isFullyPaid ? 'pagado' : 'pendiente',
+      status: isFullyPaid ? 'pagado' : 'parcial',
       paid_date: isFullyPaid ? paidAt : null,
       updated_at: new Date().toISOString(),
     })
