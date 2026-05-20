@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { SecretariaClient } from '@/components/secretaria/SecretariaClient'
+import { attachAbonosToPayments } from '@/lib/payment-progress'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -55,6 +56,19 @@ export default async function SecretariaPage() {
     admin.from('institutions').select('settings').eq('id', instId).single(),
   ])
 
+  const paymentIds = (paymentsData || []).map((payment: any) => payment.id).filter(Boolean)
+  let abonosData: any[] = []
+  if (paymentIds.length > 0) {
+    const { data } = await admin
+      .from('payment_abonos' as any)
+      .select('*')
+      .eq('institution_id', instId)
+      .in('payment_id', paymentIds)
+      .order('paid_at', { ascending: false })
+      .order('created_at', { ascending: false })
+    abonosData = data || []
+  }
+
   const instSettings = (instRes.data as any)?.settings || {}
 
   return (
@@ -68,7 +82,7 @@ export default async function SecretariaPage() {
         students={studentsRes.data || []}
         courses={coursesRes.data || []}
         enrollments={enrollsRes.data || []}
-        initialPayments={paymentsData || []}
+        initialPayments={attachAbonosToPayments(paymentsData || [], abonosData)}
         financialSettings={instSettings.financial || {}}
       />
     </div>
