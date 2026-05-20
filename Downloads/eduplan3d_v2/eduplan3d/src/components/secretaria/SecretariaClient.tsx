@@ -959,14 +959,22 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                           <td className="px-2 py-2.5 text-center bg-indigo-50/30">
                             {row.matricula ? (
                               <button
-                                onClick={() => !isTutorMode && row.matricula.computedStatus !== 'pagado' ? markAsPaid(row.matricula.id) : null}
+                                onClick={() => {
+                                  if (isTutorMode) return
+                                  if (row.matricula.computedStatus === 'parcial') { openAbono(row.matricula); return }
+                                  if (row.matricula.computedStatus !== 'pagado') markAsPaid(row.matricula.id)
+                                }}
                                 className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
                                   STATUS_CELL[row.matricula.computedStatus]
                                 } ${!isTutorMode && row.matricula.computedStatus !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
-                                title={row.matricula.computedStatus !== 'pagado' ? (isTutorMode ? 'Cobro pendiente' : 'Clic para marcar pagado') : `Pagado`}
+                                title={
+                                  row.matricula.computedStatus === 'pagado' ? 'Pagado' :
+                                  row.matricula.computedStatus === 'parcial' ? `Abonado ${formatMoney(row.matricula.appliedAmount || 0)} · Clic para ver abonos` :
+                                  isTutorMode ? 'Cobro pendiente' : 'Clic para marcar pagado'
+                                }
                               >
                                 {row.matricula.computedStatus === 'pagado' ? '✓' :
-                                 row.matricula.computedStatus === 'parcial' ? `${Number(row.matricula.remainingAmount || 0).toFixed(0)}` :
+                                 row.matricula.computedStatus === 'parcial' ? `+${Number(row.matricula.remainingAmount || 0).toFixed(0)}` :
                                  Number(row.matricula.amount) === 0 ? '?' :
                                  formatMoney(row.matricula.amount).replace('$', '').trim()}
                               </button>
@@ -999,19 +1007,23 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                             return (
                               <td key={m} className="px-1 py-2 text-center">
                                 <button
-                                  onClick={() => !isTutorMode && status !== 'pagado' ? markAsPaid(payment.id) : null}
+                                  onClick={() => {
+                                    if (isTutorMode) return
+                                    if (status === 'parcial') { openAbono(payment); return }
+                                    if (status !== 'pagado') markAsPaid(payment.id)
+                                  }}
                                   className={`inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
                                     STATUS_CELL[status]
                                   } ${!isTutorMode && status !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
                                   title={
                                     status === 'pagado' ? `Pagado: ${formatDate(payment.paid_date)}` :
-                                    status === 'parcial' ? `Abonado ${formatMoney(payment.appliedAmount || 0)} · Restan ${formatMoney(payment.remainingAmount || 0)}${!isTutorMode ? ' — Usa vista lista para otro abono' : ''}` :
+                                    status === 'parcial' ? `Abonado $${(payment.appliedAmount || 0).toFixed(2)} · Restan $${(payment.remainingAmount || 0).toFixed(2)} — Clic para abonar más` :
                                     status === 'atrasado' ? `Atrasado${!isTutorMode ? ' — Clic para pagar' : ''}` :
                                     `Pendiente ${formatMoney(payment.remainingAmount || payment.amount)}${!isTutorMode ? ' — Clic para pagar' : ''}`
                                   }
                                 >
                                   {status === 'pagado' ? '✓' :
-                                   status === 'parcial' ? `${Number(payment.remainingAmount || 0).toFixed(0)}` :
+                                   status === 'parcial' ? `+${Number(payment.remainingAmount || 0).toFixed(0)}` :
                                    Number(payment.amount) === 0 ? '?' :
                                    formatMoney(payment.amount).replace('$', '').trim()}
                                 </button>
