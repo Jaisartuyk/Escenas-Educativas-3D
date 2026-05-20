@@ -3,6 +3,7 @@ import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/ownership'
 import { createStudentFamilyNotifications } from '@/lib/notifications'
+import { attachAbonosToPayments } from '@/lib/payment-progress'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,23 @@ export async function GET() {
     from += step
   }
 
-  return NextResponse.json({ data: allData })
+  const paymentIds = allData.map((payment: any) => payment.id).filter(Boolean)
+  let abonos: any[] = []
+
+  if (paymentIds.length > 0) {
+    const { data: abonosData, error: abonosError } = await admin
+      .from('payment_abonos' as any)
+      .select('*')
+      .eq('institution_id', profile.institution_id)
+      .in('payment_id', paymentIds)
+      .order('paid_at', { ascending: false })
+      .order('created_at', { ascending: false })
+
+    if (abonosError) return NextResponse.json({ error: abonosError.message }, { status: 500 })
+    abonos = abonosData || []
+  }
+
+  return NextResponse.json({ data: attachAbonosToPayments(allData, abonos) })
 }
 
 // POST — create a new payment (solo admin/assistant, forzando institution_id)

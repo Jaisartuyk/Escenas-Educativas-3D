@@ -4,22 +4,11 @@ import { redirect } from 'next/navigation'
 import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, CreditCard, DollarSign } from 'lucide-react'
+import { attachAbonosToPayments, getAppliedAmount, getComputedPaymentStatus, getRemainingAmount } from '@/lib/payment-progress'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 export const revalidate = 0
-
-function getPaymentStatus(p: any): 'pagado' | 'atrasado' | 'proximo' | 'pendiente' {
-  if (p.status === 'pagado') return 'pagado'
-  if (!p.due_date) return 'pendiente'
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const due = new Date(`${p.due_date}T00:00:00`)
-  const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays < 0) return 'atrasado'
-  if (diffDays <= 5) return 'proximo'
-  return 'pendiente'
-}
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat('es-EC', {
@@ -41,15 +30,17 @@ function formatType(value?: string | null) {
   return value || 'Cobro'
 }
 
-function statusLabel(status: 'pagado' | 'atrasado' | 'proximo' | 'pendiente') {
+function statusLabel(status: 'pagado' | 'parcial' | 'atrasado' | 'proximo' | 'pendiente') {
   if (status === 'pagado') return 'Pagado'
+  if (status === 'parcial') return 'Abonado'
   if (status === 'atrasado') return 'Atrasado'
   if (status === 'proximo') return 'Por vencer'
   return 'Pendiente'
 }
 
-const STATUS_STYLES: Record<'pagado' | 'atrasado' | 'proximo' | 'pendiente', string> = {
+const STATUS_STYLES: Record<'pagado' | 'parcial' | 'atrasado' | 'proximo' | 'pendiente', string> = {
   pagado: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  parcial: 'bg-sky-50 text-sky-700 border-sky-200',
   atrasado: 'bg-rose-50 text-rose-700 border-rose-200',
   proximo: 'bg-amber-50 text-amber-700 border-amber-200',
   pendiente: 'bg-slate-50 text-slate-600 border-slate-200',
@@ -121,6 +112,19 @@ export default async function FinanzasPage({
       .order('created_at', { ascending: false }),
   ])
 
+  const paymentIds = ((payments || []) as any[]).map((payment: any) => payment.id).filter(Boolean)
+  let abonos: any[] = []
+  if (paymentIds.length > 0) {
+    const { data } = await admin
+      .from('payment_abonos' as any)
+      .select('*')
+      .eq('institution_id', profile.institution_id)
+      .in('payment_id', paymentIds)
+      .order('paid_at', { ascending: false })
+      .order('created_at', { ascending: false })
+    abonos = data || []
+  }
+
   const courseIds = ((enrollments || []) as any[]).map((e: any) => e.course_id)
   let courseLabel = 'Sin curso asignado'
   if (courseIds.length > 0) {
@@ -136,18 +140,19 @@ export default async function FinanzasPage({
     }
   }
 
-  const enrichedPayments = ((payments || []) as any[]).map((p: any) => ({
+  const enrichedPayments = attachAbonosToPayments((payments || []) as any[], abonos).map((p: any) => ({
     ...p,
-    computedStatus: getPaymentStatus(p),
+    appliedAmount: getAppliedAmount(p),
+    remainingAmount: getRemainingAmount(p),
+    computedStatus: getComputedPaymentStatus(p),
   }))
 
   const stats = {
     totalPendiente: enrichedPayments
       .filter((p: any) => p.computedStatus !== 'pagado')
-      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0),
+      .reduce((sum: number, p: any) => sum + Number(p.remainingAmount || 0), 0),
     totalPagado: enrichedPayments
-      .filter((p: any) => p.computedStatus === 'pagado')
-      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0),
+      .reduce((sum: number, p: any) => sum + Number(p.appliedAmount || 0), 0),
     atrasados: enrichedPayments.filter((p: any) => p.computedStatus === 'atrasado'),
     proximos: enrichedPayments.filter((p: any) => p.computedStatus === 'proximo'),
   }
@@ -288,6 +293,8 @@ export default async function FinanzasPage({
                   <th className="px-5 py-3 font-bold text-ink3 uppercase tracking-wide">Concepto</th>
                   <th className="px-5 py-3 font-bold text-ink3 uppercase tracking-wide">Tipo</th>
                   <th className="px-5 py-3 font-bold text-ink3 uppercase tracking-wide">Monto</th>
+                  <th className="px-5 py-3 font-bold text-ink3 uppercase tracking-wide">Abonado</th>
+                  <th className="px-5 py-3 font-bold text-ink3 uppercase tracking-wide">Restante</th>
                   <th className="px-5 py-3 font-bold text-ink3 uppercase tracking-wide">Vencimiento</th>
                   <th className="px-5 py-3 font-bold text-ink3 uppercase tracking-wide">Pago</th>
                   <th className="px-5 py-3 font-bold text-ink3 uppercase tracking-wide">Estado</th>
@@ -302,6 +309,8 @@ export default async function FinanzasPage({
                     </td>
                     <td className="px-5 py-4 text-ink3">{formatType(payment.type)}</td>
                     <td className="px-5 py-4 font-semibold text-ink">{formatMoney(Number(payment.amount || 0))}</td>
+                    <td className="px-5 py-4 font-semibold text-sky-700">{formatMoney(Number(payment.appliedAmount || 0))}</td>
+                    <td className="px-5 py-4 font-semibold text-rose-700">{formatMoney(Number(payment.remainingAmount || 0))}</td>
                     <td className="px-5 py-4 text-ink3">
                       <div className="inline-flex items-center gap-2">
                         <CalendarDays size={14} className="text-ink4" />
@@ -313,6 +322,18 @@ export default async function FinanzasPage({
                         <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${STATUS_STYLES[payment.computedStatus as keyof typeof STATUS_STYLES]}`}>
                         {statusLabel(payment.computedStatus as keyof typeof STATUS_STYLES)}
                       </span>
+                      {Array.isArray(payment.abonos) && payment.abonos.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {payment.abonos.slice(0, 2).map((abono: any) => (
+                            <p key={abono.id} className="text-[10px] text-ink4">
+                              Abono: {formatMoney(Number(abono.amount || 0))} · {formatDate(abono.paid_at)}
+                            </p>
+                          ))}
+                          {payment.abonos.length > 2 && (
+                            <p className="text-[10px] text-ink4">+{payment.abonos.length - 2} abono(s) más</p>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

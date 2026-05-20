@@ -7,23 +7,12 @@ import {
   Plus, Check, Clock, AlertTriangle, X, Search,
   DollarSign, Users, TrendingUp, CalendarDays,
   ChevronDown, Filter, Trash2, CreditCard, GraduationCap,
-  Pencil, Save, Table as TableIcon, LayoutList, Settings,
+  Pencil, Save, Table as TableIcon, LayoutList, Settings, HandCoins,
 } from 'lucide-react'
 import { updateInstitutionFinancial, syncPendingPayments } from '@/lib/actions/institution'
+import { getAppliedAmount, getComputedPaymentStatus, getRemainingAmount } from '@/lib/payment-progress'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function getPaymentStatus(p: any): 'pagado' | 'atrasado' | 'proximo' | 'pendiente' {
-  if (p.status === 'pagado') return 'pagado'
-  if (!p.due_date) return 'pendiente'
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const due = new Date(p.due_date + 'T00:00:00')
-  const diffDays = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays < 0) return 'atrasado'
-  if (diffDays <= 5) return 'proximo'
-  return 'pendiente'
-}
-
 function formatDate(d: string | null) {
   if (!d) return '—'
   const date = new Date(d + 'T00:00:00')
@@ -35,9 +24,10 @@ function formatMoney(n: number) {
 }
 
 function paymentSortScore(payment: any) {
-  const status = getPaymentStatus(payment)
+  const status = getComputedPaymentStatus(payment)
   const statusScore =
     status === 'pagado' ? 4 :
+    status === 'parcial' ? 3.5 :
     status === 'proximo' ? 3 :
     status === 'pendiente' ? 2 :
     status === 'atrasado' ? 1 : 0
@@ -64,6 +54,7 @@ const MESES_FULL = ['mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
 
 const STATUS_CONFIG = {
   pagado:    { label: 'PAGADO',     icon: Check,          bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-200', dot: '#10b981' },
+  parcial:   { label: 'ABONADO',    icon: HandCoins,      bg: 'bg-sky-50',      text: 'text-sky-700',     border: 'border-sky-200',     dot: '#0ea5e9' },
   proximo:   { label: 'POR VENCER', icon: Clock,          bg: 'bg-amber-50',    text: 'text-amber-700',   border: 'border-amber-200',   dot: '#f59e0b' },
   atrasado:  { label: 'ATRASADO',   icon: AlertTriangle,  bg: 'bg-rose-50',     text: 'text-rose-700',    border: 'border-rose-200',    dot: '#ef4444' },
   pendiente: { label: 'PENDIENTE',  icon: CalendarDays,   bg: 'bg-slate-50',    text: 'text-slate-600',   border: 'border-slate-200',   dot: '#94a3b8' },
@@ -71,6 +62,7 @@ const STATUS_CONFIG = {
 
 const STATUS_CELL: Record<string, string> = {
   pagado:    'bg-emerald-100 text-emerald-800 border-emerald-300',
+  parcial:   'bg-sky-100 text-sky-800 border-sky-300',
   proximo:   'bg-amber-100 text-amber-800 border-amber-300',
   atrasado:  'bg-rose-100 text-rose-800 border-rose-300',
   pendiente: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -105,6 +97,10 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const [editingId, setEditingId]     = useState<string | null>(null)
   const [editAmount, setEditAmount]   = useState('')
   const [editDueDate, setEditDueDate] = useState('')
+  const [abonoPayment, setAbonoPayment] = useState<any | null>(null)
+  const [abonoAmount, setAbonoAmount] = useState('')
+  const [abonoDate, setAbonoDate] = useState(new Date().toISOString().split('T')[0])
+  const [abonoNote, setAbonoNote] = useState('')
   function getConfigAmount(type: 'matricula' | 'pension') {
     if (filterShift === 'vespertina') {
       return type === 'matricula' ? finConfig.vespertina.matricula : finConfig.vespertina.pension
@@ -159,7 +155,12 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
 
   // ── Computed ─────────────────────────────────────────────────────────────
   const enrichedPayments = useMemo(() =>
-    payments.map((p: any) => ({ ...p, computedStatus: getPaymentStatus(p) })),
+    payments.map((p: any) => ({
+      ...p,
+      appliedAmount: getAppliedAmount(p),
+      remainingAmount: getRemainingAmount(p),
+      computedStatus: getComputedPaymentStatus(p),
+    })),
     [payments]
   )
 
@@ -213,14 +214,15 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const stats = useMemo(() => {
     const all = enrichedPayments
     const pagados   = all.filter((p: any) => p.computedStatus === 'pagado')
+    const parciales = all.filter((p: any) => p.computedStatus === 'parcial')
     const atrasados = all.filter((p: any) => p.computedStatus === 'atrasado')
     const proximos  = all.filter((p: any) => p.computedStatus === 'proximo')
     const pendientes = all.filter((p: any) => p.computedStatus === 'pendiente')
 
-    const totalRecaudado = pagados.reduce((sum: number, p: any) => sum + Number(p.amount), 0)
-    const totalPendiente = [...atrasados, ...proximos, ...pendientes].reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+    const totalRecaudado = all.reduce((sum: number, p: any) => sum + Number(p.appliedAmount || 0), 0)
+    const totalPendiente = [...parciales, ...atrasados, ...proximos, ...pendientes].reduce((sum: number, p: any) => sum + Number(p.remainingAmount || 0), 0)
 
-    return { pagados: pagados.length, atrasados: atrasados.length, proximos: proximos.length, pendientes: pendientes.length, totalRecaudado, totalPendiente }
+    return { pagados: pagados.length, parciales: parciales.length, atrasados: atrasados.length, proximos: proximos.length, pendientes: pendientes.length, totalRecaudado, totalPendiente }
   }, [enrichedPayments])
 
   // ── Table view: build pivot data (student × month) ──────────────────────
@@ -447,6 +449,43 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     if (!res.ok) toast.error('Error al eliminar')
   }
 
+  function openAbono(payment: any) {
+    setAbonoPayment(payment)
+    setAbonoAmount(String(payment.remainingAmount || payment.amount || ''))
+    setAbonoDate(new Date().toISOString().split('T')[0])
+    setAbonoNote('')
+  }
+
+  async function submitAbono() {
+    if (!abonoPayment) return
+    const amount = parseFloat(abonoAmount)
+    if (!Number.isFinite(amount) || amount <= 0) return toast.error('Monto de abono inválido')
+
+    const res = await fetch('/api/secretaria/payments/abonos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        payment_id: abonoPayment.id,
+        amount,
+        paid_at: abonoDate,
+        note: abonoNote,
+      }),
+    })
+
+    const dataJson = await res.json()
+    if (!res.ok) {
+      toast.error(dataJson.error || 'Error al registrar abono')
+      return
+    }
+
+    if (dataJson?.data?.payment) {
+      setPayments(prev => prev.map((payment: any) => payment.id === abonoPayment.id ? dataJson.data.payment : payment))
+    }
+
+    toast.success('Abono registrado')
+    setAbonoPayment(null)
+  }
+
   const [generating, setGenerating] = useState(false)
   async function generateMissing() {
     setGenerating(true)
@@ -508,7 +547,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
             <span className="text-xs font-semibold text-ink3 uppercase tracking-wider">Por cobrar</span>
           </div>
           <p className="text-2xl font-display font-bold">{formatMoney(stats.totalPendiente)}</p>
-          <p className="text-xs text-amber-600 font-medium">{stats.pendientes + stats.proximos} pendientes</p>
+          <p className="text-xs text-amber-600 font-medium">{stats.pendientes + stats.proximos + stats.parciales} pendientes / abonados</p>
         </div>
 
         <div className="bg-surface rounded-2xl border border-surface2 p-5 space-y-3">
@@ -670,6 +709,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 className="appearance-none bg-bg border border-surface2 rounded-lg pl-3 pr-7 py-1.5 text-xs font-medium focus:outline-none cursor-pointer">
                 <option value="todos">Todos los estados</option>
                 <option value="pagado">Pagados</option>
+                <option value="parcial">Abonados</option>
                 <option value="pendiente">Pendientes</option>
                 <option value="proximo">Por vencer</option>
                 <option value="atrasado">Atrasados</option>
@@ -923,13 +963,14 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                           <td className="px-2 py-2.5 text-center bg-indigo-50/30">
                             {row.matricula ? (
                               <button
-                                onClick={() => !isTutorMode && getPaymentStatus(row.matricula) !== 'pagado' ? markAsPaid(row.matricula.id) : null}
+                                onClick={() => !isTutorMode && row.matricula.computedStatus !== 'pagado' ? markAsPaid(row.matricula.id) : null}
                                 className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                                  STATUS_CELL[getPaymentStatus(row.matricula)]
-                                } ${!isTutorMode && getPaymentStatus(row.matricula) !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
-                                title={getPaymentStatus(row.matricula) !== 'pagado' ? (isTutorMode ? 'Pago Pendiente' : 'Clic para pagar') : `Pagado`}
+                                  STATUS_CELL[row.matricula.computedStatus]
+                                } ${!isTutorMode && row.matricula.computedStatus !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                                title={row.matricula.computedStatus !== 'pagado' ? (isTutorMode ? 'Cobro pendiente' : 'Clic para marcar pagado') : `Pagado`}
                               >
-                                {getPaymentStatus(row.matricula) === 'pagado' ? '✓' :
+                                {row.matricula.computedStatus === 'pagado' ? '✓' :
+                                 row.matricula.computedStatus === 'parcial' ? `${Number(row.matricula.remainingAmount || 0).toFixed(0)}` :
                                  Number(row.matricula.amount) === 0 ? '?' :
                                  formatMoney(row.matricula.amount).replace('$', '').trim()}
                               </button>
@@ -958,7 +999,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                 </td>
                               )
                             }
-                            const status = getPaymentStatus(payment)
+                            const status = payment.computedStatus
                             return (
                               <td key={m} className="px-1 py-2 text-center">
                                 <button
@@ -968,11 +1009,13 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                   } ${!isTutorMode && status !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
                                   title={
                                     status === 'pagado' ? `Pagado: ${formatDate(payment.paid_date)}` :
+                                    status === 'parcial' ? `Abonado ${formatMoney(payment.appliedAmount || 0)} · Restan ${formatMoney(payment.remainingAmount || 0)}${!isTutorMode ? ' — Usa vista lista para otro abono' : ''}` :
                                     status === 'atrasado' ? `Atrasado${!isTutorMode ? ' — Clic para pagar' : ''}` :
-                                    `Pendiente ${formatMoney(payment.amount)}${!isTutorMode ? ' — Clic para pagar' : ''}`
+                                    `Pendiente ${formatMoney(payment.remainingAmount || payment.amount)}${!isTutorMode ? ' — Clic para pagar' : ''}`
                                   }
                                 >
                                   {status === 'pagado' ? '✓' :
+                                   status === 'parcial' ? `${Number(payment.remainingAmount || 0).toFixed(0)}` :
                                    Number(payment.amount) === 0 ? '?' :
                                    formatMoney(payment.amount).replace('$', '').trim()}
                                 </button>
@@ -990,6 +1033,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               <div className="px-5 py-3 border-t border-surface2 flex flex-wrap items-center gap-4 text-[10px] text-ink3">
                 <span className="font-bold uppercase tracking-wider">Leyenda:</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" /> Pagado</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-sky-100 border border-sky-300 inline-block" /> Abonado</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 inline-block" /> Pendiente</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-100 border border-amber-300 inline-block" /> Por vencer</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-rose-100 border border-rose-300 inline-block" /> Atrasado</span>
@@ -1060,8 +1104,11 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                           className="bg-bg border border-violet/30 rounded-lg px-2 py-1 text-xs font-bold w-[80px] text-right" autoFocus />
                       ) : (
                         <p className={`font-display font-bold text-sm ${Number(p.amount) === 0 ? 'text-amber-500' : ''}`}>
-                          {Number(p.amount) === 0 ? 'Por definir' : formatMoney(p.amount)}
+                          {Number(p.amount) === 0 ? 'Por definir' : formatMoney(p.computedStatus === 'pagado' ? p.amount : (p.remainingAmount || p.amount))}
                         </p>
+                      )}
+                      {editingId !== p.id && p.computedStatus === 'parcial' && (
+                        <p className="text-[10px] text-sky-600">Abonado {formatMoney(p.appliedAmount || 0)}</p>
                       )}
                     </div>
 
@@ -1084,6 +1131,12 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                         {p.computedStatus !== 'pagado' && editingId !== p.id && (
                           <button onClick={() => markAsPaid(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-emerald-50" title="Marcar pagado">
                             <Check size={16} style={{ color: '#10b981' }} />
+                          </button>
+                        )}
+
+                        {editingId !== p.id && p.computedStatus !== 'pagado' && (
+                          <button onClick={() => openAbono(p)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-sky-50" title="Registrar abono">
+                            <HandCoins size={16} className="text-sky-600" />
                           </button>
                         )}
 
@@ -1115,6 +1168,76 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
           </div>
         )}
       </div>
+
+      {abonoPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-surface2 bg-surface shadow-2xl">
+            <div className="flex items-center justify-between border-b border-surface2 px-5 py-4">
+              <div>
+                <h3 className="font-display text-lg font-bold text-ink">Registrar abono</h3>
+                <p className="text-xs text-ink3 mt-1">{abonoPayment.description}</p>
+              </div>
+              <button onClick={() => setAbonoPayment(null)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface2">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-4 px-5 py-5">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-ink4 uppercase tracking-wider font-bold">Monto total</p>
+                  <p className="mt-1 text-base font-bold text-ink">{formatMoney(Number(abonoPayment.amount || 0))}</p>
+                </div>
+                <div className="rounded-2xl bg-rose-50 p-3">
+                  <p className="text-rose-600 uppercase tracking-wider font-bold">Saldo restante</p>
+                  <p className="mt-1 text-base font-bold text-rose-700">{formatMoney(Number(abonoPayment.remainingAmount || abonoPayment.amount || 0))}</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Monto a abonar</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={Number(abonoPayment.remainingAmount || abonoPayment.amount || 0)}
+                  value={abonoAmount}
+                  onChange={e => setAbonoAmount(e.target.value)}
+                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sky-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Fecha del abono</label>
+                <input
+                  type="date"
+                  value={abonoDate}
+                  onChange={e => setAbonoDate(e.target.value)}
+                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sky-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-ink3 mb-1.5 uppercase tracking-wider">Observación</label>
+                <textarea
+                  rows={3}
+                  value={abonoNote}
+                  onChange={e => setAbonoNote(e.target.value)}
+                  placeholder="Ej. abono recibido en caja"
+                  className="w-full bg-bg border border-surface2 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-sky-400"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-surface2 px-5 py-4">
+              <button onClick={() => setAbonoPayment(null)} className="px-4 py-2 rounded-xl text-sm font-medium text-ink3 hover:bg-surface2">
+                Cancelar
+              </button>
+              <button onClick={submitAbono} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-sky-600 hover:bg-sky-700">
+                <HandCoins size={15} /> Guardar abono
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
