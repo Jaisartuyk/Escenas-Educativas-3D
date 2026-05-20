@@ -34,6 +34,29 @@ function isSpecialScheduleCell(value: string | null | undefined): boolean {
   return !normalized || normalized === 'RECESO' || normalized === 'ACOMPAÑAMIENTO' || normalized === 'SALIDA'
 }
 
+function sanitizeHorarioGrid(
+  horario: Record<string, Record<string, string[]>> | undefined,
+  horasPorCurso: Record<string, Record<string, number>> | undefined,
+) {
+  const safeHorario = JSON.parse(JSON.stringify(horario || {}))
+
+  Object.entries(safeHorario as Record<string, Record<string, string[]>>).forEach(([courseName, days]) => {
+    const allowedSubjects = new Set(
+      Object.keys((horasPorCurso || {})[courseName] || {}).map((name) => normalizeText(name))
+    )
+
+    Object.entries(days || {}).forEach(([dayName, row]) => {
+      if (!Array.isArray(row)) return
+      safeHorario[courseName][dayName] = row.map((cell: string) => {
+        if (isSpecialScheduleCell(cell)) return cell
+        return allowedSubjects.has(normalizeText(cell)) ? cell : ''
+      })
+    })
+  })
+
+  return safeHorario
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const qNivel   = searchParams.get('nivel')   || ''
@@ -252,6 +275,7 @@ export async function GET(req: Request) {
   if (dbSubjects && (dbSubjects as any[]).length > 0) {
     const horasPorCurso: Record<string, Record<string, number>> = {}
     const docentePorCurso: Record<string, Record<string, string>> = {}
+    const existingSubjectsByCourse: Record<string, Set<string>> = {}
 
     // We need a map of teacher_id -> dbTeacherName to resolve it cleanly
     const teacherIdToName: Record<string, string> = {}
@@ -260,6 +284,9 @@ export async function GET(req: Request) {
     }
 
     ;(dbSubjects as any[]).forEach((sub: any) => {
+      if (!existingSubjectsByCourse[sub.course_id]) existingSubjectsByCourse[sub.course_id] = new Set()
+      existingSubjectsByCourse[sub.course_id].add(normalizeText(sub.name))
+
       let courseName = courseIdToName[sub.course_id]
       
       // Respaldo: si el ID no coincide, intentar buscar por nombre de curso en el slot actual
@@ -290,9 +317,15 @@ export async function GET(req: Request) {
       if (!docentePorCurso[courseName]) docentePorCurso[courseName] = {}
       const existingNames = Object.keys(horasPorCurso[courseName])
       const existingByNormalized = new Map(existingNames.map(name => [normalizeText(name), name]))
+      const matchingCourse = matchingCourses.find((c: any) => {
+        const displayName = c.parallel ? `${c.name} ${c.parallel}`.trim() : c.name
+        return displayName === courseName
+      })
+      const existingForCourse = matchingCourse ? (existingSubjectsByCourse[matchingCourse.id] || new Set<string>()) : new Set<string>()
 
       Object.entries(savedSubjects || {}).forEach(([subjectName, savedHours]) => {
         const normalizedName = normalizeText(subjectName)
+        if (!existingForCourse.has(normalizedName)) return
         const canonicalName = existingByNormalized.get(normalizedName) || subjectName
         if (horasPorCurso[courseName][canonicalName] !== undefined) return
         horasPorCurso[courseName][canonicalName] = Number(savedHours) || 1
@@ -303,10 +336,12 @@ export async function GET(req: Request) {
 
     horariosConfig.horasPorCurso = horasPorCurso
     horariosConfig.docentePorCurso = docentePorCurso
+    horariosConfig.horario = sanitizeHorarioGrid(horariosConfig.horario, horasPorCurso)
   } else {
     // No subjects in DB for matching courses → clear
     horariosConfig.horasPorCurso = {}
     horariosConfig.docentePorCurso = {}
+    horariosConfig.horario = sanitizeHorarioGrid(horariosConfig.horario, {})
   }
 
   return NextResponse.json(
@@ -322,6 +357,10 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
   const body = await req.json()
+  const sanitizedBody = {
+    ...body,
+    horario: sanitizeHorarioGrid(body.horario, body.horasPorCurso),
+  }
 
   // Todo lo demás con adminClient
   const admin = createAdminClient()
@@ -361,13 +400,13 @@ export async function POST(req: Request) {
   const currentSettings = (inst as any)?.settings || {}
 
   // Determine the slot key from the body's config nivel+jornada
-  const bodyNivel = body.config?.nivel || ''
-  const bodyJornada = body.config?.jornada || ''
+  const bodyNivel = sanitizedBody.config?.nivel || ''
+  const bodyJornada = sanitizedBody.config?.jornada || ''
   const saveKey = bodyNivel && bodyJornada ? slotKey(bodyNivel, bodyJornada) : 'horarios'
 
   const newSettings = {
     ...currentSettings,
-    [saveKey]: body,  // save to slot-specific key (e.g. horarios_escuela_matutina)
+    [saveKey]: sanitizedBody,  // save to slot-specific key (e.g. horarios_escuela_matutina)
   }
 
   const { error: settingsError } = await admin
@@ -385,7 +424,7 @@ export async function POST(req: Request) {
     // institución. Si la institución tiene varios slots (escuela + colegio),
     // necesitamos PRESERVAR los tutores de los otros slots al hacer upsert,
     // si no, guardar escuela borra los tutores de colegio.
-    if (body.config) {
+    if (sanitizedBody.config) {
       const { data: existingConfig } = await admin
         .from('schedule_configs' as any)
         .select('tutores')
@@ -394,7 +433,7 @@ export async function POST(req: Request) {
 
       const mergedTutores: Record<string, string> = {
         ...(((existingConfig as any)?.tutores || {}) as Record<string, string>),
-        ...((body.config.tutores || {}) as Record<string, string>),
+        ...((sanitizedBody.config.tutores || {}) as Record<string, string>),
       }
       // Limpiar entradas vacías
       Object.keys(mergedTutores).forEach(k => {
@@ -404,13 +443,13 @@ export async function POST(req: Request) {
       await admin.from('schedule_configs' as any).upsert(
         {
           institution_id: instId,
-          nombre:     body.config.nombre    || '',
-          anio:       body.config.anio      || '',
-          jornada:    body.config.jornada   || 'MATUTINA',
-          nivel:      body.config.nivel     || 'Colegio',
-          n_periodos: body.config.nPeriodos || 8,
-          periodos:   body.config.horarios  || [],
-          recesos:    body.config.recesos   || [4],
+          nombre:     sanitizedBody.config.nombre    || '',
+          anio:       sanitizedBody.config.anio      || '',
+          jornada:    sanitizedBody.config.jornada   || 'MATUTINA',
+          nivel:      sanitizedBody.config.nivel     || 'Colegio',
+          n_periodos: sanitizedBody.config.nPeriodos || 8,
+          periodos:   sanitizedBody.config.horarios  || [],
+          recesos:    sanitizedBody.config.recesos   || [4],
           tutores:    mergedTutores,
         },
         { onConflict: 'institution_id' }
@@ -421,6 +460,10 @@ export async function POST(req: Request) {
     const { data: existingCourses } = await admin
       .from('courses' as any)
       .select('id, name, parallel')
+      .eq('institution_id', instId)
+    const { data: existingSubjectsDb } = await admin
+      .from('subjects' as any)
+      .select('id, name, course_id')
       .eq('institution_id', instId)
 
     // Normalize: remove accents, extra spaces, lowercase for comparison
@@ -438,7 +481,7 @@ export async function POST(req: Request) {
     })
 
     // Only create courses that don't already exist (checking normalized names)
-    const newCourseNames = (body.config?.cursos || []).filter((c: string) => {
+    const newCourseNames = (sanitizedBody.config?.cursos || []).filter((c: string) => {
       // Normalize extra spaces in the config name first
       const cleanName = c.replace(/\s+/g, ' ').trim()
       // Skip if exact match exists
@@ -488,7 +531,12 @@ export async function POST(req: Request) {
     // Mapa nombre del docente → teacher_id (solo UUIDs reales de profiles)
     const nameToTeacherId: Record<string, string> = {}
     const materiaTeacherGlobal: Record<string, string> = {} // Fallback legacy
-    ;(body.docentes || []).forEach((d: any) => {
+    const existingSubjectsByCourse: Record<string, Set<string>> = {}
+    ;(existingSubjectsDb as any[] || []).forEach((sub: any) => {
+      if (!existingSubjectsByCourse[sub.course_id]) existingSubjectsByCourse[sub.course_id] = new Set()
+      existingSubjectsByCourse[sub.course_id].add(normalizeText(sub.name))
+    })
+    ;(sanitizedBody.docentes || []).forEach((d: any) => {
       if (isValidUUID(d.id)) {
         if (d.nombre) nameToTeacherId[d.nombre.trim()] = d.id
         ;(d.materias || []).forEach((m: string) => { materiaTeacherGlobal[m] = d.id })
@@ -496,7 +544,7 @@ export async function POST(req: Request) {
     })
 
     const scheduledSubjectsByCourse: Record<string, Record<string, number>> = {}
-    Object.entries((body.horario || {}) as Record<string, Record<string, string[]>>).forEach(([courseName, days]) => {
+    Object.entries((sanitizedBody.horario || {}) as Record<string, Record<string, string[]>>).forEach(([courseName, days]) => {
       scheduledSubjectsByCourse[courseName] = scheduledSubjectsByCourse[courseName] || {}
       Object.values(days || {}).forEach((row: any) => {
         ;(row || []).forEach((cell: string) => {
@@ -510,7 +558,7 @@ export async function POST(req: Request) {
     // Mapa course_id → nombres de materias con horas > 0 (los que deben existir)
     const validSubjectNames: Record<string, string[]> = {}
 
-    Object.entries(body.horasPorCurso || {}).forEach(([cursName, materias]) => {
+    Object.entries(sanitizedBody.horasPorCurso || {}).forEach(([cursName, materias]) => {
       const course_id = courseMap[cursName]
       if (!course_id) return
 
@@ -520,10 +568,10 @@ export async function POST(req: Request) {
         if (!hours || hours <= 0) return
         
         let exactTeacherId = null
-        if (body.docentePorCurso && body.docentePorCurso[cursName] && body.docentePorCurso[cursName][matName]) {
-          const tName = body.docentePorCurso[cursName][matName]
+        if (sanitizedBody.docentePorCurso && sanitizedBody.docentePorCurso[cursName] && sanitizedBody.docentePorCurso[cursName][matName]) {
+          const tName = sanitizedBody.docentePorCurso[cursName][matName]
           if (tName && tName !== '—') exactTeacherId = nameToTeacherId[tName.trim()] || null
-        } else if (!body.docentePorCurso) {
+        } else if (!sanitizedBody.docentePorCurso) {
           exactTeacherId = materiaTeacherGlobal[matName] || null
         }
 
@@ -546,15 +594,17 @@ export async function POST(req: Request) {
       if (!course_id) return
       if (!validSubjectNames[course_id]) validSubjectNames[course_id] = []
       const validNormalized = new Set(validSubjectNames[course_id].map((name) => normalizeText(name)))
+      const existingForCourse = existingSubjectsByCourse[course_id] || new Set<string>()
 
       Object.entries(scheduledSubjects).forEach(([subjectName, occurrenceCount]) => {
         if (validNormalized.has(normalizeText(subjectName))) return
+        if (!existingForCourse.has(normalizeText(subjectName))) return
 
         let exactTeacherId = null
-        if (body.docentePorCurso?.[courseName]?.[subjectName]) {
-          const teacherName = body.docentePorCurso[courseName][subjectName]
+        if (sanitizedBody.docentePorCurso?.[courseName]?.[subjectName]) {
+          const teacherName = sanitizedBody.docentePorCurso[courseName][subjectName]
           if (teacherName && teacherName !== 'â€”') exactTeacherId = nameToTeacherId[teacherName.trim()] || null
-        } else if (!body.docentePorCurso) {
+        } else if (!sanitizedBody.docentePorCurso) {
           exactTeacherId = materiaTeacherGlobal[subjectName] || null
         }
 
@@ -564,7 +614,7 @@ export async function POST(req: Request) {
           course_id,
           institution_id: instId,
           name: subjectName,
-          weekly_hours: Number(body.horasPorCurso?.[courseName]?.[subjectName]) || Number(occurrenceCount) || 1,
+          weekly_hours: Number(sanitizedBody.horasPorCurso?.[courseName]?.[subjectName]) || Number(occurrenceCount) || 1,
           teacher_id: exactTeacherId,
         })
       })
