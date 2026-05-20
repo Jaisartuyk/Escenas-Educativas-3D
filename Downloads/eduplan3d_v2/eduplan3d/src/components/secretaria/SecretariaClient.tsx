@@ -970,16 +970,15 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                               <button
                                 onClick={() => {
                                   if (isTutorMode) return
-                                  if (row.matricula.computedStatus === 'parcial') { openAbono(row.matricula); return }
-                                  if (row.matricula.computedStatus !== 'pagado') markAsPaid(row.matricula.id)
+                                  if (row.matricula.computedStatus !== 'pagado') { openAbono(row.matricula) }
                                 }}
                                 className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
                                   STATUS_CELL[row.matricula.computedStatus]
                                 } ${!isTutorMode && row.matricula.computedStatus !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
                                 title={
-                                  row.matricula.computedStatus === 'pagado' ? 'Pagado' :
-                                  row.matricula.computedStatus === 'parcial' ? `Abonado ${formatMoney(row.matricula.appliedAmount || 0)} · Clic para ver abonos` :
-                                  isTutorMode ? 'Cobro pendiente' : 'Clic para marcar pagado'
+                                  row.matricula.computedStatus === 'pagado' ? 'Matrícula pagada ✓' :
+                                  row.matricula.computedStatus === 'parcial' ? `Abonado ${formatMoney(row.matricula.appliedAmount || 0)} · Restan ${formatMoney(row.matricula.remainingAmount || 0)} — Clic para abonar más` :
+                                  isTutorMode ? 'Cobro pendiente' : 'Clic para registrar pago o abono'
                                 }
                               >
                                 {row.matricula.computedStatus === 'pagado' ? '✓' :
