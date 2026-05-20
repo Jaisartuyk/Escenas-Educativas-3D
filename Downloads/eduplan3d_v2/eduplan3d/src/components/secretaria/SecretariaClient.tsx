@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
 import {
@@ -107,6 +107,15 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     }
     return type === 'matricula' ? finConfig.matutina.matricula : finConfig.matutina.pension
   }
+
+  // ── Cargar pagos con abonos al montar (SSR puede no tener abonos adjuntos) ─
+  useEffect(() => {
+    if (isTutorMode) return
+    fetch('/api/secretaria/payments', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => { if (data?.data) setPayments(data.data) })
+      .catch(() => {})
+  }, [])
 
   // ── Mappings ────────────────────────────────────────────────────────────
   const coursesById = useMemo(() => {
