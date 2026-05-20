@@ -897,12 +897,12 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 <CreditCard size={28} style={{ color: '#7C6DFA' }} />
               </div>
               <p className="text-ink3 font-medium">
-                {filterShift !== 'todos' || filterCourse !== 'todos' || searchTerm.trim()
+                {filterShift !== 'todos' || filterCourse !== 'todos' || filterStatus !== 'todos' || filterType !== 'todos' || searchTerm.trim()
                   ? 'No hay estudiantes para este filtro'
                   : 'No hay estudiantes matriculados para mostrar'}
               </p>
               <p className="text-ink4 text-sm mt-1">
-                {filterShift !== 'todos' || filterCourse !== 'todos' || searchTerm.trim()
+                {filterShift !== 'todos' || filterCourse !== 'todos' || filterStatus !== 'todos' || filterType !== 'todos' || searchTerm.trim()
                   ? 'Prueba con otro curso, turno o búsqueda.'
                   : 'Cuando existan matrículas activas, aquí verás su matriz de cobros.'}
               </p>
