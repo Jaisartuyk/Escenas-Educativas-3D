@@ -39,6 +39,7 @@ export function TomaAsistencia() {
   const [attendance, setAttendance] = useState<Record<string, string>>({})
   const [sharedPolicy, setSharedPolicy] = useState<SharedAttendancePolicy | null>(null)
   const [message, setMessage] = useState({ text: '', type: '' })
+  const [markingLate, setMarkingLate] = useState<string | null>(null) // student_id en proceso
 
   const supabase = createClient()
 
@@ -176,6 +177,27 @@ export function TomaAsistencia() {
     setAttendance(nextAttendance)
   }
 
+  // Corrección de llegada tardía — solo para docentes con edición bloqueada
+  const handleMarkLate = async (studentId: string) => {
+    if (!selectedSubject) return
+    setMarkingLate(studentId)
+    try {
+      const res = await fetch('/api/docente/attendance', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject_id: selectedSubject, student_id: studentId, date }),
+      })
+      const payload = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(payload?.error || 'No se pudo registrar la llegada tardía')
+      setAttendance(prev => ({ ...prev, [studentId]: 'late' }))
+      setMessage({ text: '✓ Llegada tardía registrada correctamente', type: 'success' })
+    } catch (err: any) {
+      setMessage({ text: err.message, type: 'error' })
+    } finally {
+      setMarkingLate(null)
+    }
+  }
+
   const editingLocked = !!sharedPolicy && !sharedPolicy.canTeacherEdit
   const authorityContext = sharedPolicy?.authoritySource === 'first-hour' && sharedPolicy.authoritySubjectName
     ? ` desde la primera hora (${sharedPolicy.authoritySubjectName})`
@@ -265,6 +287,7 @@ export function TomaAsistencia() {
                     <th className="w-24 p-4 text-center font-medium">Presente</th>
                     <th className="w-24 p-4 text-center font-medium">Atraso</th>
                     <th className="w-24 p-4 text-center font-medium">Falta</th>
+                    {editingLocked && <th className="w-32 p-4 text-center font-medium text-amber-600">Llegó tarde</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface2/50">
@@ -322,6 +345,22 @@ export function TomaAsistencia() {
                           </div>
                         </label>
                       </td>
+                      {/* Botón de corrección tardía — solo visible para docentes bloqueados */}
+                      {editingLocked && (
+                        <td className="p-4 text-center">
+                          {attendance[student.id] === 'absent' ? (
+                            <button
+                              onClick={() => handleMarkLate(student.id)}
+                              disabled={markingLate === student.id}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                            >
+                              {markingLate === student.id ? '...' : '⏱ Tardanza'}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-ink4">—</span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
