@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { v5 as uuidv5 } from 'uuid'
+import { buildRecurringPaymentDescription, getRecurringPaymentPeriodKey } from '@/lib/payment-period'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,37 +32,6 @@ type ExistingPayment = {
 
 function buildPaymentId(institutionId: string, studentId: string, type: 'matricula' | 'pension', cycleKey: string) {
   return uuidv5(`${institutionId}:${studentId}:${type}:${cycleKey}`, PAYMENT_NAMESPACE)
-}
-
-function hasMatriculaForYear(payments: ExistingPayment[], year: number) {
-  return payments.some((payment) => {
-    if (payment.type !== 'matricula') return false
-    if (payment.due_date) {
-      const due = new Date(`${payment.due_date}T00:00:00`)
-      if (!Number.isNaN(due.getTime()) && due.getFullYear() === year) return true
-    }
-    return (payment.description || '').includes(String(year))
-  })
-}
-
-function hasPensionForMonth(payments: ExistingPayment[], monthName: string, targetYear: number, monthIndex: number) {
-  return payments.some((payment) => {
-    if (payment.type !== 'pension') return false
-
-    if (payment.due_date) {
-      const due = new Date(`${payment.due_date}T00:00:00`)
-      if (!Number.isNaN(due.getTime())) {
-        return due.getFullYear() === targetYear && due.getMonth() === monthIndex
-      }
-    }
-
-    const description = (payment.description || '').toLowerCase()
-    return description.includes(monthName) && description.includes(String(targetYear))
-  })
-}
-
-function isPaid(payment: ExistingPayment) {
-  return payment.status === 'pagado'
 }
 
 // POST - generate pending payments for all enrolled students who do not have them yet
@@ -153,26 +123,37 @@ export async function POST() {
 
   const allPayments: any[] = []
   const plannedKeys = new Set<string>()
+  const existingPeriodKeysByStudent: Record<string, Set<string>> = {}
+
+  for (const [studentId, studentPayments] of Object.entries(paymentsByStudent)) {
+    existingPeriodKeysByStudent[studentId] = new Set(
+      studentPayments
+        .map((payment) => getRecurringPaymentPeriodKey(payment))
+        .filter((key): key is string => Boolean(key))
+    )
+  }
 
   for (const enrollment of Array.from(enrollmentByStudent.values())) {
-    const studentPayments = paymentsByStudent[enrollment.student_id] || []
+    const studentPeriodKeys = existingPeriodKeysByStudent[enrollment.student_id] || new Set<string>()
+    existingPeriodKeysByStudent[enrollment.student_id] = studentPeriodKeys
     const course = coursesById[enrollment.course_id]
     const courseName = course ? `${course.name} ${course.parallel || ''}`.trim() : ''
     const shift = (course?.shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina') as 'matutina' | 'vespertina'
     const prices = financial[shift] || { matricula: 35, pension: 60 }
 
-    const hasPaidMatricula = studentPayments.some((payment) => isPaid(payment) && hasMatriculaForYear([payment], year))
-    if (!hasPaidMatricula) {
+    const matriculaPeriodKey = `matricula:${year}`
+    if (!studentPeriodKeys.has(matriculaPeriodKey)) {
       const matriculaDue = new Date(year, now.getMonth(), now.getDate() + 15)
-      const key = `${enrollment.student_id}::matricula::${year}`
+      const key = `${enrollment.student_id}::${matriculaPeriodKey}`
       if (!plannedKeys.has(key)) {
         plannedKeys.add(key)
+        studentPeriodKeys.add(matriculaPeriodKey)
         allPayments.push({
-          id: buildPaymentId(instId, enrollment.student_id, 'matricula', String(year)),
+          id: buildPaymentId(instId, enrollment.student_id, 'matricula', matriculaPeriodKey),
           institution_id: instId,
           student_id: enrollment.student_id,
           amount: prices.matricula || 35,
-          description: `Matricula ${year} - ${courseName}`,
+          description: buildRecurringPaymentDescription('matricula', year, null, courseName),
           type: 'matricula',
           status: 'pendiente',
           due_date: matriculaDue.toISOString().split('T')[0],
@@ -183,18 +164,20 @@ export async function POST() {
     for (const month of pensionMonths) {
       const pensionYear = month.idx < 4 ? year + 1 : year
       const due = new Date(pensionYear, month.idx, 5)
-      const hasPaidPension = studentPayments.some((payment) => isPaid(payment) && hasPensionForMonth([payment], month.name, pensionYear, month.idx))
+      const periodMonth = String(month.idx + 1).padStart(2, '0')
+      const pensionPeriodKey = `pension:${pensionYear}-${periodMonth}`
 
-      if (!hasPaidPension) {
-        const key = `${enrollment.student_id}::pension::${pensionYear}-${month.idx}`
+      if (!studentPeriodKeys.has(pensionPeriodKey)) {
+        const key = `${enrollment.student_id}::${pensionPeriodKey}`
         if (!plannedKeys.has(key)) {
           plannedKeys.add(key)
+          studentPeriodKeys.add(pensionPeriodKey)
           allPayments.push({
-            id: buildPaymentId(instId, enrollment.student_id, 'pension', `${pensionYear}-${month.idx}`),
+            id: buildPaymentId(instId, enrollment.student_id, 'pension', pensionPeriodKey),
             institution_id: instId,
             student_id: enrollment.student_id,
             amount: prices.pension || 60,
-            description: `Pension ${month.name.charAt(0).toUpperCase() + month.name.slice(1)} ${pensionYear} - ${courseName}`,
+            description: buildRecurringPaymentDescription('pension', pensionYear, month.idx, courseName),
             type: 'pension',
             status: 'pendiente',
             due_date: due.toISOString().split('T')[0],

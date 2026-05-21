@@ -45,6 +45,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
+  if ((payment as any).status === 'pagado') {
+    return NextResponse.json({ error: 'Este cobro ya está pagado' }, { status: 400 })
+  }
+
   const { data: existingAbonos, error: abonosError } = await admin
     .from('payment_abonos' as any)
     .select('*')
