@@ -4,11 +4,53 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/ownership'
 import { createStudentFamilyNotifications } from '@/lib/notifications'
 import { attachAbonosToPayments } from '@/lib/payment-progress'
+import { getRecurringPaymentPeriodKey } from '@/lib/payment-period'
 
 export const dynamic = 'force-dynamic'
 
 // Roles autorizados a gestionar pagos
 const PAYMENT_ROLES = new Set(['admin', 'secretary', 'rector', 'assistant'])
+
+async function findRecurringConflict(admin: ReturnType<typeof createAdminClient>, input: {
+  institutionId: string
+  studentId?: string | null
+  type?: string | null
+  due_date?: string | null
+  description?: string | null
+  excludeId?: string | null
+}) {
+  if (!input.studentId || (input.type !== 'matricula' && input.type !== 'pension')) return null
+
+  const periodKey = getRecurringPaymentPeriodKey({
+    type: input.type,
+    due_date: input.due_date,
+    description: input.description,
+  })
+
+  if (!periodKey) {
+    return { error: 'Para matrícula y pensión debes indicar una fecha de vencimiento válida.' }
+  }
+
+  const { data: candidates, error } = await admin
+    .from('payments' as any)
+    .select('id, type, due_date, description')
+    .eq('institution_id', input.institutionId)
+    .eq('student_id', input.studentId)
+    .eq('type', input.type)
+
+  if (error) return { error: error.message }
+
+  const conflict = (candidates || []).find((payment: any) => {
+    if (input.excludeId && payment.id === input.excludeId) return false
+    return getRecurringPaymentPeriodKey(payment) === periodKey
+  })
+
+  if (!conflict) return null
+
+  return {
+    error: `Ya existe un cobro de ${input.type} para ese mismo periodo.`,
+  }
+}
 
 // GET — all payments for teacher's/admin's institution
 export async function GET() {
@@ -74,6 +116,18 @@ export async function POST(req: Request) {
   const body = await req.json()
   const admin = createAdminClient()
 
+  const recurringConflict = await findRecurringConflict(admin, {
+    institutionId: profile.institution_id,
+    studentId: body?.student_id,
+    type: body?.type,
+    due_date: body?.due_date,
+    description: body?.description,
+  })
+
+  if (recurringConflict?.error) {
+    return NextResponse.json({ error: recurringConflict.error }, { status: 409 })
+  }
+
   // Forzamos institution_id del usuario autenticado (ignoramos el del body si viene)
   const { data, error } = await admin
     .from('payments' as any)
@@ -114,7 +168,7 @@ export async function PATCH(req: Request) {
   const admin = createAdminClient()
   const { data: existing } = await admin
     .from('payments' as any)
-    .select('institution_id, student_id, status, description, amount, type')
+    .select('institution_id, student_id, status, description, amount, type, due_date')
     .eq('id', id)
     .single()
   if ((existing as any)?.institution_id !== profile.institution_id) {
@@ -123,6 +177,19 @@ export async function PATCH(req: Request) {
 
   // Evitar que se modifique institution_id vía body
   delete (updates as any).institution_id
+
+  const recurringConflict = await findRecurringConflict(admin, {
+    institutionId: profile.institution_id,
+    studentId: (updates as any).student_id ?? (existing as any)?.student_id,
+    type: (updates as any).type ?? (existing as any)?.type,
+    due_date: (updates as any).due_date ?? (existing as any)?.due_date,
+    description: (updates as any).description ?? (existing as any)?.description,
+    excludeId: id,
+  })
+
+  if (recurringConflict?.error) {
+    return NextResponse.json({ error: recurringConflict.error }, { status: 409 })
+  }
 
   const { data, error } = await admin
     .from('payments' as any)
