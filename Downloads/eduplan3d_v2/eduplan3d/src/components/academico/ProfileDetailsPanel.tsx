@@ -581,6 +581,34 @@ export function ProfileDetailsPanel({
                   <label className="text-xs font-semibold text-ink3 uppercase mb-1.5 block">Estudiante vinculado</label>
                   <input readOnly value={data.linked_student_name || ''} className="w-full bg-surface border border-transparent rounded-xl px-4 py-2.5 text-sm text-ink3 cursor-not-allowed" />
                 </div>
+
+                {/* ── Restablecer / crear contraseña ── */}
+                <div className="pt-3 mt-1 border-t border-[rgba(0,0,0,0.06)]">
+                  <h4 className="text-xs font-bold text-amber-600 mb-3 uppercase tracking-wider flex items-center gap-1.5">
+                    <KeyRound size={13} /> Contraseña de acceso
+                  </h4>
+                  <p className="text-xs text-ink4 mb-3">
+                    {coreData.email
+                      ? <>Usuario actual: <span className="font-semibold text-ink3">{coreData.email}</span></>
+                      : 'Sin correo registrado. Puedes asignar uno arriba.'}
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={resetPasswordForms[user.id] || ''}
+                      onChange={e => setResetPasswordForms(prev => ({ ...prev, [user.id]: e.target.value }))}
+                      placeholder="Nueva contraseña (mín. 6 caracteres)"
+                      className="input-base flex-1 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleResetPassword(user.id)}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white hover:bg-amber-600 transition-colors whitespace-nowrap"
+                    >
+                      <KeyRound size={13} /> Aplicar
+                    </button>
+                  </div>
+                </div>
               </>
             ) : (
               <>
