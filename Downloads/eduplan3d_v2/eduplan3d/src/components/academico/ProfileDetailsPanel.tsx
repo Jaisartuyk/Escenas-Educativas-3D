@@ -41,6 +41,8 @@ export function ProfileDetailsPanel({
   const [avatarUrl, setAvatarUrl] = useState(metadata?.avatar_url || null)
   const [creatingRepresentative, setCreatingRepresentative] = useState<'MADRE' | 'PADRE' | 'OTRO' | null>(null)
   const [creatingParent, setCreatingParent] = useState(false)
+  const [resettingPassword, setResettingPassword] = useState<string | null>(null) // linkedId del rep
+  const [resetPasswordForms, setResetPasswordForms] = useState<Record<string, string>>({})
   const [parentAccessForms, setParentAccessForms] = useState({
     MADRE: {
       full_name: metadata?.mother_name || '',
@@ -231,6 +233,28 @@ export function ProfileDetailsPanel({
     setCreatingParent(false)
   }
 
+  const handleResetPassword = async (linkedId: string) => {
+    const newPassword = resetPasswordForms[linkedId]?.trim()
+    if (!newPassword || newPassword.length < 6) {
+      return toast.error('La contraseña debe tener al menos 6 caracteres')
+    }
+    const t = toast.loading('Restableciendo contraseña...')
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: linkedId, newPassword }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Error al restablecer')
+      toast.success('Contraseña restablecida exitosamente', { id: t })
+      setResettingPassword(null)
+      setResetPasswordForms(prev => ({ ...prev, [linkedId]: '' }))
+    } catch (err: any) {
+      toast.error(err.message, { id: t })
+    }
+  }
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -406,10 +430,20 @@ export function ProfileDetailsPanel({
                               </p>
                             </div>
                             {rep.linkedId ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                                <CheckCircle2 size={12} />
-                                Con acceso
-                              </span>
+                              <div className="flex flex-col items-end gap-2">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                                  <CheckCircle2 size={12} />
+                                  Con acceso
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setResettingPassword(prev => prev === rep.linkedId ? null : rep.linkedId)}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 transition-colors"
+                                >
+                                  <KeyRound size={11} />
+                                  {resettingPassword === rep.linkedId ? 'Cancelar' : 'Cambiar clave'}
+                                </button>
+                              </div>
                             ) : (
                               <button
                                 type="button"
@@ -424,6 +458,29 @@ export function ProfileDetailsPanel({
                               </button>
                             )}
                           </div>
+
+                          {/* Panel de reseteo de contraseña */}
+                          {resettingPassword === rep.linkedId && (
+                            <div className="mt-3 p-3 rounded-xl border border-amber-200 bg-amber-50/60">
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700 mb-2">🔐 Nueva contraseña para {rep.title}</p>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={resetPasswordForms[rep.linkedId] || ''}
+                                  onChange={e => setResetPasswordForms(prev => ({ ...prev, [rep.linkedId]: e.target.value }))}
+                                  placeholder="Mínimo 6 caracteres"
+                                  className="input-base flex-1 text-sm"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetPassword(rep.linkedId)}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white hover:bg-amber-600 transition-colors whitespace-nowrap"
+                                >
+                                  <KeyRound size={13} /> Aplicar
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           {isOpen && !rep.linkedId && (
                             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
