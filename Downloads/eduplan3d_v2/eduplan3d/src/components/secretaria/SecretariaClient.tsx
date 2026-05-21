@@ -7,10 +7,11 @@ import {
   Plus, Check, Clock, AlertTriangle, X, Search,
   DollarSign, Users, TrendingUp, CalendarDays,
   ChevronDown, Filter, Trash2, CreditCard, GraduationCap,
-  Pencil, Save, Table as TableIcon, LayoutList, Settings, HandCoins,
+  Pencil, Save, Table as TableIcon, LayoutList, Settings, HandCoins, History,
 } from 'lucide-react'
 import { updateInstitutionFinancial, syncPendingPayments } from '@/lib/actions/institution'
 import { getAppliedAmount, getComputedPaymentStatus, getRemainingAmount } from '@/lib/payment-progress'
+import { SaldosAnterioresTab } from './SaldosAnterioresTab'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function formatDate(d: string | null) {
@@ -71,6 +72,7 @@ const STATUS_CELL: Record<string, string> = {
 // ─── Componente principal ────────────────────────────────────────────────────
 export function SecretariaClient({ institutionId, students, courses, enrollments, initialPayments, isTutorMode, financialSettings }: any) {
   const [payments, setPayments]        = useState<any[]>(initialPayments || [])
+  const [mainTab, setMainTab]          = useState<'actual' | 'anteriores'>('actual')
   const [showForm, setShowForm]        = useState(false)
   const [viewMode, setViewMode]        = useState<'tabla' | 'lista'>('tabla')
   const [filterStatus, setFilterStatus] = useState<string>('todos')
@@ -602,7 +604,39 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         </div>
       )}
 
-      {/* ── Toolbar ───────────────────────────────────────────────────────── */}
+      {/* ── Tabs principales ──────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 bg-surface border border-surface2 rounded-2xl p-1.5">
+        <button
+          onClick={() => setMainTab('actual')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            mainTab === 'actual' ? 'bg-white shadow-sm text-violet-700 border border-violet-100' : 'text-ink3 hover:text-ink'
+          }`}
+        >
+          <CreditCard size={15} /> Año Actual
+        </button>
+        <button
+          onClick={() => setMainTab('anteriores')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            mainTab === 'anteriores' ? 'bg-white shadow-sm text-rose-600 border border-rose-100' : 'text-ink3 hover:text-ink'
+          }`}
+        >
+          <History size={15} /> Saldos Anteriores
+        </button>
+      </div>
+
+      {/* ── Contenido de Saldos Anteriores ──────────────────────────────── */}
+      {mainTab === 'anteriores' && (
+        <div className="bg-surface rounded-2xl border border-surface2 p-5">
+          <div className="mb-4">
+            <h2 className="font-bold text-base text-ink">Saldos de Años Anteriores</h2>
+            <p className="text-xs text-ink4 mt-0.5">Registra y gestiona deudas de períodos lectivos pasados.</p>
+          </div>
+          <SaldosAnterioresTab students={students} institutionId={institutionId} />
+        </div>
+      )}
+
+      {/* ── Toolbar (solo año actual) ──────────────────────────────────────── */}
+      {mainTab === 'actual' && (<>
       <div className="bg-surface rounded-2xl border border-surface2 overflow-hidden">
         <div className="p-4 space-y-3 border-b border-surface2">
           {/* Row 1: Search + View toggle + Actions */}
@@ -1254,6 +1288,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
           </div>
         </div>
       )}
+      </>)}
     </div>
   )
 }
