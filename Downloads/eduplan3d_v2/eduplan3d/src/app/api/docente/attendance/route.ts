@@ -241,3 +241,60 @@ export async function POST(req: Request) {
   }
   return NextResponse.json({ success: true })
 }
+
+// PATCH → corrección de llegada tardía (absent → late, cualquier docente del mismo curso)
+export async function PATCH(req: Request) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json()
+  const { subject_id, student_id, date } = body
+  if (!subject_id || !student_id || !date)
+    return NextResponse.json({ error: 'Faltan parámetros requeridos' }, { status: 400 })
+
+  const owns = await teacherOwnsSubject(user.id, subject_id)
+  if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta materia' }, { status: 403 })
+
+  const { admin, course, courseSubjects } = await loadSubjectContext(subject_id)
+
+  // Verificar que el alumno está en el curso
+  const { data: enrollment } = await admin
+    .from('enrollments')
+    .select('student_id')
+    .eq('course_id', course.id)
+    .eq('student_id', student_id)
+    .maybeSingle()
+  if (!enrollment) return NextResponse.json({ error: 'El estudiante no pertenece a este curso' }, { status: 403 })
+
+  const subjectIds = (courseSubjects as any[]).map((s: any) => s.id)
+  const ids = subjectIds.length > 0 ? subjectIds : [subject_id]
+
+  // Buscar registro actual del alumno para esa fecha
+  const { data: existing } = await admin
+    .from('attendance' as any)
+    .select('id, status')
+    .in('subject_id', ids)
+    .eq('student_id', student_id)
+    .eq('date', date)
+    .limit(1)
+
+  const current = ((existing || []) as any[])[0]
+  if (!current) {
+    return NextResponse.json({ error: 'No hay registro de asistencia para esta fecha' }, { status: 400 })
+  }
+  if (current.status !== 'absent') {
+    return NextResponse.json({ error: 'Solo se puede corregir alumnos marcados como ausentes' }, { status: 400 })
+  }
+
+  // Actualizar a 'late' en todas las materias del curso para esa fecha
+  const { error } = await admin
+    .from('attendance' as any)
+    .update({ status: 'late' })
+    .in('subject_id', ids)
+    .eq('student_id', student_id)
+    .eq('date', date)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true, message: 'Llegada tardía registrada correctamente' })
+}
