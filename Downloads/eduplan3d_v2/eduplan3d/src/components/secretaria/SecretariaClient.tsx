@@ -52,6 +52,38 @@ function pickPreferredPayment(payments: any[]) {
 
 const MESES = ['May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr']
 const MESES_FULL = ['mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre', 'enero', 'febrero', 'marzo', 'abril']
+const CALENDAR_MONTH_TO_ACADEMIC_KEY: Record<number, string> = {
+  4: 'May',
+  5: 'Jun',
+  6: 'Jul',
+  7: 'Ago',
+  8: 'Sep',
+  9: 'Oct',
+  10: 'Nov',
+  11: 'Dic',
+  0: 'Ene',
+  1: 'Feb',
+  2: 'Mar',
+  3: 'Abr',
+}
+
+function getMonthKeyFromPayment(payment: any) {
+  if (payment?.due_date) {
+    const due = new Date(`${payment.due_date}T00:00:00`)
+    if (!Number.isNaN(due.getTime())) {
+      return CALENDAR_MONTH_TO_ACADEMIC_KEY[due.getMonth()] || ''
+    }
+  }
+
+  const desc = (payment?.description || '').toLowerCase()
+  for (let i = 0; i < MESES_FULL.length; i++) {
+    if (desc.includes(MESES_FULL[i])) {
+      return MESES[i]
+    }
+  }
+
+  return ''
+}
 
 const STATUS_CONFIG = {
   pagado:    { label: 'PAGADO',     icon: Check,          bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-200', dot: '#10b981' },
@@ -203,6 +235,14 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     return list
   }, [enrichedPayments, filterStatus, filterType, searchTerm, studentsById, allowedStudentIds])
 
+  const tablePayments = useMemo(() => {
+    let list = enrichedPayments
+    if (allowedStudentIds !== null) {
+      list = list.filter((p: any) => allowedStudentIds.has(p.student_id))
+    }
+    return list
+  }, [enrichedPayments, allowedStudentIds])
+
   const paymentMatchedStudentIds = useMemo(() => {
     return new Set(filtered.map((payment: any) => payment.student_id).filter(Boolean))
   }, [filtered])
@@ -246,8 +286,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
       const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
 
-      // Student's payments mapped by month (usamos la lista ya filtrada para que tabla y lista coincidan)
-      const cellPayments = filtered.filter((p: any) => p.student_id === sid)
+      // Student payments for the pivot table should ignore status/type/search filters.
+      // Otherwise existing pending months disappear and invite accidental re-creation.
+      const cellPayments = tablePayments.filter((p: any) => p.student_id === sid)
 
       const matricula = pickPreferredPayment(
         cellPayments.filter((p: any) => p.type === 'matricula')
@@ -256,27 +297,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       // Map payments to months
       const monthPaymentsByKey: Record<string, any[]> = {}
       cellPayments.filter((p: any) => p.type === 'pension').forEach((p: any) => {
-        // Try to match month from description or due_date
-        const desc = (p.description || '').toLowerCase()
-        let matchedMonth = ''
-
-        for (let i = 0; i < MESES_FULL.length; i++) {
-          if (desc.includes(MESES_FULL[i])) {
-            matchedMonth = MESES[i]
-            break
-          }
-        }
-
-        // Fallback: use due_date month
-        if (!matchedMonth && p.due_date) {
-          const d = new Date(p.due_date + 'T00:00:00')
-          const monthIdx = d.getMonth() // 0-11
-          // Map calendar month to academic month
-          const calToAcademic: Record<number, number> = {
-            4: 0, 5: 1, 6: 2, 7: 3, 8: 4, 9: 5, 10: 6, 11: 7, 0: 8, 1: 9, 2: 10, 3: 11
-          }
-          matchedMonth = MESES[calToAcademic[monthIdx] ?? 0]
-        }
+        const matchedMonth = getMonthKeyFromPayment(p)
 
         if (matchedMonth) {
           if (!monthPaymentsByKey[matchedMonth]) monthPaymentsByKey[matchedMonth] = []
@@ -299,7 +320,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         monthPayments,
       }
     }).sort((a, b) => a.name.localeCompare(b.name))
-  }, [filteredStudents, filtered, studentCourses, coursesById])
+  }, [filteredStudents, tablePayments, studentCourses, coursesById])
 
   // Group tableData by shift
   const tableByShift = useMemo(() => {
