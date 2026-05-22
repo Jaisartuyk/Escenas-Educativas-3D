@@ -151,6 +151,7 @@ const NAV_SECRETARY: NavNode[] = [
     icon: '📚',
     color: 'from-amber/20 to-amber/5',
     items: [
+      { href: '/dashboard/horarios',     icon: '📅', label: 'Horarios' },
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
       { href: '/dashboard/biblioteca',   icon: '📋', label: 'Planificaciones' },
     ],

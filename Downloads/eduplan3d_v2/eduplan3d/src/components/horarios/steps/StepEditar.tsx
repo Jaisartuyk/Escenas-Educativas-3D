@@ -25,11 +25,12 @@ function isUnassignedTeacher(value?: string | null): boolean {
 interface Props {
   state: HorariosState
   onChange: (h: HorarioGrid) => void
-  onBack: () => void
+  onBack?: () => void
   onExport: () => void
+  readOnly?: boolean
 }
 
-export function StepEditar({ state, onChange, onBack, onExport }: Props) {
+export function StepEditar({ state, onChange, onBack, onExport, readOnly = false }: Props) {
   const { config, docentes, horario, horasPorCurso } = state
   const [cursoActivo, setCursoActivo] = useState(config.cursos[0] ?? '')
   const [vistaDoc, setVistaDoc] = useState(false)
@@ -483,7 +484,9 @@ export function StepEditar({ state, onChange, onBack, onExport }: Props) {
       ) : null}
 
       <div className="flex gap-3 mt-5">
-        <button onClick={onBack} className="btn-secondary px-6 py-2.5">← Regenerar</button>
+        {!readOnly && onBack && (
+          <button onClick={onBack} className="btn-secondary px-6 py-2.5">← Regenerar</button>
+        )}
         <button onClick={onExport} className="btn-primary px-8 py-2.5">⬇ Descargar Excel</button>
       </div>
     </div>
