@@ -27,7 +27,7 @@ interface SlotInfo {
 const NIVELES  = ['Escuela', 'Colegio'] as const
 const JORNADAS = ['MATUTINA', 'VESPERTINA'] as const
 
-export function HorariosClient() {
+export function HorariosClient({ readOnly = false }: { readOnly?: boolean }) {
   // ── Slot selector state ───────────────────────────────────────────────────
   const [slotSelected, setSlotSelected] = useState(false)
   const [savedSlots, setSavedSlots] = useState<SlotInfo[]>([])
@@ -106,6 +106,7 @@ export function HorariosClient() {
   const pendingSaveRef = useRef<HorariosState | null>(null)
 
   const saveStateToDB = (newState: HorariosState, forceNow = false) => {
+    if (readOnly) return // secretaría no puede modificar
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
     pendingSaveRef.current = newState
 
@@ -246,8 +247,9 @@ export function HorariosClient() {
         <div className="card p-6 mb-6">
           <h2 className="font-display text-lg font-bold tracking-tight mb-2">Seleccionar Horario</h2>
           <p className="text-sm text-ink3 mb-6">
-            Cada combinación de nivel y jornada tiene su propio horario independiente.
-            Selecciona uno existente o crea uno nuevo.
+            {readOnly
+              ? 'Selecciona un horario para visualizarlo y descargarlo.'
+              : 'Cada combinación de nivel y jornada tiene su propio horario independiente. Selecciona uno existente o crea uno nuevo.'}
           </p>
 
           {/* Saved slots */}
@@ -271,7 +273,7 @@ export function HorariosClient() {
                         {slot.nivel === 'Escuela' ? 'Escuela / Básica' : 'Colegio / Bachillerato'}
                       </div>
                       <div className="text-xs text-ink3">
-                        Jornada {slot.jornada === 'MATUTINA' ? '🌅 Matutina' : '🌇 Vespertina'}
+                        Jornada {slot.jornada === 'MATUTINA' ? '🌅 Matutina' : '🏗️ Vespertina'}
                       </div>
                     </div>
                     <span className="ml-auto text-ink4 group-hover:text-violet2 transition-colors text-lg">→</span>
@@ -279,58 +281,61 @@ export function HorariosClient() {
                 ))}
               </div>
             </div>
-          ) : null}
-
-          {/* Create new */}
-          <div>
-            <h3 className="text-sm font-semibold text-ink2 mb-3">
-              {savedSlots.length > 0 ? 'Crear nuevo horario' : 'Crear horario'}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nivel</label>
-                <select
-                  value={selectedNivel}
-                  onChange={e => setSelectedNivel(e.target.value)}
-                  className="input-base"
-                >
-                  <option value="Colegio">Colegio / Bachillerato</option>
-                  <option value="Escuela">Escuela / Básica</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Jornada</label>
-                <select
-                  value={selectedJornada}
-                  onChange={e => setSelectedJornada(e.target.value)}
-                  className="input-base"
-                >
-                  <option value="MATUTINA">Matutina 🌅</option>
-                  <option value="VESPERTINA">Vespertina 🌇</option>
-                </select>
-              </div>
+          ) : (
+            <div className="py-8 text-center text-ink3 text-sm">
+              {readOnly ? 'No hay horarios creados aún.' : 'No hay horarios guardados.'}
             </div>
+          )}
 
-            {/* Warn if slot already exists */}
-            {savedSlots.some(s =>
-              s.nivel.toLowerCase() === selectedNivel.toLowerCase() &&
-              s.jornada.toUpperCase() === selectedJornada.toUpperCase()
-            ) && (
-              <div className="px-3 py-2 rounded-xl bg-[rgba(255,179,71,0.1)] border border-[rgba(255,179,71,0.25)] text-amber text-xs mb-4">
-                ⚠ Ya existe un horario para {selectedNivel} — {selectedJornada}. Se abrirá el existente.
+          {/* Crear nuevo: solo para roles con permiso de editar */}
+          {!readOnly && (
+            <div>
+              <h3 className="text-sm font-semibold text-ink2 mb-3">
+                {savedSlots.length > 0 ? 'Crear nuevo horario' : 'Crear horario'}
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Nivel</label>
+                  <select
+                    value={selectedNivel}
+                    onChange={e => setSelectedNivel(e.target.value)}
+                    className="input-base"
+                  >
+                    <option value="Colegio">Colegio / Bachillerato</option>
+                    <option value="Escuela">Escuela / Básica</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[.5px] text-ink3 mb-1.5">Jornada</label>
+                  <select
+                    value={selectedJornada}
+                    onChange={e => setSelectedJornada(e.target.value)}
+                    className="input-base"
+                  >
+                    <option value="MATUTINA">Matutina 🌅</option>
+                    <option value="VESPERTINA">Vespertina 🏗️</option>
+                  </select>
+                </div>
               </div>
-            )}
-
-            <button
-              onClick={() => loadSlot(selectedNivel, selectedJornada)}
-              className="btn-primary px-8 py-3"
-            >
               {savedSlots.some(s =>
                 s.nivel.toLowerCase() === selectedNivel.toLowerCase() &&
                 s.jornada.toUpperCase() === selectedJornada.toUpperCase()
-              ) ? 'Abrir horario existente →' : 'Crear horario →'}
-            </button>
-          </div>
+              ) && (
+                <div className="px-3 py-2 rounded-xl bg-[rgba(255,179,71,0.1)] border border-[rgba(255,179,71,0.25)] text-amber text-xs mb-4">
+                  ⚠ Ya existe un horario para {selectedNivel} — {selectedJornada}. Se abrirá el existente.
+                </div>
+              )}
+              <button
+                onClick={() => loadSlot(selectedNivel, selectedJornada)}
+                className="btn-primary px-8 py-3"
+              >
+                {savedSlots.some(s =>
+                  s.nivel.toLowerCase() === selectedNivel.toLowerCase() &&
+                  s.jornada.toUpperCase() === selectedJornada.toUpperCase()
+                ) ? 'Abrir horario existente →' : 'Crear horario →'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -361,7 +366,8 @@ export function HorariosClient() {
         </div>
       </div>
 
-      {/* ── BARRA DE TABS ── */}
+      {/* ── BARRA DE TABS (solo en modo edición) ── */}
+      {!readOnly && (
       <div className="flex items-center gap-1 mb-8 bg-surface border border-[rgba(120,100,255,0.1)] rounded-2xl p-1.5 overflow-x-auto">
         {TABS.map((tab, i) => {
           const isActive    = state.step === i
@@ -410,6 +416,14 @@ export function HorariosClient() {
           }
         </div>
       </div>
+      )}
+
+      {/* Badge de solo lectura */}
+      {readOnly && (
+        <div className="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
+          🔒 Modo solo lectura — puedes ver y descargar el horario
+        </div>
+      )}
 
       {/* ── CONTENIDO DEL TAB ACTIVO ── */}
       {loadingInitial ? (
@@ -418,7 +432,7 @@ export function HorariosClient() {
         </div>
       ) : (
         <>
-          {state.step === 0 && (
+          {!readOnly && state.step === 0 && (
             <StepInstitucion
               config={state.config}
               onChange={config => updateState(s => ({ ...s, config }))}
@@ -427,7 +441,7 @@ export function HorariosClient() {
               horasPorCurso={state.horasPorCurso}
             />
           )}
-          {state.step === 1 && (
+          {!readOnly && state.step === 1 && (
             <StepDocentes
               docentes={state.docentes}
               jornadaInstitucional={state.config.jornada}
@@ -438,7 +452,7 @@ export function HorariosClient() {
               onNext={() => setTab(2)}
             />
           )}
-          {state.step === 2 && (
+          {!readOnly && state.step === 2 && (
             <StepGenerar
               state={state}
               onBack={() => setTab(1)}
@@ -446,12 +460,13 @@ export function HorariosClient() {
               onGenerarParcial={handleGenerarParcial}
             />
           )}
-          {state.step === 3 && (
+          {(readOnly || state.step === 3) && (
             <StepEditar
               state={state}
-              onChange={horario => updateState(s => ({ ...s, horario }))}
-              onBack={() => setTab(2)}
+              onChange={readOnly ? () => {} : horario => updateState(s => ({ ...s, horario }))}
+              onBack={readOnly ? undefined : () => setTab(2)}
               onExport={handleExport}
+              readOnly={readOnly}
             />
           )}
         </>
