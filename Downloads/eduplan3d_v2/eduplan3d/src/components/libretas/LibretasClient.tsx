@@ -194,7 +194,8 @@ export function LibretasClient({
   const fmt = (val: number | null) => val !== null ? val.toFixed(2) : ''
   const yearLabel = `${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`
   const tutorName = currentCourse ? (tutores[`${currentCourse.name} ${currentCourse.parallel || ''}`.trim()] || '') : ''
-  const docenteName = courseSubjects[0]?.teacher?.full_name || ''
+  // DOCENTE debe ser el tutor del curso, no el primer docente de la lista de materias
+  const docenteName = tutorName || courseSubjects[0]?.teacher?.full_name || ''
 
   // ═══════════════════════════════════════════════════════════════════════
   // RENDER
