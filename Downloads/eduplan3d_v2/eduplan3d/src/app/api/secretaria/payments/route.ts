@@ -53,7 +53,7 @@ async function findRecurringConflict(admin: ReturnType<typeof createAdminClient>
 }
 
 // GET — all payments for teacher's/admin's institution
-export async function GET() {
+export async function GET(req: Request) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ data: [] }, { status: 401 })
@@ -62,17 +62,29 @@ export async function GET() {
   if (!profile?.institution_id) return NextResponse.json({ data: [] })
 
   const admin = createAdminClient()
+  const { searchParams } = new URL(req.url)
+  const studentIds = searchParams
+    .get('student_ids')
+    ?.split(',')
+    .map((value) => value.trim())
+    .filter(Boolean) || []
   
   let allData: any[] = []
   let from = 0
   const step = 1000
   while (true) {
-    const { data, error } = await admin
+    let query = admin
       .from('payments' as any)
       .select('*')
       .eq('institution_id', profile.institution_id)
       .order('created_at', { ascending: false })
       .range(from, from + step - 1)
+
+    if (studentIds.length > 0) {
+      query = query.in('student_id', studentIds)
+    }
+
+    const { data, error } = await query
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     if (!data || data.length === 0) break

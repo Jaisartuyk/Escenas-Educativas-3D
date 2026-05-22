@@ -143,13 +143,29 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   }
 
   // ── Cargar pagos con abonos al montar (SSR puede no tener abonos adjuntos) ─
+  const tutorStudentIdsParam = useMemo(() => {
+    if (!isTutorMode) return ''
+    return (students || [])
+      .map((student: any) => student?.id)
+      .filter(Boolean)
+      .join(',')
+  }, [isTutorMode, students])
+
   useEffect(() => {
-    if (isTutorMode) return
-    fetch('/api/secretaria/payments', { cache: 'no-store' })
+    const params = new URLSearchParams()
+    if (isTutorMode && tutorStudentIdsParam) {
+      params.set('student_ids', tutorStudentIdsParam)
+    }
+
+    const url = params.toString()
+      ? `/api/secretaria/payments?${params.toString()}`
+      : '/api/secretaria/payments'
+
+    fetch(url, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => { if (data?.data) setPayments(data.data) })
       .catch(() => {})
-  }, [])
+  }, [isTutorMode, tutorStudentIdsParam])
 
   // ── Mappings ────────────────────────────────────────────────────────────
   const coursesById = useMemo(() => {
