@@ -61,6 +61,7 @@ export async function GET(req: Request) {
   const profile = await getProfile(user.id)
   if (!profile?.institution_id) return NextResponse.json({ data: [] })
 
+  const institutionId = profile.institution_id
   const admin = createAdminClient()
   const { searchParams } = new URL(req.url)
   const studentIds = searchParams
@@ -76,7 +77,7 @@ export async function GET(req: Request) {
     let query = admin
       .from('payments' as any)
       .select('*')
-      .eq('institution_id', profile.institution_id)
+      .eq('institution_id', institutionId)
       .order('created_at', { ascending: false })
       .range(from, from + step - 1)
 
@@ -94,21 +95,45 @@ export async function GET(req: Request) {
     from += step
   }
 
-  const paymentIds = allData.map((payment: any) => payment.id).filter(Boolean)
-  let abonos: any[] = []
+  async function fetchAllAbonos(paymentIds: string[]): Promise<{ data: any[]; error?: string }> {
+    if (paymentIds.length === 0) return { data: [] }
 
-  if (paymentIds.length > 0) {
-    const { data: abonosData, error: abonosError } = await admin
-      .from('payment_abonos' as any)
-      .select('*')
-      .eq('institution_id', profile.institution_id)
-      .in('payment_id', paymentIds)
-      .order('paid_at', { ascending: false })
-      .order('created_at', { ascending: false })
+    const chunkSize = 500
+    let allAbonos: any[] = []
 
-    if (abonosError) return NextResponse.json({ error: abonosError.message }, { status: 500 })
-    abonos = abonosData || []
+    for (let start = 0; start < paymentIds.length; start += chunkSize) {
+      const chunk = paymentIds.slice(start, start + chunkSize)
+      let from = 0
+      const step = 1000
+
+      while (true) {
+        const { data: abonosData, error: abonosError } = await admin
+          .from('payment_abonos' as any)
+          .select('*')
+          .eq('institution_id', institutionId)
+          .in('payment_id', chunk)
+          .order('paid_at', { ascending: false })
+          .order('created_at', { ascending: false })
+          .range(from, from + step - 1)
+
+        if (abonosError) return { error: abonosError.message, data: [] }
+        if (!abonosData || abonosData.length === 0) break
+
+        allAbonos = allAbonos.concat(abonosData)
+        if (abonosData.length < step) break
+        from += step
+      }
+    }
+
+    return { data: allAbonos }
   }
+
+  const paymentIds = allData.map((payment: any) => payment.id).filter(Boolean)
+  const abonosResult = await fetchAllAbonos(paymentIds)
+  if ('error' in abonosResult) {
+    return NextResponse.json({ error: abonosResult.error }, { status: 500 })
+  }
+  const abonos = abonosResult.data || []
 
   return NextResponse.json({ data: attachAbonosToPayments(allData, abonos) })
 }
