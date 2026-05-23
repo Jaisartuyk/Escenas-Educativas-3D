@@ -47,6 +47,38 @@ export default async function SecretariaPage() {
     return allData
   }
 
+  async function fetchAllAbonos(paymentIds: string[]) {
+    if (paymentIds.length === 0) return []
+
+    const chunkSize = 500
+    let allAbonos: any[] = []
+
+    for (let start = 0; start < paymentIds.length; start += chunkSize) {
+      const chunk = paymentIds.slice(start, start + chunkSize)
+      let from = 0
+      const step = 1000
+
+      while (true) {
+        const { data, error } = await admin
+          .from('payment_abonos' as any)
+          .select('*')
+          .eq('institution_id', instId)
+          .in('payment_id', chunk)
+          .order('paid_at', { ascending: false })
+          .order('created_at', { ascending: false })
+          .range(from, from + step - 1)
+
+        if (error || !data || data.length === 0) break
+
+        allAbonos = allAbonos.concat(data)
+        if (data.length < step) break
+        from += step
+      }
+    }
+
+    return allAbonos
+  }
+
   // Cargar datos en paralelo con adminClient
   const [studentsRes, coursesRes, enrollsRes, paymentsData, instRes] = await Promise.all([
     admin.from('profiles').select('id, full_name, email').eq('institution_id', instId).eq('role', 'student').order('full_name'),
@@ -57,17 +89,7 @@ export default async function SecretariaPage() {
   ])
 
   const paymentIds = (paymentsData || []).map((payment: any) => payment.id).filter(Boolean)
-  let abonosData: any[] = []
-  if (paymentIds.length > 0) {
-    const { data } = await admin
-      .from('payment_abonos' as any)
-      .select('*')
-      .eq('institution_id', instId)
-      .in('payment_id', paymentIds)
-      .order('paid_at', { ascending: false })
-      .order('created_at', { ascending: false })
-    abonosData = data || []
-  }
+  const abonosData = await fetchAllAbonos(paymentIds)
 
   const instSettings = (instRes.data as any)?.settings || {}
 
