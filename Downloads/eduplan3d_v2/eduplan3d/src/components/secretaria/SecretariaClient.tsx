@@ -1069,7 +1069,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                               <button
                                 onClick={() => handleCellClick(row.studentId, 'matricula')}
                                 className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${MISSING_CELL} ${!isTutorMode ? 'cursor-pointer hover:shadow-sm' : ''}`}
-                                title={isTutorMode ? 'Matrícula no generada todavía' : 'Matrícula no generada todavía - clic para emitir'}
+                                title={isTutorMode ? 'MatrÃ­cula no generada todavÃ­a' : 'MatrÃ­cula no generada todavÃ­a - clic para emitir'}
                               >
                                 {formatMoney(getExpectedAmountForShift(row.shift, 'matricula')).replace('$', '').trim()}
                               </button>
@@ -1087,12 +1087,12 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                       ? `inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${MISSING_CELL} ${!isTutorMode ? 'cursor-pointer hover:shadow-sm' : ''}`
                                       : 'text-ink4 hover:text-violet transition-colors font-bold text-lg'}
                                     title={expectedPensionMonth
-                                      ? (isTutorMode ? `Pensión de ${m} no generada todavía` : `Pensión de ${m} no generada todavía - clic para emitir`)
-                                      : `Crear pensión de ${m}`}
+                                      ? (isTutorMode ? `PensiÃ³n de ${m} no generada todavÃ­a` : `PensiÃ³n de ${m} no generada todavÃ­a - clic para emitir`)
+                                      : `Crear pensiÃ³n de ${m}`}
                                   >
                                     {expectedPensionMonth
                                       ? formatMoney(getExpectedAmountForShift(row.shift, 'pension')).replace('$', '').trim()
-                                      : '—'}
+                                      : '?'}
                                   </button>
                                 </td>
                               )
@@ -1109,9 +1109,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                   className={`inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${STATUS_CELL[status]} ${!isTutorMode && status !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
                                   title={
                                     status === 'pagado' ? `Pagado: ${formatDate(payment.paid_date)}` :
-                                    status === 'parcial' ? `Abonado $${(payment.appliedAmount || 0).toFixed(2)} · Restan $${(payment.remainingAmount || 0).toFixed(2)} — Clic para abonar más` :
-                                    status === 'atrasado' ? `Atrasado${!isTutorMode ? ' — Clic para pagar' : ''}` :
-                                    `Pendiente ${formatMoney(payment.remainingAmount || payment.amount)}${!isTutorMode ? ' — Clic para pagar' : ''}`
+                                    status === 'parcial' ? `Abonado $${(payment.appliedAmount || 0).toFixed(2)} Â· Restan $${(payment.remainingAmount || 0).toFixed(2)} ? Clic para abonar mÃ¡s` :
+                                    status === 'atrasado' ? `Atrasado${!isTutorMode ? ' ? Clic para pagar' : ''}` :
+                                    `Pendiente ${formatMoney(payment.remainingAmount || payment.amount)}${!isTutorMode ? ' ? Clic para pagar' : ''}`
                                   }
                                 >
                                   {status === 'pagado' ? '?' :
