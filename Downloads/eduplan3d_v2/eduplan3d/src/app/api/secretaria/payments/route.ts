@@ -11,6 +11,10 @@ export const dynamic = 'force-dynamic'
 // Roles autorizados a gestionar pagos
 const PAYMENT_ROLES = new Set(['admin', 'secretary', 'rector', 'assistant'])
 
+function normalizeRecurringType(type?: string | null) {
+  return type === 'matricula' || type === 'pension' || type === 'otro' ? type : null
+}
+
 async function findRecurringConflict(admin: ReturnType<typeof createAdminClient>, input: {
   institutionId: string
   studentId?: string | null
@@ -152,11 +156,16 @@ export async function POST(req: Request) {
 
   const body = await req.json()
   const admin = createAdminClient()
+  const normalizedType = normalizeRecurringType(body?.type)
+
+  if (!normalizedType) {
+    return NextResponse.json({ error: 'Tipo de cobro inv??lido.' }, { status: 400 })
+  }
 
   const recurringConflict = await findRecurringConflict(admin, {
     institutionId: profile.institution_id,
     studentId: body?.student_id,
-    type: body?.type,
+    type: normalizedType,
     due_date: body?.due_date,
     description: body?.description,
   })
@@ -168,7 +177,7 @@ export async function POST(req: Request) {
   // Forzamos institution_id del usuario autenticado (ignoramos el del body si viene)
   const { data, error } = await admin
     .from('payments' as any)
-    .insert({ ...body, institution_id: profile.institution_id })
+    .insert({ ...body, type: normalizedType, institution_id: profile.institution_id })
     .select('*')
     .single()
 
@@ -212,13 +221,18 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  // Evitar que se modifique institution_id vía body
+  // Evitar que se modifique institution_id v??a body
   delete (updates as any).institution_id
+
+  const nextType = normalizeRecurringType((updates as any).type ?? (existing as any)?.type)
+  if (!nextType) {
+    return NextResponse.json({ error: 'Tipo de cobro inv??lido.' }, { status: 400 })
+  }
 
   const recurringConflict = await findRecurringConflict(admin, {
     institutionId: profile.institution_id,
     studentId: (updates as any).student_id ?? (existing as any)?.student_id,
-    type: (updates as any).type ?? (existing as any)?.type,
+    type: nextType,
     due_date: (updates as any).due_date ?? (existing as any)?.due_date,
     description: (updates as any).description ?? (existing as any)?.description,
     excludeId: id,
@@ -230,7 +244,7 @@ export async function PATCH(req: Request) {
 
   const { data, error } = await admin
     .from('payments' as any)
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...updates, type: nextType, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select('*')
     .single()
