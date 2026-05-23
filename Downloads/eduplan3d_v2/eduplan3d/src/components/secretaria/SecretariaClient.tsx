@@ -101,6 +101,9 @@ const STATUS_CELL: Record<string, string> = {
   pendiente: 'bg-slate-100 text-slate-600 border-slate-200',
 }
 
+const MISSING_CELL = 'bg-amber-50 text-amber-800 border-amber-300 border-dashed'
+const EXPECTED_PENSION_MONTHS = new Set(['May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb'])
+
 // ─── Componente principal ────────────────────────────────────────────────────
 export function SecretariaClient({ institutionId, students, courses, enrollments, initialPayments, isTutorMode, financialSettings }: any) {
   const [payments, setPayments]        = useState<any[]>(initialPayments || [])
@@ -140,6 +143,11 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       return type === 'matricula' ? finConfig.vespertina.matricula : finConfig.vespertina.pension
     }
     return type === 'matricula' ? finConfig.matutina.matricula : finConfig.matutina.pension
+  }
+
+  function getExpectedAmountForShift(shift: string | undefined, type: 'matricula' | 'pension') {
+    const shiftKey = shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina'
+    return type === 'matricula' ? finConfig[shiftKey].matricula : finConfig[shiftKey].pension
   }
 
   // ── Cargar pagos con abonos al montar (SSR puede no tener abonos adjuntos) ─
@@ -1058,26 +1066,33 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                  formatMoney(row.matricula.amount).replace('$', '').trim()}
                               </button>
                             ) : (
-                              <button 
+                              <button
                                 onClick={() => handleCellClick(row.studentId, 'matricula')}
-                                className="text-ink4 hover:text-violet transition-colors font-bold text-lg"
-                                title="Crear cobro de matrícula"
+                                className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${MISSING_CELL} ${!isTutorMode ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                                title={isTutorMode ? 'Matr�cula no generada todav�a' : 'Matr�cula no generada todav�a - clic para emitir'}
                               >
-                                —
+                                {formatMoney(getExpectedAmountForShift(row.shift, 'matricula')).replace('$', '').trim()}
                               </button>
                             )}
                           </td>
                           {MESES.map(m => {
                             const payment = row.monthPayments[m]
                             if (!payment) {
+                              const expectedPensionMonth = EXPECTED_PENSION_MONTHS.has(m)
                               return (
                                 <td key={m} className="px-2 py-2.5 text-center">
-                                  <button 
+                                  <button
                                     onClick={() => handleCellClick(row.studentId, 'pension', m)}
-                                    className="text-ink4 hover:text-violet transition-colors font-bold text-lg"
-                                    title={`Crear pensión de ${m}`}
+                                    className={expectedPensionMonth
+                                      ? `inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${MISSING_CELL} ${!isTutorMode ? 'cursor-pointer hover:shadow-sm' : ''}`
+                                      : 'text-ink4 hover:text-violet transition-colors font-bold text-lg'}
+                                    title={expectedPensionMonth
+                                      ? (isTutorMode ? `Pensi�n de ${m} no generada todav�a` : `Pensi�n de ${m} no generada todav�a - clic para emitir`)
+                                      : `Crear pensi�n de ${m}`}
                                   >
-                                    —
+                                    {expectedPensionMonth
+                                      ? formatMoney(getExpectedAmountForShift(row.shift, 'pension')).replace('$', '').trim()
+                                      : '�'}
                                   </button>
                                 </td>
                               )
@@ -1091,17 +1106,15 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                     if (status === 'parcial') { openAbono(payment); return }
                                     if (status !== 'pagado') markAsPaid(payment.id)
                                   }}
-                                  className={`inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
-                                    STATUS_CELL[status]
-                                  } ${!isTutorMode && status !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                                  className={`inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${STATUS_CELL[status]} ${!isTutorMode && status !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
                                   title={
                                     status === 'pagado' ? `Pagado: ${formatDate(payment.paid_date)}` :
-                                    status === 'parcial' ? `Abonado $${(payment.appliedAmount || 0).toFixed(2)} · Restan $${(payment.remainingAmount || 0).toFixed(2)} — Clic para abonar más` :
-                                    status === 'atrasado' ? `Atrasado${!isTutorMode ? ' — Clic para pagar' : ''}` :
-                                    `Pendiente ${formatMoney(payment.remainingAmount || payment.amount)}${!isTutorMode ? ' — Clic para pagar' : ''}`
+                                    status === 'parcial' ? `Abonado $${(payment.appliedAmount || 0).toFixed(2)} � Restan $${(payment.remainingAmount || 0).toFixed(2)} � Clic para abonar m�s` :
+                                    status === 'atrasado' ? `Atrasado${!isTutorMode ? ' � Clic para pagar' : ''}` :
+                                    `Pendiente ${formatMoney(payment.remainingAmount || payment.amount)}${!isTutorMode ? ' � Clic para pagar' : ''}`
                                   }
                                 >
-                                  {status === 'pagado' ? '✓' :
+                                  {status === 'pagado' ? '?' :
                                    status === 'parcial' ? `+${Number(payment.remainingAmount || 0).toFixed(0)}` :
                                    Number(payment.amount) === 0 ? '?' :
                                    formatMoney(payment.amount).replace('$', '').trim()}
@@ -1115,7 +1128,6 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                   </table>
                 </div>
               ))}
-
               {/* Legend */}
               <div className="px-5 py-3 border-t border-surface2 flex flex-wrap items-center gap-4 text-[10px] text-ink3">
                 <span className="font-bold uppercase tracking-wider">Leyenda:</span>
@@ -1124,6 +1136,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 inline-block" /> Pendiente</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-100 border border-amber-300 inline-block" /> Por vencer</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-rose-100 border border-rose-300 inline-block" /> Atrasado</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-50 border border-amber-300 border-dashed inline-block" /> Falta generar</span>
                 {!isTutorMode && <span className="ml-auto">Clic en celda pendiente = marcar como pagado</span>}
               </div>
             </div>
