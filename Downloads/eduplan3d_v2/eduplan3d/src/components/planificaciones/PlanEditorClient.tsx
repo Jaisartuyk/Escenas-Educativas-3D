@@ -19,7 +19,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import {
   ChevronLeft, Save, CheckCircle2, Clock, Bold, Italic, List, ListOrdered,
   Heading1, Heading2, Heading3, Table as TableIcon, Undo2, Redo2,
-  Eye, FileText, RefreshCw, Plus, Minus,
+  Eye, FileText, RefreshCw, Plus, Minus, Printer,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -214,6 +214,10 @@ export function PlanEditorClient({
     toast.success(next === 'publicada' ? 'Planificación publicada' : 'Marcada como borrador')
   }
 
+  function handlePrint() {
+    window.print()
+  }
+
   // Migrar plantilla anual LETAMENDI vieja → nueva preservando contenido
   function applyTemplateUpdate() {
     if (!editor) return
@@ -290,7 +294,7 @@ export function PlanEditorClient({
   return (
     <div className="animate-fade-in max-w-5xl mx-auto pb-12">
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-3 gap-3">
+      <div className="flex items-center justify-between mb-3 gap-3 print:hidden">
         <Link
           href="/dashboard/planificaciones"
           className="inline-flex items-center gap-1 text-sm text-ink3 hover:text-violet"
@@ -298,6 +302,13 @@ export function PlanEditorClient({
           <ChevronLeft size={14} /> Volver
         </Link>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink transition-colors hover:bg-ink/5"
+          >
+            <Printer size={12} /> Imprimir / Guardar PDF
+          </button>
           {/* Indicador de guardado */}
           <SaveIndicator state={savingState} lastSavedAt={lastSavedAt} />
           {/* Toggle status */}
@@ -328,7 +339,7 @@ export function PlanEditorClient({
 
       {/* ── Retroalimentación del supervisor (read-only para el docente) ──────── */}
       {plan.supervisorNotes && (
-        <div className="mb-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-sm">
+        <div className="mb-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 text-sm print:hidden">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-base">💬</span>
             <p className="font-bold text-blue-800 text-xs uppercase tracking-wide">Retroalimentación del supervisor</p>
@@ -339,7 +350,7 @@ export function PlanEditorClient({
 
       {/* ── Banner: actualizar plantilla (solo LETAMENDI anual con estructura vieja) */}
       {isLetamendiAnnual && (
-        <div className={`mb-3 px-4 py-3 rounded-xl text-sm ${needsTemplateUpdate ? 'bg-amber-50 border border-amber-200' : 'bg-sky-50 border border-sky-200'}`}>
+        <div className={`mb-3 px-4 py-3 rounded-xl text-sm print:hidden ${needsTemplateUpdate ? 'bg-amber-50 border border-amber-200' : 'bg-sky-50 border border-sky-200'}`}>
           <div className="flex items-start gap-2 mb-2">
             <span className="text-lg leading-none mt-0.5">{needsTemplateUpdate ? '⚠️' : '🧩'}</span>
             <p className={needsTemplateUpdate ? 'text-amber-800' : 'text-sky-800'}>
@@ -361,7 +372,7 @@ export function PlanEditorClient({
       {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <Toolbar editor={editor} />
       {isLetamendiAnnual && (
-        <p className="mb-3 text-xs text-ink3">
+        <p className="mb-3 text-xs text-ink3 print:hidden">
           Consejo: cuando estas dentro de una tabla puedes usar los botones de <strong>agregar fila arriba</strong>, <strong>agregar fila debajo</strong> y <strong>eliminar fila</strong> para ampliar la anual sin perder lo ya escrito.
         </p>
       )}
@@ -636,7 +647,7 @@ function Toolbar({ editor }: { editor: any }) {
   )
 
   return (
-    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 mb-3 p-2 rounded-xl bg-white border border-line shadow-sm">
+    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 mb-3 p-2 rounded-xl bg-white border border-line shadow-sm print:hidden">
       <Btn onClick={() => editor.chain().focus().undo().run()} title="Deshacer (Ctrl+Z)">
         <Undo2 size={14} />
       </Btn>
