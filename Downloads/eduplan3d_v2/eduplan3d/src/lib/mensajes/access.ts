@@ -32,6 +32,112 @@ export function tutoredCourseNamesFromSettings(settings: any, teacherFullName: s
   return Array.from(new Set(out))
 }
 
+export type ResolvedTutoredCourse = {
+  id: string
+  name: string
+  parallel: string | null
+  settingCourseName: string
+}
+
+function courseDisplayName(course: { name: string; parallel: string | null }) {
+  return `${course.name}${course.parallel ? ' ' + course.parallel : ''}`.trim()
+}
+
+/**
+ * Resuelve cursos tutorados de un docente a partir de settings.
+ *
+ * Reglas:
+ * - Si el nombre del curso en settings coincide exactamente con "nombre + paralelo",
+ *   se toma ese curso.
+ * - Si coincide solo con el nombre base y existe un único curso con ese nombre,
+ *   se toma ese curso.
+ * - Si coincide con el nombre base pero hay varios paralelos, se intenta
+ *   desambiguar usando las materias que dicta el docente.
+ * - Si sigue ambiguo, se omite para evitar fugas de permisos entre paralelos.
+ */
+export async function resolveTutoredCoursesForTeacher(
+  admin: SupabaseClient,
+  teacherId: string
+): Promise<ResolvedTutoredCourse[]> {
+  const { data: prof } = await (admin as any)
+    .from('profiles')
+    .select('full_name, institution_id, institutions(settings)')
+    .eq('id', teacherId)
+    .single()
+  if (!prof?.institution_id) return []
+
+  const rawCourseNames = Array.from(
+    new Set(tutoredCourseNamesFromSettings(prof.institutions?.settings, prof.full_name || ''))
+  )
+  if (rawCourseNames.length === 0) return []
+
+  const [{ data: courses }, { data: teacherSubjects }] = await Promise.all([
+    (admin as any)
+      .from('courses')
+      .select('id, name, parallel')
+      .eq('institution_id', prof.institution_id),
+    (admin as any)
+      .from('subjects')
+      .select('course_id')
+      .eq('institution_id', prof.institution_id)
+      .eq('teacher_id', teacherId),
+  ])
+
+  const allCourses = ((courses || []) as any[]).map((c: any) => ({
+    id: c.id as string,
+    name: c.name as string,
+    parallel: (c.parallel as string | null) || null,
+  }))
+  const taughtCourseIds = new Set<string>(((teacherSubjects || []) as any[]).map((s: any) => s.course_id as string))
+
+  const exactDisplayMap = new Map<string, { id: string; name: string; parallel: string | null }>()
+  const byBaseName = new Map<string, Array<{ id: string; name: string; parallel: string | null }>>()
+
+  for (const course of allCourses) {
+    exactDisplayMap.set(norm(courseDisplayName(course)), course)
+    const baseKey = norm(course.name)
+    const current = byBaseName.get(baseKey) || []
+    current.push(course)
+    byBaseName.set(baseKey, current)
+  }
+
+  const resolved = new Map<string, ResolvedTutoredCourse>()
+
+  for (const rawCourseName of rawCourseNames) {
+    const rawKey = norm(rawCourseName)
+
+    const exact = exactDisplayMap.get(rawKey)
+    if (exact) {
+      resolved.set(exact.id, {
+        ...exact,
+        settingCourseName: rawCourseName,
+      })
+      continue
+    }
+
+    const candidates = byBaseName.get(rawKey) || []
+    if (candidates.length === 1) {
+      resolved.set(candidates[0].id, {
+        ...candidates[0],
+        settingCourseName: rawCourseName,
+      })
+      continue
+    }
+
+    if (candidates.length > 1) {
+      const taughtCandidates = candidates.filter((course) => taughtCourseIds.has(course.id))
+      if (taughtCandidates.length === 1) {
+        resolved.set(taughtCandidates[0].id, {
+          ...taughtCandidates[0],
+          settingCourseName: rawCourseName,
+        })
+      }
+    }
+  }
+
+  return Array.from(resolved.values())
+}
+
 /**
  * Devuelve [{teacherId, teacherName, courseId, courseName}] con los tutores del estudiante.
  * Un estudiante puede estar en N cursos; cada curso puede tener tutor asignado (o no).
@@ -110,21 +216,12 @@ export async function resolveStudentsForTutor(
 ): Promise<Array<{ studentId: string; studentName: string; courseId: string; courseName: string }>> {
   const { data: prof } = await (admin as any)
     .from('profiles')
-    .select('full_name, institution_id, institutions(settings)')
+    .select('institution_id')
     .eq('id', teacherId)
     .single()
   if (!prof?.institution_id) return []
 
-  const tutoredN = tutoredCourseNamesFromSettings(prof.institutions?.settings, prof.full_name || '')
-  if (tutoredN.length === 0) return []
-
-  const { data: courses } = await (admin as any)
-    .from('courses')
-    .select('id, name, parallel')
-    .eq('institution_id', prof.institution_id)
-  const myCourses = ((courses || []) as any[]).filter((c: any) =>
-    tutoredN.includes(norm(c.name)) || tutoredN.includes(norm(`${c.name} ${c.parallel || ''}`))
-  )
+  const myCourses = await resolveTutoredCoursesForTeacher(admin, teacherId)
   if (myCourses.length === 0) return []
 
   const { data: enr } = await (admin as any)
@@ -132,7 +229,7 @@ export async function resolveStudentsForTutor(
     .select('student_id, course_id, student:profiles(id, full_name)')
     .in('course_id', myCourses.map((c: any) => c.id))
 
-  const cMap = new Map<string, string>(myCourses.map((c: any) => [c.id, `${c.name}${c.parallel ? ' ' + c.parallel : ''}`]))
+  const cMap = new Map<string, string>(myCourses.map((c: any) => [c.id, courseDisplayName(c)]))
   return ((enr || []) as any[]).map((e: any) => {
     const student = Array.isArray(e.student) ? e.student[0] : e.student
     return {

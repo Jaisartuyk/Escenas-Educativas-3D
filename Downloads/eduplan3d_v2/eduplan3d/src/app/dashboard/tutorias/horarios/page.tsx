@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { TutorHorarioClient } from '@/components/horarios/TutorHorarioClient'
+import { norm, resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,7 +42,12 @@ export default async function TutoriasHorariosPage() {
     .single()
 
   const settings = inst?.settings || {}
+  const resolvedTutoredCourses = await resolveTutoredCoursesForTeacher(admin as any, user.id)
+  const resolvedBySettingName = new Map(
+    resolvedTutoredCourses.map((course) => [norm(course.settingCourseName), course])
+  )
   const tutoredSchedules: any[] = []
+  const addedCourseIds = new Set<string>()
 
   // Recorrer todas las llaves de configuración de horario (e.g. horarios_escuela_matutina)
   Object.keys(settings).forEach(key => {
@@ -51,10 +57,17 @@ export default async function TutoriasHorariosPage() {
       const grid = slotData.horario
       if (config && config.tutores) {
         Object.entries(config.tutores).forEach(([cursoName, tutorName]) => {
-          if (typeof tutorName === 'string' && tutorName.trim().toLowerCase() === teacherName) {
+          const resolvedCourse = resolvedBySettingName.get(norm(cursoName))
+          if (
+            resolvedCourse &&
+            typeof tutorName === 'string' &&
+            tutorName.trim().toLowerCase() === teacherName &&
+            !addedCourseIds.has(resolvedCourse.id)
+          ) {
             // El docente es tutor de este curso
+            addedCourseIds.add(resolvedCourse.id)
             tutoredSchedules.push({
-              curso: cursoName,
+              curso: `${resolvedCourse.name}${resolvedCourse.parallel ? ' ' + resolvedCourse.parallel : ''}`.trim(),
               nivel: config.nivel,
               jornada: config.jornada,
               nPeriodos: config.nPeriodos || 8,
