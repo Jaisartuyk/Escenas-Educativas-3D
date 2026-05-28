@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { DirectorioTutorClient } from '@/components/tutorias/DirectorioTutorClient'
+import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,34 +29,7 @@ export default async function EstudiantesTutorPage() {
     return <div className="p-8 text-center text-ink3">No tienes una instituci&oacute;n asignada.</div>
   }
 
-  const teacherName = (profile.full_name || '').trim().toLowerCase()
-  const settings = profile.institutions?.settings || {}
-  const tutoredCourseNames: string[] = []
-
-  // Extraer qué cursos tienen asignado a este docente como tutor
-  Object.keys(settings).forEach(key => {
-    if (key.startsWith('horarios')) {
-      const config = settings[key]?.config
-      if (config && config.tutores) {
-        Object.entries(config.tutores).forEach(([cursoName, tutorName]) => {
-          if (typeof tutorName === 'string' && tutorName.trim().toLowerCase() === teacherName) {
-            tutoredCourseNames.push(cursoName)
-          }
-        })
-      }
-    }
-  })
-
-  // Obtener cursos de la institución para mapear IDs
-  const { data: allCourses } = await admin.from('courses').select('id, name, parallel').eq('institution_id', instId)
-  
-  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-  const tutoredNormalized = tutoredCourseNames.map(normalize)
-  
-  const tutoredCourses = (allCourses || []).filter(c => 
-    tutoredNormalized.includes(normalize(c.name)) || 
-    tutoredNormalized.includes(normalize(`${c.name} ${c.parallel || ''}`))
-  )
+  const tutoredCourses = await resolveTutoredCoursesForTeacher(admin as any, user.id)
 
   const tutoredCourseIds = tutoredCourses.map(c => c.id)
 
@@ -71,6 +45,7 @@ export default async function EstudiantesTutorPage() {
   }
 
   // Injectar metadata rica desde la institución (directorio admin)
+  const settings = profile.institutions?.settings || {}
   const masterDirectoryData = settings.directory || {}
 
   const mergedStudents = enrollmentsRes.map(en => {

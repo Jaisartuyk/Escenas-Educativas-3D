@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { SecretariaClient } from '@/components/secretaria/SecretariaClient'
+import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -29,37 +30,7 @@ export default async function TutoriasPensionesPage() {
     return <div className="p-8 text-center text-ink3">No tienes una institución asignada.</div>
   }
 
-  const teacherName = (profile.full_name || '').trim().toLowerCase()
-
-  // Buscar los cursos tutoreados
-  const { data: inst } = await admin.from('institutions').select('settings').eq('id', instId).single()
-  const settings = inst?.settings || {}
-  const tutoredCourseNames: string[] = []
-
-  Object.keys(settings).forEach(key => {
-    if (key.startsWith('horarios')) {
-      const config = settings[key]?.config
-      if (config && config.tutores) {
-        Object.entries(config.tutores).forEach(([cursoName, tutorName]) => {
-          if (typeof tutorName === 'string' && tutorName.trim().toLowerCase() === teacherName) {
-            tutoredCourseNames.push(cursoName)
-          }
-        })
-      }
-    }
-  })
-
-  // Mapear nombres a IDs de cursos
-  const { data: allCoursesData } = await admin
-    .from('courses')
-    .select('id, name, parallel, level, shift')
-    .eq('institution_id', instId)
-
-  const allCourses = allCoursesData || []
-  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-  
-  const tutoredNormalized = tutoredCourseNames.map(normalize)
-  const tutoredCourses = allCourses.filter(c => tutoredNormalized.includes(normalize(c.name)))
+  const tutoredCourses = await resolveTutoredCoursesForTeacher(admin as any, user.id)
   const tutoredCourseIds = tutoredCourses.map(c => c.id)
 
   if (tutoredCourseIds.length === 0) {

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AsistenciasClient } from '@/components/asistencias/AsistenciasClient'
+import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,36 +28,14 @@ export default async function AsistenciasPage() {
   }
 
   const instId = profile.institution_id
-  const teacherName = (profile.full_name || '').trim().toLowerCase()
-
-  // Buscar los cursos tutoreados
-  const settings = profile.institutions?.settings || {}
-  const tutoredCourseNames: string[] = []
-
-  Object.keys(settings).forEach(key => {
-    if (key.startsWith('horarios')) {
-      const config = settings[key]?.config
-      if (config && config.tutores) {
-        Object.entries(config.tutores).forEach(([cursoName, tutorName]) => {
-          if (typeof tutorName === 'string' && tutorName.trim().toLowerCase() === teacherName) {
-            tutoredCourseNames.push(cursoName)
-          }
-        })
-      }
-    }
-  })
 
   let tutoredCourses: any[] = []
   let enrollmentsRes: any[] = []
   let attendanceGlobal: any[] = []
   let justifications: any[] = []
 
-  if (instId && tutoredCourseNames.length > 0) {
-    const { data: allCourses } = await admin.from('courses').select('id, name, parallel').eq('institution_id', instId)
-    const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
-
-    const tutoredNormalized = tutoredCourseNames.map(normalize)
-    tutoredCourses = (allCourses || []).filter(c => tutoredNormalized.includes(normalize(c.name)) || tutoredNormalized.includes(normalize(`${c.name} ${c.parallel || ''}`)))
+  if (instId) {
+    tutoredCourses = await resolveTutoredCoursesForTeacher(admin as any, user.id)
     const tutoredCourseIds = tutoredCourses.map(c => c.id)
 
     if (tutoredCourseIds.length > 0) {
