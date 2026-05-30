@@ -34,6 +34,7 @@ export default async function EstudiantesTutorPage() {
   const tutoredCourseIds = tutoredCourses.map(c => c.id)
 
   let enrollmentsRes: any[] = []
+  let attendanceRecords: any[] = []
 
   if (tutoredCourseIds.length > 0) {
     // Join perfiles de estudiantes
@@ -42,6 +43,15 @@ export default async function EstudiantesTutorPage() {
       .select('*, student:profiles(*)')
       .in('course_id', tutoredCourseIds)
     enrollmentsRes = eData || []
+
+    const studentIds = enrollmentsRes.map((en: any) => en.student_id).filter(Boolean)
+    if (studentIds.length > 0) {
+      const { data: attendanceData } = await admin
+        .from('attendance')
+        .select('id, student_id, status, date, justification_status, justification_text')
+        .in('student_id', studentIds)
+      attendanceRecords = attendanceData || []
+    }
   }
 
   // Injectar metadata rica desde la institución (directorio admin)
@@ -73,6 +83,7 @@ export default async function EstudiantesTutorPage() {
       <DirectorioTutorClient 
         courses={tutoredCourses}
         students={mergedStudents}
+        attendanceRecords={attendanceRecords}
       />
     </div>
   )
