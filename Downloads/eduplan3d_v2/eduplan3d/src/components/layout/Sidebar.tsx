@@ -52,6 +52,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
       { href: '/dashboard/docencia',      icon: '📝', label: 'Docencia' },
       { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas' },
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
+      { href: '/dashboard/asistencias',  icon: '✅', label: 'Asistencias' },
       { href: '/dashboard/supervision-tutores', icon: '👨‍🏫', label: 'Supervisión Tutores' },
     ],
   },
@@ -153,6 +154,7 @@ const NAV_SECRETARY: NavNode[] = [
     items: [
       { href: '/dashboard/horarios',     icon: '📅', label: 'Horarios' },
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
+      { href: '/dashboard/asistencias',  icon: '✅', label: 'Asistencias' },
       { href: '/dashboard/biblioteca',   icon: '📋', label: 'Planificaciones' },
     ],
   },
@@ -171,6 +173,7 @@ const NAV_SUPERVISOR: NavNode[] = [
       { href: '/dashboard/docencia',      icon: '📝', label: 'Docencia' },
       { href: '/dashboard/entregas',     icon: '📥', label: 'Entregas' },
       { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas' },
+      { href: '/dashboard/asistencias',  icon: '✅', label: 'Asistencias' },
       { href: '/dashboard/supervision-tutores', icon: '👨‍🏫', label: 'Supervisión Tutores' },
       { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes' },
     ],
