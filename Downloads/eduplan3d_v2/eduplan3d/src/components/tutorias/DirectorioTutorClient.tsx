@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Search, ChevronDown, UserSquare2 } from 'lucide-react'
+import { Search, ChevronDown, UserSquare2, AlertTriangle, Clock3 } from 'lucide-react'
 import { FichaEstudianteModal } from './FichaEstudianteModal'
+import { buildAttendanceSummaries, getStudentAttendanceHistory } from '@/lib/attendance-summary'
 
 // Paleta de colores atractiva para las tarjetas
 const CARD_COLORS = [
@@ -24,10 +25,12 @@ function getColorForId(id: string) {
   return CARD_COLORS[Math.abs(hash) % CARD_COLORS.length]
 }
 
-export function DirectorioTutorClient({ courses = [], students = [] }: any) {
+export function DirectorioTutorClient({ courses = [], students = [], attendanceRecords = [] }: any) {
   const [selectedCourse, setSelectedCourse] = useState(courses[0]?.id || '')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null)
+
+  const attendanceSummaries = useMemo(() => buildAttendanceSummaries(attendanceRecords), [attendanceRecords])
 
   const filteredStudents = useMemo(() => {
     return students
@@ -90,7 +93,12 @@ export function DirectorioTutorClient({ courses = [], students = [] }: any) {
               return (
                 <div 
                   key={st.id}
-                  onClick={() => setSelectedStudent(st)}
+                  onClick={() => setSelectedStudent({
+                    ...st,
+                    attendanceSummary: attendanceSummaries[st.id] || { present: 0, late: 0, absent: 0, justified: 0, total: 0, attendanceRate: 0, lastStatus: null, lastDate: null },
+                    attendanceHistory: getStudentAttendanceHistory(attendanceRecords, st.id),
+                    courseLabel: `${courses.find((course: any) => course.id === st.courseId)?.name || ''} ${courses.find((course: any) => course.id === st.courseId)?.parallel || ''}`.trim(),
+                  })}
                   className={`relative group overflow-hidden rounded-2xl border cursor-pointer transition-all hover:shadow-md hover:-translate-y-1 bg-surface`}
                 >
                   {/* Encabezado colreado */}
@@ -115,6 +123,33 @@ export function DirectorioTutorClient({ courses = [], students = [] }: any) {
                   <div className="px-4 pb-4 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-0 left-0 right-0 bg-gradient-to-t from-surface via-surface to-transparent pt-6 pointer-events-none">
                     <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 uppercase tracking-widest text-center py-1.5 rounded-lg flex items-center justify-center gap-1.5">
                       <UserSquare2 size={12} /> Abrir Ficha
+                    </div>
+                  </div>
+
+                  <div className="px-4 pb-4 -mt-1">
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-2 py-2">
+                        <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">% asistencia</div>
+                        <div className="mt-1 text-sm font-bold text-emerald-900">
+                          {attendanceSummaries[st.id]?.attendanceRate ?? 0}%
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-rose-100 bg-rose-50 px-2 py-2">
+                        <div className="text-[10px] font-bold uppercase tracking-wide text-rose-700 flex items-center justify-center gap-1">
+                          <AlertTriangle size={10} /> Faltas
+                        </div>
+                        <div className="mt-1 text-sm font-bold text-rose-900">
+                          {Math.max((attendanceSummaries[st.id]?.absent ?? 0) - (attendanceSummaries[st.id]?.justified ?? 0), 0)}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-amber-100 bg-amber-50 px-2 py-2">
+                        <div className="text-[10px] font-bold uppercase tracking-wide text-amber-700 flex items-center justify-center gap-1">
+                          <Clock3 size={10} /> Atrasos
+                        </div>
+                        <div className="mt-1 text-sm font-bold text-amber-900">
+                          {attendanceSummaries[st.id]?.late ?? 0}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

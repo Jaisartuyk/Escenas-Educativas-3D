@@ -44,7 +44,10 @@ export default async function AsistenciasPage() {
 
       const studentIds = enrollmentsRes.map(e => e.student_id)
       if (studentIds.length > 0) {
-        const { data: attData } = await admin.from('attendance').select('student_id, status').in('student_id', studentIds)
+        const { data: attData } = await admin
+          .from('attendance')
+          .select('id, student_id, status, date, justification_status, justification_text')
+          .in('student_id', studentIds)
         attendanceGlobal = attData || []
 
         // Traer justificaciones de los estudiantes tutorados (con nombre + materia)
