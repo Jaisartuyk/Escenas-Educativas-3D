@@ -23,7 +23,7 @@ export default async function AsistenciasPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'teacher' && profile?.role !== 'admin' && profile?.role !== 'rector') {
+  if (profile?.role !== 'teacher' && profile?.role !== 'admin' && profile?.role !== 'rector' && profile?.role !== 'secretary' && profile?.role !== 'supervisor') {
     redirect('/dashboard') // Redirigir si no tiene permisos
   }
 
@@ -35,7 +35,17 @@ export default async function AsistenciasPage() {
   let justifications: any[] = []
 
   if (instId) {
-    tutoredCourses = await resolveTutoredCoursesForTeacher(admin as any, user.id)
+    if (profile?.role === 'teacher') {
+      tutoredCourses = await resolveTutoredCoursesForTeacher(admin as any, user.id)
+    } else {
+      const { data: allCourses } = await admin
+        .from('courses')
+        .select('id, name, parallel, shift')
+        .eq('institution_id', instId)
+        .order('name', { ascending: true })
+      tutoredCourses = allCourses || []
+    }
+
     const tutoredCourseIds = tutoredCourses.map(c => c.id)
 
     if (tutoredCourseIds.length > 0) {
