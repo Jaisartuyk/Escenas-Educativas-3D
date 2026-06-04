@@ -70,6 +70,7 @@ const NAV_ADMIN_GROUPED: NavGroup[] = [
     color: 'from-violet/15 to-teal/10',
     items: [
       { href: '/dashboard/secretaria',   icon: '💼', label: 'Secretaría' },
+      { href: '/dashboard/saldos-externos', icon: '🧾', label: 'Saldos Externos' },
       { href: '/dashboard/mensajes',     icon: '💬', label: 'Mensajes' },
       { href: '/dashboard/historial',    icon: '📂', label: 'Historial' },
       { href: '/dashboard/configuracion',icon: '⚙️', label: 'Configuración' },
@@ -138,6 +139,7 @@ const NAV_PARENT: NavItem[] = [
 // ─── Nav secretaria ──────────────────────────────────────────────────────────
 const NAV_SECRETARY: NavNode[] = [
   { href: '/dashboard/secretaria',   icon: '💼', label: 'Secretaría'   },
+  { href: '/dashboard/saldos-externos', icon: '🧾', label: 'Saldos Externos' },
   {
     title: 'Gestión Institucional',
     icon: '👥',
@@ -518,3 +520,5 @@ export function Sidebar({
     </>
   )
 }
+
+
