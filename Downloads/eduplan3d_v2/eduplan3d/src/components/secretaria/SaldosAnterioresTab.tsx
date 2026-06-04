@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import toast from 'react-hot-toast'
 import {
   Plus, X, Search, AlertTriangle, CheckCircle2, HandCoins,
-  Trash2, ChevronDown, Clock, DollarSign, Users, TrendingDown,
+  Trash2, ChevronDown, Clock, DollarSign, Users, TrendingDown, Download,
 } from 'lucide-react'
 
 function formatMoney(n: number) {
@@ -42,6 +42,7 @@ export function SaldosAnterioresTab({ students, institutionId }: Props) {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterPeriod, setFilterPeriod] = useState('todos')
   const [filterStatus, setFilterStatus] = useState('todos')
@@ -168,6 +169,97 @@ export function SaldosAnterioresTab({ students, institutionId }: Props) {
     }
   }
 
+  const exportRows = useMemo(() => {
+    return filtered
+      .map((debt) => ({
+        id: debt.id,
+        studentName: studentsById[debt.student_id] || 'Alumno desconocido',
+        period: debt.period,
+        description: debt.description,
+        type: debt.type,
+        status: debt.status,
+        amount: Number(debt.amount || 0),
+        paidAmount: Number(debt.paid_amount || 0),
+        remainingAmount: Number(debt.amount || 0) - Number(debt.paid_amount || 0),
+        notes: debt.notes || '',
+      }))
+      .sort((a, b) => {
+        const byStudent = a.studentName.localeCompare(b.studentName)
+        if (byStudent !== 0) return byStudent
+        const byPeriod = b.period.localeCompare(a.period)
+        if (byPeriod !== 0) return byPeriod
+        return a.description.localeCompare(b.description)
+      })
+  }, [filtered, studentsById])
+
+  const exportHistoricalExcel = async () => {
+    try {
+      setExporting(true)
+      const ExcelJS = (await import('exceljs')).default
+      const workbook = new ExcelJS.Workbook()
+      workbook.creator = 'ClassNova'
+      workbook.created = new Date()
+
+      const today = new Date()
+      const safeDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+      const summarySheet = workbook.addWorksheet('Resumen')
+      summarySheet.columns = [
+        { header: 'Indicador', key: 'label', width: 34 },
+        { header: 'Valor', key: 'value', width: 24 },
+      ]
+      summarySheet.addRows([
+        { label: 'Fecha de exportación', value: safeDate },
+        { label: 'Vista', value: 'Saldos Anteriores' },
+        { label: 'Registros exportados', value: exportRows.length },
+        { label: 'Período aplicado', value: filterPeriod },
+        { label: 'Estado aplicado', value: filterStatus },
+        { label: 'Búsqueda aplicada', value: searchTerm.trim() || '(sin filtro)' },
+        { label: 'Saldo pendiente (filtrado)', value: exportRows.reduce((sum, row) => sum + row.remainingAmount, 0) },
+        { label: 'Total cobrado (filtrado)', value: exportRows.reduce((sum, row) => sum + row.paidAmount, 0) },
+      ])
+      summarySheet.getRow(1).font = { bold: true }
+
+      const debtsSheet = workbook.addWorksheet('Saldos')
+      debtsSheet.columns = [
+        { header: 'ID', key: 'id', width: 38 },
+        { header: 'Estudiante', key: 'studentName', width: 34 },
+        { header: 'Período', key: 'period', width: 16 },
+        { header: 'Tipo', key: 'type', width: 14 },
+        { header: 'Descripción', key: 'description', width: 42 },
+        { header: 'Estado', key: 'status', width: 14 },
+        { header: 'Monto', key: 'amount', width: 14 },
+        { header: 'Abonado', key: 'paidAmount', width: 14 },
+        { header: 'Saldo', key: 'remainingAmount', width: 14 },
+        { header: 'Notas', key: 'notes', width: 34 },
+      ]
+
+      exportRows.forEach((row) => debtsSheet.addRow(row))
+      debtsSheet.getRow(1).font = { bold: true }
+      ;['G', 'H', 'I'].forEach((col) => {
+        debtsSheet.getColumn(col).numFmt = '$#,##0.00'
+      })
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `secretaria_saldos_anteriores_${safeDate}.xlsx`
+      anchor.click()
+      URL.revokeObjectURL(url)
+
+      toast.success('Excel exportado')
+    } catch (error) {
+      console.error('[secretaria/historical-export-excel]', error)
+      toast.error('No se pudo exportar el Excel')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   // Render
   return (
     <div className="space-y-4" ref={el => { if (el && !loaded) load() }}>
@@ -221,6 +313,14 @@ export function SaldosAnterioresTab({ students, institutionId }: Props) {
             </select>
             <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink4 pointer-events-none" />
           </div>
+          <button
+            onClick={exportHistoricalExcel}
+            disabled={exporting || !loaded}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-surface2 text-ink3 hover:bg-surface2 transition-colors disabled:opacity-50"
+          >
+            <Download size={14} />
+            {exporting ? 'Exportando...' : 'Exportar Excel'}
+          </button>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
