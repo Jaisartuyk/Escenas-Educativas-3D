@@ -7,7 +7,7 @@ import {
   Plus, Check, Clock, AlertTriangle, X, Search,
   DollarSign, Users, TrendingUp, CalendarDays,
   ChevronDown, Filter, Trash2, CreditCard, GraduationCap,
-  Pencil, Save, Table as TableIcon, LayoutList, Settings, HandCoins, History,
+  Pencil, Save, Table as TableIcon, LayoutList, Settings, HandCoins, History, Download,
 } from 'lucide-react'
 import { updateInstitutionFinancial, syncPendingPayments } from '@/lib/actions/institution'
 import { getAppliedAmount, getComputedPaymentStatus, getRemainingAmount } from '@/lib/payment-progress'
@@ -124,6 +124,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const [newDesc, setNewDesc]         = useState('')
   const [newDueDate, setNewDueDate]   = useState('')
   const [saving, setSaving]           = useState(false)
+  const [exporting, setExporting]     = useState(false)
   const [showConfig, setShowConfig]   = useState(false)
   const [finConfig, setFinConfig]     = useState({
     matutina:   { matricula: 35, pension: 60, ...financialSettings?.matutina },
@@ -367,6 +368,52 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     return sorted
   }, [tableData])
 
+  const exportRows = useMemo(() => {
+    return filtered
+      .map((payment: any) => {
+        const student = studentsById[payment.student_id]
+        const courseIds = studentCourses[payment.student_id] || []
+        const course = courseIds.length > 0 ? coursesById[courseIds[0]] : null
+        const monthKey = payment.type === 'pension' ? getMonthKeyFromPayment(payment) : ''
+        const dueDate = payment?.due_date || null
+        let periodLabel = ''
+
+        if (payment.type === 'matricula') {
+          periodLabel = dueDate ? String(new Date(`${dueDate}T00:00:00`).getFullYear()) : ''
+        } else if (payment.type === 'pension') {
+          periodLabel = monthKey || ''
+        }
+
+        return {
+          id: payment.id,
+          studentName: student?.full_name || 'Estudiante',
+          studentEmail: student?.email || '',
+          courseName: course?.name || '',
+          parallel: course?.parallel || '',
+          shift: course?.shift || '',
+          type: payment.type || '',
+          description: payment.description || '',
+          periodLabel,
+          computedStatus: payment.computedStatus,
+          amount: Number(payment.amount || 0),
+          appliedAmount: Number(payment.appliedAmount || 0),
+          remainingAmount: Number(payment.remainingAmount || 0),
+          dueDate: payment.due_date || '',
+          paidDate: payment.paid_date || '',
+          createdAt: payment.created_at || '',
+          updatedAt: payment.updated_at || '',
+          abonos: Array.isArray(payment.abonos) ? payment.abonos : [],
+        }
+      })
+      .sort((a, b) => {
+        const byName = a.studentName.localeCompare(b.studentName)
+        if (byName !== 0) return byName
+        const byDue = (a.dueDate || '').localeCompare(b.dueDate || '')
+        if (byDue !== 0) return byDue
+        return a.description.localeCompare(b.description)
+      })
+  }, [filtered, studentsById, studentCourses, coursesById])
+
   // ── Actions ──────────────────────────────────────────────────────────────
   function handleCellClick(studentId: string, type: 'matricula' | 'pension', month?: string) {
     if (isTutorMode) return
@@ -573,6 +620,111 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     }
   }
 
+  async function exportExcel() {
+    try {
+      setExporting(true)
+      const ExcelJS = (await import('exceljs')).default
+      const workbook = new ExcelJS.Workbook()
+      workbook.creator = 'ClassNova'
+      workbook.created = new Date()
+
+      const today = new Date()
+      const safeDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+
+      const summarySheet = workbook.addWorksheet('Resumen')
+      summarySheet.columns = [
+        { header: 'Indicador', key: 'label', width: 32 },
+        { header: 'Valor', key: 'value', width: 24 },
+      ]
+      summarySheet.addRows([
+        { label: 'Fecha de exportación', value: safeDate },
+        { label: 'Vista', value: 'Secretaría Académica' },
+        { label: 'Registros exportados', value: exportRows.length },
+        { label: 'Estado aplicado', value: filterStatus },
+        { label: 'Jornada aplicada', value: filterShift },
+        { label: 'Curso aplicado', value: filterCourse === 'todos' ? 'todos' : (coursesById[filterCourse]?.name || filterCourse) },
+        { label: 'Tipo aplicado', value: filterType },
+        { label: 'Búsqueda aplicada', value: searchTerm.trim() || '(sin filtro)' },
+        { label: 'Total recaudado (filtrado)', value: exportRows.reduce((sum, row) => sum + row.appliedAmount, 0) },
+        { label: 'Total pendiente (filtrado)', value: exportRows.reduce((sum, row) => sum + row.remainingAmount, 0) },
+      ])
+      summarySheet.getRow(1).font = { bold: true }
+
+      const paymentsSheet = workbook.addWorksheet('Cobros')
+      paymentsSheet.columns = [
+        { header: 'ID', key: 'id', width: 38 },
+        { header: 'Estudiante', key: 'studentName', width: 34 },
+        { header: 'Correo', key: 'studentEmail', width: 28 },
+        { header: 'Curso', key: 'courseName', width: 18 },
+        { header: 'Paralelo', key: 'parallel', width: 12 },
+        { header: 'Jornada', key: 'shift', width: 14 },
+        { header: 'Tipo', key: 'type', width: 14 },
+        { header: 'Descripción', key: 'description', width: 40 },
+        { header: 'Período', key: 'periodLabel', width: 14 },
+        { header: 'Estado real', key: 'computedStatus', width: 16 },
+        { header: 'Monto', key: 'amount', width: 14 },
+        { header: 'Abonado', key: 'appliedAmount', width: 14 },
+        { header: 'Saldo', key: 'remainingAmount', width: 14 },
+        { header: 'Vence', key: 'dueDate', width: 14 },
+        { header: 'Pagado', key: 'paidDate', width: 14 },
+        { header: 'Creado', key: 'createdAt', width: 24 },
+        { header: 'Actualizado', key: 'updatedAt', width: 24 },
+      ]
+
+      exportRows.forEach((row) => paymentsSheet.addRow(row))
+      paymentsSheet.getRow(1).font = { bold: true }
+
+      ;['K', 'L', 'M'].forEach((col) => {
+        paymentsSheet.getColumn(col).numFmt = '$#,##0.00'
+      })
+
+      const abonosSheet = workbook.addWorksheet('Abonos')
+      abonosSheet.columns = [
+        { header: 'Pago ID', key: 'paymentId', width: 38 },
+        { header: 'Estudiante', key: 'studentName', width: 34 },
+        { header: 'Descripción cobro', key: 'description', width: 40 },
+        { header: 'Abono ID', key: 'abonoId', width: 38 },
+        { header: 'Monto abono', key: 'amount', width: 16 },
+        { header: 'Fecha abono', key: 'paidAt', width: 16 },
+        { header: 'Observación', key: 'note', width: 34 },
+      ]
+
+      exportRows.forEach((row) => {
+        row.abonos.forEach((abono: any) => {
+          abonosSheet.addRow({
+            paymentId: row.id,
+            studentName: row.studentName,
+            description: row.description,
+            abonoId: abono.id || '',
+            amount: Number(abono.amount || 0),
+            paidAt: abono.paid_at || '',
+            note: abono.note || '',
+          })
+        })
+      })
+      abonosSheet.getRow(1).font = { bold: true }
+      abonosSheet.getColumn('E').numFmt = '$#,##0.00'
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `secretaria_cobros_${safeDate}.xlsx`
+      anchor.click()
+      URL.revokeObjectURL(url)
+
+      toast.success('Excel exportado')
+    } catch (error) {
+      console.error('[secretaria/export-excel]', error)
+      toast.error('No se pudo exportar el Excel')
+    } finally {
+      setExporting(false)
+    }
+  }
+
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -720,6 +872,14 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
             <div className="flex items-center gap-2">
               {!isTutorMode && (
                 <>
+                  <button
+                    onClick={exportExcel}
+                    disabled={exporting}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-surface2 text-ink3 hover:bg-surface2 transition-colors disabled:opacity-50 flex-shrink-0"
+                  >
+                    <Download size={14} />
+                    {exporting ? 'Exportando...' : 'Exportar Excel'}
+                  </button>
                   <button
                     onClick={() => setShowConfig(!showConfig)}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors flex-shrink-0 ${
