@@ -35,7 +35,7 @@ async function loadSubjectContext(subjectId: string) {
 
   const { data: courseSubjects } = await admin
     .from('subjects')
-    .select('id, name')
+    .select('id, name, teacher_id')
     .eq('course_id', course.id)
 
   return {
@@ -52,8 +52,23 @@ async function loadSubjectContext(subjectId: string) {
     },
     institutionId,
     settings,
-    courseSubjects: (courseSubjects || []) as Array<{ id: string; name: string | null }>,
+    courseSubjects: (courseSubjects || []) as Array<{ id: string; name: string | null; teacher_id: string | null }>,
   }
+}
+
+function teacherHasFullCourseControl(
+  courseSubjects: Array<{ id: string; name: string | null; teacher_id: string | null }>,
+  userId: string
+) {
+  const assignedTeacherIds = Array.from(
+    new Set(
+      (courseSubjects || [])
+        .map(subject => subject.teacher_id)
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    )
+  )
+
+  return assignedTeacherIds.length === 1 && assignedTeacherIds[0] === userId
 }
 
 function dedupeSharedAttendance(rows: any[]) {
@@ -95,6 +110,7 @@ export async function GET(req: Request) {
         course,
         date,
         teacherName: ((profile as any)?.full_name as string | undefined) || '',
+        teacherHasFullCourseControl: teacherHasFullCourseControl(courseSubjects, user.id),
       })
 
       const subjectIds = courseSubjects.map(subject => subject.id)
@@ -156,6 +172,7 @@ export async function GET(req: Request) {
           course,
           date: dateKey,
           teacherName: ((profile as any)?.full_name as string | undefined) || '',
+          teacherHasFullCourseControl: teacherHasFullCourseControl(courseSubjects, user.id),
         })
         return [dateKey, policy]
       })
@@ -198,6 +215,7 @@ export async function POST(req: Request) {
         course,
         date,
         teacherName: ((profile as any)?.full_name as string | undefined) || '',
+        teacherHasFullCourseControl: teacherHasFullCourseControl(courseSubjects, user.id),
       })
 
       if (!policy.canTeacherEdit) {
