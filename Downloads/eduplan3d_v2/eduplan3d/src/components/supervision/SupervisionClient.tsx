@@ -23,6 +23,49 @@ interface Props {
 
 type TabKey = 'resumen' | 'tareas' | 'calificaciones' | 'asistencia' | 'comportamiento'
 
+const ATTENDANCE_STATUS_PRIORITY: Record<string, number> = {
+  absent: 1,
+  late: 2,
+  present: 3,
+}
+
+function dedupeCourseAttendanceRecords(records: any[]) {
+  const byStudentDate = new Map<string, any>()
+
+  for (const record of records || []) {
+    if (!record?.student_id || !record?.date) continue
+    const key = `${record.student_id}::${record.date}`
+    const current = byStudentDate.get(key)
+
+    if (!current) {
+      byStudentDate.set(key, record)
+      continue
+    }
+
+    const currentPriority = ATTENDANCE_STATUS_PRIORITY[current.status] ?? 0
+    const nextPriority = ATTENDANCE_STATUS_PRIORITY[record.status] ?? 0
+
+    if (nextPriority > currentPriority) {
+      byStudentDate.set(key, {
+        ...record,
+        justification_status: record.justification_status ?? current.justification_status,
+        justification_text: record.justification_text ?? current.justification_text,
+        justification_file_url: record.justification_file_url ?? current.justification_file_url,
+      })
+      continue
+    }
+
+    byStudentDate.set(key, {
+      ...current,
+      justification_status: current.justification_status ?? record.justification_status,
+      justification_text: current.justification_text ?? record.justification_text,
+      justification_file_url: current.justification_file_url ?? record.justification_file_url,
+    })
+  }
+
+  return Array.from(byStudentDate.values())
+}
+
 
 // ─── Component ──────────────────────────────────────────────────────────────
 export function SupervisionClient({ teachers, courses, subjects, enrollments, assignments, grades, categories, attendance, behaviors, parcialesCount, submissions = [], role }: Props) {
@@ -54,10 +97,21 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
     return grades.filter(g => aIds.has(g.assignment_id))
   }, [grades, subjectAssignments])
 
-  // Attendance for subject
+  const selectedCourseSubjectIds = useMemo(() => {
+    if (!selectedSubject?.course_id) return new Set<string>()
+    return new Set(
+      subjects
+        .filter((subject) => subject.course_id === selectedSubject.course_id)
+        .map((subject) => subject.id)
+    )
+  }, [subjects, selectedSubject])
+
+  // Attendance shared by course/day for the selected subject's course
   const subjectAttendance = useMemo(() =>
-    attendance.filter(a => a.subject_id === selectedSubjectId),
-    [attendance, selectedSubjectId]
+    dedupeCourseAttendanceRecords(
+      attendance.filter(a => selectedCourseSubjectIds.has(a.subject_id))
+    ),
+    [attendance, selectedCourseSubjectIds]
   )
 
   // Behaviors for subject
