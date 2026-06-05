@@ -56,6 +56,15 @@ async function loadSubjectContext(subjectId: string) {
   }
 }
 
+function dedupeSharedAttendance(rows: any[]) {
+  const byStudentDate = new Map<string, any>()
+  for (const row of rows || []) {
+    const key = `${row.date}::${row.student_id}`
+    if (!byStudentDate.has(key)) byStudentDate.set(key, row)
+  }
+  return Array.from(byStudentDate.values())
+}
+
 // GET /api/docente/attendance?subjectId=X&weekStart=YYYY-MM-DD
 export async function GET(req: Request) {
   const supabase = createClient()
@@ -113,22 +122,53 @@ export async function GET(req: Request) {
 
   const safeWeekStart = weekStart as string
 
-  // weekEnd = Friday
-  const start = new Date(safeWeekStart)
-  const end   = new Date(safeWeekStart)
-  end.setDate(end.getDate() + 4)
-  const weekEnd = end.toISOString().split('T')[0]
+  try {
+    const { admin, course, settings, courseSubjects } = await loadSubjectContext(subjectId)
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single()
 
-  const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('attendance' as any)
-    .select('id, student_id, date, status')
-    .eq('subject_id', subjectId)
-    .gte('date', safeWeekStart)
-    .lte('date', weekEnd)
+    const start = new Date(`${safeWeekStart}T12:00:00`)
+    const weekDates = Array.from({ length: 5 }, (_, index) => {
+      const current = new Date(start)
+      current.setDate(start.getDate() + index)
+      return current
+    })
+    const weekEnd = weekDates[4].toISOString().split('T')[0]
+    const subjectIds = courseSubjects.map(subject => subject.id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ data })
+    const { data, error } = await admin
+      .from('attendance' as any)
+      .select('id, subject_id, student_id, date, status')
+      .in('subject_id', subjectIds.length > 0 ? subjectIds : [subjectId])
+      .gte('date', safeWeekStart)
+      .lte('date', weekEnd)
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    const policies = Object.fromEntries(
+      weekDates.map((current) => {
+        const dateKey = current.toISOString().split('T')[0]
+        const policy = getSharedAttendancePolicy({
+          settings,
+          course,
+          date: dateKey,
+          teacherName: ((profile as any)?.full_name as string | undefined) || '',
+        })
+        return [dateKey, policy]
+      })
+    )
+
+    return NextResponse.json({
+      data: dedupeSharedAttendance((data || []) as any[]),
+      policies,
+      shared: true,
+    })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Error al obtener asistencia' }, { status: 500 })
+  }
 }
 
 // POST /api/docente/attendance  → upsert one record

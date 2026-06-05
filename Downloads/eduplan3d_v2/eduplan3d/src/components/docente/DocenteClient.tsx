@@ -17,6 +17,15 @@ import { createClient } from '@/lib/supabase/client'
 type AttendanceStatus = 'present' | 'absent' | 'late'
 type BehaviorType     = 'positive' | 'negative' | 'recommendation'
 type DetailTab        = 'asistencia' | 'calificaciones' | 'comportamiento'
+type SharedAttendancePolicy = {
+  sharedMode: boolean
+  authorityTeacherName: string | null
+  authoritySubjectName: string | null
+  authoritySource: 'tutor' | 'first-hour' | 'fallback'
+  canTeacherEdit: boolean
+  dayLabel: string
+  courseLabel: string
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 // Inline hex colors — Tailwind purges dynamic class names in production
@@ -113,6 +122,7 @@ export function DocenteClient({
   const [weekStart,   setWeekStart]   = useState<Date>(() => getMondayOfWeek())
   const [attendance,  setAttendance]  = useState<Record<string, AttendanceStatus>>({}) // "date_studentId" → status
   const [loadingAtt,  setLoadingAtt]  = useState(false)
+  const [attendancePolicies, setAttendancePolicies] = useState<Record<string, SharedAttendancePolicy>>({})
 
   // ── Comportamiento ───────────────────────────────────────────────────────
   const [behaviors,       setBehaviors]       = useState<any[]>([])
@@ -184,12 +194,13 @@ export function DocenteClient({
     setLoadingAtt(true)
     try {
       const res = await fetch(`/api/docente/attendance?subjectId=${subjectId}&weekStart=${toISO(week)}`)
-      const { data } = await res.json()
+      const { data, policies } = await res.json()
       const map: Record<string, AttendanceStatus> = {}
       ;(data || []).forEach((r: any) => {
         map[`${r.date}_${r.student_id}`] = r.status
       })
       setAttendance(map)
+      setAttendancePolicies((policies || {}) as Record<string, SharedAttendancePolicy>)
     } finally { setLoadingAtt(false) }
   }, [])
 
@@ -237,8 +248,43 @@ export function DocenteClient({
     const key    = `${date}_${studentId}`
     const current: AttendanceStatus = attendance[key] || 'present'
     const next   = NEXT_STATUS[current]
+    const policy = attendancePolicies[date]
 
-    setAttendance(prev => ({ ...prev, [key]: next }))
+    if (policy?.sharedMode && !policy.canTeacherEdit) {
+      if (current !== 'absent') {
+        toast.error(`La asistencia oficial de ${policy.courseLabel} la registra ${policy.authorityTeacherName || 'el docente responsable'}. Solo puedes corregir falta a atraso si el alumno llegó después.`)
+        return
+      }
+
+      setAttendance(prev => ({ ...prev, [key]: 'late' }))
+
+      try {
+        const res = await fetch('/api/docente/attendance', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject_id: selectedSubjectId,
+            student_id: studentId,
+            date,
+          }),
+        })
+        const data = await res.json()
+        if (data.error) {
+          toast.error('Error al registrar atraso: ' + data.error)
+          setAttendance(prev => ({ ...prev, [key]: current }))
+          return
+        }
+        toast.success('Atraso registrado para todo el día')
+      } catch (e) {
+        console.error('[attendance late correction failed]:', e)
+        toast.error('Error de conexión al registrar atraso')
+        setAttendance(prev => ({ ...prev, [key]: current }))
+      }
+      return
+    }
+
+    const nextMap = { ...attendance, [key]: next }
+    setAttendance(nextMap)
 
     try {
       const res = await fetch('/api/docente/attendance', {
@@ -246,10 +292,11 @@ export function DocenteClient({
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           subject_id:     selectedSubjectId,
-          student_id:     studentId,
           date,
-          status:         next,
-          institution_id: instId,
+          entries: students.map((student: any) => ({
+            student_id: student.id,
+            status: nextMap[`${date}_${student.id}`] || 'present',
+          })),
         }),
       })
       const data = await res.json()
@@ -258,6 +305,8 @@ export function DocenteClient({
         toast.error('Error al guardar asistencia: ' + data.error)
         // Revertir cambio optimista
         setAttendance(prev => ({ ...prev, [key]: current }))
+      } else if (data.policy) {
+        setAttendancePolicies(prev => ({ ...prev, [date]: data.policy }))
       }
     } catch (e) {
       console.error('[attendance] Fetch failed:', e)
@@ -951,6 +1000,12 @@ export function DocenteClient({
       {/* ── TAB: ASISTENCIA ──────────────────────────────────────────────── */}
       {activeTab === 'asistencia' && (() => {
         const weekDates = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i))
+        const weekPolicies = weekDates
+          .map(d => attendancePolicies[toISO(d)])
+          .filter(Boolean) as SharedAttendancePolicy[]
+        const lockedDays = weekDates
+          .map(d => ({ date: toISO(d), policy: attendancePolicies[toISO(d)] }))
+          .filter(entry => entry.policy?.sharedMode && !entry.policy.canTeacherEdit)
 
         // Conteo de ausencias por alumno
         const presentCount = (studentId: string) =>
@@ -986,6 +1041,14 @@ export function DocenteClient({
                 Hoy
               </button>
             </div>
+
+            {weekPolicies.length > 0 && (
+              <div className={`rounded-2xl border p-4 text-sm ${lockedDays.length > 0 ? 'border-amber/20 bg-amber/10 text-amber' : 'border-sky-200 bg-sky/10 text-sky-700'}`}>
+                {lockedDays.length > 0
+                  ? `Esta materia muestra la asistencia oficial compartida del curso. En los días donde no te corresponde registrarla, solo podrás corregir de falta a atraso si el estudiante llegó después de la primera toma.`
+                  : `Estás viendo y actualizando la asistencia oficial compartida del curso. Los cambios que guardes se reflejan en todas las materias del mismo día.`}
+              </div>
+            )}
 
             {students.length === 0 ? (
               <div className="p-8 text-center border border-dashed border-amber/40 bg-amber/5 rounded-2xl">
@@ -1038,17 +1101,32 @@ export function DocenteClient({
                           const key     = `${dateStr}_${st.id}`
                           const status: AttendanceStatus = attendance[key] || 'present'
                           const isToday = dateStr === toISO(new Date())
+                          const dayPolicy = attendancePolicies[dateStr]
+                          const lockedForTeacher = !!dayPolicy?.sharedMode && !dayPolicy.canTeacherEdit
+                          const canMarkLateOnly = lockedForTeacher && status === 'absent'
                           return (
                             <td key={dateStr} className={`px-2 py-2 text-center border-l border-surface/30 ${isToday ? 'bg-violet/5' : ''}`}>
                               <button
                                 onClick={() => toggleAttendance(dateStr, st.id)}
-                                title={status === 'present' ? 'Presente' : status === 'absent' ? 'Falta' : 'Atraso'}
+                                disabled={lockedForTeacher && !canMarkLateOnly}
+                                title={
+                                  lockedForTeacher
+                                    ? canMarkLateOnly
+                                      ? 'Marcar atraso para todo el día'
+                                      : `La asistencia oficial de ${dayPolicy.authorityTeacherName || 'otro docente'} ya fue registrada`
+                                    : status === 'present'
+                                      ? 'Presente'
+                                      : status === 'absent'
+                                        ? 'Falta'
+                                        : 'Atraso'
+                                }
                                 className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all font-bold text-xs
                                   ${status === 'present'
                                     ? 'bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30'
                                     : status === 'absent'
                                       ? 'bg-rose-500/20 text-rose-600 hover:bg-rose-500/30'
-                                      : 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30'}`}
+                                      : 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30'}
+                                  ${lockedForTeacher && !canMarkLateOnly ? 'cursor-not-allowed opacity-50 hover:bg-inherit' : ''}`}
                               >
                                 {status === 'present' ? 'P' : status === 'absent' ? 'F' : 'A'}
                               </button>
