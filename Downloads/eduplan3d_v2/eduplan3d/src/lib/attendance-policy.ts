@@ -107,6 +107,7 @@ export function getSharedAttendancePolicy(params: {
   course: CourseLike
   date: string
   teacherName: string
+  teacherHasFullCourseControl?: boolean
 }): SharedAttendancePolicy {
   const courseLabel = buildCourseLabel(params.course)
   const parsedDate = new Date(`${params.date}T12:00:00`)
@@ -136,7 +137,10 @@ export function getSharedAttendancePolicy(params: {
     }
   }
 
-  const canTeacherEdit = !authorityTeacherName || normalizeText(authorityTeacherName) === teacherName
+  const canTeacherEdit =
+    Boolean(params.teacherHasFullCourseControl) ||
+    !authorityTeacherName ||
+    normalizeText(authorityTeacherName) === teacherName
 
   return {
     sharedMode: true,
