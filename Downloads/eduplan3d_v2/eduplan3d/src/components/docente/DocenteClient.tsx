@@ -78,6 +78,14 @@ function fmtWeekRange(mon: Date) {
   return `${mon.getDate()} - ${fri.getDate()} ${MONTHS_ES[fri.getMonth()]} ${fri.getFullYear()}`
 }
 
+function getStoredAttendanceStatus(
+  attendance: Record<string, AttendanceStatus>,
+  date: string,
+  studentId: string
+): AttendanceStatus | null {
+  return attendance[`${date}_${studentId}`] || null
+}
+
 const CAT_COLORS = ['#4F46E5','#10B981','#EF4444','#8B5CF6','#F59E0B','#3B82F6','#EC4899','#06B6D4']
 
 // ─── Componente principal ─────────────────────────────────────────────────────
@@ -1009,11 +1017,11 @@ export function DocenteClient({
 
         // Conteo de ausencias por alumno
         const presentCount = (studentId: string) =>
-          weekDates.filter(d => attendance[`${toISO(d)}_${studentId}`] === 'present').length
+          weekDates.filter(d => getStoredAttendanceStatus(attendance, toISO(d), studentId) === 'present').length
         const absentCount = (studentId: string) =>
-          weekDates.filter(d => attendance[`${toISO(d)}_${studentId}`] === 'absent').length
+          weekDates.filter(d => getStoredAttendanceStatus(attendance, toISO(d), studentId) === 'absent').length
         const lateCount = (studentId: string) =>
-          weekDates.filter(d => attendance[`${toISO(d)}_${studentId}`] === 'late').length
+          weekDates.filter(d => getStoredAttendanceStatus(attendance, toISO(d), studentId) === 'late').length
 
         return (
           <div className="space-y-4">
@@ -1072,7 +1080,7 @@ export function DocenteClient({
                 <table className="w-full text-sm whitespace-nowrap min-w-max">
                   <thead className="bg-bg3 text-xs uppercase tracking-wider border-b border-surface2">
                     <tr>
-                      <th className="px-4 py-3 text-left font-bold sticky left-0 bg-bg3 z-10 w-48 shadow-[2px_0_4px_rgba(0,0,0,0.06)]">
+                      <th className="px-4 py-3 text-left font-bold sticky left-0 bg-bg3 z-10 min-w-[260px] w-[260px] shadow-[2px_0_4px_rgba(0,0,0,0.06)]">
                         Estudiante
                       </th>
                       {weekDates.map((d, i) => (
@@ -1088,18 +1096,17 @@ export function DocenteClient({
                   <tbody className="divide-y divide-surface">
                     {students.map((st: any, idx: number) => (
                       <tr key={st.id} className="hover:bg-bg/40 transition-colors">
-                        <td className="px-4 py-2.5 sticky left-0 bg-surface hover:bg-bg/40 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)] border-r border-surface/50 transition-colors">
+                        <td className="px-4 py-2.5 sticky left-0 bg-surface hover:bg-bg/40 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)] border-r border-surface/50 transition-colors min-w-[260px] w-[260px]">
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-ink4 w-5 text-right flex-shrink-0">{idx + 1}.</span>
-                            <span className="font-medium text-ink text-xs truncate w-36" title={st.full_name}>
+                            <span className="font-medium text-ink text-xs whitespace-normal break-words leading-5">
                               {st.full_name}
                             </span>
                           </div>
                         </td>
                         {weekDates.map((d) => {
                           const dateStr = toISO(d)
-                          const key     = `${dateStr}_${st.id}`
-                          const status: AttendanceStatus = attendance[key] || 'present'
+                          const status = getStoredAttendanceStatus(attendance, dateStr, st.id)
                           const isToday = dateStr === toISO(new Date())
                           const dayPolicy = attendancePolicies[dateStr]
                           const lockedForTeacher = !!dayPolicy?.sharedMode && !dayPolicy.canTeacherEdit
@@ -1114,21 +1121,25 @@ export function DocenteClient({
                                     ? canMarkLateOnly
                                       ? 'Marcar atraso para todo el día'
                                       : `La asistencia oficial de ${dayPolicy.authorityTeacherName || 'otro docente'} ya fue registrada`
-                                    : status === 'present'
+                                    : !status
+                                      ? 'Sin registro'
+                                      : status === 'present'
                                       ? 'Presente'
                                       : status === 'absent'
                                         ? 'Falta'
                                         : 'Atraso'
                                 }
                                 className={`w-8 h-8 rounded-lg flex items-center justify-center mx-auto transition-all font-bold text-xs
-                                  ${status === 'present'
+                                  ${!status
+                                    ? 'bg-surface2/60 text-ink4 hover:bg-surface2'
+                                    : status === 'present'
                                     ? 'bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30'
                                     : status === 'absent'
                                       ? 'bg-rose-500/20 text-rose-600 hover:bg-rose-500/30'
                                       : 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30'}
                                   ${lockedForTeacher && !canMarkLateOnly ? 'cursor-not-allowed opacity-50 hover:bg-inherit' : ''}`}
                               >
-                                {status === 'present' ? 'P' : status === 'absent' ? 'F' : 'A'}
+                                {!status ? '—' : status === 'present' ? 'P' : status === 'absent' ? 'F' : 'A'}
                               </button>
                             </td>
                           )
