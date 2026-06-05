@@ -194,7 +194,9 @@ export function DocenteClient({
   const selectedCourseId = selectedSubject?.course_id || selectedSubject?.course?.id || null
   const students: any[] = selectedSubject
     ? enrollments.filter((e: any) => e.course_id === selectedCourseId)
-        .map((e: any) => e.student).filter(Boolean)
+        .map((e: any) => e.student)
+        .filter(Boolean)
+        .sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || '', 'es', { sensitivity: 'base' }))
     : []
 
   // ── Cargar asistencia cuando cambia la semana o el subject ───────────────
