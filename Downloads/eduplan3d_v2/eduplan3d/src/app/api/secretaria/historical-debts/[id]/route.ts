@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getProfile } from '@/lib/auth/ownership'
-
-const ALLOWED_ROLES = new Set(['admin', 'secretary', 'rector', 'assistant'])
+import { getProfile, canManageFinances } from '@/lib/auth/ownership'
 export const dynamic = 'force-dynamic'
 
 // PATCH — registrar un abono a una deuda histórica
@@ -14,7 +12,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const profile = await getProfile(user.id)
   if (!profile?.institution_id) return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
-  if (!ALLOWED_ROLES.has(profile.role || '')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!canManageFinances(profile.role)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const body = await req.json()
   const { abono_amount } = body
@@ -67,7 +65,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
   const profile = await getProfile(user.id)
   if (!profile?.institution_id) return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
-  if (!ALLOWED_ROLES.has(profile.role || '')) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (!canManageFinances(profile.role)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const admin = createAdminClient()
   const { error } = await admin

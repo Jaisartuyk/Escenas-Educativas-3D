@@ -33,7 +33,7 @@ export default async function SaldosExternosPage() {
           Registro manual de deudas historicas para personas que no pertenecen a la institucion activa.
         </p>
       </div>
-      <SaldosExternosClient />
+      <SaldosExternosClient userRole={profile.role} />
     </div>
   )
 }

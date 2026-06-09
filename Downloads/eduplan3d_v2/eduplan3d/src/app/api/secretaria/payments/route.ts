@@ -1,15 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getProfile } from '@/lib/auth/ownership'
+import { getProfile, canManageFinances } from '@/lib/auth/ownership'
 import { createStudentFamilyNotifications } from '@/lib/notifications'
 import { attachAbonosToPayments } from '@/lib/payment-progress'
 import { getRecurringPaymentPeriodKey } from '@/lib/payment-period'
 
 export const dynamic = 'force-dynamic'
-
-// Roles autorizados a gestionar pagos
-const PAYMENT_ROLES = new Set(['admin', 'secretary', 'rector', 'assistant'])
 
 function normalizeRecurringType(type?: string | null) {
   return type === 'matricula' || type === 'pension' || type === 'otro' ? type : null
@@ -150,7 +147,7 @@ export async function POST(req: Request) {
 
   const profile = await getProfile(user.id)
   if (!profile?.institution_id) return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
-  if (!PAYMENT_ROLES.has(profile.role || '')) {
+  if (!canManageFinances(profile.role)) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
@@ -204,7 +201,7 @@ export async function PATCH(req: Request) {
 
   const profile = await getProfile(user.id)
   if (!profile?.institution_id) return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
-  if (!PAYMENT_ROLES.has(profile.role || '')) {
+  if (!canManageFinances(profile.role)) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
@@ -275,7 +272,7 @@ export async function DELETE(req: Request) {
 
   const profile = await getProfile(user.id)
   if (!profile?.institution_id) return NextResponse.json({ error: 'Sin institución' }, { status: 400 })
-  if (!PAYMENT_ROLES.has(profile.role || '')) {
+  if (!canManageFinances(profile.role)) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

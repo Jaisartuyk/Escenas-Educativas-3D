@@ -677,3 +677,69 @@ export async function deleteInstitutionUser(userId: string) {
   
   return { success: true }
 }
+
+export async function unlinkParentFromStudent(data: {
+  institution_id: string
+  student_id: string
+  relationship: 'MADRE' | 'PADRE' | 'OTRO'
+  parent_user_id: string
+}) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  if (!supabaseKey) {
+    return { error: 'Falta la clave de servicio para realizar esta operación.' }
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  })
+
+  // 1. Delete from parent_links
+  const { error: deleteLinkError } = await supabaseAdmin
+    .from('parent_links')
+    .delete()
+    .eq('parent_id', data.parent_user_id)
+    .eq('child_id', data.student_id)
+
+  if (deleteLinkError) {
+    console.error('Error deleting link:', deleteLinkError)
+    return { error: 'Error al eliminar la vinculación en base de datos: ' + deleteLinkError.message }
+  }
+
+  // 2. Fetch current settings and clear the metadata properties
+  const { data: inst, error: fetchErr } = await supabaseAdmin
+    .from('institutions')
+    .select('settings')
+    .eq('id', data.institution_id)
+    .single()
+
+  if (fetchErr) return { error: fetchErr.message }
+
+  const settings = inst.settings || {}
+  settings.directory = settings.directory || {}
+  const studentMeta = settings.directory[data.student_id] || {}
+
+  if (data.relationship === 'MADRE') {
+    delete studentMeta.mother_parent_user_id
+    delete studentMeta.mother_parent_login
+  } else if (data.relationship === 'PADRE') {
+    delete studentMeta.father_parent_user_id
+    delete studentMeta.father_parent_login
+  } else {
+    delete studentMeta.other_parent_user_id
+    delete studentMeta.other_parent_login
+  }
+
+  settings.directory[data.student_id] = studentMeta
+
+  const { error: updateErr } = await supabaseAdmin
+    .from('institutions')
+    .update({ settings })
+    .eq('id', data.institution_id)
+
+  if (updateErr) return { error: 'Error al actualizar metadata de la institución: ' + updateErr.message }
+
+  revalidatePath('/dashboard/academico')
+  return { success: true, studentMetadata: studentMeta }
+}
