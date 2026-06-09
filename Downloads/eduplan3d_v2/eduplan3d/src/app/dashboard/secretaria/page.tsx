@@ -101,6 +101,7 @@ export default async function SecretariaPage() {
       </div>
       <SecretariaClient
         institutionId={instId}
+        userRole={profile.role}
         students={studentsRes.data || []}
         courses={coursesRes.data || []}
         enrollments={enrollsRes.data || []}

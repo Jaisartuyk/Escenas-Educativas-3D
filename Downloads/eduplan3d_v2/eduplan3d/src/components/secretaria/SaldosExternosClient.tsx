@@ -38,7 +38,12 @@ function getDebtorName(debt: ExternalDebt) {
   return debt.external_name?.trim() || 'Persona externa'
 }
 
-export function SaldosExternosClient() {
+interface Props {
+  userRole?: string
+}
+
+export function SaldosExternosClient({ userRole }: Props) {
+  const canManage = !userRole || ['admin', 'assistant', 'secretary', 'rector'].includes(userRole)
   const [debts, setDebts] = useState<ExternalDebt[]>([])
   const [loaded, setLoaded] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -343,14 +348,16 @@ export function SaldosExternosClient() {
             {exporting ? 'Exportando...' : 'Exportar Excel'}
           </button>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg"
-          style={{ backgroundColor: '#7C6DFA' }}
-        >
-          {showForm ? <X size={16} /> : <Plus size={16} />}
-          {showForm ? 'Cancelar' : 'Registrar Saldo'}
-        </button>
+        {canManage && (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg"
+            style={{ backgroundColor: '#7C6DFA' }}
+          >
+            {showForm ? <X size={16} /> : <Plus size={16} />}
+            {showForm ? 'Cancelar' : 'Registrar Saldo'}
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -561,7 +568,7 @@ export function SaldosExternosClient() {
                         {remaining > 0 ? `-${formatMoney(remaining)}` : '✓ Pagado'}
                       </p>
                       <div className="flex items-center gap-1.5">
-                        {debt.status !== 'pagado' && (
+                        {canManage && debt.status !== 'pagado' && (
                           <button
                             onClick={() => { setAbonoDebt(debt); setAbonoAmount('') }}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100 transition-colors"
@@ -569,28 +576,30 @@ export function SaldosExternosClient() {
                             <HandCoins size={12} /> Abonar
                           </button>
                         )}
-                        {confirmDelete === debt.id ? (
-                          <div className="flex items-center gap-1">
+                        {canManage && (
+                          confirmDelete === debt.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleDelete(debt.id)}
+                                className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-rose-500 text-white hover:bg-rose-600 transition-colors"
+                              >
+                                Confirmar
+                              </button>
+                              <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-surface2 text-ink3 hover:bg-surface3 transition-colors"
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => handleDelete(debt.id)}
-                              className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-rose-500 text-white hover:bg-rose-600 transition-colors"
+                              onClick={() => setConfirmDelete(debt.id)}
+                              className="p-1.5 rounded-lg text-ink4 hover:text-rose-500 hover:bg-rose-50 transition-colors"
                             >
-                              Confirmar
+                              <Trash2 size={14} />
                             </button>
-                            <button
-                              onClick={() => setConfirmDelete(null)}
-                              className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-surface2 text-ink3 hover:bg-surface3 transition-colors"
-                            >
-                              No
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setConfirmDelete(debt.id)}
-                            className="p-1.5 rounded-lg text-ink4 hover:text-rose-500 hover:bg-rose-50 transition-colors"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          )
                         )}
                       </div>
                     </div>

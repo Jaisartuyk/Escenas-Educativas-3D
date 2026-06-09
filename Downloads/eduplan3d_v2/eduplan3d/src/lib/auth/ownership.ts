@@ -4,7 +4,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export type Role = 'admin' | 'teacher' | 'student' | 'assistant' | 'horarios_only' | 'parent'
+export type Role = 'admin' | 'teacher' | 'student' | 'assistant' | 'horarios_only' | 'parent' | 'secretary' | 'rector' | 'supervisor'
 
 export interface MinimalProfile {
   id: string
@@ -54,7 +54,13 @@ export async function isInstitutionAdmin(userId: string, institutionId?: string)
   const profile = await getProfile(userId)
   if (!profile) return false
   if (institutionId && profile.institution_id !== institutionId) return false
-  return profile.role === 'admin' || profile.role === 'assistant'
+  return profile.role === 'admin' || profile.role === 'assistant' || profile.role === 'secretary'
+}
+
+/** ¿El usuario tiene permisos para gestionar finanzas? (admin, assistant, secretary, rector) */
+export function canManageFinances(role: Role | null | undefined): boolean {
+  if (!role) return false
+  return role === 'admin' || role === 'assistant' || role === 'secretary' || role === 'rector'
 }
 
 /** Devuelve la institution_id del usuario o null. */

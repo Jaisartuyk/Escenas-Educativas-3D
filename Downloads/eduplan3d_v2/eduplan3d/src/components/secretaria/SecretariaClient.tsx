@@ -105,7 +105,7 @@ const MISSING_CELL = 'bg-amber-50 text-amber-800 border-amber-300 border-dashed'
 const EXPECTED_PENSION_MONTHS = new Set(['May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb'])
 
 // ─── Componente principal ────────────────────────────────────────────────────
-export function SecretariaClient({ institutionId, students, courses, enrollments, initialPayments, isTutorMode, financialSettings }: any) {
+export function SecretariaClient({ institutionId, students, courses, enrollments, initialPayments, isTutorMode, financialSettings, userRole }: any) {
   const [payments, setPayments]        = useState<any[]>(initialPayments || [])
   const [mainTab, setMainTab]          = useState<'actual' | 'anteriores'>('actual')
   const [showForm, setShowForm]        = useState(false)
@@ -828,7 +828,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
             <h2 className="font-bold text-base text-ink">Saldos de Años Anteriores</h2>
             <p className="text-xs text-ink4 mt-0.5">Registra y gestiona deudas de períodos lectivos pasados.</p>
           </div>
-          <SaldosAnterioresTab students={students} institutionId={institutionId} />
+          <SaldosAnterioresTab students={students} institutionId={institutionId} userRole={userRole} />
         </div>
       )}
 

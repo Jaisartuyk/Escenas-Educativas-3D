@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { v5 as uuidv5 } from 'uuid'
 import { buildRecurringPaymentDescription, getRecurringPaymentPeriodKey } from '@/lib/payment-period'
+import { canManageFinances } from '@/lib/auth/ownership'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,7 +54,7 @@ export async function POST() {
     .eq('id', user.id)
     .single()
 
-  if (!profile?.institution_id || !['admin', 'secretary'].includes(profile.role)) {
+  if (!profile?.institution_id || !canManageFinances(profile.role as any)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

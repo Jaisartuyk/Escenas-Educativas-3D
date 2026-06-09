@@ -41,6 +41,26 @@ export default async function AlumnoPage({
 
   if (profile.role === 'parent') {
     linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+
+    // SERVER-SIDE DEBUG WRITE
+    try {
+      const { data: allLinks } = await admin.from('parent_links').select('*')
+      const { data: allProfiles } = await admin.from('profiles').select('id, full_name, email, role')
+      const fs = require('fs')
+      const path = require('path')
+      fs.writeFileSync(
+        path.join(process.cwd(), 'debug_parent_output.json'),
+        JSON.stringify({
+          currentUser: { id: user.id, email: user.email, profile },
+          linkedChildren,
+          allLinks,
+          allProfiles: allProfiles?.filter(p => p.role === 'parent' || p.full_name?.toLowerCase().includes('marquez') || p.full_name?.toLowerCase().includes('sandy'))
+        }, null, 2)
+      )
+    } catch (err: any) {
+      console.error('Error writing debug file:', err)
+    }
+
     const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id, requestedChildId)
     if (!linkedChild) {
       return (
@@ -172,8 +192,68 @@ export default async function AlumnoPage({
     }
   })
 
+  // ── 9. Diagnóstico para multi-hijos (se activa con ?debug=true en la URL) ──
+  let debugData: any = null
+  if (params.debug === 'true') {
+    const { data: links } = await admin
+      .from('parent_links')
+      .select('parent_id, child_id, relationship, is_primary, child:profiles!parent_links_child_id_fkey(id, full_name, email)')
+      .eq('parent_id', user.id)
+    
+    const { data: potentialChildren } = await admin
+      .from('profiles')
+      .select('id, full_name, email, role')
+      .eq('role', 'student')
+      .ilike('full_name', '%MARQUEZ%')
+
+    debugData = {
+      parentId: user.id,
+      parentName: profile.full_name,
+      parentEmail: profile.email,
+      links: links || [],
+      potentialChildren: potentialChildren || []
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto">
+      {/* Diagnóstico condicional */}
+      {debugData && (
+        <div className="p-6 mb-6 border-2 border-dashed border-blue-400 bg-blue-50 text-blue-900 rounded-2xl">
+          <h3 className="text-lg font-bold flex items-center gap-2 mb-2">🔍 Diagnóstico de Hijos Vinculados</h3>
+          <p className="text-sm"><strong>Representante:</strong> {debugData.parentName} ({debugData.parentEmail})</p>
+          <p className="text-sm"><strong>ID Representante:</strong> {debugData.parentId}</p>
+          
+          <h4 className="mt-4 font-bold text-sm text-blue-800">1. Vinculaciones en la tabla 'parent_links':</h4>
+          {debugData.links.length === 0 ? (
+            <p className="text-xs text-red-600 italic">No hay vinculaciones registradas para este ID.</p>
+          ) : (
+            <ul className="list-disc pl-5 text-xs mt-1 space-y-1">
+              {debugData.links.map((link: any, idx: number) => (
+                <li key={idx}>
+                  <strong>Estudiante:</strong> {link.child?.full_name || 'Desconocido'} ({link.child?.email})<br/>
+                  <span className="text-blue-700">ID Estudiante: {link.child_id} | Rol: {link.relationship} | Principal: {link.is_primary ? 'Sí' : 'No'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <h4 className="mt-4 font-bold text-sm text-blue-800">2. Estudiantes en la base de datos con apellido 'MARQUEZ':</h4>
+          {debugData.potentialChildren.length === 0 ? (
+            <p className="text-xs text-gray-500 italic">No se encontraron estudiantes con apellido MARQUEZ.</p>
+          ) : (
+            <ul className="list-disc pl-5 text-xs mt-1 space-y-1">
+              {debugData.potentialChildren.map((student: any, idx: number) => (
+                <li key={idx}>
+                  <strong>{student.full_name}</strong> ({student.email || 'Sin correo'}) - <span className="font-mono text-[10px]">{student.id}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-xs text-blue-700 italic">Nota: Si ves estudiantes aquí que deberían estar vinculados pero no aparecen en la lista 1, significa que no existe la vinculación en 'parent_links'.</p>
+        </div>
+      )}
+
       {profile.role === 'parent' && selectedChildId && (
         <ChildScopeSelector
           childrenOptions={linkedChildren}

@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { X, Camera, Phone, Mail, User2, Save, Trash2, AlertTriangle, KeyRound, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { updateProfileMetadata, deleteInstitutionUser, createParentAccessFromStudentProfile, updateUserProfileCore } from '@/lib/actions/users'
+import { updateProfileMetadata, deleteInstitutionUser, createParentAccessFromStudentProfile, updateUserProfileCore, unlinkParentFromStudent } from '@/lib/actions/users'
 import { createClient } from '@/lib/supabase/client'
 
 const LETAMENDI_NAME = 'UNIDAD EDUCATIVA PARTICULAR CORONEL MIGUEL DE LETAMENDI'
@@ -233,6 +233,52 @@ export function ProfileDetailsPanel({
     setCreatingParent(false)
   }
 
+  const [unlinkingParent, setUnlinkingParent] = useState(false)
+
+  const handleUnlinkParent = async (relationship: 'MADRE' | 'PADRE' | 'OTRO', parentUserId: string) => {
+    if (!confirm('¿Estás seguro de que deseas desvincular a este representante? Esto quitará su acceso a este estudiante.')) {
+      return
+    }
+
+    setUnlinkingParent(true)
+    const t = toast.loading('Desvinculando representante...')
+    try {
+      const res = await unlinkParentFromStudent({
+        institution_id: institutionId,
+        student_id: user.id,
+        relationship,
+        parent_user_id: parentUserId
+      })
+
+      if (res.error) throw new Error(res.error)
+
+      const nextMeta = {
+        ...data,
+        ...(res.studentMetadata || {}),
+      }
+
+      // Explicitly clean up properties locally
+      if (relationship === 'MADRE') {
+        delete nextMeta.mother_parent_user_id
+        delete nextMeta.mother_parent_login
+      } else if (relationship === 'PADRE') {
+        delete nextMeta.father_parent_user_id
+        delete nextMeta.father_parent_login
+      } else {
+        delete nextMeta.other_parent_user_id
+        delete nextMeta.other_parent_login
+      }
+
+      setData(nextMeta)
+      onUpdate({ ...nextMeta, avatar_url: avatarUrl })
+      toast.success('Representante desvinculado exitosamente', { id: t })
+    } catch (err: any) {
+      toast.error(err.message, { id: t })
+    } finally {
+      setUnlinkingParent(false)
+    }
+  }
+
   const handleResetPassword = async (linkedId: string) => {
     const newPassword = resetPasswordForms[linkedId]?.trim()
     if (!newPassword || newPassword.length < 6) {
@@ -430,20 +476,30 @@ export function ProfileDetailsPanel({
                               </p>
                             </div>
                             {rep.linkedId ? (
-                              <div className="flex flex-col items-end gap-2">
-                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                                  <CheckCircle2 size={12} />
-                                  Con acceso
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setResettingPassword(prev => prev === rep.linkedId ? null : rep.linkedId)}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 transition-colors"
-                                >
-                                  <KeyRound size={11} />
-                                  {resettingPassword === rep.linkedId ? 'Cancelar' : 'Cambiar clave'}
-                                </button>
-                              </div>
+                                <div className="flex flex-col items-end gap-2">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+                                    <CheckCircle2 size={12} />
+                                    Con acceso
+                                  </span>
+                                  <div className="flex gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setResettingPassword(prev => prev === rep.linkedId ? null : rep.linkedId)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 transition-colors whitespace-nowrap"
+                                    >
+                                      <KeyRound size={11} />
+                                      {resettingPassword === rep.linkedId ? 'Cancelar' : 'Clave'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={unlinkingParent}
+                                      onClick={() => handleUnlinkParent(rep.key, rep.linkedId)}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 whitespace-nowrap"
+                                    >
+                                      Desvincular
+                                    </button>
+                                  </div>
+                                </div>
                             ) : (
                               <button
                                 type="button"
