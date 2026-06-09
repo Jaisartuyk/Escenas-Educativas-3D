@@ -541,13 +541,14 @@ export function AlumnoClient({
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-4">
-                                    {grade && (
+                                    {grade && !isParentView ? (
                                       <div className="bg-surface px-5 py-2.5 rounded-xl border border-emerald-100 dark:border-emerald-900/30 text-center min-w-[80px]">
                                         <div className="text-2xl font-black text-emerald-500 leading-none">{grade.score}</div>
                                         <div className="text-[9px] text-emerald-700 font-bold uppercase tracking-widest mt-1">Nota Final</div>
                                       </div>
+                                    ) : (
+                                      <div className="hidden sm:flex items-center gap-2 text-ink4 group-hover:text-violet-500 transition-colors text-xs font-bold"> <FileText size={14}/> Ver detalles </div>
                                     )}
-                                    {!grade && ( <div className="hidden sm:flex items-center gap-2 text-ink4 group-hover:text-violet-500 transition-colors text-xs font-bold"> <FileText size={14}/> Ver detalles </div> )}
                                   </div>
                                 </button>
                               )
@@ -1314,7 +1315,9 @@ export function AlumnoClient({
                      </div>
                      <div className="relative z-10 flex items-end justify-between border-t border-surface2 pt-4">
                        <div className="text-[10px] font-black uppercase text-ink4 tracking-widest">Promedio Actual</div>
-                       {avg ? (
+                       {isParentView ? (
+                          <span className="text-xs font-semibold text-ink4 italic border border-dashed border-surface2 px-2 py-1 rounded-lg">Se publicará en Libreta</span>
+                        ) : avg ? (
                           <div className={`text-3xl font-black ${Number(avg) >= 7 ? 'text-emerald-500 drop-shadow-sm' : 'text-rose-500 drop-shadow-sm'}`}>{avg}</div>
                        ) : <span className="text-sm font-medium text-ink4 italic border border-dashed border-surface2 px-2 py-1 rounded-lg">No calculado</span>}
                      </div>
