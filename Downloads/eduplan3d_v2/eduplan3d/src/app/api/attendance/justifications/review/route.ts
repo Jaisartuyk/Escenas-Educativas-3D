@@ -75,10 +75,10 @@ export async function POST(req: NextRequest) {
     // Admin y assistant pueden siempre (dentro de su institución)
     const isAdmin = profile.role === 'admin' || profile.role === 'assistant'
 
-    // Traer el registro de asistencia con el curso del estudiante
+    // Traer el registro de asistencia con el curso del estudiante y la fecha
     const { data: att } = await admin
       .from('attendance')
-      .select('id, student_id, subject_id, institution_id, justification_status')
+      .select('id, student_id, subject_id, institution_id, date, justification_status')
       .eq('id', attendanceId)
       .single()
 
@@ -110,7 +110,8 @@ export async function POST(req: NextRequest) {
     const { error: updErr } = await admin
       .from('attendance')
       .update({ justification_status: action })
-      .eq('id', attendanceId)
+      .eq('student_id', att.student_id)
+      .eq('date', att.date)
 
     if (updErr) {
       return NextResponse.json({ error: updErr.message }, { status: 500 })
