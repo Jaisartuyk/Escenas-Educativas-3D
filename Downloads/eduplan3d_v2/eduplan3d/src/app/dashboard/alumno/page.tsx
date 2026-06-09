@@ -206,12 +206,35 @@ export default async function AlumnoPage({
       .eq('role', 'student')
       .ilike('full_name', '%MARQUEZ%')
 
+    // Debug duplicate parent profiles
+    const { data: duplicateGmailParents } = await admin
+      .from('profiles')
+      .select('id, full_name, email, role')
+      .eq('email', 'briggittezavala39@gmail.com')
+
+    // Find Edrick's metadata specifically
+    const edrickId = '313902b9-71ee-4090-a172-c9cf0cd9da81'
+    const { data: edrickProfile } = await admin
+      .from('profiles')
+      .select('id, full_name, metadata')
+      .eq('id', edrickId)
+      .maybeSingle()
+
+    // Find links specifically for Edrick
+    const { data: edrickLinks } = await admin
+      .from('parent_links')
+      .select('*')
+      .eq('child_id', edrickId)
+
     debugData = {
       parentId: user.id,
       parentName: profile.full_name,
       parentEmail: profile.email,
       links: links || [],
-      potentialChildren: potentialChildren || []
+      potentialChildren: potentialChildren || [],
+      duplicateGmailParents: duplicateGmailParents || [],
+      edrickMetadata: edrickProfile?.metadata || {},
+      edrickLinks: edrickLinks || []
     }
   }
 
@@ -238,7 +261,25 @@ export default async function AlumnoPage({
             </ul>
           )}
 
-          <h4 className="mt-4 font-bold text-sm text-blue-800">2. Estudiantes en la base de datos con apellido 'MARQUEZ':</h4>
+          <h4 className="mt-4 font-bold text-sm text-blue-800">2. Cuentas de representante registradas con el correo 'briggittezavala39@gmail.com':</h4>
+          <ul className="list-disc pl-5 text-xs mt-1 space-y-1">
+            {debugData.duplicateGmailParents.map((p: any, idx: number) => (
+              <li key={idx}>
+                <strong>ID:</strong> {p.id} | Nombre: {p.full_name} | Rol: {p.role}
+              </li>
+            ))}
+          </ul>
+
+          <h4 className="mt-4 font-bold text-sm text-blue-800">3. Datos de Vinculación de Edrick Jose en Metadata:</h4>
+          <pre className="text-xs bg-white p-2 rounded border mt-1 overflow-auto max-h-40">
+            {JSON.stringify({
+              mother_parent_user_id: debugData.edrickMetadata?.mother_parent_user_id,
+              mother_parent_login: debugData.edrickMetadata?.mother_parent_login,
+              edrickLinks: debugData.edrickLinks
+            }, null, 2)}
+          </pre>
+
+          <h4 className="mt-4 font-bold text-sm text-blue-800">4. Estudiantes en la base de datos con apellido 'MARQUEZ':</h4>
           {debugData.potentialChildren.length === 0 ? (
             <p className="text-xs text-gray-500 italic">No se encontraron estudiantes con apellido MARQUEZ.</p>
           ) : (
@@ -250,7 +291,6 @@ export default async function AlumnoPage({
               ))}
             </ul>
           )}
-          <p className="mt-3 text-xs text-blue-700 italic">Nota: Si ves estudiantes aquí que deberían estar vinculados pero no aparecen en la lista 1, significa que no existe la vinculación en 'parent_links'.</p>
         </div>
       )}
 
