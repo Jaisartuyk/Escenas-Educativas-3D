@@ -31,10 +31,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  // Verificar que la asistencia pertenezca al usuario local
-  const { data: att } = await admin.from('attendance' as any).select('student_id').eq('id', attendance_id).single()
+  // Verificar que la asistencia pertenezca al usuario local y obtener la fecha
+  const { data: att } = await admin.from('attendance' as any).select('student_id, date').eq('id', attendance_id).single()
   if (!att || att.student_id !== effectiveStudentId) {
-    return NextResponse.json({ error: 'Asistencia no encontrada o no pertenece al usualio' }, { status: 404 })
+    return NextResponse.json({ error: 'Asistencia no encontrada o no pertenece al usuario' }, { status: 404 })
   }
 
   const updates: any = {
@@ -49,10 +49,10 @@ export async function POST(req: NextRequest) {
   const { data, error } = await admin
     .from('attendance' as any)
     .update(updates)
-    .eq('id', attendance_id)
+    .eq('student_id', effectiveStudentId)
+    .eq('date', att.date)
     .select()
-    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json(data && data.length > 0 ? data[0] : {})
 }

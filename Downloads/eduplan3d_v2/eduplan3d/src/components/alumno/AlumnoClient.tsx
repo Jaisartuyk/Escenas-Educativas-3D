@@ -166,7 +166,13 @@ export function AlumnoClient({
 
   // ── Stats
   const missingAssignments = assignments.filter((a: any) => !grades.find((g: any) => g.assignment_id === a.id))
-  const attendanceIssues = localAttendance.filter((a: any) => a.status === 'absent' || a.status === 'late')
+  const attendanceIssues = Array.from(
+    localAttendance.filter((a: any) => a.status === 'absent' || a.status === 'late')
+      .reduce((map, item) => {
+        if (!map.has(item.date)) map.set(item.date, item)
+        return map
+      }, new Map<string, any>()).values()
+  )
   const merits = behaviors.filter((b: any) => b.type === 'positive')
 
   // ── Today's Classes 
@@ -243,9 +249,9 @@ export function AlumnoClient({
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      
+      const targetDate = showJustifyModal.date || localAttendance.find((x: any) => x.id === showJustifyModal.id)?.date
       setLocalAttendance(prev => prev.map(a => 
-        a.id === showJustifyModal.id ? { ...a, justification_status: 'pending', justification_text: justifyText, justification_file_url: file_url } : a
+        a.date === targetDate ? { ...a, justification_status: 'pending', justification_text: justifyText, justification_file_url: file_url } : a
       ))
       
       toast.success('Justificación enviada')
@@ -583,15 +589,31 @@ export function AlumnoClient({
         })()}
 
         {activeTab === 'asistencia' && (() => {
-          // ── Build attendance data by subject ──
-          const allDates = Array.from(new Set(localAttendance.map((a: any) => a.date) as string[])).sort()
-          const totalPresent = localAttendance.filter((a: any) => a.status === 'present').length
-          const totalLate = localAttendance.filter((a: any) => a.status === 'late').length
-          const totalAbsent = localAttendance.filter((a: any) => a.status === 'absent').length
-          const totalRecords = localAttendance.length
+          // Deduplicate attendance records by date to get daily status for statistics
+          const dedupedByDate = Array.from(
+            localAttendance.reduce((map, item) => {
+              const existing = map.get(item.date)
+              if (!existing) {
+                map.set(item.date, item)
+              } else {
+                const order = { absent: 3, late: 2, present: 1 }
+                const currentRank = order[item.status as keyof typeof order] || 0
+                const existingRank = order[existing.status as keyof typeof order] || 0
+                if (currentRank > existingRank) {
+                  map.set(item.date, item)
+                }
+              }
+              return map
+            }, new Map<string, any>()).values()
+          )
+
+          const totalPresent = dedupedByDate.filter((a: any) => a.status === 'present').length
+          const totalLate = dedupedByDate.filter((a: any) => a.status === 'late').length
+          const totalAbsent = dedupedByDate.filter((a: any) => a.status === 'absent').length
+          const totalRecords = dedupedByDate.length
           const attendancePct = totalRecords > 0 ? ((totalPresent + totalLate) / totalRecords * 100) : 100
 
-          // Group by subject
+          // Group by subject (keep using localAttendance to show subject-specific detail cards)
           const bySubject: Record<string, { subject: any; records: any[]; present: number; late: number; absent: number }> = {}
           subjects.forEach((s: any) => {
             const recs = localAttendance.filter((a: any) => a.subject_id === s.id)
@@ -604,8 +626,8 @@ export function AlumnoClient({
             }
           })
 
-          // Issues for the detail list below
-          const issues = localAttendance.filter((a: any) => a.status === 'absent' || a.status === 'late')
+          // Issues for the detail list below (only one per date)
+          const issues = dedupedByDate.filter((a: any) => a.status === 'absent' || a.status === 'late')
 
           return (
           <div className="space-y-6">
@@ -933,7 +955,7 @@ export function AlumnoClient({
                                   const data = await res.json()
                                   if (data.error) throw new Error(data.error)
                                   setLocalAttendance(prev => prev.map(att =>
-                                    att.id === a.id ? { ...att, justification_status: 'pending', justification_text: justifyText, justification_file_url: file_url } : att
+                                    att.date === a.date ? { ...att, justification_status: 'pending', justification_text: justifyText, justification_file_url: file_url } : att
                                   ))
                                   toast.success('Justificacion enviada correctamente')
                                   setExpandedJustifyId(null)
