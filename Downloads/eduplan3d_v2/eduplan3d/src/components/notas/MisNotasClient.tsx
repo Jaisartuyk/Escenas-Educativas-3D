@@ -120,6 +120,14 @@ function fmtDate(iso: string): string {
   } catch { return iso }
 }
 
+function isExamOrEvaluation(title: string, categoryId: string | null, categories: any[]) {
+  const category = categories?.find(c => c.id === categoryId)
+  const cName = (category?.name || '').toLowerCase()
+  const tTitle = (title || '').toLowerCase()
+  const keywords = ['examen', 'evaluacion', 'evaluación', 'prueba', 'leccion', 'lección', 'test', 'trimestral', 'parcial']
+  return keywords.some(k => tTitle.includes(k) || cName.includes(k))
+}
+
 // ── Componente ──────────────────────────────────────────────────────────────
 export function MisNotasClient(props: Props) {
   const {
@@ -266,31 +274,20 @@ export function MisNotasClient(props: Props) {
           </div>
 
           <div className="flex gap-4 lg:gap-6">
-            {isParentView ? (
-              <div className="text-right">
-                <p className="text-white/80 text-sm font-semibold bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 backdrop-blur-sm">
-                  Boletín de calificaciones
-                </p>
-                <p className="text-white/60 text-xs mt-1">Se publicará en Libreta</p>
-              </div>
-            ) : (
-              <>
-                <div className="text-center">
-                  <p className="text-white/70 text-xs">Promedio general</p>
-                  <p className="text-4xl lg:text-5xl font-display font-bold tracking-tight">
-                    {overall != null ? overall.toFixed(2) : '—'}
-                  </p>
-                  <p className="text-white/80 text-xs font-medium">{overallLevel.label}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-white/70 text-xs">Materias aprobadas</p>
-                  <p className="text-4xl lg:text-5xl font-display font-bold tracking-tight">
-                    {subjectsAlcanzan}<span className="text-xl text-white/70">/{subjectsConNota}</span>
-                  </p>
-                  <p className="text-white/80 text-xs font-medium">con nota</p>
-                </div>
-              </>
-            )}
+            <div className="text-center">
+              <p className="text-white/70 text-xs">Promedio general</p>
+              <p className="text-4xl lg:text-5xl font-display font-bold tracking-tight">
+                {overall != null ? overall.toFixed(2) : '—'}
+              </p>
+              <p className="text-white/80 text-xs font-medium">{overallLevel.label}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-white/70 text-xs">Materias aprobadas</p>
+              <p className="text-4xl lg:text-5xl font-display font-bold tracking-tight">
+                {subjectsAlcanzan}<span className="text-xl text-white/70">/{subjectsConNota}</span>
+              </p>
+              <p className="text-white/80 text-xs font-medium">con nota</p>
+            </div>
           </div>
         </div>
       </div>
@@ -384,53 +381,35 @@ export function MisNotasClient(props: Props) {
                         </p>
                       )}
                     </div>
-                    {isParentView ? (
-                      <div className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-500 ring-1 ring-slate-200">
-                        Evaluada
-                      </div>
-                    ) : (
-                      <div className={`shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide ${level.bg} ${level.text}`}>
-                        {level.label}
-                      </div>
-                    )}
+                    <div className={`shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide ${level.bg} ${level.text}`}>
+                      {level.label}
+                    </div>
                   </div>
 
                   {/* Score grande */}
                   <div className="mt-4 flex items-baseline gap-3">
-                    {isParentView ? (
-                      <span className="text-sm font-semibold text-ink4 italic border border-dashed border-surface2 px-2.5 py-1.5 rounded-xl">
-                        Se publicará en Libreta
+                    <span className="text-5xl font-display font-bold tracking-tight" style={{ color: level.color }}>
+                      {row.weighted != null ? row.weighted.toFixed(2) : '—'}
+                    </span>
+                    <span className="text-ink4 text-sm">/ {SCALE_MAX}</span>
+                    {row.prevAvg != null && (
+                      <span className={`ml-auto flex items-center gap-1 text-xs font-semibold ${tr.color}`}>
+                        <TrIcon size={14} /> {tr.label}
                       </span>
-                    ) : (
-                      <>
-                        <span className="text-5xl font-display font-bold tracking-tight" style={{ color: level.color }}>
-                          {row.weighted != null ? row.weighted.toFixed(2) : '—'}
-                        </span>
-                        <span className="text-ink4 text-sm">/ {SCALE_MAX}</span>
-                        {row.prevAvg != null && (
-                          <span className={`ml-auto flex items-center gap-1 text-xs font-semibold ${tr.color}`}>
-                            <TrIcon size={14} /> {tr.label}
-                          </span>
-                        )}
-                      </>
                     )}
                   </div>
 
                   {/* Barra de progreso */}
-                  {!isParentView && (
-                    <>
-                      <div className="mt-3 h-2 bg-bg3 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${row.weighted != null ? Math.min(100, (row.weighted / SCALE_MAX) * 100) : 0}%`,
-                            backgroundColor: level.color,
-                          }}
-                        />
-                      </div>
-                      <p className="text-ink4 text-[11px] mt-1.5">{level.sublabel}</p>
-                    </>
-                  )}
+                  <div className="mt-3 h-2 bg-bg3 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${row.weighted != null ? Math.min(100, (row.weighted / SCALE_MAX) * 100) : 0}%`,
+                        backgroundColor: level.color,
+                      }}
+                    />
+                  </div>
+                  <p className="text-ink4 text-[11px] mt-1.5">{level.sublabel}</p>
 
                   {/* Stats rápidos */}
                   <div className="mt-4 grid grid-cols-3 gap-2">
@@ -466,8 +445,8 @@ export function MisNotasClient(props: Props) {
                           {b.count > 0 ? `${b.count} act.` : '—'}
                         </span>
                         <span className="font-bold tabular-nums shrink-0 w-12 text-right"
-                              style={{ color: !isParentView && b.avg != null ? levelForScore(b.avg).color : '#CBD5E1' }}>
-                          {isParentView ? '—' : (b.avg != null ? b.avg.toFixed(2) : '—')}
+                              style={{ color: !(isParentView && isExamOrEvaluation('', b.category.id, categories)) && b.avg != null ? levelForScore(b.avg).color : '#CBD5E1' }}>
+                          {isParentView && isExamOrEvaluation('', b.category.id, categories) ? '—' : (b.avg != null ? b.avg.toFixed(2) : '—')}
                         </span>
                         <span className="text-ink4 shrink-0 text-[10px] w-10 text-right">
                           {Number(b.category.weight_percent).toFixed(0)}%
@@ -504,8 +483,8 @@ export function MisNotasClient(props: Props) {
                                 {a.parcial ? ` · P${a.parcial}` : ''}
                               </p>
                             </div>
-                            <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${isParentView ? 'text-slate-500' : lvl.text}`}>
-                              {isParentView ? '—' : (score != null ? score.toFixed(1) : '—')}
+                            <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? 'text-slate-500' : lvl.text}`}>
+                              {isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? '—' : (score != null ? score.toFixed(1) : '—')}
                             </span>
                           </div>
                         )
