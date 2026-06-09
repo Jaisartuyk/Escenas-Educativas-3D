@@ -129,6 +129,7 @@ export default async function NotasPage({
         />
       )}
       <MisNotasClient
+        isParentView={profile.role === 'parent'}
         studentName={studentDisplayName}
         institutionName={(profile as any).institutions?.name || ''}
         enrollments={enrollments || []}
