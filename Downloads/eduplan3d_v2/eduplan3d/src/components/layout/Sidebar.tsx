@@ -137,6 +137,18 @@ const NAV_PARENT: NavItem[] = [
 ]
 
 // ─── Nav secretaria ──────────────────────────────────────────────────────────
+const NAV_PARENT_GROUP: NavGroup = {
+  title: 'Hijos Vinculados',
+  icon: '🧒',
+  color: 'from-teal/20 to-teal/5',
+  items: [
+    { href: '/dashboard/alumno',       icon: '🧒', label: 'Seguimiento' },
+    { href: '/dashboard/notas',        icon: '📊', label: 'Notas de Hijos' },
+    { href: '/dashboard/libretas?view_as=parent', icon: '📓', label: 'Libretas Hijos' },
+    { href: '/dashboard/finanzas',     icon: '💰', label: 'Finanzas Hijos' },
+  ]
+}
+
 const NAV_SECRETARY: NavNode[] = [
   { href: '/dashboard/secretaria',   icon: '💼', label: 'Secretaría'   },
   { href: '/dashboard/saldos-externos', icon: '🧾', label: 'Saldos Externos' },
@@ -201,12 +213,14 @@ const NAV_PLANNER_SOLO: NavItem[] = [
 ]
 
 export function Sidebar({
+  hasParentLinks = false,
   role = 'admin',
   plan,
   institutionName,
   logoUrl,
   plannerIaAccess = true,
 }: {
+  hasParentLinks?: boolean
   role?: string,
   plan?: string,
   institutionName?: string
@@ -273,25 +287,51 @@ export function Sidebar({
   }
 
   function getNav(): NavNode[] {
-    if (isPlannerSolo) return NAV_PLANNER_SOLO
-    if (role === 'rector') return [...NAV_ADMIN_GROUPED, NAV_RECTOR_DOCENTE_GROUP, NAV_TUTORIAS_GROUP]
-    if (isAdmin) return NAV_ADMIN_GROUPED
-    // supervisor: ver planificaciones de docentes es supervisión institucional,
-    // no un feature de IA — no filtrar por plannerIaAccess
-    if (role === 'supervisor') return NAV_SUPERVISOR
     let nav: NavNode[]
-    switch (role) {
-      case 'teacher':       nav = NAV_TEACHER; break
-      case 'student':       nav = NAV_STUDENT; break
-      case 'parent':        nav = NAV_PARENT; break
-      case 'secretary':     nav = NAV_SECRETARY; break
-      case 'horarios_only': nav = NAV_HORARIOS; break
-      default:              nav = []
+    if (isPlannerSolo) {
+      nav = [...NAV_PLANNER_SOLO]
+    } else if (role === 'rector') {
+      nav = [...NAV_ADMIN_GROUPED, NAV_RECTOR_DOCENTE_GROUP, NAV_TUTORIAS_GROUP]
+    } else if (isAdmin) {
+      nav = [...NAV_ADMIN_GROUPED]
+    } else if (role === 'supervisor') {
+      nav = [...NAV_SUPERVISOR]
+    } else {
+      switch (role) {
+        case 'teacher':       nav = [...NAV_TEACHER]; break
+        case 'student':       nav = [...NAV_STUDENT]; break
+        case 'parent':        nav = [...NAV_PARENT]; break
+        case 'secretary':     nav = [...NAV_SECRETARY]; break
+        case 'horarios_only': nav = [...NAV_HORARIOS]; break
+        default:              nav = []
+      }
+      nav = filterPlannerNodes(nav)
     }
-    return filterPlannerNodes(nav)
+
+    if (role !== 'parent' && hasParentLinks) {
+      nav = [...nav, NAV_PARENT_GROUP]
+    }
+
+    return nav
   }
 
-  const navItems = useMemo(() => getNav(), [role, plan, plannerIaAccess])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  const navItems = useMemo(() => getNav(), [role, plan, plannerIaAccess, hasParentLinks])
   const hasMessagesItem = useMemo(() => {
     const scan = (nodes: NavNode[]) =>
       nodes.some((node) => ('items' in node ? node.items.some((item) => item.href === '/dashboard/mensajes') : node.href === '/dashboard/mensajes'))

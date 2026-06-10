@@ -34,6 +34,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq('id', user!.id)
     .single()
 
+  let hasParentLinks = false
+  if (profile?.id) {
+    const { data: parentLinks } = await (admin as any)
+      .from('parent_links')
+      .select('id')
+      .eq('parent_id', profile.id)
+      .limit(1)
+    hasParentLinks = (parentLinks || []).length > 0
+  }
+
   const isPlannerSolo     = profile?.plan === 'planner_solo'
   const isMissingInstitution = !profile?.institution_id && !isPlannerSolo
   const isHorariosOnly = profile?.role === 'horarios_only'
@@ -99,6 +109,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           institutionName={isPlannerSolo ? undefined : institution?.name}
           logoUrl={isPlannerSolo ? null : logoUrl}
           plannerIaAccess={plannerIaAccess}
+          hasParentLinks={hasParentLinks}
         />
         <div className="flex-1 flex flex-col min-w-0">
           <Topbar profile={profile} institutionName={institution?.name} />

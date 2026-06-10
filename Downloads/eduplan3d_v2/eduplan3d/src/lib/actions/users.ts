@@ -143,11 +143,10 @@ export async function createInstitutionUser(data: {
       if ((existingProfile as any).institution_id !== data.institution_id) {
         return { error: 'El correo del representante ya pertenece a otra institución.' }
       }
-      if ((existingProfile as any).role !== 'parent') {
-        return { error: 'El correo del representante ya existe con otro rol. Usa otro correo o ajusta esa cuenta primero.' }
-      }
       parentUserId = (existingProfile as any).id
-      warning = 'Se reutilizó una cuenta de representante existente y se la vinculó con el estudiante.'
+      warning = (existingProfile as any).role === 'parent'
+        ? 'Se reutilizó una cuenta de representante existente y se la vinculó con el estudiante.'
+        : `Se vinculó el estudiante con el usuario existente (${(existingProfile as any).role}) sin alterar su rol principal.`
     } else {
       const { data: authParent, error: authParentError } = await supabaseAdmin.auth.admin.createUser({
         email: parentEmail,
@@ -408,11 +407,10 @@ export async function createParentAccessFromStudentProfile(data: {
     if ((existingProfile as any).institution_id !== data.institution_id) {
       return { error: 'El correo o usuario del representante ya pertenece a otra institución.' }
     }
-    if ((existingProfile as any).role !== 'parent') {
-      return { error: 'Ese correo o usuario ya existe con otro rol. Usa otro acceso o corrige esa cuenta primero.' }
-    }
     parentUserId = (existingProfile as any).id
-    warning = 'Se reutilizó una cuenta de representante existente y se la vinculó con este estudiante.'
+    warning = (existingProfile as any).role === 'parent'
+      ? 'Se reutilizó una cuenta de representante existente y se la vinculó con este estudiante.'
+      : `Se vinculó el estudiante con el usuario existente (${(existingProfile as any).role}) sin alterar su rol principal.`
   } else {
     const { data: authParent, error: authParentError } = await supabaseAdmin.auth.admin.createUser({
       email: parentEmail,

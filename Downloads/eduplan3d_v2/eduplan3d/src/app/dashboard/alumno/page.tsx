@@ -26,7 +26,10 @@ export default async function AlumnoPage({
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['student', 'parent'].includes(profile.role)) {
+  const linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+  const isParentMode = profile?.role === 'parent' || linkedChildren.length > 0
+
+  if (!profile || (!['student'].includes(profile.role) && !isParentMode)) {
     redirect('/dashboard')
   }
 
@@ -36,11 +39,9 @@ export default async function AlumnoPage({
   const instId = profile.institution_id
   let effectiveStudentId = user.id
   let studentProfile = profile
-  let linkedChildren: Awaited<ReturnType<typeof getLinkedChildrenForParent>> = []
   let selectedChildId: string | null = null
 
-  if (profile.role === 'parent') {
-    linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+  if (isParentMode) {
 
     // SERVER-SIDE DEBUG WRITE
     try {
@@ -294,7 +295,7 @@ export default async function AlumnoPage({
         </div>
       )}
 
-      {profile.role === 'parent' && selectedChildId && (
+      {isParentMode && selectedChildId && (
         <ChildScopeSelector
           childrenOptions={linkedChildren}
           selectedChildId={selectedChildId}
@@ -304,7 +305,7 @@ export default async function AlumnoPage({
       )}
 
       <AlumnoClient
-        profile={profile}
+        profile={{ ...profile, role: isParentMode ? 'parent' : profile.role }}
         studentProfile={studentProfile}
         courses={courses}
         subjects={subjects}

@@ -33,7 +33,12 @@ export default async function NotasPage({
     .single()
 
   if (!profile?.institution_id) redirect('/dashboard')
-  if (!['student', 'parent'].includes(profile.role)) redirect('/dashboard')
+  const linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+  const isParentMode = profile.role === 'parent' || linkedChildren.length > 0
+
+  if (!['student'].includes(profile.role) && !isParentMode) {
+    redirect('/dashboard')
+  }
 
   const params = await Promise.resolve(searchParams || {})
   const requestedChildId = typeof params.child_id === 'string' ? params.child_id : undefined
@@ -41,10 +46,9 @@ export default async function NotasPage({
   const instId = profile.institution_id
   let effectiveStudentId = user.id
   let studentDisplayName = profile.full_name || 'Estudiante'
-  let linkedChildren: Awaited<ReturnType<typeof getLinkedChildrenForParent>> = []
   let selectedChildId: string | null = null
 
-  if (profile.role === 'parent') {
+  if (isParentMode) {
     linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
     const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id, requestedChildId)
     if (!linkedChild) {
@@ -120,7 +124,7 @@ export default async function NotasPage({
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto">
-      {profile.role === 'parent' && selectedChildId && (
+      {isParentMode && selectedChildId && (
         <ChildScopeSelector
           childrenOptions={linkedChildren}
           selectedChildId={selectedChildId}
@@ -129,7 +133,7 @@ export default async function NotasPage({
         />
       )}
       <MisNotasClient
-        isParentView={profile.role === 'parent'}
+        isParentView={isParentMode}
         studentName={studentDisplayName}
         institutionName={(profile as any).institutions?.name || ''}
         enrollments={enrollments || []}
