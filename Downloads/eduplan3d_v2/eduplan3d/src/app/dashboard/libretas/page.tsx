@@ -33,10 +33,12 @@ export default async function LibretasPage({
   const requestedChildId = typeof params.child_id === 'string' ? params.child_id : undefined
 
   const instId = profile.institution_id
+  const viewAsParent = params.view_as === 'parent'
+  const linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+  const isParentMode = profile.role === 'parent' || (viewAsParent && linkedChildren.length > 0)
+
   let linkedStudentId: string | null = null
-  let linkedChildren: Awaited<ReturnType<typeof getLinkedChildrenForParent>> = []
-  if (profile.role === 'parent') {
-    linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+  if (isParentMode) {
     const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id, requestedChildId)
     if (!linkedChild) {
       return (
@@ -97,7 +99,7 @@ export default async function LibretasPage({
       filteredCourses = []
     }
   }
-  if (profile.role === 'parent' && linkedStudentId) {
+  if (isParentMode && linkedStudentId) {
     const parentCourseIds = (enrollments || [])
       .filter((e: any) => e.student_id === linkedStudentId)
       .map((e: any) => e.course_id)
@@ -153,7 +155,7 @@ export default async function LibretasPage({
   }
 
   // Check visibility for parents/students
-  const isFamilyRole = profile.role === 'student' || profile.role === 'parent'
+  const isFamilyRole = profile.role === 'student' || isParentMode
   if (isFamilyRole && !libretasPublished) {
     return (
       <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
@@ -180,7 +182,7 @@ export default async function LibretasPage({
 
   // For students, filter to their own data
   const isStudent = profile.role === 'student'
-  const isParent = profile.role === 'parent'
+  const isParent = isParentMode
   const filteredEnrollments = isStudent
     ? (enrollments || []).filter((e: any) => e.student_id === user.id)
     : isParent
@@ -213,7 +215,7 @@ export default async function LibretasPage({
         <p className="text-ink3 text-sm mt-1">Generacion e impresion de record academico automatizado.</p>
       </div>
 
-      {profile.role === 'parent' && linkedStudentId && (
+      {isParentMode && linkedStudentId && (
         <ChildScopeSelector
           childrenOptions={linkedChildren}
           selectedChildId={linkedStudentId}
@@ -223,7 +225,7 @@ export default async function LibretasPage({
       )}
 
       <LibretasClient
-        role={profile.role}
+        role={isParentMode ? 'parent' : profile.role}
         institutionName={profile.institutions?.name}
         courses={filteredCourses}
         enrollments={filteredEnrollments}

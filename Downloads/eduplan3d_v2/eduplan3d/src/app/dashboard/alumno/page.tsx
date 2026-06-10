@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { AlumnoClient } from '@/components/alumno/AlumnoClient'
 import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
+import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -26,7 +27,10 @@ export default async function AlumnoPage({
     .eq('id', user.id)
     .single()
 
-  if (!profile || !['student', 'parent'].includes(profile.role)) {
+  const linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+  const isParentMode = profile?.role === 'parent' || linkedChildren.length > 0
+
+  if (!profile || (!['student'].includes(profile.role) && !isParentMode)) {
     redirect('/dashboard')
   }
 
@@ -36,11 +40,9 @@ export default async function AlumnoPage({
   const instId = profile.institution_id
   let effectiveStudentId = user.id
   let studentProfile = profile
-  let linkedChildren: Awaited<ReturnType<typeof getLinkedChildrenForParent>> = []
   let selectedChildId: string | null = null
 
-  if (profile.role === 'parent') {
-    linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
+  if (isParentMode) {
 
     // SERVER-SIDE DEBUG WRITE
     try {
@@ -116,7 +118,7 @@ export default async function AlumnoPage({
       .select('*, teacher:profiles(full_name)')
       .in('course_id', courseIds)
       .order('name', { ascending: true })
-    subjects = subData || []
+    subjects = filterSubjectsForInstitution(profile?.institutions?.name, subData || [])
     subjectIds = subjects.map((s: any) => s.id)
   }
 
@@ -294,7 +296,7 @@ export default async function AlumnoPage({
         </div>
       )}
 
-      {profile.role === 'parent' && selectedChildId && (
+      {isParentMode && selectedChildId && (
         <ChildScopeSelector
           childrenOptions={linkedChildren}
           selectedChildId={selectedChildId}
@@ -304,7 +306,7 @@ export default async function AlumnoPage({
       )}
 
       <AlumnoClient
-        profile={profile}
+        profile={{ ...profile, role: isParentMode ? 'parent' : profile.role }}
         studentProfile={studentProfile}
         courses={courses}
         subjects={subjects}

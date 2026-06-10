@@ -47,8 +47,12 @@ export function shouldHideSubjectInInstitution(
   institutionName: string | null | undefined,
   subjectName: string | null | undefined,
 ): boolean {
+  const normalized = normalizeSubjectName(subjectName)
+  if (normalized === 'atencion a padres' || normalized === 'atencion de padres') {
+    return true
+  }
   if (!isLetamendiInstitution(institutionName)) return false
-  return LETAMENDI_GLOBAL_HIDDEN.has(normalizeSubjectName(subjectName))
+  return LETAMENDI_GLOBAL_HIDDEN.has(normalized)
 }
 
 export function shouldHideSubjectInPlanificaciones(

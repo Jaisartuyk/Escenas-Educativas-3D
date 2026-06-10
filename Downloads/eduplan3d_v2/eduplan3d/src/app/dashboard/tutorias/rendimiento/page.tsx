@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { RendimientoClient } from '@/components/tutorias/RendimientoClient'
 import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
+import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -58,7 +59,8 @@ export default async function RendimientoTutorPage() {
   // Find specific enrollments and subjects
   const relatedEnrollments = (enrollments || []).filter(e => tutoredCourseIds.includes(e.course_id))
   const relatedStudentIds = Array.from(new Set(relatedEnrollments.map(e => e.student_id)))
-  const relatedSubjects = (allSubjects || []).filter(s => tutoredCourseIds.includes(s.course_id))
+  const rawRelatedSubjects = (allSubjects || []).filter(s => tutoredCourseIds.includes(s.course_id))
+  const relatedSubjects = filterSubjectsForInstitution(profile?.institutions?.name, rawRelatedSubjects)
   const relatedSubjectIds = relatedSubjects.map(s => s.id)
 
   // Fetch assignments & grades

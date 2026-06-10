@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { DocenteClient } from '@/components/docente/DocenteClient'
+import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -32,12 +33,13 @@ export default async function DocentePage() {
   const instId = profile.institution_id
 
   // ── Materias asignadas a este docente ────────────────────────────────────
-  const { data: mySubjects } = await admin
+  const { data: rawSubjects } = await admin
     .from('subjects' as any)
     .select('*, course:courses(id, name, parallel, level, shift)')
     .eq('teacher_id', user.id)
     .order('name', { ascending: true })
 
+  const mySubjects = filterSubjectsForInstitution((profile as any)?.institutions?.name, rawSubjects || [])
   const subjectIds = (mySubjects || []).map((s: any) => s.id)
 
   // ── Tareas de las materias del docente (con parcial/trimestre) ───────────

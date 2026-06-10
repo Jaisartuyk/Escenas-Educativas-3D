@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { EntregasClient } from '@/components/docente/EntregasClient'
 import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
+import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -49,7 +50,7 @@ export default async function TutoriasEntregasPage() {
     .in('course_id', tutoredCourseIds)
     .order('name', { ascending: true })
     
-  const mySubjects = dbSubjects || []
+  const mySubjects = filterSubjectsForInstitution(profile?.institutions?.name, dbSubjects || [])
   const subjectIds = mySubjects.map((s: any) => s.id)
 
   // Assignments
