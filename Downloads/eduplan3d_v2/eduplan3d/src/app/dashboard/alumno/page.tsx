@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { AlumnoClient } from '@/components/alumno/AlumnoClient'
 import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
+import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -117,7 +118,7 @@ export default async function AlumnoPage({
       .select('*, teacher:profiles(full_name)')
       .in('course_id', courseIds)
       .order('name', { ascending: true })
-    subjects = subData || []
+    subjects = filterSubjectsForInstitution(profile?.institutions?.name, subData || [])
     subjectIds = subjects.map((s: any) => s.id)
   }
 

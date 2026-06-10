@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { EntregasClient } from '@/components/docente/EntregasClient'
+import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -47,7 +48,8 @@ export default async function EntregasPage() {
     mySubjects = data || []
   }
 
-  const subjectIds = mySubjects.map((s: any) => s.id)
+  const visibleSubjects = filterSubjectsForInstitution((profile as any)?.institutions?.name, mySubjects || [])
+  const subjectIds = visibleSubjects.map((s: any) => s.id)
 
   // Assignments
   let assignments: any[] = []
@@ -106,7 +108,7 @@ export default async function EntregasPage() {
   return (
     <EntregasClient
       profile={profile}
-      subjects={mySubjects}
+      subjects={visibleSubjects}
       assignments={assignments}
       submissions={submissions}
       grades={grades}

@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation'
 import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { MisNotasClient } from '@/components/notas/MisNotasClient'
 import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
+import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -49,7 +50,6 @@ export default async function NotasPage({
   let selectedChildId: string | null = null
 
   if (isParentMode) {
-    linkedChildren = await getLinkedChildrenForParent(admin as any, user.id)
     const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id, requestedChildId)
     if (!linkedChild) {
       return (
@@ -81,11 +81,12 @@ export default async function NotasPage({
   }
 
   // ── Subjects (materias) del curso con docente ─────────────────────────────
-  const { data: subjects } = await admin
+  const { data: rawSubjects } = await admin
     .from('subjects')
     .select('id, name, course_id, teacher:profiles!subjects_teacher_id_fkey(id, full_name)')
     .in('course_id', courseIds)
 
+  const subjects = filterSubjectsForInstitution((profile as any)?.institutions?.name, rawSubjects || [])
   const subjectIds = (subjects || []).map((s: any) => s.id)
 
   const [
