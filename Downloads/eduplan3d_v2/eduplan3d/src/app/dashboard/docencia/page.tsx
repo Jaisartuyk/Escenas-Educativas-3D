@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { SupervisionClient } from '@/components/supervision/SupervisionClient'
+import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -44,9 +45,10 @@ export default async function DocenciaPage() {
     admin.from('schedule_configs' as any).select('parciales_count, tutores').eq('institution_id', instId).maybeSingle(),
   ])
 
-  // Filter subjects to institution courses
+  // Filter subjects to institution courses and apply global visibility filters
   const courseIds = (courses || []).map((c: any) => c.id)
-  const instSubjects = (subjects || []).filter((s: any) => courseIds.includes(s.course_id))
+  const rawInstSubjects = (subjects || []).filter((s: any) => courseIds.includes(s.course_id))
+  const instSubjects = filterSubjectsForInstitution((profile as any)?.institutions?.name, rawInstSubjects)
   const subjectIds = instSubjects.map((s: any) => s.id)
 
   // Filter enrollments to institution courses
