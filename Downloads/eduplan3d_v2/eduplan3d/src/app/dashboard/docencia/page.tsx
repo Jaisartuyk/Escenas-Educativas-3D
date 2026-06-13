@@ -69,7 +69,9 @@ export default async function DocenciaPage() {
         .order('created_at', { ascending: false }),
       admin.from('attendance')
         .select('id, student_id, subject_id, status, date, justification_status, justification_text, justification_file_url')
-        .in('subject_id', subjectIds),
+        .in('subject_id', subjectIds)
+        .order('date', { ascending: false })
+        .limit(50000),
       admin.from('behavior_records' as any)
         .select('id, student_id, subject_id, type, description, date, created_at')
         .in('subject_id', subjectIds)
