@@ -58,6 +58,8 @@ export default async function AsistenciasPage() {
           .from('attendance')
           .select('id, student_id, status, date, justification_status, justification_text')
           .in('student_id', studentIds)
+          .order('date', { ascending: false })
+          .limit(50000)
         attendanceGlobal = attData || []
 
         // Traer justificaciones de los estudiantes tutorados (con nombre + materia)
@@ -67,6 +69,7 @@ export default async function AsistenciasPage() {
           .in('student_id', studentIds)
           .not('justification_status', 'is', null)
           .order('date', { ascending: false })
+          .limit(50000)
 
         // Enriquecer con nombre del estudiante + nombre de la materia
         const subjIds = Array.from(new Set((justData || []).map((j: any) => j.subject_id).filter(Boolean)))
