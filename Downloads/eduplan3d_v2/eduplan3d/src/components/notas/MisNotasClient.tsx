@@ -10,6 +10,7 @@ import {
   CheckCircle2, AlertCircle, CircleX, CalendarCheck, Smile, Frown, Trophy,
   BookOpen,
 } from 'lucide-react'
+import { isQualitativeSubject, getQualitativeGradeForNumber } from '@/lib/qualitative-grades'
 
 // ── Tipos ───────────────────────────────────────────────────────────────────
 interface Category { id: string; name: string; color: string; weight_percent: number; sort_order: number }
@@ -249,12 +250,15 @@ export function MisNotasClient(props: Props) {
 
   // Promedio general
   const overall = useMemo(() => {
-    const vals = subjectRows.map(r => r.weighted).filter((x): x is number => x != null)
+    const vals = subjectRows
+      .filter(r => !isQualitativeSubject(r.subject.name))
+      .map(r => r.weighted)
+      .filter((x): x is number => x != null)
     return avg(vals)
   }, [subjectRows])
 
-  const subjectsConNota = subjectRows.filter(r => r.weighted != null).length
-  const subjectsAlcanzan = subjectRows.filter(r => r.weighted != null && r.weighted >= 7).length
+  const subjectsConNota = subjectRows.filter(r => r.weighted != null && !isQualitativeSubject(r.subject.name)).length
+  const subjectsAlcanzan = subjectRows.filter(r => r.weighted != null && r.weighted >= 7 && !isQualitativeSubject(r.subject.name)).length
 
   const overallLevel = levelForScore(overall)
 
@@ -356,6 +360,8 @@ export function MisNotasClient(props: Props) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {subjectRows.map(row => {
+            const isQuali = isQualitativeSubject(row.subject.name)
+            const qualiGrade = isQuali && row.weighted != null ? getQualitativeGradeForNumber(row.weighted) : null
             const level = levelForScore(row.weighted)
             const isOpen = expanded.has(row.subject.id)
             const tr = trendIcon(row.weighted, row.prevAvg)
@@ -389,11 +395,13 @@ export function MisNotasClient(props: Props) {
                   {/* Score grande */}
                   <div className="mt-4 flex items-baseline gap-3">
                     <span className="text-5xl font-display font-bold tracking-tight" style={{ color: level.color }}>
-                      {row.weighted != null ? row.weighted.toFixed(2) : '—'}
+                      {isQuali ? (qualiGrade?.id || '—') : (row.weighted != null ? row.weighted.toFixed(2) : '—')}
                     </span>
-                    <span className="text-ink4 text-sm">/ {SCALE_MAX}</span>
-                    {row.prevAvg != null && (
-                      <span className={`ml-auto flex items-center gap-1 text-xs font-semibold ${tr.color}`}>
+                    <span className="text-ink4 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                      {isQuali ? (qualiGrade?.equivalencia || '') : `/ ${SCALE_MAX}`}
+                    </span>
+                    {row.prevAvg != null && !isQuali && (
+                      <span className={`ml-auto flex items-center gap-1 text-xs font-semibold ${tr.color} shrink-0`}>
                         <TrIcon size={14} /> {tr.label}
                       </span>
                     )}
@@ -446,7 +454,7 @@ export function MisNotasClient(props: Props) {
                         </span>
                         <span className="font-bold tabular-nums shrink-0 w-12 text-right"
                               style={{ color: !(isParentView && isExamOrEvaluation('', b.category.id, categories)) && b.avg != null ? levelForScore(b.avg).color : '#CBD5E1' }}>
-                          {isParentView && isExamOrEvaluation('', b.category.id, categories) ? '—' : (b.avg != null ? b.avg.toFixed(2) : '—')}
+                          {isParentView && isExamOrEvaluation('', b.category.id, categories) ? '—' : (isQuali && b.avg != null ? getQualitativeGradeForNumber(b.avg)?.id || '—' : (b.avg != null ? b.avg.toFixed(2) : '—'))}
                         </span>
                         <span className="text-ink4 shrink-0 text-[10px] w-10 text-right">
                           {Number(b.category.weight_percent).toFixed(0)}%
@@ -483,8 +491,8 @@ export function MisNotasClient(props: Props) {
                                 {a.parcial ? ` · P${a.parcial}` : ''}
                               </p>
                             </div>
-                            <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? 'text-slate-500' : lvl.text}`}>
-                              {isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? '—' : (score != null ? score.toFixed(1) : '—')}
+                            <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? 'text-slate-500' : (isQuali ? 'text-ink2' : lvl.text)}`}>
+                              {isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? '—' : (isQuali && score != null ? getQualitativeGradeForNumber(score)?.id || '—' : (score != null ? score.toFixed(1) : '—'))}
                             </span>
                           </div>
                         )
