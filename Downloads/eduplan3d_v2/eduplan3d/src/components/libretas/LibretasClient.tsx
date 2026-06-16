@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition } from 'react'
 import { Printer, FileText, Eye, EyeOff } from 'lucide-react'
 import { updateLibretasVisibility } from '@/lib/actions/institution'
+import { isQualitativeSubject, getQualitativeGradeForNumber } from '@/lib/qualitative-grades'
 import toast from 'react-hot-toast'
 
 // ── Escala cualitativa MINEDUC ──────────────────────────────────────────────
@@ -356,6 +357,8 @@ export function LibretasClient({
                 <tbody>
                   {courseSubjects.map((sub: any, idx: number) => {
                     const parcAvg = getParcialAvg(selectedStudentId, sub.id, trimestre, parcialSel)
+                    const isQuali = isQualitativeSubject(sub.name)
+                    const displayGrade = (val: number | null) => isQuali && val !== null ? getQualitativeGradeForNumber(val)?.id || '' : fmt(val)
                     return (
                       <tr key={sub.id} className={idx % 2 === 0 ? '' : 'bg-gray-50'}>
                         <td className="border border-gray-400 px-2 py-1 text-center font-semibold">{idx + 1}</td>
@@ -364,23 +367,23 @@ export function LibretasClient({
                           const catAvg = getCatAvg(selectedStudentId, sub.id, trimestre, parcialSel, cat.id)
                           return (
                             <>
-                              <td key={`${cat.id}-n`} className={`border border-gray-400 px-1 py-1 text-center ${gradeClass(catAvg)}`}>
-                                {fmt(catAvg)}
+                              <td key={`${cat.id}-n`} className={`border border-gray-400 px-1 py-1 text-center ${isQuali ? '' : gradeClass(catAvg)}`}>
+                                {displayGrade(catAvg)}
                               </td>
-                              <td key={`${cat.id}-p`} className={`border border-gray-400 px-1 py-1 text-center font-semibold bg-cyan-50 ${gradeClass(catAvg)}`}>
-                                {fmt(catAvg)}
+                              <td key={`${cat.id}-p`} className={`border border-gray-400 px-1 py-1 text-center font-semibold bg-cyan-50 ${isQuali ? '' : gradeClass(catAvg)}`}>
+                                {displayGrade(catAvg)}
                               </td>
                             </>
                           )
                         })}
-                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-cyan-100 ${gradeClass(parcAvg)}`}>
-                          {fmt(parcAvg)}
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-cyan-100 ${isQuali ? '' : gradeClass(parcAvg)}`}>
+                          {displayGrade(parcAvg)}
                         </td>
-                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-pink-100 ${gradeClass(parcAvg)}`}>
-                          {fmt(parcAvg)}
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-pink-100 ${isQuali ? '' : gradeClass(parcAvg)}`}>
+                          {displayGrade(parcAvg)}
                         </td>
                         <td className="border border-gray-400 px-1 py-1 text-center font-bold bg-green-100">
-                          {cualitativo(parcAvg)}
+                          {isQuali && parcAvg !== null ? getQualitativeGradeForNumber(parcAvg)?.id || '' : cualitativo(parcAvg)}
                         </td>
                       </tr>
                     )
@@ -447,6 +450,8 @@ export function LibretasClient({
                     const pm = getParcialMean(selectedStudentId, sub.id, trimestre)
                     const exam = getExamScore(selectedStudentId, sub.id, trimestre)
                     const triAvg = getTrimestreAvg(selectedStudentId, sub.id, trimestre)
+                    const isQuali = isQualitativeSubject(sub.name)
+                    const displayGrade = (val: number | null) => isQuali && val !== null ? getQualitativeGradeForNumber(val)?.id || '' : fmt(val)
                     return (
                       <tr key={sub.id} className={idx % 2 === 0 ? '' : 'bg-gray-50'}>
                         <td className="border border-gray-400 px-1 py-1 text-center font-semibold">{idx + 1}</td>
@@ -455,26 +460,26 @@ export function LibretasClient({
                           const pAvg = getParcialAvg(selectedStudentId, sub.id, trimestre, i + 1)
                           return (
                             <>
-                              <td key={`n-${i}`} className={`border border-gray-400 px-1 py-1 text-center ${gradeClass(pAvg)}`}>
-                                {fmt(pAvg)}
+                              <td key={`n-${i}`} className={`border border-gray-400 px-1 py-1 text-center ${isQuali ? '' : gradeClass(pAvg)}`}>
+                                {displayGrade(pAvg)}
                               </td>
-                              <td key={`p-${i}`} className={`border border-gray-400 px-1 py-1 text-center font-semibold bg-cyan-50 ${gradeClass(pAvg)}`}>
-                                {fmt(pAvg)}
+                              <td key={`p-${i}`} className={`border border-gray-400 px-1 py-1 text-center font-semibold bg-cyan-50 ${isQuali ? '' : gradeClass(pAvg)}`}>
+                                {displayGrade(pAvg)}
                               </td>
                             </>
                           )
                         })}
-                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-orange-100 ${gradeClass(pm)}`}>
-                          {fmt(pm)}
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-orange-100 ${isQuali ? '' : gradeClass(pm)}`}>
+                          {displayGrade(pm)}
                         </td>
-                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-amber-100 ${gradeClass(exam)}`}>
-                          {fmt(exam)}
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-amber-100 ${isQuali ? '' : gradeClass(exam)}`}>
+                          {displayGrade(exam)}
                         </td>
-                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-cyan-100 ${gradeClass(triAvg)}`}>
-                          {fmt(triAvg)}
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-cyan-100 ${isQuali ? '' : gradeClass(triAvg)}`}>
+                          {displayGrade(triAvg)}
                         </td>
                         <td className="border border-gray-400 px-1 py-1 text-center font-bold bg-green-100">
-                          {cualitativo(triAvg)}
+                          {isQuali && triAvg !== null ? getQualitativeGradeForNumber(triAvg)?.id || '' : cualitativo(triAvg)}
                         </td>
                       </tr>
                     )
@@ -539,32 +544,34 @@ export function LibretasClient({
                     const t3 = getTrimestreAvg(selectedStudentId, sub.id, 3)
                     const exam3 = getExamScore(selectedStudentId, sub.id, 3)
                     const annual = getAnnualAvg(selectedStudentId, sub.id)
+                    const isQuali = isQualitativeSubject(sub.name)
+                    const displayGrade = (val: number | null) => isQuali && val !== null ? getQualitativeGradeForNumber(val)?.id || '' : fmt(val)
                     return (
                       <tr key={sub.id} className={idx % 2 === 0 ? '' : 'bg-gray-50'}>
                         <td className="border border-gray-400 px-2 py-1 font-medium uppercase text-[9px]">{sub.name}</td>
-                        <td className={`border border-gray-400 px-1 py-1 text-center font-semibold ${gradeClass(t1)}`}>{fmt(t1)}</td>
-                        <td className="border border-gray-400 px-1 py-1 text-center">{cualitativo(t1)}</td>
-                        <td className={`border border-gray-400 px-1 py-1 text-center font-semibold ${gradeClass(t2)}`}>{fmt(t2)}</td>
-                        <td className="border border-gray-400 px-1 py-1 text-center">{cualitativo(t2)}</td>
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-semibold ${isQuali ? '' : gradeClass(t1)}`}>{displayGrade(t1)}</td>
+                        <td className="border border-gray-400 px-1 py-1 text-center">{isQuali && t1 !== null ? getQualitativeGradeForNumber(t1)?.id || '' : cualitativo(t1)}</td>
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-semibold ${isQuali ? '' : gradeClass(t2)}`}>{displayGrade(t2)}</td>
+                        <td className="border border-gray-400 px-1 py-1 text-center">{isQuali && t2 !== null ? getQualitativeGradeForNumber(t2)?.id || '' : cualitativo(t2)}</td>
                         {Array.from({ length: parcialesCount }, (_, i) => {
                           const pAvg = getParcialAvg(selectedStudentId, sub.id, 3, i + 1)
                           return (
-                            <td key={i} className={`border border-gray-400 px-1 py-1 text-center bg-cyan-50 ${gradeClass(pAvg)}`}>
-                              {fmt(pAvg)}
+                            <td key={i} className={`border border-gray-400 px-1 py-1 text-center bg-cyan-50 ${isQuali ? '' : gradeClass(pAvg)}`}>
+                              {displayGrade(pAvg)}
                             </td>
                           )
                         })}
-                        <td className={`border border-gray-400 px-1 py-1 text-center bg-amber-50 font-semibold ${gradeClass(exam3)}`}>
-                          {fmt(exam3)}
+                        <td className={`border border-gray-400 px-1 py-1 text-center bg-amber-50 font-semibold ${isQuali ? '' : gradeClass(exam3)}`}>
+                          {displayGrade(exam3)}
                         </td>
-                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-cyan-100 ${gradeClass(t3)}`}>
-                          {fmt(t3)}
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-cyan-100 ${isQuali ? '' : gradeClass(t3)}`}>
+                          {displayGrade(t3)}
                         </td>
-                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-orange-100 ${gradeClass(annual)}`}>
-                          {fmt(annual)}
+                        <td className={`border border-gray-400 px-1 py-1 text-center font-bold bg-orange-100 ${isQuali ? '' : gradeClass(annual)}`}>
+                          {displayGrade(annual)}
                         </td>
                         <td className="border border-gray-400 px-1 py-1 text-center font-bold bg-green-100">
-                          {cualitativo(annual)}
+                          {isQuali && annual !== null ? getQualitativeGradeForNumber(annual)?.id || '' : cualitativo(annual)}
                         </td>
                       </tr>
                     )
@@ -576,7 +583,7 @@ export function LibretasClient({
                       Promedio General
                     </td>
                     {(() => {
-                      const avgs = courseSubjects.map((s: any) => getAnnualAvg(selectedStudentId, s.id)).filter((v): v is number => v !== null)
+                      const avgs = courseSubjects.filter((s: any) => !isQualitativeSubject(s.name)).map((s: any) => getAnnualAvg(selectedStudentId, s.id)).filter((v): v is number => v !== null)
                       const globalAvg = avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null
                       return (
                         <>

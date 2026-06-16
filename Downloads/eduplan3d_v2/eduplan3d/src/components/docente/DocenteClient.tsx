@@ -12,6 +12,12 @@ import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
 import { FilePreview } from '@/components/ui/FilePreview'
 import { createClient } from '@/lib/supabase/client'
+import {
+  QUALITATIVE_SCALE,
+  isQualitativeSubject,
+  getQualitativeGradeForNumber,
+  getNumericValueForQualitative
+} from '@/lib/qualitative-grades'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AttendanceStatus = 'present' | 'absent' | 'late'
@@ -1181,6 +1187,7 @@ export function DocenteClient({
 
       {/* ── TAB: CALIFICACIONES ──────────────────────────────────────────── */}
       {activeTab === 'calificaciones' && (() => {
+        const isQuali = isQualitativeSubject(selectedSubject?.name, selectedSubject?.course?.name)
         const filteredAssignments = assignments.filter(
           (a: any) => a.subject_id === selectedSubjectId
             && a.trimestre === trimestre
@@ -1451,6 +1458,23 @@ export function DocenteClient({
                                 const score = cur !== '' ? Number(cur) : null
                                 return (
                                   <td key={a.id} className={`px-3 py-2 text-center ${!isEdit && score !== null ? gradeBg(score) : ''}`}>
+                                  {isQuali ? (
+                                    <select
+                                      value={cur === '' ? '' : QUALITATIVE_SCALE.find(g => g.numericValue === Math.round(Number(cur)))?.id || ''}
+                                      onChange={e => {
+                                        const num = getNumericValueForQualitative(e.target.value)
+                                        handleGradeChange(a.id, st.id, num !== null ? String(num) : '')
+                                        setTimeout(() => handleSaveGrade(a.id, st.id), 50)
+                                      }}
+                                      className={`w-16 h-8 text-center text-xs font-bold bg-transparent border-b-2 rounded-none outline-none transition-all appearance-none cursor-pointer
+                                        ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
+                                    >
+                                      <option value="">—</option>
+                                      {QUALITATIVE_SCALE.map(g => (
+                                        <option key={g.id} value={g.id}>{g.id}</option>
+                                      ))}
+                                    </select>
+                                  ) : (
                                     <input
                                       type="number" min="0" max="10" step="0.01"
                                       value={cur}
@@ -1461,6 +1485,7 @@ export function DocenteClient({
                                       className={`w-16 h-8 text-center text-sm font-bold bg-transparent border-b-2 rounded-none outline-none transition-all
                                         ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
                                     />
+                                  )}
                                   </td>
                                 )
                               })}
@@ -1676,7 +1701,24 @@ export function DocenteClient({
                               const score  = cur !== '' ? Number(cur) : null
                               cells.push(
                                 <td key={a.id} className={`px-3 py-2 text-center border-l border-surface/30 ${!isEdit && score !== null ? gradeBg(score) : ''}`}>
-                                  <input
+                                  {isQuali ? (
+                                    <select
+                                      value={cur === '' ? '' : QUALITATIVE_SCALE.find(g => g.numericValue === Math.round(Number(cur)))?.id || ''}
+                                      onChange={e => {
+                                        const num = getNumericValueForQualitative(e.target.value)
+                                        handleGradeChange(a.id, st.id, num !== null ? String(num) : '')
+                                        setTimeout(() => handleSaveGrade(a.id, st.id), 50)
+                                      }}
+                                      className={`w-16 h-8 text-center text-xs font-bold bg-transparent border-b-2 rounded-none outline-none transition-all appearance-none cursor-pointer
+                                        ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
+                                    >
+                                      <option value="">—</option>
+                                      {QUALITATIVE_SCALE.map(g => (
+                                        <option key={g.id} value={g.id}>{g.id}</option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <input
                                     type="number" min="0" max="10" step="0.01"
                                     value={cur}
                                     onChange={e => handleGradeChange(a.id, st.id, e.target.value)}
@@ -1686,6 +1728,7 @@ export function DocenteClient({
                                     className={`w-16 h-8 text-center text-sm font-bold bg-transparent border-b-2 rounded-none outline-none transition-all
                                       ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
                                   />
+                                  )}
                                 </td>
                               )
                               lastCatId = a.category_id
