@@ -70,9 +70,8 @@ export default async function RendimientoTutorPage() {
   if (relatedSubjectIds.length > 0) {
     const { data: aData } = await admin
       .from('assignments')
-      .select('id, subject_id, title, trimestre, parcial, category_id, is_draft')
+      .select('id, subject_id, title, trimestre, parcial, category_id')
       .in('subject_id', relatedSubjectIds)
-      .or('is_draft.eq.false,is_draft.is.null') // Sólo tareas publicadas
 
     assignments = aData || []
 
