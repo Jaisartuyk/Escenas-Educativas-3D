@@ -95,7 +95,7 @@ export function LibretasClient({
 
   // â”€â”€ Grade helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function getGrade(assignmentId: string, studentId: string): number | null {
-    const g = grades.find((gr: any) => gr.assignment_id === assignmentId && gr.student_id === studentId)
+    const g = grades.find((gr: any) => String(gr.assignment_id) === String(assignmentId) && String(gr.student_id) === String(studentId))
     return g?.score != null ? Number(g.score) : null
   }
 

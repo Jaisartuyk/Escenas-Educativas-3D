@@ -68,19 +68,28 @@ export default async function RendimientoTutorPage() {
   let grades: any[] = []
 
   if (relatedSubjectIds.length > 0) {
-    const { data: aData } = await admin
-      .from('assignments')
-      .select('id, subject_id, title, trimestre, parcial, category_id')
-      .in('subject_id', relatedSubjectIds)
+    const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+      Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
 
-    assignments = aData || []
+    const subjectChunks = chunkArray(relatedSubjectIds, 50)
+    for (const chunk of subjectChunks) {
+      const { data: aData } = await admin
+        .from('assignments')
+        .select('id, subject_id, title, trimestre, parcial, category_id')
+        .in('subject_id', chunk)
+      if (aData) assignments.push(...aData)
+    }
 
     if (assignments.length > 0) {
-      const { data: gData } = await admin
-        .from('grades')
-        .select('assignment_id, student_id, score')
-        .in('assignment_id', assignments.map(a => a.id))
-      grades = gData || []
+      const assignmentIds = assignments.map(a => a.id)
+      const assignmentChunks = chunkArray(assignmentIds, 50)
+      for (const chunk of assignmentChunks) {
+        const { data: gData } = await admin
+          .from('grades')
+          .select('assignment_id, student_id, score')
+          .in('assignment_id', chunk)
+        if (gData) grades.push(...gData)
+      }
     }
   }
 
