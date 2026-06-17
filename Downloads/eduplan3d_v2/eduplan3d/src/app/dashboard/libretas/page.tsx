@@ -90,6 +90,8 @@ export default async function LibretasPage({
   const instSettings = (instData as any)?.settings || {}
   const libretasPublished = !!instSettings.libretas_published
 
+  const tutores: Record<string, string> = (scheduleConfig as any)?.tutores || {}
+
   const isTeacher = profile.role === 'teacher'
   const isSupervisor = ['admin', 'assistant', 'supervisor', 'rector', 'secretary'].includes(profile.role)
 
