@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { AlertTriangle, TrendingUp, Filter, Users, Medal, ChevronDown } from 'lucide-react'
+import { isQualitativeSubject, getQualitativeGradeForNumber } from '@/lib/qualitative-grades'
 
 // Formula para obtener promedio de una materia en un periodo dado
 function getAverage(studentId: string, subjectId: string, assignments: any[], grades: any[], categories: any[]) {
@@ -31,10 +32,20 @@ function getAverage(studentId: string, subjectId: string, assignments: any[], gr
     const category = categories.find((c: any) => c.id === catId)
     if (category) {
       const avgCategory = categoryTotals[catId].sum / categoryTotals[catId].count
-      calculatedScore += avgCategory * (Number(category.weight) / 100)
+      calculatedScore += avgCategory * (Number(category.weight_percent || category.weight || 0) / 100)
       isAnyCategoryEvaluated = true
     }
   })
+
+  // Si no sumaron 100% los pesos, normalizamos
+  const totalWeight = Object.keys(categoryTotals).reduce((sum, catId) => {
+    const cat = categories.find((c: any) => c.id === catId)
+    return sum + Number(cat?.weight_percent || cat?.weight || 0)
+  }, 0)
+
+  if (isAnyCategoryEvaluated && totalWeight > 0 && totalWeight < 100) {
+    calculatedScore = (calculatedScore / totalWeight) * 100
+  }
 
   return isAnyCategoryEvaluated ? calculatedScore : null
 }
@@ -92,7 +103,8 @@ export function RendimientoClient({ courses, enrollments, subjects, assignments,
       courseSubjects.forEach((sub: any) => {
         const avg = getAverage(stId, sub.id, activeAssignments, grades, categories)
         subjectAverages[sub.id] = avg
-        if (avg !== null) {
+        const isQuali = isQualitativeSubject(sub.name)
+        if (avg !== null && !isQuali) {
           globalSum += avg
           globalCount += 1
           if (avg < 7) hasRisk = true
@@ -269,11 +281,12 @@ export function RendimientoClient({ courses, enrollments, subjects, assignments,
                     </td>
                     {courseSubjects.map((sub: any) => {
                       const avg = row.averages[sub.id]
+                      const isQuali = isQualitativeSubject(sub.name)
                       return (
                         <td key={sub.id} className="px-2 py-2 text-center">
                            {avg !== null ? (
-                             <span className={`inline-block w-full px-1.5 py-1.5 rounded-lg text-xs border ${getStyleForScore(avg)}`} title={`${sub.name}: ${avg.toFixed(2)}`}>
-                               {avg.toFixed(2)}
+                             <span className={`inline-block w-full px-1.5 py-1.5 rounded-lg text-xs border ${isQuali ? 'bg-surface2 text-ink2 border-surface2' : getStyleForScore(avg)}`} title={`${sub.name}: ${isQuali ? (getQualitativeGradeForNumber(avg)?.id || avg) : avg.toFixed(2)}`}>
+                               {isQuali ? (getQualitativeGradeForNumber(avg)?.id || avg) : avg.toFixed(2)}
                              </span>
                            ) : (
                              <span className="text-ink4 text-xs">—</span>
