@@ -100,7 +100,7 @@ export function LibretasClient({
 
   function getCatAvg(studentId: string, subjectId: string, t: number, p: number, catId: string | null): number | null {
     const asgs = assignments.filter((a: any) =>
-      a.subject_id === subjectId && a.trimestre === t && a.parcial === p
+      a.subject_id === subjectId && Number(a.trimestre) === t && Number(a.parcial) === p
       && (catId ? a.category_id === catId : !a.category_id)
     )
     const scores = asgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
@@ -109,7 +109,7 @@ export function LibretasClient({
 
   function getParcialAvg(studentId: string, subjectId: string, t: number, p: number): number | null {
     const pAsgs = assignments.filter((a: any) =>
-      a.subject_id === subjectId && a.trimestre === t && a.parcial === p
+      a.subject_id === subjectId && Number(a.trimestre) === t && Number(a.parcial) === p
     )
     if (pAsgs.length === 0) return null
     if (categories.length === 0) {
@@ -131,7 +131,7 @@ export function LibretasClient({
 
   function getExamScore(studentId: string, subjectId: string, t: number): number | null {
     const examAsgs = assignments.filter((a: any) =>
-      a.subject_id === subjectId && a.trimestre === t && a.parcial === 0
+      a.subject_id === subjectId && Number(a.trimestre) === t && Number(a.parcial) === 0
     )
     const scores = examAsgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
     return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
