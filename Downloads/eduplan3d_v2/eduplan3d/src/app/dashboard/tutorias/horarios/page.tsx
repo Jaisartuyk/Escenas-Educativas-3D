@@ -61,11 +61,19 @@ export default async function TutoriasHorariosPage() {
           if (
             resolvedCourse &&
             typeof tutorName === 'string' &&
-            tutorName.trim().toLowerCase() === teacherName &&
+            norm(tutorName) === norm(profile?.full_name) &&
             !addedCourseIds.has(resolvedCourse.id)
           ) {
             // El docente es tutor de este curso
             addedCourseIds.add(resolvedCourse.id)
+            let gridData = null
+            if (grid) {
+              const matchedGridKey = Object.keys(grid).find(k => norm(k) === norm(cursoName))
+              if (matchedGridKey) {
+                gridData = grid[matchedGridKey]
+              }
+            }
+
             tutoredSchedules.push({
               curso: `${resolvedCourse.name}${resolvedCourse.parallel ? ' ' + resolvedCourse.parallel : ''}`.trim(),
               nivel: config.nivel,
@@ -73,7 +81,7 @@ export default async function TutoriasHorariosPage() {
               nPeriodos: config.nPeriodos || 8,
               periodos: config.horarios || [],
               recesos: config.recesos || [4],
-              horarioGrid: grid ? grid[cursoName] : null
+              horarioGrid: gridData
             })
           }
         })
