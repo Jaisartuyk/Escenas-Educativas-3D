@@ -10,6 +10,22 @@ export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 export const revalidate = 0
 
+async function fetchAllRows<T>(
+  fetchPage: (from: number, to: number) => Promise<T[] | null | undefined>,
+  pageSize = 1000,
+): Promise<T[]> {
+  const rows: T[] = []
+
+  for (let from = 0; ; from += pageSize) {
+    const page = (await fetchPage(from, from + pageSize - 1)) || []
+    rows.push(...page)
+
+    if (page.length < pageSize) break
+  }
+
+  return rows
+}
+
 export default async function LibretasPage({
   searchParams,
 }: {
@@ -119,20 +135,26 @@ export default async function LibretasPage({
   let grades: any[] = []
 
   if (subjectIds.length > 0) {
-    const { data: aData } = await admin
-      .from('assignments')
-      .select('id, subject_id, title, trimestre, parcial, category_id, created_at')
-      .in('subject_id', subjectIds)
-      .limit(50000)
-    assignments = aData || []
+    assignments = await fetchAllRows(async (from, to) => {
+      const { data } = await admin
+        .from('assignments')
+        .select('id, subject_id, title, trimestre, parcial, category_id, created_at')
+        .in('subject_id', subjectIds)
+        .range(from, to)
+
+      return data
+    })
 
     if (assignments.length > 0) {
-      const { data: gData } = await admin
-        .from('grades')
-        .select('assignment_id, student_id, score')
-        .in('assignment_id', assignments.map((a: any) => a.id))
-        .limit(50000)
-      grades = gData || []
+      grades = await fetchAllRows(async (from, to) => {
+        const { data } = await admin
+          .from('grades')
+          .select('assignment_id, student_id, score')
+          .in('assignment_id', assignments.map((a: any) => a.id))
+          .range(from, to)
+
+        return data
+      })
     }
   }
 
