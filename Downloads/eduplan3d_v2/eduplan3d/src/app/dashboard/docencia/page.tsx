@@ -61,40 +61,51 @@ export default async function DocenciaPage() {
   let behaviors: any[] = []
   let submissions: any[] = []
 
-  if (subjectIds.length > 0) {
-    const [aRes, attRes, behRes] = await Promise.all([
-      admin.from('assignments')
-        .select('id, subject_id, title, description, trimestre, parcial, category_id, due_date, created_at')
-        .in('subject_id', subjectIds)
-        .order('created_at', { ascending: false }),
-      admin.from('attendance')
-        .select('id, student_id, subject_id, status, date, justification_status, justification_text, justification_file_url')
-        .in('subject_id', subjectIds)
-        .order('date', { ascending: false })
-        .limit(50000),
-      admin.from('behavior_records' as any)
-        .select('id, student_id, subject_id, type, description, date, created_at')
-        .in('subject_id', subjectIds)
-        .order('created_at', { ascending: false }),
-    ])
+  const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+    Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
 
-    assignments = aRes.data || []
-    attendance = attRes.data || []
-    behaviors = behRes.data || []
+  if (subjectIds.length > 0) {
+    const subjectChunks = chunkArray(subjectIds, 50)
+    
+    for (const chunk of subjectChunks) {
+      const [aRes, attRes, behRes] = await Promise.all([
+        admin.from('assignments')
+          .select('id, subject_id, title, description, trimestre, parcial, category_id, due_date, created_at')
+          .in('subject_id', chunk)
+          .order('created_at', { ascending: false }),
+        admin.from('attendance')
+          .select('id, student_id, subject_id, status, date, justification_status, justification_text, justification_file_url')
+          .in('subject_id', chunk)
+          .order('date', { ascending: false })
+          .limit(50000),
+        admin.from('behavior_records' as any)
+          .select('id, student_id, subject_id, type, description, date, created_at')
+          .in('subject_id', chunk)
+          .order('created_at', { ascending: false }),
+      ])
+      if (aRes.data) assignments.push(...aRes.data)
+      if (attRes.data) attendance.push(...attRes.data)
+      if (behRes.data) behaviors.push(...behRes.data)
+    }
 
     if (assignments.length > 0) {
-      const [gRes, subRes] = await Promise.all([
-        admin
-          .from('grades')
-          .select('assignment_id, student_id, score')
-          .in('assignment_id', assignments.map((a: any) => a.id)),
-        admin
-          .from('assignment_submissions' as any)
-          .select('id, assignment_id, student_id, comment, file_url, submitted_at, student:profiles(id, full_name)')
-          .in('assignment_id', assignments.map((a: any) => a.id))
-      ])
-      grades = gRes.data || []
-      submissions = subRes.data || []
+      const assignmentIds = assignments.map(a => a.id)
+      const assignmentChunks = chunkArray(assignmentIds, 50)
+      
+      for (const chunk of assignmentChunks) {
+        const [gRes, subRes] = await Promise.all([
+          admin
+            .from('grades')
+            .select('assignment_id, student_id, score')
+            .in('assignment_id', chunk),
+          admin
+            .from('assignment_submissions' as any)
+            .select('id, assignment_id, student_id, comment, file_url, submitted_at, student:profiles(id, full_name)')
+            .in('assignment_id', chunk)
+        ])
+        if (gRes.data) grades.push(...gRes.data)
+        if (subRes.data) submissions.push(...subRes.data)
+      }
     }
   }
 
