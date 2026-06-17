@@ -84,8 +84,8 @@ export function RendimientoClient({ courses, enrollments, subjects, assignments,
   // Filter active assignments by temporal filters
   const activeAssignments = useMemo(() => {
     return assignments.filter((a: any) => {
-      const matchT = a.trimestre === Number(filterTrimestre)
-      const matchP = filterParcial === 'todos' || a.parcial === Number(filterParcial)
+      const matchT = Number(a.trimestre) === Number(filterTrimestre)
+      const matchP = filterParcial === 'todos' || Number(a.parcial) === Number(filterParcial)
       return matchT && matchP
     })
   }, [assignments, filterTrimestre, filterParcial])
