@@ -1,6 +1,7 @@
-﻿interface WeightedCategoryLike {
+interface WeightedCategoryLike {
   id: string
   weight_percent?: number | null
+  weight?: number | null
 }
 
 interface WeightedAssignmentLike {
@@ -37,7 +38,8 @@ export function calculateWeightedAssignmentAverage<TAssignment extends WeightedA
     if (categoryScores.length === 0) return
 
     const categoryAverage = categoryScores.reduce((sum, score) => sum + score, 0) / categoryScores.length
-    const categoryWeight = Number(category.weight_percent || 0) / 100
+    // Support both weight_percent and legacy weight fields
+    const categoryWeight = Number(category.weight_percent ?? category.weight ?? 0) / 100
 
     if (categoryWeight > 0) {
       weightedSum += categoryAverage * categoryWeight
@@ -54,7 +56,7 @@ export function calculateWeightedAssignmentAverage<TAssignment extends WeightedA
 
   if (uncategorizedScores.length > 0) {
     const uncategorizedAverage = uncategorizedScores.reduce((sum, score) => sum + score, 0) / uncategorizedScores.length
-    const configuredWeight = categories.reduce((sum, category) => sum + Number(category.weight_percent || 0) / 100, 0)
+    const configuredWeight = categories.reduce((sum, category) => sum + Number(category.weight_percent ?? category.weight ?? 0) / 100, 0)
     const remainingWeight = Math.max(0, 1 - configuredWeight)
 
     if (remainingWeight > 0) {
