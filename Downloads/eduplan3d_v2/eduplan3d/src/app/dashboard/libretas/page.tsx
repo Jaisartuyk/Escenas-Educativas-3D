@@ -1,4 +1,4 @@
-﻿import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
@@ -135,26 +135,36 @@ export default async function LibretasPage({
   let grades: any[] = []
 
   if (subjectIds.length > 0) {
-    assignments = await fetchAllRows(async (from, to) => {
-      const { data } = await admin
-        .from('assignments')
-        .select('id, subject_id, title, trimestre, parcial, category_id, created_at')
-        .in('subject_id', subjectIds)
-        .range(from, to)
-
-      return data
-    })
-
-    if (assignments.length > 0) {
-      grades = await fetchAllRows(async (from, to) => {
+    const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+      Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+      
+    const subjectChunks = chunkArray(subjectIds, 50)
+    for (const chunk of subjectChunks) {
+      const chunkAssignments = await fetchAllRows(async (from, to) => {
         const { data } = await admin
-          .from('grades')
-          .select('assignment_id, student_id, score')
-          .in('assignment_id', assignments.map((a: any) => a.id))
+          .from('assignments')
+          .select('id, subject_id, title, trimestre, parcial, category_id, created_at')
+          .in('subject_id', chunk)
           .range(from, to)
-
         return data
       })
+      assignments.push(...chunkAssignments)
+    }
+
+    if (assignments.length > 0) {
+      const assignmentIds = assignments.map((a: any) => a.id)
+      const assignmentChunks = chunkArray(assignmentIds, 50)
+      for (const chunk of assignmentChunks) {
+        const chunkGrades = await fetchAllRows(async (from, to) => {
+          const { data } = await admin
+            .from('grades')
+            .select('assignment_id, student_id, score')
+            .in('assignment_id', chunk)
+            .range(from, to)
+          return data
+        })
+        grades.push(...chunkGrades)
+      }
     }
   }
 
