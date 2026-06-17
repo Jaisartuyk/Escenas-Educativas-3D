@@ -14,6 +14,7 @@ import { FilePreview } from '@/components/ui/FilePreview'
 import { createClient } from '@/lib/supabase/client'
 import {
   QUALITATIVE_SCALE,
+  INDICATOR_SCALE,
   isQualitativeSubject,
   getQualitativeGradeForNumber,
   getNumericValueForQualitative

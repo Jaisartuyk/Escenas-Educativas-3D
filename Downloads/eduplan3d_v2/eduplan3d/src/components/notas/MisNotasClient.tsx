@@ -1,4 +1,4 @@
-﻿// src/components/notas/MisNotasClient.tsx
+// src/components/notas/MisNotasClient.tsx
 // Vista interactiva "Mis Notas" para estudiantes y padres.
 // Tarjetas por materia con promedio ponderado, desglose por categorÃ­a,
 // actividades recientes, asistencia y comportamiento.
@@ -66,7 +66,7 @@ function levelForScore(score: number | null): {
   }
   if (score >= 9) {
     return {
-      label: 'Supera',
+      label: score === 10 ? 'A+' : 'A-',
       sublabel: 'Excelente',
       color: '#10B981',
       bg: 'bg-emerald-50',
@@ -77,7 +77,7 @@ function levelForScore(score: number | null): {
   }
   if (score >= 7) {
     return {
-      label: 'Alcanza',
+      label: score >= 8 ? 'B+' : 'B-',
       sublabel: 'Buen desempeÃ±o',
       color: '#3B82F6',
       bg: 'bg-blue-50',
@@ -86,9 +86,20 @@ function levelForScore(score: number | null): {
       icon: CheckCircle2,
     }
   }
-  if (score >= 4.01) {
+  if (score >= 5) {
     return {
-      label: 'PrÃ³ximo',
+      label: score >= 6 ? 'C+' : 'C-',
+      sublabel: 'Aceptable',
+      color: '#6366F1',
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-700',
+      ring: 'ring-indigo-200',
+      icon: CheckCircle2,
+    }
+  }
+  if (score >= 3) {
+    return {
+      label: score >= 4 ? 'D+' : 'D-',
       sublabel: 'Necesita reforzar',
       color: '#F59E0B',
       bg: 'bg-amber-50',
@@ -98,7 +109,7 @@ function levelForScore(score: number | null): {
     }
   }
   return {
-    label: 'No alcanza',
+    label: score >= 2 ? 'E+' : 'E-',
     sublabel: 'Requiere apoyo urgente',
     color: '#EF4444',
     bg: 'bg-rose-50',

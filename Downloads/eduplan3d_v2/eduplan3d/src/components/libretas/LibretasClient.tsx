@@ -10,10 +10,16 @@ import toast from 'react-hot-toast'
 // â”€â”€ Escala cualitativa MINEDUC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function cualitativo(score: number | null): string {
   if (score === null) return ''
-  if (score >= 9) return 'DAR'    // Domina los aprendizajes
-  if (score >= 7) return 'AAR'    // Alcanza los aprendizajes
-  if (score >= 4.01) return 'PAR' // Proximo a alcanzar
-  return 'NAAR'                   // No alcanza los aprendizajes
+  if (score === 10) return 'A+'
+  if (score >= 9) return 'A-'
+  if (score >= 8) return 'B+'
+  if (score >= 7) return 'B-'
+  if (score >= 6) return 'C+'
+  if (score >= 5) return 'C-'
+  if (score >= 4) return 'D+'
+  if (score >= 3) return 'D-'
+  if (score >= 2) return 'E+'
+  return 'E-'
 }
 
 function comportamientoLetra(positive: number, negative: number): string {
