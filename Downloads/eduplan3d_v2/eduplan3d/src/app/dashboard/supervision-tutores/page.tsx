@@ -47,7 +47,7 @@ export default async function SupervisionTutoresPage() {
     admin.from('grade_categories' as any).select('*').eq('institution_id', instId).order('sort_order'),
     admin.from('schedule_configs' as any).select('parciales_count, tutores').eq('institution_id', instId).maybeSingle(),
     admin.from('attendance' as any).select('*').eq('institution_id', instId),
-    admin.from('assignments' as any).select('*').or('is_draft.eq.false,is_draft.is.null'),
+    admin.from('assignments' as any).select('*'),
     admin.from('grades' as any).select('*')
   ])
 
