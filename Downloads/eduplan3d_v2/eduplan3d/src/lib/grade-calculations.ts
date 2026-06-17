@@ -30,7 +30,7 @@ export function calculateWeightedAssignmentAverage<TAssignment extends WeightedA
   let totalWeight = 0
 
   categories.forEach((category) => {
-    const categoryAssignments = assignments.filter((assignment) => assignment.category_id === category.id)
+    const categoryAssignments = assignments.filter((assignment) => String(assignment.category_id) === String(category.id))
     const categoryScores = categoryAssignments
       .map(getScore)
       .filter((score): score is number => score !== null && !Number.isNaN(score))
