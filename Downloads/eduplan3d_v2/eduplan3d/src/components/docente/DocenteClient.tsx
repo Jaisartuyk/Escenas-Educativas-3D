@@ -19,6 +19,7 @@ import {
   getQualitativeGradeForNumber,
   getNumericValueForQualitative
 } from '@/lib/qualitative-grades'
+import { ACOMPANAMIENTO_INDICATORS } from '@/lib/pedagogy/indicators'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AttendanceStatus = 'present' | 'absent' | 'late'
@@ -1514,7 +1515,7 @@ export function DocenteClient({
             {calView === 'parcial' && (<>
 
             {/* Leyenda de categorías */}
-            {categories.length > 0 && (
+            {categories.length > 0 && !isQuali && (
               <div className="flex items-center gap-3 flex-wrap text-xs">
                 {categories.map((c: any) => (
                   <button key={c.id} onClick={() => openEditCat(c)}
@@ -1537,7 +1538,7 @@ export function DocenteClient({
                 + Nueva actividad · T{trimestre} P{parcial}
               </h3>
               <form onSubmit={handleCreateAssignment} className="flex flex-wrap gap-3 items-end">
-                {categories.length > 0 && (
+                {categories.length > 0 && !isQuali && (
                   <select value={newAsgCatId} onChange={e => setNewAsgCatId(e.target.value)}
                     className="bg-bg border border-surface2 rounded-xl px-3 py-2 text-sm text-ink outline-none focus:border-violet min-w-[180px]"
                     style={newAsgCatId ? { borderLeftColor: getCatColor(newAsgCatId), borderLeftWidth: 3 } : {}}>
@@ -1547,9 +1548,19 @@ export function DocenteClient({
                     ))}
                   </select>
                 )}
-                <input required value={newAsgTitle} onChange={e => setNewAsgTitle(e.target.value)}
-                  placeholder="Nombre de la actividad"
-                  className="flex-1 min-w-[180px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                {isQuali ? (
+                  <select required value={newAsgTitle} onChange={e => setNewAsgTitle(e.target.value)}
+                    className="flex-1 min-w-[250px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet">
+                    <option value="">Seleccionar Indicador...</option>
+                    {ACOMPANAMIENTO_INDICATORS.map(ind => (
+                      <option key={ind} value={ind} title={ind}>{ind.substring(0, 80)}{ind.length > 80 ? '...' : ''}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input required value={newAsgTitle} onChange={e => setNewAsgTitle(e.target.value)}
+                    placeholder="Nombre de la actividad"
+                    className="flex-1 min-w-[180px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
+                )}
                 <input value={newAsgDesc} onChange={e => setNewAsgDesc(e.target.value)}
                   placeholder="Descripción (opcional)"
                   className="flex-1 min-w-[140px] bg-bg border border-surface2 rounded-xl px-4 py-2 text-sm text-ink outline-none focus:border-violet" />
