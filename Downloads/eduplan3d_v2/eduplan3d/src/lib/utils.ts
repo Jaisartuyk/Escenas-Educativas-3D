@@ -1,13 +1,20 @@
 // src/lib/utils.ts
 
 /**
- * Scale for MINEDUC qualitative grades
+ * Scale for MINEDUC qualitative grades (New Equivalencies)
  */
-export function cualitativo(score: number) {
-  if (score >= 9) return { label: 'DAR', color: 'text-emerald-400' }
-  if (score >= 7) return { label: 'AAR', color: 'text-blue-400' }
-  if (score >= 4.01) return { label: 'PAR', color: 'text-amber-400' }
-  return { label: 'NAAR', color: 'text-rose-400' }
+export function cualitativo(score: number | null): string {
+  if (score === null) return ''
+  if (score === 10) return 'A+'
+  if (score >= 9) return 'A-'
+  if (score >= 8) return 'B+'
+  if (score >= 7) return 'B-'
+  if (score >= 6) return 'C+'
+  if (score >= 5) return 'C-'
+  if (score >= 4) return 'D+'
+  if (score >= 3) return 'D-'
+  if (score >= 2) return 'E+'
+  return 'E-'
 }
 
 /**

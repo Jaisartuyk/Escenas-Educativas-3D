@@ -20,6 +20,13 @@ export const QUALITATIVE_SCALE: QualitativeGrade[] = [
   { id: 'E-', label: 'E-', description: 'Requiere de acompañamiento individualizado para desarrollo y fortalecimiento de habilidades socioemocionales', equivalencia: 'Aprendizaje Iniciado (I)', numericValue: 1 },
 ]
 
+export const INDICATOR_SCALE = [
+  { id: 'SIEMPRE', label: 'SIEMPRE', numericValue: 10 },
+  { id: 'FRECUENTEMENTE', label: 'FRECUENTEMENTE', numericValue: 8 },
+  { id: 'OCASIONALMENTE', label: 'OCASIONALMENTE', numericValue: 5 },
+  { id: 'NUNCA', label: 'NUNCA', numericValue: 2 },
+]
+
 export function normalizeName(value: string | null | undefined): string {
   return (value || '')
     .normalize('NFD')
@@ -61,10 +68,20 @@ export function getQualitativeGradeForNumber(value: number | null | undefined): 
   return QUALITATIVE_SCALE.find(g => g.numericValue === rounded) || null
 }
 
+export function getIndicatorGradeForNumber(value: number | null | undefined): string {
+  if (value == null) return ''
+  const rounded = Math.round(value)
+  const ind = INDICATOR_SCALE.find(g => g.numericValue === rounded)
+  return ind ? ind.id : ''
+}
+
 /**
- * Convierte un valor cualitativo (A+, B-, etc) a su valor numérico de equivalencia.
+ * Convierte un valor cualitativo (A+, B-, etc, o SIEMPRE, FRECUENTEMENTE) a su valor numérico de equivalencia.
  */
 export function getNumericValueForQualitative(id: string): number | null {
-  const grade = QUALITATIVE_SCALE.find(g => g.id === id)
+  let grade: { numericValue: number } | undefined = QUALITATIVE_SCALE.find(g => g.id === id)
+  if (!grade) {
+    grade = INDICATOR_SCALE.find(g => g.id === id)
+  }
   return grade ? grade.numericValue : null
 }
