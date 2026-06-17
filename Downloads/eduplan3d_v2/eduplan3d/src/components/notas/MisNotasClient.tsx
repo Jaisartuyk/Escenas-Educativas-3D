@@ -1,6 +1,6 @@
-// src/components/notas/MisNotasClient.tsx
+﻿// src/components/notas/MisNotasClient.tsx
 // Vista interactiva "Mis Notas" para estudiantes y padres.
-// Tarjetas por materia con promedio ponderado, desglose por categoría,
+// Tarjetas por materia con promedio ponderado, desglose por categorÃ­a,
 // actividades recientes, asistencia y comportamiento.
 'use client'
 
@@ -11,8 +11,9 @@ import {
   BookOpen,
 } from 'lucide-react'
 import { isQualitativeSubject, getQualitativeGradeForNumber } from '@/lib/qualitative-grades'
+import { calculateWeightedAssignmentAverage } from '@/lib/grade-calculations'
 
-// ── Tipos ───────────────────────────────────────────────────────────────────
+// â”€â”€ Tipos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface Category { id: string; name: string; color: string; weight_percent: number; sort_order: number }
 interface Subject  { id: string; name: string; course_id: string; teacher?: { id: string; full_name: string } | null }
 interface Assignment { id: string; subject_id: string; title: string; trimestre: number | null; parcial: number | null; category_id: string | null; created_at: string }
@@ -34,7 +35,7 @@ interface Props {
   parcialesCount:   number
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SCALE_MAX = 10
 
 function avg(nums: number[]): number | null {
@@ -55,7 +56,7 @@ function levelForScore(score: number | null): {
   if (score == null) {
     return {
       label: 'Sin notas',
-      sublabel: 'Aún no registrado',
+      sublabel: 'AÃºn no registrado',
       color: '#94A3B8',
       bg: 'bg-slate-100',
       text: 'text-slate-500',
@@ -77,7 +78,7 @@ function levelForScore(score: number | null): {
   if (score >= 7) {
     return {
       label: 'Alcanza',
-      sublabel: 'Buen desempeño',
+      sublabel: 'Buen desempeÃ±o',
       color: '#3B82F6',
       bg: 'bg-blue-50',
       text: 'text-blue-700',
@@ -87,7 +88,7 @@ function levelForScore(score: number | null): {
   }
   if (score >= 4.01) {
     return {
-      label: 'Próximo',
+      label: 'PrÃ³ximo',
       sublabel: 'Necesita reforzar',
       color: '#F59E0B',
       bg: 'bg-amber-50',
@@ -112,7 +113,7 @@ function trendIcon(curr: number | null, prev: number | null) {
   const diff = curr - prev
   if (diff >= 0.3)  return { icon: TrendingUp,   color: 'text-emerald-500', label: `+${diff.toFixed(2)}` }
   if (diff <= -0.3) return { icon: TrendingDown, color: 'text-rose-500',    label: diff.toFixed(2) }
-  return { icon: Minus, color: 'text-ink4', label: '≈' }
+  return { icon: Minus, color: 'text-ink4', label: 'â‰ˆ' }
 }
 
 function fmtDate(iso: string): string {
@@ -125,11 +126,11 @@ function isExamOrEvaluation(title: string, categoryId: string | null, categories
   const category = categories?.find(c => c.id === categoryId)
   const cName = (category?.name || '').toLowerCase()
   const tTitle = (title || '').toLowerCase()
-  const keywords = ['examen', 'evaluacion', 'evaluación', 'prueba', 'leccion', 'lección', 'test', 'trimestral', 'parcial']
+  const keywords = ['examen', 'evaluacion', 'evaluaciÃ³n', 'prueba', 'leccion', 'lecciÃ³n', 'test', 'trimestral', 'parcial']
   return keywords.some(k => tTitle.includes(k) || cName.includes(k))
 }
 
-// ── Componente ──────────────────────────────────────────────────────────────
+// â”€â”€ Componente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function MisNotasClient(props: Props) {
   const {
     isParentView = false,
@@ -160,7 +161,7 @@ export function MisNotasClient(props: Props) {
     })
   }, [assignments, trimestre, parcial])
 
-  // Grade map para lookup rápido
+  // Grade map para lookup rÃ¡pido
   const gradesByAssignment = useMemo(() => {
     const m = new Map<string, number>()
     for (const g of grades) {
@@ -169,18 +170,13 @@ export function MisNotasClient(props: Props) {
     return m
   }, [grades])
 
-  // Total suma de pesos (para normalizar si no suma 100)
-  const totalWeight = useMemo(
-    () => categories.reduce((acc, c) => acc + Number(c.weight_percent || 0), 0) || 100,
-    [categories]
-  )
 
   // Data por materia
   const subjectRows = useMemo(() => {
     return subjects.map(s => {
       const subjAsgs = filteredAssignments.filter(a => a.subject_id === s.id)
 
-      // promedio por categoría
+      // promedio por categorÃ­a
       const byCat = categories.map(cat => {
         const asgs = subjAsgs.filter(a => a.category_id === cat.id)
         const scores = asgs
@@ -193,16 +189,12 @@ export function MisNotasClient(props: Props) {
         }
       })
 
-      // promedio ponderado de la materia (solo categorías con notas)
-      const catsConNota = byCat.filter(b => b.avg != null)
-      let weighted: number | null = null
-      if (catsConNota.length > 0) {
-        const sumW = catsConNota.reduce((a, b) => a + Number(b.category.weight_percent || 0), 0) || totalWeight
-        weighted = catsConNota.reduce(
-          (a, b) => a + (b.avg! * Number(b.category.weight_percent || 0)) / sumW,
-          0
-        )
-      }
+      // promedio ponderado de la materia
+      const weighted = calculateWeightedAssignmentAverage(
+        subjAsgs,
+        categories,
+        (assignment) => gradesByAssignment.get(assignment.id) ?? null,
+      )
 
       // Comparar con promedio del parcial anterior
       const currParcial = (parcial !== 'all' ? parcial : null) as number | null
@@ -229,7 +221,7 @@ export function MisNotasClient(props: Props) {
       const behPos = beh.filter(b => b.type === 'positivo' || b.type === 'positive').length
       const behNeg = beh.length - behPos
 
-      // actividades recientes (últimas 5 con nota)
+      // actividades recientes (Ãºltimas 5 con nota)
       const recent = subjAsgs
         .map(a => ({ a, score: gradesByAssignment.get(a.id) ?? null, cat: categories.find(c => c.id === a.category_id) || null }))
         .sort((x, y) => (new Date(y.a.created_at).getTime() - new Date(x.a.created_at).getTime()))
@@ -246,7 +238,7 @@ export function MisNotasClient(props: Props) {
         recent,
       }
     })
-  }, [subjects, categories, filteredAssignments, gradesByAssignment, assignments, trimestre, parcial, attendance, behaviors, totalWeight])
+  }, [subjects, categories, filteredAssignments, gradesByAssignment, assignments, trimestre, parcial, attendance, behaviors])
 
   // Promedio general
   const overall = useMemo(() => {
@@ -264,7 +256,7 @@ export function MisNotasClient(props: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ── Header / resumen ──────────────────────────────────────────── */}
+      {/* â”€â”€ Header / resumen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet via-violet2 to-teal p-6 lg:p-8 text-white shadow-lg">
         <div className="absolute inset-0 opacity-10" style={{
           backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px), radial-gradient(circle at 70% 80%, white 1px, transparent 1px)',
@@ -281,7 +273,7 @@ export function MisNotasClient(props: Props) {
             <div className="text-center">
               <p className="text-white/70 text-xs">Promedio general</p>
               <p className="text-4xl lg:text-5xl font-display font-bold tracking-tight">
-                {overall != null ? overall.toFixed(2) : '—'}
+                {overall != null ? overall.toFixed(2) : 'â€”'}
               </p>
               <p className="text-white/80 text-xs font-medium">{overallLevel.label}</p>
             </div>
@@ -296,7 +288,7 @@ export function MisNotasClient(props: Props) {
         </div>
       </div>
 
-      {/* ── Filtros ───────────────────────────────────────────────────── */}
+      {/* â”€â”€ Filtros â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="bg-bg2 rounded-2xl border border-[rgba(0,0,0,0.06)] p-4 flex flex-wrap items-center gap-4">
         <div>
           <label className="text-[11px] uppercase tracking-wide text-ink4 font-semibold block mb-1.5">Trimestre</label>
@@ -319,7 +311,7 @@ export function MisNotasClient(props: Props) {
                   ? 'bg-violet text-white shadow-sm'
                   : 'bg-bg3 text-ink2 hover:bg-slate-200'
               }`}>
-              Año
+              AÃ±o
             </button>
           </div>
         </div>
@@ -351,11 +343,11 @@ export function MisNotasClient(props: Props) {
         </div>
       </div>
 
-      {/* ── Grid de materias ──────────────────────────────────────────── */}
+      {/* â”€â”€ Grid de materias â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {subjectRows.length === 0 ? (
         <div className="text-center py-12 text-ink3 bg-bg2 rounded-2xl border border-[rgba(0,0,0,0.06)]">
           <BookOpen size={40} className="mx-auto opacity-40" />
-          <p className="mt-3 text-sm">Aún no hay materias registradas en tu curso.</p>
+          <p className="mt-3 text-sm">AÃºn no hay materias registradas en tu curso.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -395,7 +387,7 @@ export function MisNotasClient(props: Props) {
                   {/* Score grande */}
                   <div className="mt-4 flex items-baseline gap-3">
                     <span className="text-5xl font-display font-bold tracking-tight" style={{ color: level.color }}>
-                      {isQuali ? (qualiGrade?.id || '—') : (row.weighted != null ? row.weighted.toFixed(2) : '—')}
+                      {isQuali ? (qualiGrade?.id || 'â€”') : (row.weighted != null ? row.weighted.toFixed(2) : 'â€”')}
                     </span>
                     <span className="text-ink4 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
                       {isQuali ? (qualiGrade?.equivalencia || '') : `/ ${SCALE_MAX}`}
@@ -419,14 +411,14 @@ export function MisNotasClient(props: Props) {
                   </div>
                   <p className="text-ink4 text-[11px] mt-1.5">{level.sublabel}</p>
 
-                  {/* Stats rápidos */}
+                  {/* Stats rÃ¡pidos */}
                   <div className="mt-4 grid grid-cols-3 gap-2">
                     <div className="bg-bg3 rounded-lg p-2 text-center">
                       <p className="text-[10px] text-ink4 uppercase tracking-wide font-semibold flex items-center justify-center gap-1">
                         <CalendarCheck size={10} /> Asist.
                       </p>
                       <p className="text-sm font-bold text-ink mt-0.5">
-                        {row.attPct != null ? `${row.attPct.toFixed(0)}%` : '—'}
+                        {row.attPct != null ? `${row.attPct.toFixed(0)}%` : 'â€”'}
                       </p>
                     </div>
                     <div className="bg-emerald-50 rounded-lg p-2 text-center">
@@ -443,18 +435,18 @@ export function MisNotasClient(props: Props) {
                     </div>
                   </div>
 
-                  {/* Desglose por categoría */}
+                  {/* Desglose por categorÃ­a */}
                   <div className="mt-4 space-y-1.5">
                     {row.byCat.map(b => (
                       <div key={b.category.id} className="flex items-center gap-2.5 text-xs">
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: b.category.color }} />
                         <span className="text-ink2 truncate flex-1">{b.category.name}</span>
                         <span className="text-ink4 shrink-0">
-                          {b.count > 0 ? `${b.count} act.` : '—'}
+                          {b.count > 0 ? `${b.count} act.` : 'â€”'}
                         </span>
                         <span className="font-bold tabular-nums shrink-0 w-12 text-right"
                               style={{ color: !(isParentView && isExamOrEvaluation('', b.category.id, categories)) && b.avg != null ? levelForScore(b.avg).color : '#CBD5E1' }}>
-                          {isParentView && isExamOrEvaluation('', b.category.id, categories) ? '—' : (isQuali && b.avg != null ? getQualitativeGradeForNumber(b.avg)?.id || '—' : (b.avg != null ? b.avg.toFixed(2) : '—'))}
+                          {isParentView && isExamOrEvaluation('', b.category.id, categories) ? 'â€”' : (isQuali && b.avg != null ? getQualitativeGradeForNumber(b.avg)?.id || 'â€”' : (b.avg != null ? b.avg.toFixed(2) : 'â€”'))}
                         </span>
                         <span className="text-ink4 shrink-0 text-[10px] w-10 text-right">
                           {Number(b.category.weight_percent).toFixed(0)}%
@@ -475,7 +467,7 @@ export function MisNotasClient(props: Props) {
                   {isOpen && (
                     <div className="mt-3 border-t border-[rgba(0,0,0,0.06)] pt-3 space-y-2 animate-fade-in">
                       {row.recent.length === 0 ? (
-                        <p className="text-ink4 text-xs text-center py-3">Sin actividades en este período.</p>
+                        <p className="text-ink4 text-xs text-center py-3">Sin actividades en este perÃ­odo.</p>
                       ) : row.recent.map(({ a, score, cat }) => {
                         const lvl = levelForScore(score)
                         return (
@@ -487,12 +479,12 @@ export function MisNotasClient(props: Props) {
                             <div className="flex-1 min-w-0">
                               <p className="text-ink2 font-medium truncate">{a.title}</p>
                               <p className="text-ink4 text-[10px]">
-                                {cat?.name || 'Sin categoría'} · {fmtDate(a.created_at)}
-                                {a.parcial ? ` · P${a.parcial}` : ''}
+                                {cat?.name || 'Sin categorÃ­a'} Â· {fmtDate(a.created_at)}
+                                {a.parcial ? ` Â· P${a.parcial}` : ''}
                               </p>
                             </div>
                             <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? 'text-slate-500' : (isQuali ? 'text-ink2' : lvl.text)}`}>
-                              {isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? '—' : (isQuali && score != null ? getQualitativeGradeForNumber(score)?.id || '—' : (score != null ? score.toFixed(1) : '—'))}
+                              {isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? 'â€”' : (isQuali && score != null ? getQualitativeGradeForNumber(score)?.id || 'â€”' : (score != null ? score.toFixed(1) : 'â€”'))}
                             </span>
                           </div>
                         )
@@ -506,15 +498,15 @@ export function MisNotasClient(props: Props) {
         </div>
       )}
 
-      {/* ── Leyenda ────────────────────────────────────────────────── */}
+      {/* â”€â”€ Leyenda â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="bg-bg2 rounded-2xl border border-[rgba(0,0,0,0.06)] p-4">
-        <p className="text-[11px] uppercase tracking-wide text-ink4 font-semibold mb-3">Escala de calificación</p>
+        <p className="text-[11px] uppercase tracking-wide text-ink4 font-semibold mb-3">Escala de calificaciÃ³n</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {[
-            { min: 9,    label: 'Supera',      sub: '9.00 – 10.00', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700' },
-            { min: 7,    label: 'Alcanza',     sub: '7.00 – 8.99',  color: '#3B82F6', bg: 'bg-blue-50',    text: 'text-blue-700'    },
-            { min: 4.01, label: 'Próximo',     sub: '4.01 – 6.99',  color: '#F59E0B', bg: 'bg-amber-50',   text: 'text-amber-700'   },
-            { min: 0,    label: 'No alcanza',  sub: '≤ 4.00',       color: '#EF4444', bg: 'bg-rose-50',    text: 'text-rose-700'    },
+            { min: 9,    label: 'Supera',      sub: '9.00 â€“ 10.00', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+            { min: 7,    label: 'Alcanza',     sub: '7.00 â€“ 8.99',  color: '#3B82F6', bg: 'bg-blue-50',    text: 'text-blue-700'    },
+            { min: 4.01, label: 'PrÃ³ximo',     sub: '4.01 â€“ 6.99',  color: '#F59E0B', bg: 'bg-amber-50',   text: 'text-amber-700'   },
+            { min: 0,    label: 'No alcanza',  sub: 'â‰¤ 4.00',       color: '#EF4444', bg: 'bg-rose-50',    text: 'text-rose-700'    },
           ].map(l => (
             <div key={l.label} className={`${l.bg} rounded-xl p-3 flex items-center gap-3`}>
               <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: l.color }} />
@@ -529,3 +521,7 @@ export function MisNotasClient(props: Props) {
     </div>
   )
 }
+
+
+
+

@@ -1,12 +1,13 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo, useTransition } from 'react'
 import { Printer, FileText, Eye, EyeOff } from 'lucide-react'
 import { updateLibretasVisibility } from '@/lib/actions/institution'
 import { isQualitativeSubject, getQualitativeGradeForNumber } from '@/lib/qualitative-grades'
+import { calculateWeightedAssignmentAverage } from '@/lib/grade-calculations'
 import toast from 'react-hot-toast'
 
-// ── Escala cualitativa MINEDUC ──────────────────────────────────────────────
+// â”€â”€ Escala cualitativa MINEDUC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function cualitativo(score: number | null): string {
   if (score === null) return ''
   if (score >= 9) return 'DAR'    // Domina los aprendizajes
@@ -23,7 +24,7 @@ function comportamientoLetra(positive: number, negative: number): string {
   return 'N'                    // Necesita mejora
 }
 
-// ── Types ───────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface Props {
   role: string
   institutionName: string
@@ -72,7 +73,7 @@ export function LibretasClient({
     })
   }
 
-  // ── Derived data ────────────────────────────────────────────────────────
+  // â”€â”€ Derived data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const studentsInCourse = useMemo(() => {
     if (isFamilyRole) return enrollments.map((e: any) => e.student).filter(Boolean)
     return enrollments
@@ -92,7 +93,7 @@ export function LibretasClient({
   const currentCourse = courses.find((c: any) => c.id === selectedCourseId)
   const currentStudent = studentsInCourse.find((s: any) => s.id === selectedStudentId)
 
-  // ── Grade helpers ───────────────────────────────────────────────────────
+  // â”€â”€ Grade helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function getGrade(assignmentId: string, studentId: string): number | null {
     const g = grades.find((gr: any) => gr.assignment_id === assignmentId && gr.student_id === studentId)
     return g?.score != null ? Number(g.score) : null
@@ -111,22 +112,11 @@ export function LibretasClient({
     const pAsgs = assignments.filter((a: any) =>
       a.subject_id === subjectId && Number(a.trimestre) === t && Number(a.parcial) === p
     )
-    if (pAsgs.length === 0) return null
-    if (categories.length === 0) {
-      const scores = pAsgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
-      return scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null
-    }
-    let totalW = 0, sumW = 0
-    categories.forEach((cat: any) => {
-      const catAsgs = pAsgs.filter(a => a.category_id === cat.id)
-      const scores = catAsgs.map(a => getGrade(a.id, studentId)).filter((g): g is number => g !== null)
-      if (scores.length > 0) {
-        const avg = scores.reduce((a, b) => a + b, 0) / scores.length
-        sumW += avg * Number(cat.weight_percent)
-        totalW += Number(cat.weight_percent)
-      }
-    })
-    return totalW > 0 ? sumW / totalW : null
+    return calculateWeightedAssignmentAverage(
+      pAsgs,
+      categories,
+      (assignment: any) => getGrade(assignment.id, studentId),
+    )
   }
 
   function getExamScore(studentId: string, subjectId: string, t: number): number | null {
@@ -198,12 +188,12 @@ export function LibretasClient({
   // DOCENTE debe ser el tutor del curso, no el primer docente de la lista de materias
   const docenteName = tutorName || courseSubjects[0]?.teacher?.full_name || ''
 
-  // ═══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // RENDER
-  // ═══════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   return (
     <div className="space-y-6">
-      {/* ── Controls (hidden on print) ─────────────────────────────────── */}
+      {/* â”€â”€ Controls (hidden on print) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="print:hidden space-y-4">
         <div className="p-5 bg-surface rounded-2xl border border-surface2 flex flex-wrap gap-4 items-end">
           {!isFamilyRole && (
@@ -297,11 +287,11 @@ export function LibretasClient({
         </div>
       </div>
 
-      {/* ── Report ────────────────────────────────────────────────────── */}
+      {/* â”€â”€ Report â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {selectedStudentId && (isFamilyRole || currentCourse) ? (
         <div className="bg-white text-black rounded-xl shadow-lg border print:shadow-none print:border-none print:rounded-none text-[11px]">
 
-          {/* ═══ HEADER COMUN ═══ */}
+          {/* â•â•â• HEADER COMUN â•â•â• */}
           <div className="p-6 pb-2 print:p-3">
             <div className="flex items-center gap-4 border-b-2 border-black pb-3 mb-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -319,7 +309,7 @@ export function LibretasClient({
 
             {/* Info del estudiante */}
             <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[10px] mb-3">
-              <p><b>AÑO LECTIVO:</b> {yearLabel}</p>
+              <p><b>AÃ‘O LECTIVO:</b> {yearLabel}</p>
               <p><b>TRIMESTRE:</b> {view === 'anual' ? 'ANUAL' : `${trimestre === 1 ? 'PRIMERO' : trimestre === 2 ? 'SEGUNDO' : 'TERCERO'}`}</p>
               <p><b>ESTUDIANTE:</b> {currentStudent?.full_name}</p>
               <p><b>JORNADA:</b> {currentCourse?.shift === 'vespertino' ? 'VESPERTINA' : 'MATUTINA'}</p>
@@ -328,13 +318,13 @@ export function LibretasClient({
             </div>
           </div>
 
-          {/* ═══ LIBRETA MENSUAL (POR PARCIAL) ═══ */}
+          {/* â•â•â• LIBRETA MENSUAL (POR PARCIAL) â•â•â• */}
           {view === 'mensual' && (
             <div className="px-6 pb-6 print:px-3 print:pb-3">
               <table className="w-full border-collapse text-[10px]">
                 <thead>
                   <tr className="bg-gray-200">
-                    <th className="border border-gray-400 px-2 py-1.5 font-bold text-left" rowSpan={2}>N°</th>
+                    <th className="border border-gray-400 px-2 py-1.5 font-bold text-left" rowSpan={2}>NÂ°</th>
                     <th className="border border-gray-400 px-2 py-1.5 font-bold text-left" rowSpan={2}>MATERIAS</th>
                     {categories.map((cat: any) => (
                       <th key={cat.id} className="border border-gray-400 px-1 py-1 font-bold text-center text-[8px] uppercase" colSpan={2}>
@@ -410,13 +400,13 @@ export function LibretasClient({
             </div>
           )}
 
-          {/* ═══ ACTA TRIMESTRAL ═══ */}
+          {/* â•â•â• ACTA TRIMESTRAL â•â•â• */}
           {view === 'trimestral' && (
             <div className="px-6 pb-6 print:px-3 print:pb-3">
               <table className="w-full border-collapse text-[10px]">
                 <thead>
                   <tr className="bg-gray-200">
-                    <th className="border border-gray-400 px-1 py-1.5 font-bold text-center w-6" rowSpan={2}>N°</th>
+                    <th className="border border-gray-400 px-1 py-1.5 font-bold text-center w-6" rowSpan={2}>NÂ°</th>
                     <th className="border border-gray-400 px-2 py-1.5 font-bold text-left" rowSpan={2}>ASIGNATURAS</th>
                     {Array.from({ length: parcialesCount }, (_, i) => (
                       <th key={i} className="border border-gray-400 px-1 py-1 font-bold text-center text-[9px]" colSpan={2}>
@@ -502,7 +492,7 @@ export function LibretasClient({
             </div>
           )}
 
-          {/* ═══ LIBRETA ANUAL ═══ */}
+          {/* â•â•â• LIBRETA ANUAL â•â•â• */}
           {view === 'anual' && (
             <div className="px-6 pb-6 print:px-3 print:pb-3">
               <table className="w-full border-collapse text-[10px]">
@@ -688,3 +678,6 @@ export function LibretasClient({
     </div>
   )
 }
+
+
+
