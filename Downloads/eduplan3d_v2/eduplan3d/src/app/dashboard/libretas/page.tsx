@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
@@ -53,7 +53,7 @@ export default async function LibretasPage({
     linkedStudentId = linkedChild.childId
   }
 
-  // ── Fetch all institutional data ───────────────────────────────────────
+  // â”€â”€ Fetch all institutional data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [
     { data: courses },
     { data: enrollments },
@@ -81,7 +81,7 @@ export default async function LibretasPage({
 
   let filteredCourses = courses || []
   if (isTeacher) {
-    // tutores map: "CourseName Parallel" → teacherName (full_name string)
+    // tutores map: "CourseName Parallel" â†’ teacherName (full_name string)
     const teacherName = profile.full_name || ''
     const tutorCourseNames = Object.entries(tutores)
       .filter(([, name]) => name === teacherName)
@@ -95,7 +95,7 @@ export default async function LibretasPage({
         return tutorCourseNames.includes(key) || tutorCourseNames.includes(keyNoParallel)
       })
     } else {
-      // Teacher not assigned as tutor of any course → empty
+      // Teacher not assigned as tutor of any course â†’ empty
       filteredCourses = []
     }
   }
@@ -123,6 +123,7 @@ export default async function LibretasPage({
       .from('assignments')
       .select('id, subject_id, title, trimestre, parcial, category_id, created_at')
       .in('subject_id', subjectIds)
+      .limit(50000)
     assignments = aData || []
 
     if (assignments.length > 0) {
@@ -130,6 +131,7 @@ export default async function LibretasPage({
         .from('grades')
         .select('assignment_id, student_id, score')
         .in('assignment_id', assignments.map((a: any) => a.id))
+        .limit(50000)
       grades = gData || []
     }
   }
@@ -244,3 +246,4 @@ export default async function LibretasPage({
     </div>
   )
 }
+
