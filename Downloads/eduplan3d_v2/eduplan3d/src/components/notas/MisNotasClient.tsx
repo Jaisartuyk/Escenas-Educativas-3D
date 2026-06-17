@@ -154,8 +154,8 @@ export function MisNotasClient(props: Props) {
   // Assignments filtrados por trimestre/parcial
   const filteredAssignments = useMemo(() => {
     return assignments.filter(a => {
-      if (trimestre !== 'all' && a.trimestre !== trimestre) return false
-      if (parcial    !== 'all' && a.parcial    !== parcial)    return false
+      if (trimestre !== 'all' && Number(a.trimestre) !== trimestre) return false
+      if (parcial    !== 'all' && Number(a.parcial)    !== parcial)    return false
       return true
     })
   }, [assignments, trimestre, parcial])
