@@ -5,6 +5,7 @@ import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { LibretasClient } from '@/components/libretas/LibretasClient'
 import { filterSubjectsForLibretas } from '@/lib/subject-visibility'
 import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
+import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -89,31 +90,16 @@ export default async function LibretasPage({
   const instSettings = (instData as any)?.settings || {}
   const libretasPublished = !!instSettings.libretas_published
 
-  // For teachers: only show the course(s) they are tutor of
-  // For teachers: only show the course(s) they are tutor of
   const tutores: Record<string, string> = (scheduleConfig as any)?.tutores || {}
+
   const isTeacher = profile.role === 'teacher'
   const isSupervisor = ['admin', 'assistant', 'supervisor', 'rector', 'secretary'].includes(profile.role)
 
   let filteredCourses = courses || []
   if (isTeacher) {
-    // tutores map: "CourseName Parallel" â†’ teacherName (full_name string)
-    const teacherName = profile.full_name || ''
-    const tutorCourseNames = Object.entries(tutores)
-      .filter(([, name]) => name === teacherName)
-      .map(([courseName]) => courseName)
-
-    if (tutorCourseNames.length > 0) {
-      // Match by "name parallel" or just "name"
-      filteredCourses = (courses || []).filter((c: any) => {
-        const key = `${c.name} ${c.parallel || ''}`.trim()
-        const keyNoParallel = c.name
-        return tutorCourseNames.includes(key) || tutorCourseNames.includes(keyNoParallel)
-      })
-    } else {
-      // Teacher not assigned as tutor of any course â†’ empty
-      filteredCourses = []
-    }
+    const tutoredCourses = await resolveTutoredCoursesForTeacher(admin as any, user.id)
+    const tutoredCourseIds = tutoredCourses.map((c: any) => c.id)
+    filteredCourses = (courses || []).filter((c: any) => tutoredCourseIds.includes(c.id))
   }
   if (isParentMode && linkedStudentId) {
     const parentCourseIds = (enrollments || [])

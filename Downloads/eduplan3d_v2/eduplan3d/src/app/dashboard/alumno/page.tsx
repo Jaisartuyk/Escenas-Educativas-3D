@@ -44,24 +44,7 @@ export default async function AlumnoPage({
 
   if (isParentMode) {
 
-    // SERVER-SIDE DEBUG WRITE
-    try {
-      const { data: allLinks } = await admin.from('parent_links').select('*')
-      const { data: allProfiles } = await admin.from('profiles').select('id, full_name, email, role')
-      const fs = require('fs')
-      const path = require('path')
-      fs.writeFileSync(
-        path.join(process.cwd(), 'debug_parent_output.json'),
-        JSON.stringify({
-          currentUser: { id: user.id, email: user.email, profile },
-          linkedChildren,
-          allLinks,
-          allProfiles: allProfiles?.filter(p => p.role === 'parent' || p.full_name?.toLowerCase().includes('marquez') || p.full_name?.toLowerCase().includes('sandy'))
-        }, null, 2)
-      )
-    } catch (err: any) {
-      console.error('Error writing debug file:', err)
-    }
+
 
     const linkedChild = await getPrimaryLinkedChildForParent(admin as any, user.id, requestedChildId)
     if (!linkedChild) {
