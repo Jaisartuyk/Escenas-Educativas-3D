@@ -29,7 +29,7 @@ function getAverage(studentId: string, subjectId: string, assignments: any[], gr
 
   // Aplicar pesos (weight) de las categorías
   Object.keys(categoryTotals).forEach(catId => {
-    const category = categories.find((c: any) => c.id === catId)
+    const category = categories.find((c: any) => c.id === catId || c.id === Number(catId))
     if (category) {
       const avgCategory = categoryTotals[catId].sum / categoryTotals[catId].count
       calculatedScore += avgCategory * (Number(category.weight_percent || category.weight || 0) / 100)
@@ -37,9 +37,20 @@ function getAverage(studentId: string, subjectId: string, assignments: any[], gr
     }
   })
 
+  // Fallback si no hay categorías configuradas o no hubo coincidencia, pero hay tareas
+  if (!isAnyCategoryEvaluated && Object.keys(categoryTotals).length > 0) {
+    let totalScore = 0
+    let totalCount = 0
+    Object.keys(categoryTotals).forEach(catId => {
+      totalScore += categoryTotals[catId].sum
+      totalCount += categoryTotals[catId].count
+    })
+    return totalCount > 0 ? (totalScore / totalCount) : null
+  }
+
   // Si no sumaron 100% los pesos, normalizamos
   const totalWeight = Object.keys(categoryTotals).reduce((sum, catId) => {
-    const cat = categories.find((c: any) => c.id === catId)
+    const cat = categories.find((c: any) => c.id === catId || c.id === Number(catId))
     return sum + Number(cat?.weight_percent || cat?.weight || 0)
   }, 0)
 
