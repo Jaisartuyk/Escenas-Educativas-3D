@@ -72,7 +72,7 @@ export default async function RendimientoTutorPage() {
       .from('assignments')
       .select('id, subject_id, title, trimestre, parcial, category_id, is_draft')
       .in('subject_id', relatedSubjectIds)
-      .eq('is_draft', false) // Sólo tareas publicadas
+      .or('is_draft.eq.false,is_draft.is.null') // Sólo tareas publicadas
 
     assignments = aData || []
 
