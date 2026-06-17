@@ -123,7 +123,7 @@ export default async function LibretasPage({
       .from('assignments')
       .select('id, subject_id, title, trimestre, parcial, category_id, created_at')
       .in('subject_id', subjectIds)
-      .eq('is_draft', false)
+      .or('is_draft.eq.false,is_draft.is.null')
     assignments = aData || []
 
     if (assignments.length > 0) {
