@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition } from 'react'
 import { Printer, FileText, Eye, EyeOff } from 'lucide-react'
 import { updateLibretasVisibility } from '@/lib/actions/institution'
-import { isQualitativeSubject, getQualitativeGradeForNumber } from '@/lib/qualitative-grades'
+import { isQualitativeSubject, getQualitativeGradeForNumber, isExcludedSubject } from '@/lib/qualitative-grades'
 import { calculateWeightedAssignmentAverage } from '@/lib/grade-calculations'
 import toast from 'react-hot-toast'
 
@@ -89,11 +89,14 @@ export function LibretasClient({
   }, [enrollments, selectedCourseId, isFamilyRole])
 
   const courseSubjects = useMemo(() => {
+    let filtered = []
     if (isFamilyRole) {
       const myCourseIds = enrollments.map((e: any) => e.course_id)
-      return subjects.filter((s: any) => myCourseIds.includes(s.course_id))
+      filtered = subjects.filter((s: any) => myCourseIds.includes(s.course_id))
+    } else {
+      filtered = subjects.filter((s: any) => s.course_id === selectedCourseId)
     }
-    return subjects.filter((s: any) => s.course_id === selectedCourseId)
+    return filtered.filter((s: any) => !isExcludedSubject(s.name))
   }, [subjects, selectedCourseId, enrollments, isFamilyRole])
 
   const currentCourse = courses.find((c: any) => c.id === selectedCourseId)

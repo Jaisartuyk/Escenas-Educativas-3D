@@ -59,6 +59,16 @@ export function isQualitativeSubject(subjectName?: string | null, courseName?: s
 }
 
 /**
+ * Determina si una materia debe ser EXCLUIDA de las libretas y el cálculo de promedios.
+ * Ej: Futbol, Natacion
+ */
+export function isExcludedSubject(subjectName?: string | null): boolean {
+  if (!subjectName) return false
+  const normSubject = normalizeName(subjectName)
+  return normSubject.includes('futbol') || normSubject.includes('natacion')
+}
+
+/**
  * Convierte un valor numérico a su equivalente cualitativo según la tabla de Acompañamiento Integral.
  */
 export function getQualitativeGradeForNumber(value: number | null | undefined): QualitativeGrade | null {
