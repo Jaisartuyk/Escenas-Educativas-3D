@@ -719,7 +719,7 @@ export function AlumnoClient({
                         const sortedDates = [...dedupedByDate].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
                         
                         const groupedByWeek: Record<string, any[]> = {}
-                        sortedDates.forEach(record => {
+                        sortedDates.forEach((record: any) => {
                           const d = new Date(record.date + 'T12:00:00')
                           const day = d.getDay()
                           const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Lunes
