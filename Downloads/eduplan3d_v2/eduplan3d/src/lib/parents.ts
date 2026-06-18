@@ -7,6 +7,7 @@ export interface LinkedChild {
   institutionId: string | null
   relationship: string
   isPrimary: boolean
+  courseName?: string
 }
 
 function normalizeRows(rows: any[]): LinkedChild[] {
@@ -14,12 +15,22 @@ function normalizeRows(rows: any[]): LinkedChild[] {
     .map((row: any) => {
       const child = Array.isArray(row.child) ? row.child[0] : row.child
       if (!child?.id) return null
+      
+      let courseName = undefined
+      if (child.enrollments && Array.isArray(child.enrollments) && child.enrollments.length > 0) {
+        const course = child.enrollments[0].course
+        if (course) {
+          courseName = `${course.name} ${course.parallel || ''}`.trim()
+        }
+      }
+
       return {
         childId: child.id,
         fullName: child.full_name || 'Estudiante',
         institutionId: child.institution_id || null,
         relationship: row.relationship || 'OTRO',
         isPrimary: !!row.is_primary,
+        courseName
       } satisfies LinkedChild
     })
     .filter(Boolean) as LinkedChild[]
@@ -33,7 +44,7 @@ export async function getLinkedChildrenForParent(
   const client = admin || createAdminClient()
   const { data } = await (client as any)
     .from('parent_links')
-    .select('child_id, relationship, is_primary, child:profiles!parent_links_child_id_fkey(id, full_name, institution_id)')
+    .select('child_id, relationship, is_primary, child:profiles!parent_links_child_id_fkey(id, full_name, institution_id, enrollments(course:courses(name, parallel)))')
     .eq('parent_id', parentId)
     .order('is_primary', { ascending: false })
     .order('created_at', { ascending: true })
