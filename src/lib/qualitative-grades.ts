@@ -43,15 +43,9 @@ export function normalizeName(value: string | null | undefined): string {
 export function isQualitativeSubject(subjectName?: string | null, courseName?: string | null): boolean {
   if (!subjectName) return false
   const normSubject = normalizeName(subjectName)
-  const normCourse = normalizeName(courseName)
 
   // Materia específica (Acompañamiento Integral)
   if (normSubject.includes('acompanamiento int') || normSubject.includes('acompanamiento integral')) {
-    return true
-  }
-
-  // Si es 1ro de Básica (Preparatoria), todas sus materias podrían ser cualitativas según el requerimiento
-  if (normCourse && (normCourse.includes('1ro') || normCourse.includes('primer') || normCourse.includes('1er') || normCourse.includes('preparatoria'))) {
     return true
   }
 
