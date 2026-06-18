@@ -8,6 +8,7 @@ interface LinkedChildOption {
   fullName: string
   relationship: string
   isPrimary?: boolean
+  courseName?: string
 }
 
 interface Props {
@@ -67,7 +68,7 @@ export function ChildScopeSelector({
           >
             {childrenOptions.map((child) => (
               <option key={child.childId} value={child.childId}>
-                {child.fullName} - {formatRelationship(child.relationship)}
+                {child.fullName}{child.courseName ? ` (${child.courseName})` : ''} - {formatRelationship(child.relationship)}
                 {child.isPrimary ? ' (principal)' : ''}
               </option>
             ))}
