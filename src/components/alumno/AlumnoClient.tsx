@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   BookOpen, CalendarDays, BarChart2,
   CheckCircle2, Clock3, ThumbsUp, ThumbsDown,
@@ -85,7 +85,9 @@ export function AlumnoClient({
   const [justifyFile, setJustifyFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [localAttendance, setLocalAttendance] = useState<any[]>(attendance || [])
-  // Keep modal state for backward compat (used in handleJustifySubmit)
+  useEffect(() => {
+    setLocalAttendance(attendance || [])
+  }, [attendance])
   const [showJustifyModal, setShowJustifyModal] = useState<any>(null)
 
   // Assignment Submission Modal State
@@ -712,32 +714,64 @@ export function AlumnoClient({
                   </div>
 
                   <div className="p-5 overflow-x-auto custom-scrollbar">
-                    <div className="flex gap-3 min-w-max">
-                      {dedupedByDate.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 30).reverse().map((record: any) => {
-                        const status = record.status || 'unknown'
-                        const d = new Date(record.date + 'T12:00:00')
-                        const dayName = d.toLocaleDateString('es-EC', { weekday: 'short' })
-                        const dayNum = d.getDate()
-                        const month = d.toLocaleDateString('es-EC', { month: 'short' })
+                    <div className="flex gap-4 min-w-max">
+                      {(() => {
+                        const sortedDates = [...dedupedByDate].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        
+                        const groupedByWeek: Record<string, any[]> = {}
+                        sortedDates.forEach(record => {
+                          const d = new Date(record.date + 'T12:00:00')
+                          const day = d.getDay()
+                          const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Lunes
+                          const monday = new Date(new Date(d).setDate(diff))
+                          const weekKey = monday.toISOString().split('T')[0]
+                          if (!groupedByWeek[weekKey]) groupedByWeek[weekKey] = []
+                          groupedByWeek[weekKey].push(record)
+                        })
 
-                        return (
-                          <div key={record.date} className="flex flex-col items-center gap-2 min-w-[56px] group">
-                            <span className="text-[10px] font-bold text-ink4 uppercase tracking-widest">{dayName}</span>
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black transition-all group-hover:-translate-y-1 ${
-                              status === 'present'
-                                ? 'bg-emerald-100 text-emerald-600 border border-emerald-200 shadow-sm'
-                                : status === 'late'
-                                ? 'bg-amber-100 text-amber-600 border border-amber-200 shadow-sm'
-                                : status === 'absent'
-                                ? 'bg-rose-100 text-rose-600 border border-rose-200 shadow-sm'
-                                : 'bg-surface2 text-ink4 border border-surface2'
-                            }`}>
-                              {status === 'present' ? '✓' : status === 'late' ? '⏱' : status === 'absent' ? '✗' : '·'}
-                            </div>
-                            <span className="text-[10px] font-semibold text-ink4">{dayNum} {month}</span>
-                          </div>
-                        )
-                      })}
+                        // Sort weeks chronologically
+                        return Object.entries(groupedByWeek)
+                          .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
+                          .map(([weekKey, records]) => {
+                            const weekDate = new Date(weekKey + 'T12:00:00')
+                            const endDate = new Date(weekDate)
+                            endDate.setDate(endDate.getDate() + 4) // Viernes
+
+                            return (
+                              <div key={weekKey} className="flex flex-col gap-3 p-3 sm:p-4 rounded-2xl border border-surface2 bg-surface shadow-sm hover:shadow-md transition-shadow">
+                                <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg self-start border border-indigo-100 flex items-center gap-2">
+                                  <CalendarDays size={12}/>
+                                  Semana: {weekDate.getDate()} {weekDate.toLocaleDateString('es-EC', { month: 'short' })} - {endDate.getDate()} {endDate.toLocaleDateString('es-EC', { month: 'short' })}
+                                </div>
+                                <div className="flex gap-2">
+                                  {records.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(record => {
+                                    const status = record.status || 'unknown'
+                                    const d = new Date(record.date + 'T12:00:00')
+                                    const dayName = d.toLocaleDateString('es-EC', { weekday: 'short' })
+                                    const dayNum = d.getDate()
+
+                                    return (
+                                      <div key={record.date} className="flex flex-col items-center gap-1.5 min-w-[48px] group">
+                                        <span className="text-[9px] font-bold text-ink4 uppercase tracking-widest">{dayName} {dayNum}</span>
+                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-sm font-black transition-all group-hover:-translate-y-1 ${
+                                          status === 'present'
+                                            ? 'bg-emerald-100 text-emerald-600 border border-emerald-200 shadow-sm'
+                                            : status === 'late'
+                                            ? 'bg-amber-100 text-amber-600 border border-amber-200 shadow-sm'
+                                            : status === 'absent'
+                                            ? 'bg-rose-100 text-rose-600 border border-rose-200 shadow-sm'
+                                            : 'bg-surface2 text-ink4 border border-surface2'
+                                        }`}>
+                                          {status === 'present' ? '✓' : status === 'late' ? '⏱' : status === 'absent' ? '✗' : '·'}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })
+                      })()}
                     </div>
                   </div>
                 </div>
