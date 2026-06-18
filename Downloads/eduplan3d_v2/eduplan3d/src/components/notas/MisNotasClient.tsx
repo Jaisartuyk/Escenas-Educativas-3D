@@ -8,7 +8,8 @@ import { useMemo, useState } from 'react'
 import {
   GraduationCap, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp,
   CheckCircle2, AlertCircle, CircleX, CalendarCheck, Smile, Frown, Trophy,
-import { BookOpen } from 'lucide-react'
+  BookOpen,
+} from 'lucide-react'
 import { isQualitativeSubject, getQualitativeGradeForNumber, isExcludedSubject } from '@/lib/qualitative-grades'
 import { calculateWeightedAssignmentAverage } from '@/lib/grade-calculations'
 
