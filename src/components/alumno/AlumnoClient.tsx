@@ -1309,7 +1309,7 @@ export function AlumnoClient({
               {isParentView ? `Rendimiento Académico de ${viewedStudent.full_name?.split(' ')[0] || 'tu hijo/a'}` : 'Libreta de Calificaciones'}
             </h2>
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-               {subjects.map((sub:any) => {
+               {subjects.filter((s:any) => !['FUTBOL', 'NATACION'].some(ex => s.name?.toUpperCase().includes(ex))).map((sub:any) => {
                  const myAsgs = assignments.filter((a:any)=>a.subject_id === sub.id)
                  const myGrades = grades.filter((g:any)=>myAsgs.some((a:any)=>a.id===g.assignment_id))
                  const avg = myGrades.length > 0 ? (myGrades.reduce((acc:any, g:any)=>acc+g.score,0)/myGrades.length).toFixed(2) : null
