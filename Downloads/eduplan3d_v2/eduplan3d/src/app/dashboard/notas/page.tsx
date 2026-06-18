@@ -9,6 +9,7 @@ import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { MisNotasClient } from '@/components/notas/MisNotasClient'
 import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
 import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
+import { checkStudentDebt } from '@/lib/financial-status'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -63,6 +64,8 @@ export default async function NotasPage({
     studentDisplayName = linkedChild.fullName
     selectedChildId = linkedChild.childId
   }
+
+  const hasDebt = await checkStudentDebt(admin as any, effectiveStudentId)
 
   // ── Enrollment del estudiante (o hijo/a si es padre) ──────────────────────
   const { data: enrollments } = await admin
@@ -136,6 +139,7 @@ export default async function NotasPage({
       <MisNotasClient
         isParentView={isParentMode}
         studentName={studentDisplayName}
+        hasDebt={hasDebt}
         institutionName={(profile as any).institutions?.name || ''}
         enrollments={enrollments || []}
         subjects={((subjects || []) as any[]).map((s: any) => ({
