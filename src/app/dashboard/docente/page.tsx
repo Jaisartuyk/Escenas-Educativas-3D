@@ -56,12 +56,19 @@ export default async function DocentePage() {
   // ── Calificaciones de esas tareas ────────────────────────────────────────
   let grades: any[] = []
   const assignmentIds = assignments.map((a: any) => a.id)
+  
+  const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+    Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+
   if (assignmentIds.length > 0) {
-    const { data } = await admin
-      .from('grades')
-      .select('*')
-      .in('assignment_id', assignmentIds)
-    grades = data || []
+    const assignmentChunks = chunkArray(assignmentIds, 50)
+    for (const chunk of assignmentChunks) {
+      const { data } = await admin
+        .from('grades')
+        .select('*')
+        .in('assignment_id', chunk)
+      if (data) grades.push(...data)
+    }
   }
 
   // ── Categorías de calificación ────────────────────────────────────────────
