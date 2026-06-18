@@ -163,13 +163,6 @@ export default async function LibretasPage({
       .select('student_id, subject_id, status, date')
       .in('subject_id', subjectIds)
 
-  // Attendance data for annual report
-  let attendance: any[] = []
-  if (subjectIds.length > 0) {
-    const { data: attData } = await admin
-      .from('attendance')
-      .select('student_id, subject_id, status, date')
-      .in('subject_id', subjectIds)
     attendance = attData || []
   }
 
