@@ -690,85 +690,62 @@ export function AlumnoClient({
               </div>
             )}
 
-            {/* ── Table by Subject ── */}
+            {/* ── General Attendance Timeline ── */}
             <div className="bg-surface rounded-[2rem] border border-surface2 p-6 sm:p-8 shadow-sm">
               <h2 className="font-display text-2xl font-bold flex items-center gap-3 mb-6">
                 <span className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl"><CalendarDays size={20}/></span>
-                Registro de Asistencia por Materia
+                Registro de Asistencia General
               </h2>
 
-              {Object.values(bySubject).some((s: any) => s.records.length > 0) ? (
-                <div className="space-y-4">
-                  {Object.values(bySubject).map((data: any) => {
-                    const total = data.records.length
-                    if (total === 0) return null
-                    const pct = total > 0 ? ((data.present + data.late) / total * 100) : 100
-                    // Get unique dates for this subject, sorted desc, last 15
-                    const subDates = Array.from(new Set(data.records.map((r: any) => r.date) as string[])).sort().reverse().slice(0, 15).reverse()
+              {dedupedByDate.length > 0 ? (
+                <div className="border border-surface2 rounded-2xl overflow-hidden bg-bg">
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface border-b border-surface2">
+                    <div>
+                      <p className="font-bold text-sm text-ink">Historial de Asistencia</p>
+                      <p className="text-[10px] text-ink4">Últimos registros de asistencia general de la institución</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">✓ {totalPresent} Presente</span>
+                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">⏱ {totalLate} Atrasos</span>
+                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">✗ {totalAbsent} Faltas</span>
+                    </div>
+                  </div>
 
-                    return (
-                      <div key={data.subject.id} className="border border-surface2 rounded-2xl overflow-hidden bg-bg">
-                        {/* Subject header */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface border-b border-surface2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center text-xs font-black">
-                              {data.subject.name.substring(0, 2).toUpperCase()}
+                  <div className="p-5 overflow-x-auto custom-scrollbar">
+                    <div className="flex gap-3 min-w-max">
+                      {dedupedByDate.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 30).reverse().map((record: any) => {
+                        const status = record.status || 'unknown'
+                        const d = new Date(record.date + 'T12:00:00')
+                        const dayName = d.toLocaleDateString('es-EC', { weekday: 'short' })
+                        const dayNum = d.getDate()
+                        const month = d.toLocaleDateString('es-EC', { month: 'short' })
+
+                        return (
+                          <div key={record.date} className="flex flex-col items-center gap-2 min-w-[56px] group">
+                            <span className="text-[10px] font-bold text-ink4 uppercase tracking-widest">{dayName}</span>
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black transition-all group-hover:-translate-y-1 ${
+                              status === 'present'
+                                ? 'bg-emerald-100 text-emerald-600 border border-emerald-200 shadow-sm'
+                                : status === 'late'
+                                ? 'bg-amber-100 text-amber-600 border border-amber-200 shadow-sm'
+                                : status === 'absent'
+                                ? 'bg-rose-100 text-rose-600 border border-rose-200 shadow-sm'
+                                : 'bg-surface2 text-ink4 border border-surface2'
+                            }`}>
+                              {status === 'present' ? '✓' : status === 'late' ? '⏱' : status === 'absent' ? '✗' : '·'}
                             </div>
-                            <div>
-                              <p className="font-bold text-sm text-ink">{data.subject.name}</p>
-                              <p className="text-[10px] text-ink4">{data.subject.teacher?.full_name || ''}</p>
-                            </div>
+                            <span className="text-[10px] font-semibold text-ink4">{dayNum} {month}</span>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">✓ {data.present}</span>
-                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">⏱ {data.late}</span>
-                            <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">✗ {data.absent}</span>
-                            <span className={`text-xs font-black px-2.5 py-1 rounded-lg ${pct >= 80 ? 'text-emerald-600 bg-emerald-50 border border-emerald-100' : pct >= 60 ? 'text-amber-600 bg-amber-50 border border-amber-100' : 'text-rose-600 bg-rose-50 border border-rose-100'}`}>
-                              {pct.toFixed(0)}%
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Date cells */}
-                        <div className="p-4 overflow-x-auto custom-scrollbar">
-                          <div className="flex gap-2 min-w-max">
-                            {subDates.map(date => {
-                              const record = data.records.find((r: any) => r.date === date)
-                              const status = record?.status || 'unknown'
-                              const d = new Date(date + 'T12:00:00')
-                              const dayName = d.toLocaleDateString('es-EC', { weekday: 'short' })
-                              const dayNum = d.getDate()
-                              const month = d.toLocaleDateString('es-EC', { month: 'short' })
-
-                              return (
-                                <div key={date} className="flex flex-col items-center gap-1.5 min-w-[52px]">
-                                  <span className="text-[9px] font-bold text-ink4 uppercase">{dayName}</span>
-                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black transition-all ${
-                                    status === 'present'
-                                      ? 'bg-emerald-100 text-emerald-600 border border-emerald-200 shadow-sm'
-                                      : status === 'late'
-                                      ? 'bg-amber-100 text-amber-600 border border-amber-200 shadow-sm'
-                                      : status === 'absent'
-                                      ? 'bg-rose-100 text-rose-600 border border-rose-200 shadow-sm'
-                                      : 'bg-surface2 text-ink4 border border-surface2'
-                                  }`}>
-                                    {status === 'present' ? '✓' : status === 'late' ? '⏱' : status === 'absent' ? '✗' : '·'}
-                                  </div>
-                                  <span className="text-[9px] font-semibold text-ink4">{dayNum} {month}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 bg-bg rounded-2xl border border-dashed border-surface2">
                   <CalendarDays size={48} className="text-ink4/50 mb-4" />
                   <h3 className="font-bold text-ink">Sin registros de asistencia</h3>
-                  <p className="text-ink3 font-medium mt-1">Los docentes aún no han registrado asistencia.</p>
+                  <p className="text-ink3 font-medium mt-1">Aún no se ha registrado asistencia general.</p>
                 </div>
               )}
             </div>
