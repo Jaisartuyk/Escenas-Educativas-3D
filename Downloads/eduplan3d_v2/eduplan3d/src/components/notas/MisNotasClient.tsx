@@ -8,9 +8,8 @@ import { useMemo, useState } from 'react'
 import {
   GraduationCap, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp,
   CheckCircle2, AlertCircle, CircleX, CalendarCheck, Smile, Frown, Trophy,
-  BookOpen,
-} from 'lucide-react'
-import { isQualitativeSubject, getQualitativeGradeForNumber } from '@/lib/qualitative-grades'
+import { BookOpen } from 'lucide-react'
+import { isQualitativeSubject, getQualitativeGradeForNumber, isExcludedSubject } from '@/lib/qualitative-grades'
 import { calculateWeightedAssignmentAverage } from '@/lib/grade-calculations'
 
 // â”€â”€ Tipos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -56,7 +55,7 @@ function levelForScore(score: number | null): {
   if (score == null) {
     return {
       label: 'Sin notas',
-      sublabel: 'AÃºn no registrado',
+      sublabel: 'Aún no registrado',
       color: '#94A3B8',
       bg: 'bg-slate-100',
       text: 'text-slate-500',
@@ -78,7 +77,7 @@ function levelForScore(score: number | null): {
   if (score >= 7) {
     return {
       label: score >= 8 ? 'B+' : 'B-',
-      sublabel: 'Buen desempeÃ±o',
+      sublabel: 'Buen desempeño',
       color: '#3B82F6',
       bg: 'bg-blue-50',
       text: 'text-blue-700',
@@ -124,7 +123,7 @@ function trendIcon(curr: number | null, prev: number | null) {
   const diff = curr - prev
   if (diff >= 0.3)  return { icon: TrendingUp,   color: 'text-emerald-500', label: `+${diff.toFixed(2)}` }
   if (diff <= -0.3) return { icon: TrendingDown, color: 'text-rose-500',    label: diff.toFixed(2) }
-  return { icon: Minus, color: 'text-ink4', label: 'â‰ˆ' }
+  return { icon: Minus, color: 'text-ink4', label: '≈' }
 }
 
 function fmtDate(iso: string): string {
@@ -137,7 +136,7 @@ function isExamOrEvaluation(title: string, categoryId: string | null, categories
   const category = categories?.find(c => c.id === categoryId)
   const cName = (category?.name || '').toLowerCase()
   const tTitle = (title || '').toLowerCase()
-  const keywords = ['examen', 'evaluacion', 'evaluaciÃ³n', 'prueba', 'leccion', 'lecciÃ³n', 'test', 'trimestral', 'parcial']
+  const keywords = ['examen', 'evaluacion', 'evaluación', 'prueba', 'leccion', 'lección', 'test', 'trimestral', 'parcial']
   return keywords.some(k => tTitle.includes(k) || cName.includes(k))
 }
 
@@ -145,9 +144,11 @@ function isExamOrEvaluation(title: string, categoryId: string | null, categories
 export function MisNotasClient(props: Props) {
   const {
     isParentView = false,
-    studentName, institutionName, subjects, categories, assignments,
+    studentName, institutionName, subjects: initialSubjects, categories, assignments,
     grades, attendance, behaviors, parcialesCount,
   } = props
+
+  const subjects = useMemo(() => initialSubjects.filter(s => !isExcludedSubject(s.name)), [initialSubjects])
 
   const trimestresDisponibles = [1, 2, 3]
   const [trimestre, setTrimestre] = useState<number | 'all'>(1)
@@ -284,7 +285,7 @@ export function MisNotasClient(props: Props) {
             <div className="text-center">
               <p className="text-white/70 text-xs">Promedio general</p>
               <p className="text-4xl lg:text-5xl font-display font-bold tracking-tight">
-                {overall != null ? overall.toFixed(2) : 'â€”'}
+                {overall != null ? overall.toFixed(2) : '—'}
               </p>
               <p className="text-white/80 text-xs font-medium">{overallLevel.label}</p>
             </div>
@@ -398,7 +399,7 @@ export function MisNotasClient(props: Props) {
                   {/* Score grande */}
                   <div className="mt-4 flex items-baseline gap-3">
                     <span className="text-5xl font-display font-bold tracking-tight" style={{ color: level.color }}>
-                      {isQuali ? (qualiGrade?.id || 'â€”') : (row.weighted != null ? row.weighted.toFixed(2) : 'â€”')}
+                      {isQuali ? (qualiGrade?.id || '—') : (row.weighted != null ? row.weighted.toFixed(2) : '—')}
                     </span>
                     <span className="text-ink4 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
                       {isQuali ? (qualiGrade?.equivalencia || '') : `/ ${SCALE_MAX}`}
@@ -429,7 +430,7 @@ export function MisNotasClient(props: Props) {
                         <CalendarCheck size={10} /> Asist.
                       </p>
                       <p className="text-sm font-bold text-ink mt-0.5">
-                        {row.attPct != null ? `${row.attPct.toFixed(0)}%` : 'â€”'}
+                        {row.attPct != null ? `${row.attPct.toFixed(0)}%` : '—'}
                       </p>
                     </div>
                     <div className="bg-emerald-50 rounded-lg p-2 text-center">
@@ -453,11 +454,11 @@ export function MisNotasClient(props: Props) {
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: b.category.color }} />
                         <span className="text-ink2 truncate flex-1">{b.category.name}</span>
                         <span className="text-ink4 shrink-0">
-                          {b.count > 0 ? `${b.count} act.` : 'â€”'}
+                          {b.count > 0 ? `${b.count} act.` : '—'}
                         </span>
                         <span className="font-bold tabular-nums shrink-0 w-12 text-right"
                               style={{ color: !(isParentView && isExamOrEvaluation('', b.category.id, categories)) && b.avg != null ? levelForScore(b.avg).color : '#CBD5E1' }}>
-                          {isParentView && isExamOrEvaluation('', b.category.id, categories) ? 'â€”' : (isQuali && b.avg != null ? getQualitativeGradeForNumber(b.avg)?.id || 'â€”' : (b.avg != null ? b.avg.toFixed(2) : 'â€”'))}
+                          {isParentView && isExamOrEvaluation('', b.category.id, categories) ? '—' : (isQuali && b.avg != null ? getQualitativeGradeForNumber(b.avg)?.id || '—' : (b.avg != null ? b.avg.toFixed(2) : '—'))}
                         </span>
                         <span className="text-ink4 shrink-0 text-[10px] w-10 text-right">
                           {Number(b.category.weight_percent).toFixed(0)}%
@@ -490,12 +491,12 @@ export function MisNotasClient(props: Props) {
                             <div className="flex-1 min-w-0">
                               <p className="text-ink2 font-medium truncate">{a.title}</p>
                               <p className="text-ink4 text-[10px]">
-                                {cat?.name || 'Sin categorÃ­a'} Â· {fmtDate(a.created_at)}
-                                {a.parcial ? ` Â· P${a.parcial}` : ''}
+                                {cat?.name || 'Sin categoría'} · {fmtDate(a.created_at)}
+                                {a.parcial ? ` · P${a.parcial}` : ''}
                               </p>
                             </div>
                             <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? 'text-slate-500' : (isQuali ? 'text-ink2' : lvl.text)}`}>
-                              {isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? 'â€”' : (isQuali && score != null ? getQualitativeGradeForNumber(score)?.id || 'â€”' : (score != null ? score.toFixed(1) : 'â€”'))}
+                              {isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? '—' : (isQuali && score != null ? getQualitativeGradeForNumber(score)?.id || '—' : (score != null ? score.toFixed(1) : '—'))}
                             </span>
                           </div>
                         )
@@ -511,13 +512,13 @@ export function MisNotasClient(props: Props) {
 
       {/* â”€â”€ Leyenda â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="bg-bg2 rounded-2xl border border-[rgba(0,0,0,0.06)] p-4">
-        <p className="text-[11px] uppercase tracking-wide text-ink4 font-semibold mb-3">Escala de calificaciÃ³n</p>
+        <p className="text-[11px] uppercase tracking-wide text-ink4 font-semibold mb-3">Escala de calificación</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {[
-            { min: 9,    label: 'Supera',      sub: '9.00 â€“ 10.00', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700' },
-            { min: 7,    label: 'Alcanza',     sub: '7.00 â€“ 8.99',  color: '#3B82F6', bg: 'bg-blue-50',    text: 'text-blue-700'    },
-            { min: 4.01, label: 'PrÃ³ximo',     sub: '4.01 â€“ 6.99',  color: '#F59E0B', bg: 'bg-amber-50',   text: 'text-amber-700'   },
-            { min: 0,    label: 'No alcanza',  sub: 'â‰¤ 4.00',       color: '#EF4444', bg: 'bg-rose-50',    text: 'text-rose-700'    },
+            { min: 9,    label: 'Supera',      sub: '9.00 – 10.00', color: '#10B981', bg: 'bg-emerald-50', text: 'text-emerald-700' },
+            { min: 7,    label: 'Alcanza',     sub: '7.00 – 8.99',  color: '#3B82F6', bg: 'bg-blue-50',    text: 'text-blue-700'    },
+            { min: 4.01, label: 'Próximo',     sub: '4.01 – 6.99',  color: '#F59E0B', bg: 'bg-amber-50',   text: 'text-amber-700'   },
+            { min: 0,    label: 'No alcanza',  sub: '≤ 4.00',       color: '#EF4444', bg: 'bg-rose-50',    text: 'text-rose-700'    },
           ].map(l => (
             <div key={l.label} className={`${l.bg} rounded-xl p-3 flex items-center gap-3`}>
               <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: l.color }} />
