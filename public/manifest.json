@@ -1,23 +1,25 @@
 {
-  "name": "LiveGames IA",
-  "short_name": "LiveGames",
-  "description": "Panel interactivo de juegos para TikTok Live",
-  "start_url": "/",
+  "name": "ClassNova",
+  "short_name": "ClassNova",
+  "description": "Planificaciones docentes inteligentes con escenas 3D didácticas",
+  "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#fe2c55",
-  "orientation": "portrait",
+  "orientation": "any",
+  "background_color": "#F8FAFC",
+  "theme_color": "#4F46E5",
+  "categories": ["education", "productivity"],
   "icons": [
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/icons/icon-192.png?v=4",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/icons/icon-512.png?v=4",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ]
 }

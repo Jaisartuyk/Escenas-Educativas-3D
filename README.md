@@ -1,36 +1,163 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EduPlan 3D
 
-## Getting Started
+Plataforma SaaS para docentes de secundaria y bachillerato — genera planificaciones curriculares con IA y escenas 3D didácticas interactivas.
 
-First, run the development server:
+**Stack:** Next.js 14 (App Router) · Supabase (auth + postgres) · Anthropic Claude · Three.js · Tailwind CSS
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## Estructura del proyecto
+
+```
+eduplan3d/
+├── middleware.ts                        # Protección de rutas (Supabase SSR)
+├── next.config.js
+├── tailwind.config.ts
+├── .env.local.example                   # Variables de entorno necesarias
+│
+├── supabase/
+│   └── migrations/
+│       └── 0001_initial.sql            # Tablas + RLS policies
+│
+└── src/
+    ├── app/
+    │   ├── layout.tsx                   # Root layout (fuentes, Toaster)
+    │   ├── globals.css                  # Design tokens + utilidades
+    │   ├── page.tsx                     # Redirect → /dashboard o /landing
+    │   │
+    │   ├── landing/
+    │   │   └── page.tsx                 # Landing page pública
+    │   │
+    │   ├── auth/
+    │   │   ├── layout.tsx               # Auth layout (centrado + glows)
+    │   │   ├── callback/route.ts        # OAuth + email confirmation
+    │   │   ├── login/page.tsx
+    │   │   ├── register/page.tsx
+    │   │   └── forgot-password/page.tsx
+    │   │
+    │   ├── dashboard/
+    │   │   ├── layout.tsx               # Dashboard layout (Sidebar + Topbar)
+    │   │   ├── page.tsx                 # Home: stats, recientes, acciones rápidas
+    │   │   ├── planificador/page.tsx    # Generador de planificaciones
+    │   │   ├── escenas/page.tsx         # Escenas 3D interactivas
+    │   │   ├── historial/
+    │   │   │   ├── page.tsx             # Lista con búsqueda y filtros
+    │   │   │   └── [id]/page.tsx        # Detalle de planificación
+    │   │   └── configuracion/page.tsx   # Perfil, plan, seguridad
+    │   │
+    │   └── api/
+    │       └── planificaciones/
+    │           ├── route.ts             # POST: genera + guarda planificación
+    │           ├── [id]/route.ts        # DELETE: elimina planificación
+    │           └── explain/route.ts     # POST: explicación didáctica 3D
+    │
+    ├── components/
+    │   ├── ui/
+    │   │   ├── Logo.tsx
+    │   │   ├── FeatureCard.tsx
+    │   │   └── PlanCard.tsx
+    │   ├── layout/
+    │   │   ├── Sidebar.tsx              # Navegación lateral con estado activo
+    │   │   ├── Topbar.tsx               # Barra superior + menú de usuario
+    │   │   └── ConfiguracionClient.tsx  # Tabs: perfil, plan, seguridad
+    │   ├── auth/
+    │   │   ├── LoginForm.tsx
+    │   │   ├── RegisterForm.tsx
+    │   │   └── ForgotPasswordForm.tsx
+    │   ├── planner/
+    │   │   ├── PlannerClient.tsx        # Formulario + panel de resultado
+    │   │   ├── HistorialClient.tsx      # Grid con búsqueda y filtros
+    │   │   └── DeletePlanButton.tsx
+    │   └── scenes/
+    │       └── ScenesClient.tsx         # Three.js: 6 escenas 3D + IA explain
+    │
+    ├── lib/
+    │   ├── supabase/
+    │   │   ├── client.ts                # Browser client (Client Components)
+    │   │   └── server.ts                # Server client (Server Components, Actions)
+    │   └── actions/
+    │       └── auth.ts                  # Server Actions: signIn, signUp, signOut...
+    │
+    └── types/
+        └── supabase.ts                  # Database types + domain types
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Setup en 5 pasos
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Instalar dependencias
+```bash
+cd eduplan3d
+npm install
+```
 
-## Learn More
+### 2. Configurar variables de entorno
+```bash
+cp .env.local.example .env.local
+# Edita .env.local con tus credenciales reales
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Crear proyecto en Supabase
+1. Ve a [supabase.com](https://supabase.com) → New project
+2. Copia `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` desde **Settings → API**
+3. Copia `SUPABASE_SERVICE_ROLE_KEY` desde la misma página (nunca expongas esta al cliente)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 4. Ejecutar la migración SQL
+1. Ve a **Supabase Dashboard → SQL Editor**
+2. Pega el contenido de `supabase/migrations/0001_initial.sql`
+3. Ejecuta — crea las tablas `profiles` y `planificaciones` con RLS
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 5. Obtener API key de Anthropic
+1. Ve a [console.anthropic.com](https://console.anthropic.com)
+2. Crea una API key y ponla en `ANTHROPIC_API_KEY`
 
-## Deploy on Vercel
+### Levantar el servidor
+```bash
+npm run dev
+# Abre http://localhost:3000
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## URLs del proyecto
+
+| Ruta | Descripción |
+|------|-------------|
+| `/` | Redirect automático según sesión |
+| `/landing` | Landing page pública |
+| `/auth/login` | Login |
+| `/auth/register` | Registro |
+| `/auth/forgot-password` | Recuperar contraseña |
+| `/auth/callback` | Callback de email/OAuth |
+| `/dashboard` | Home con stats y recientes |
+| `/dashboard/planificador` | Generador de planificaciones IA |
+| `/dashboard/escenas` | Escenas 3D interactivas |
+| `/dashboard/historial` | Lista de planificaciones guardadas |
+| `/dashboard/historial/[id]` | Detalle de una planificación |
+| `/dashboard/configuracion` | Perfil, plan y seguridad |
+| `/api/planificaciones` | POST: generar planificación |
+| `/api/planificaciones/[id]` | DELETE: eliminar planificación |
+| `/api/planificaciones/explain` | POST: explicación didáctica IA |
+
+---
+
+## Comandos útiles
+
+```bash
+npm run dev          # Servidor de desarrollo
+npm run build        # Build de producción
+npm run lint         # Linting
+npm run db:types     # Regenerar tipos desde Supabase CLI
+```
+
+---
+
+## Deploy en Vercel
+
+```bash
+npx vercel
+# Agrega las variables de entorno en el dashboard de Vercel
+```
+
+El middleware de Supabase SSR funciona nativamente en Vercel Edge Runtime.
