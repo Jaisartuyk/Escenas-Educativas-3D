@@ -6,6 +6,7 @@ import { LibretasClient } from '@/components/libretas/LibretasClient'
 import { filterSubjectsForLibretas } from '@/lib/subject-visibility'
 import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
 import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
+import { checkStudentDebt } from '@/lib/financial-status'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -161,6 +162,14 @@ export default async function LibretasPage({
       .from('attendance')
       .select('student_id, subject_id, status, date')
       .in('subject_id', subjectIds)
+
+  // Attendance data for annual report
+  let attendance: any[] = []
+  if (subjectIds.length > 0) {
+    const { data: attData } = await admin
+      .from('attendance')
+      .select('student_id, subject_id, status, date')
+      .in('subject_id', subjectIds)
     attendance = attData || []
   }
 
@@ -176,6 +185,12 @@ export default async function LibretasPage({
 
   // Check visibility for parents/students
   const isFamilyRole = profile.role === 'student' || isParentMode
+  
+  let hasDebt = false
+  if (isFamilyRole) {
+    hasDebt = await checkStudentDebt(admin as any, linkedStudentId || user.id)
+  }
+
   if (isFamilyRole && !libretasPublished) {
     return (
       <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
@@ -244,24 +259,28 @@ export default async function LibretasPage({
         />
       )}
 
-      <LibretasClient
-        role={isParentMode ? 'parent' : profile.role}
-        institutionName={profile.institutions?.name}
-        courses={filteredCourses}
-        enrollments={filteredEnrollments}
-        subjects={instSubjects}
-        assignments={assignments}
-        grades={filteredGrades}
-        categories={categories || []}
-        currentUserId={linkedStudentId || user.id}
-        parcialesCount={(scheduleConfig as any)?.parciales_count || 2}
-        tutores={tutores}
-        attendance={filteredAttendance}
-        behaviors={filteredBehaviors}
-        libretasPublished={libretasPublished}
-        institutionId={instId}
-      />
+      {(() => {
+        return (
+          <LibretasClient
+            role={isParentMode ? 'parent' : profile.role}
+            institutionName={profile.institutions?.name}
+            courses={filteredCourses}
+            enrollments={filteredEnrollments}
+            subjects={instSubjects}
+            assignments={assignments}
+            grades={filteredGrades}
+            categories={categories || []}
+            currentUserId={linkedStudentId || user.id}
+            parcialesCount={(scheduleConfig as any)?.parciales_count || 2}
+            tutores={tutores}
+            attendance={filteredAttendance}
+            behaviors={filteredBehaviors}
+            libretasPublished={libretasPublished}
+            institutionId={instId}
+            hasDebt={hasDebt}
+          />
+        )
+      })()}
     </div>
   )
 }
-

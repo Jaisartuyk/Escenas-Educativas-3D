@@ -47,12 +47,13 @@ interface Props {
   behaviors?: any[]
   libretasPublished?: boolean
   institutionId?: string
+  hasDebt?: boolean
 }
 
 export function LibretasClient({
   role, institutionName, courses, enrollments, subjects, assignments, grades,
   categories, currentUserId, parcialesCount = 2, tutores = {},
-  attendance = [], behaviors = [], libretasPublished = false, institutionId,
+  attendance = [], behaviors = [], libretasPublished = false, institutionId, hasDebt = false
 }: Props) {
   const isFamilyRole = role === 'student' || role === 'parent'
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '')
@@ -79,7 +80,24 @@ export function LibretasClient({
     })
   }
 
-  // â”€â”€ Derived data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Vista bloqueada por deudas ──
+  if (isFamilyRole && hasDebt) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mb-4">
+          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-ink">Información protegida</h2>
+        <p className="text-ink3 mt-2 max-w-sm">
+          Para visualizar o imprimir la libreta de calificaciones, el estudiante debe estar al día en sus pagos de colegiatura.
+        </p>
+      </div>
+    )
+  }
+
+  // ── Derived data ─────────────────────────────────────────────────────────────
   const studentsInCourse = useMemo(() => {
     if (isFamilyRole) return enrollments.map((e: any) => e.student).filter(Boolean)
     return enrollments

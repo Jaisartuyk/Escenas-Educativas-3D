@@ -25,6 +25,7 @@ interface Props {
   isParentView?:    boolean
   studentName:      string
   institutionName:  string
+  hasDebt?:         boolean
   enrollments:      any[]
   subjects:         Subject[]
   categories:       Category[]
@@ -145,7 +146,7 @@ function isExamOrEvaluation(title: string, categoryId: string | null, categories
 export function MisNotasClient(props: Props) {
   const {
     isParentView = false,
-    studentName, institutionName, subjects: initialSubjects, categories, assignments,
+    studentName, institutionName, hasDebt = false, subjects: initialSubjects, categories, assignments,
     grades, attendance, behaviors, parcialesCount,
   } = props
 
@@ -269,7 +270,17 @@ export function MisNotasClient(props: Props) {
 
   return (
     <div className="space-y-6">
-      {/* â”€â”€ Header / resumen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {hasDebt && (
+        <div className="mb-6 rounded-2xl bg-amber-50 dark:bg-amber-900/20 p-4 flex items-start gap-3 border border-amber-200 dark:border-amber-700/50">
+          <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={20} />
+          <div>
+            <h3 className="text-sm font-bold text-amber-800 dark:text-amber-400">Atención: Pagos pendientes</h3>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">Para ver la información completa de calificaciones, debes estar al día en tus pagos.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Header / resumen ──────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet via-violet2 to-teal p-6 lg:p-8 text-white shadow-lg">
         <div className="absolute inset-0 opacity-10" style={{
           backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px), radial-gradient(circle at 70% 80%, white 1px, transparent 1px)',
@@ -286,9 +297,9 @@ export function MisNotasClient(props: Props) {
             <div className="text-center">
               <p className="text-white/70 text-xs">Promedio general</p>
               <p className="text-4xl lg:text-5xl font-display font-bold tracking-tight">
-                {overall != null ? overall.toFixed(2) : '—'}
+                {(!hasDebt && overall != null) ? overall.toFixed(2) : '—'}
               </p>
-              <p className="text-white/80 text-xs font-medium">{overallLevel.label}</p>
+              <p className="text-white/80 text-xs font-medium">{hasDebt ? 'Información protegida' : overallLevel.label}</p>
             </div>
             <div className="text-center">
               <p className="text-white/70 text-xs">Materias aprobadas</p>
@@ -458,8 +469,8 @@ export function MisNotasClient(props: Props) {
                           {b.count > 0 ? `${b.count} act.` : '—'}
                         </span>
                         <span className="font-bold tabular-nums shrink-0 w-12 text-right"
-                              style={{ color: !(isParentView && isExamOrEvaluation('', b.category.id, categories)) && b.avg != null ? levelForScore(b.avg).color : '#CBD5E1' }}>
-                          {isParentView && isExamOrEvaluation('', b.category.id, categories) ? '—' : (isQuali && b.avg != null ? getQualitativeGradeForNumber(b.avg)?.id || '—' : (b.avg != null ? b.avg.toFixed(2) : '—'))}
+                              style={{ color: !((isParentView || hasDebt) && isExamOrEvaluation('', b.category.id, categories)) && b.avg != null ? levelForScore(b.avg).color : '#CBD5E1' }}>
+                          {(isParentView || hasDebt) && isExamOrEvaluation('', b.category.id, categories) ? '—' : (isQuali && b.avg != null ? getQualitativeGradeForNumber(b.avg)?.id || '—' : (b.avg != null ? b.avg.toFixed(2) : '—'))}
                         </span>
                         <span className="text-ink4 shrink-0 text-[10px] w-10 text-right">
                           {Number(b.category.weight_percent).toFixed(0)}%
@@ -496,8 +507,8 @@ export function MisNotasClient(props: Props) {
                                 {a.parcial ? ` · P${a.parcial}` : ''}
                               </p>
                             </div>
-                            <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? 'text-slate-500' : (isQuali ? 'text-ink2' : lvl.text)}`}>
-                              {isParentView && isExamOrEvaluation(a.title, a.category_id, categories) ? '—' : (isQuali && score != null ? getQualitativeGradeForNumber(score)?.id || '—' : (score != null ? score.toFixed(1) : '—'))}
+                            <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${(isParentView || hasDebt) && isExamOrEvaluation(a.title, a.category_id, categories) ? 'text-slate-500' : (isQuali ? 'text-ink2' : lvl.text)}`}>
+                              {(isParentView || hasDebt) && isExamOrEvaluation(a.title, a.category_id, categories) ? '—' : (isQuali && score != null ? getQualitativeGradeForNumber(score)?.id || '—' : (score != null ? score.toFixed(1) : '—'))}
                             </span>
                           </div>
                         )
