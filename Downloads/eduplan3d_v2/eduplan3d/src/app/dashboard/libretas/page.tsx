@@ -162,50 +162,6 @@ export default async function LibretasPage({
       .from('attendance')
       .select('student_id, subject_id, status, date')
       .in('subject_id', subjectIds)
-    attendance = attData || []
-  }
-
-  // Behavior data for annual report
-  let behaviors: any[] = []
-  if (subjectIds.length > 0) {
-    const { data: behData } = await admin
-      .from('behaviors')
-      .select('student_id, subject_id, type, description, created_at')
-      .in('subject_id', subjectIds)
-    behaviors = behData || []
-  }
-
-  // Check visibility for parents/students
-  const isFamilyRole = profile.role === 'student' || isParentMode
-  if (isFamilyRole && !libretasPublished) {
-    return (
-      <div className="animate-fade-in max-w-6xl mx-auto space-y-6">
-        <div className="print:hidden">
-          <h1 className="font-display text-2xl lg:text-3xl font-bold tracking-tight">Libretas de Calificaciones</h1>
-          <p className="text-ink3 text-sm mt-1">
-            Las libretas de calificaciones aún no han sido publicadas por la institución.
-          </p>
-        </div>
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mb-4">
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-ink">Calificaciones no disponibles</h2>
-          <p className="text-ink3 mt-2 max-w-sm">
-            La secretaría académica publicará las calificaciones cuando estén listas. Por favor, vuelve a revisar más adelante.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // For students, filter to their own data
-  const isStudent = profile.role === 'student'
-  const isParent = isParentMode
-  const filteredEnrollments = isStudent
-    ? (enrollments || []).filter((e: any) => e.student_id === user.id)
 
   // Attendance data for annual report
   let attendance: any[] = []
