@@ -308,7 +308,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     return (filteredStudents as any[]).map((student: any) => {
       const sid = student.id
       const stuCourseIds = studentCourses[sid] || []
-      const stuCourse = stuCourseIds.length > 0 ? coursesById[stuCourseIds[0]] : null
+      const stuCourse = stuCourseIds
+        .map((courseId) => coursesById[courseId])
+        .find(Boolean) || null
       const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
 
       // Student payments for the pivot table should ignore status/type/search filters.
@@ -373,7 +375,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       .map((payment: any) => {
         const student = studentsById[payment.student_id]
         const courseIds = studentCourses[payment.student_id] || []
-        const course = courseIds.length > 0 ? coursesById[courseIds[0]] : null
+        const course = courseIds
+          .map((courseId: string) => coursesById[courseId])
+          .find(Boolean) || null
         const monthKey = payment.type === 'pension' ? getMonthKeyFromPayment(payment) : ''
         const dueDate = payment?.due_date || null
         let periodLabel = ''

@@ -88,6 +88,12 @@ export default async function SecretariaPage() {
     admin.from('institutions').select('settings').eq('id', instId).single(),
   ])
 
+  const validStudentIds = new Set((studentsRes.data || []).map((student: any) => student.id))
+  const validCourseIds = new Set((coursesRes.data || []).map((course: any) => course.id))
+  const scopedEnrollments = (enrollsRes.data || []).filter((enrollment: any) =>
+    validStudentIds.has(enrollment.student_id) && validCourseIds.has(enrollment.course_id)
+  )
+
   const paymentIds = (paymentsData || []).map((payment: any) => payment.id).filter(Boolean)
   const abonosData = await fetchAllAbonos(paymentIds)
 
@@ -104,7 +110,7 @@ export default async function SecretariaPage() {
         userRole={profile.role}
         students={studentsRes.data || []}
         courses={coursesRes.data || []}
-        enrollments={enrollsRes.data || []}
+        enrollments={scopedEnrollments}
         initialPayments={attachAbonosToPayments(paymentsData || [], abonosData)}
         financialSettings={instSettings.financial || {}}
       />
