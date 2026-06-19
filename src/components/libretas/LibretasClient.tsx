@@ -30,6 +30,16 @@ function comportamientoLetra(positive: number, negative: number): string {
   return 'N'                    // Necesita mejora
 }
 
+function formatShiftLabel(shift: string | null | undefined): string {
+  const normalized = String(shift || '')
+    .trim()
+    .toLowerCase()
+
+  if (normalized.includes('vespert')) return 'VESPERTINA'
+  if (normalized.includes('matut')) return 'MATUTINA'
+  return shift ? String(shift).toUpperCase() : '—'
+}
+
 // â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface Props {
   role: string
@@ -339,7 +349,7 @@ export function LibretasClient({
               <p><b>AÃ‘O LECTIVO:</b> {yearLabel}</p>
               <p><b>TRIMESTRE:</b> {view === 'anual' ? 'ANUAL' : `${trimestre === 1 ? 'PRIMERO' : trimestre === 2 ? 'SEGUNDO' : 'TERCERO'}`}</p>
               <p><b>ESTUDIANTE:</b> {currentStudent?.full_name}</p>
-              <p><b>JORNADA:</b> {currentCourse?.shift === 'vespertino' ? 'VESPERTINA' : 'MATUTINA'}</p>
+              <p><b>JORNADA:</b> {formatShiftLabel(currentCourse?.shift)}</p>
               <p><b>CURSO:</b> {currentCourse?.name} {currentCourse?.parallel}</p>
               <p><b>DOCENTE:</b> {docenteName}</p>
             </div>
