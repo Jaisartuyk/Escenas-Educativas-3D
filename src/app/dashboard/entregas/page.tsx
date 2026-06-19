@@ -65,44 +65,55 @@ export default async function EntregasPage() {
   // Submissions (Entregas)
   let submissions: any[] = []
   const assignmentIds = assignments.map((a: any) => a.id)
-  if (assignmentIds.length > 0) {
-    // Intentamos embebido con FK declarada; si no hay FK, hacemos fallback manual.
-    const { data, error } = await admin
-      .from('assignment_submissions')
-      .select('*, student:profiles(id, full_name, email)')
-      .in('assignment_id', assignmentIds)
-      .order('submitted_at', { ascending: false })
+  
+  const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+    Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
 
-    if (error) {
-      console.error('[entregas] submissions embed failed, trying fallback:', error.message)
-      const { data: subs, error: err2 } = await admin
+  if (assignmentIds.length > 0) {
+    const assignmentChunks = chunkArray(assignmentIds, 50)
+    
+    for (const chunk of assignmentChunks) {
+      const { data, error } = await admin
         .from('assignment_submissions')
-        .select('*')
-        .in('assignment_id', assignmentIds)
+        .select('*, student:profiles(id, full_name, email)')
+        .in('assignment_id', chunk)
         .order('submitted_at', { ascending: false })
-      if (err2) {
-        console.error('[entregas] submissions fallback error:', err2)
-      } else if (subs && subs.length > 0) {
-        const studentIds = Array.from(new Set(subs.map((s: any) => s.student_id).filter(Boolean)))
-        const { data: students } = await admin
-          .from('profiles')
-          .select('id, full_name, email')
-          .in('id', studentIds)
-        const byId = new Map((students || []).map((p: any) => [p.id, p]))
-        submissions = subs.map((s: any) => ({ ...s, student: byId.get(s.student_id) || null }))
+
+      if (error) {
+        console.error('[entregas] submissions embed failed, trying fallback:', error.message)
+        const { data: subs, error: err2 } = await admin
+          .from('assignment_submissions')
+          .select('*')
+          .in('assignment_id', chunk)
+          .order('submitted_at', { ascending: false })
+        if (err2) {
+          console.error('[entregas] submissions fallback error:', err2)
+        } else if (subs && subs.length > 0) {
+          const studentIds = Array.from(new Set(subs.map((s: any) => s.student_id).filter(Boolean)))
+          const { data: students } = await admin
+            .from('profiles')
+            .select('id, full_name, email')
+            .in('id', studentIds)
+          const byId = new Map((students || []).map((p: any) => [p.id, p]))
+          submissions.push(...subs.map((s: any) => ({ ...s, student: byId.get(s.student_id) || null })))
+        }
+      } else if (data) {
+        submissions.push(...data)
       }
-    } else {
-      submissions = data || []
     }
   }
+  
   // Grades (Calificaciones)
   let grades: any[] = []
   if (assignmentIds.length > 0) {
-    const { data } = await admin
-      .from('grades')
-      .select('*')
-      .in('assignment_id', assignmentIds)
-    grades = data || []
+    const assignmentChunks = chunkArray(assignmentIds, 50)
+    for (const chunk of assignmentChunks) {
+      const { data } = await admin
+        .from('grades')
+        .select('*')
+        .in('assignment_id', chunk)
+      if (data) grades.push(...data)
+    }
   }
 
   return (

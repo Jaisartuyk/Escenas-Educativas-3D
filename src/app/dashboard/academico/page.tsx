@@ -119,11 +119,18 @@ export default async function AcademicoPage() {
     assignmentsData = aData || []
 
     if (assignmentsData.length > 0) {
-      const { data: gData } = await admin
-        .from('grades' as any)
-        .select('assignment_id, student_id, score')
-        .in('assignment_id', assignmentsData.map((a: any) => a.id))
-      gradesData = gData || []
+      const assignmentIds = assignmentsData.map((a: any) => a.id)
+      const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+        Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+      const assignmentChunks = chunkArray(assignmentIds, 50)
+      
+      for (const chunk of assignmentChunks) {
+        const { data: gData } = await admin
+          .from('grades' as any)
+          .select('assignment_id, student_id, score')
+          .in('assignment_id', chunk)
+        if (gData) gradesData.push(...gData)
+      }
     }
   }
 

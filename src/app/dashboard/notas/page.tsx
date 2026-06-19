@@ -118,12 +118,18 @@ export default async function NotasPage({
   let myGrades: any[] = []
   const assignmentIds = (assignments || []).map((a: any) => a.id)
   if (assignmentIds.length > 0) {
-    const { data: g } = await admin
-      .from('grades')
-      .select('assignment_id, student_id, score')
-      .eq('student_id', effectiveStudentId)
-      .in('assignment_id', assignmentIds)
-    myGrades = g || []
+    const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+      Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+    const assignmentChunks = chunkArray(assignmentIds, 50)
+    
+    for (const chunk of assignmentChunks) {
+      const { data: g } = await admin
+        .from('grades')
+        .select('assignment_id, student_id, score')
+        .eq('student_id', effectiveStudentId)
+        .in('assignment_id', chunk)
+      if (g) myGrades.push(...g)
+    }
   }
 
   return (

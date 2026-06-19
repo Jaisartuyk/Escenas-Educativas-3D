@@ -67,23 +67,33 @@ export default async function TutoriasEntregasPage() {
   // Submissions (Entregas)
   let submissions: any[] = []
   const assignmentIds = assignments.map((a: any) => a.id)
+  
+  const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+    Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+
   if (assignmentIds.length > 0) {
-    const { data } = await admin
-      .from('assignment_submissions')
-      .select('*, student:profiles(id, full_name, email)')
-      .in('assignment_id', assignmentIds)
-      .order('submitted_at', { ascending: false })
-    submissions = data || []
+    const assignmentChunks = chunkArray(assignmentIds, 50)
+    for (const chunk of assignmentChunks) {
+      const { data } = await admin
+        .from('assignment_submissions')
+        .select('*, student:profiles(id, full_name, email)')
+        .in('assignment_id', chunk)
+        .order('submitted_at', { ascending: false })
+      if (data) submissions.push(...data)
+    }
   }
   
   // Grades (Calificaciones)
   let grades: any[] = []
   if (assignmentIds.length > 0) {
-    const { data } = await admin
-      .from('grades')
-      .select('*')
-      .in('assignment_id', assignmentIds)
-    grades = data || []
+    const assignmentChunks = chunkArray(assignmentIds, 50)
+    for (const chunk of assignmentChunks) {
+      const { data } = await admin
+        .from('grades')
+        .select('*')
+        .in('assignment_id', chunk)
+      if (data) grades.push(...data)
+    }
   }
 
   return (

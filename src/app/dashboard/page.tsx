@@ -97,10 +97,19 @@ export default async function DashboardPage() {
 
     let ungradedCount = 0
     if (assignments.length > 0 && courseIds.length > 0) {
-      const { data: allGrades } = await admin
-        .from('grades')
-        .select('assignment_id, student_id')
-        .in('assignment_id', assignments.map((a: any) => a.id))
+      const assignmentIds = assignments.map((a: any) => a.id)
+      const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+        Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+      const assignmentChunks = chunkArray(assignmentIds, 50)
+      
+      let allGrades: any[] = []
+      for (const chunk of assignmentChunks) {
+        const { data } = await admin
+          .from('grades')
+          .select('assignment_id, student_id')
+          .in('assignment_id', chunk)
+        if (data) allGrades.push(...data)
+      }
 
       const { data: allEnrs } = await admin
         .from('enrollments')

@@ -120,12 +120,18 @@ export default async function AlumnoPage({
   let grades: any[] = []
   const assignmentIds = assignments.map((a: any) => a.id)
   if (assignmentIds.length > 0) {
-    const { data } = await admin
-      .from('grades')
-      .select('*')
-      .in('assignment_id', assignmentIds)
-      .eq('student_id', effectiveStudentId)
-    grades = data || []
+    const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+      Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+    const assignmentChunks = chunkArray(assignmentIds, 50)
+    
+    for (const chunk of assignmentChunks) {
+      const { data } = await admin
+        .from('grades')
+        .select('*')
+        .in('assignment_id', chunk)
+        .eq('student_id', effectiveStudentId)
+      if (data) grades.push(...data)
+    }
   }
 
   // ── 5. Categorías de calificación ──────────────────────────────────────────
