@@ -974,6 +974,12 @@ export function DocenteClient({
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto space-y-5">
+      <style>{`
+        @media print {
+          @page { size: landscape; margin: 1cm; }
+          body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        }
+      `}</style>
 
       {/* Header de la clase */}
       <div className="flex items-center gap-4">
@@ -1086,7 +1092,7 @@ export function DocenteClient({
                 )}
               </div>
             ) : (
-              <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto">
+              <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto print:overflow-visible">
                 <table className="w-full text-sm whitespace-nowrap min-w-max">
                   <thead className="bg-bg3 text-xs uppercase tracking-wider border-b border-surface2">
                     <tr>
@@ -1322,7 +1328,7 @@ export function DocenteClient({
               return (
                 <div className="space-y-4">
                   {/* Tabla resumen */}
-                  <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto">
+                  <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto print:overflow-visible">
                     <table className="w-full text-sm whitespace-nowrap">
                       <thead>
                         <tr className="bg-bg3 text-xs uppercase tracking-wider border-b border-surface2">
@@ -1604,7 +1610,7 @@ export function DocenteClient({
                 ) : null}
               </div>
             ) : (
-              <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto">
+              <div className="bg-surface rounded-2xl border border-surface2 overflow-x-auto print:overflow-visible">
                 <table className="w-full text-sm whitespace-nowrap min-w-max">
                   <thead>
                     {/* Fila de color de categoría */}
