@@ -6,7 +6,7 @@ import {
   Plus, Users, ClipboardList, BarChart2,
   CheckCircle2, XCircle, Clock3, ThumbsUp, ThumbsDown,
   Star, Trash2, BookOpen, CalendarDays, Settings, X,
-  Upload, Paperclip
+  Upload, Paperclip, Printer
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
@@ -1216,7 +1216,7 @@ export function DocenteClient({
         return (
           <div className="space-y-5">
             {/* Vista toggle: Parcial / Resumen Trimestral */}
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap print:hidden">
               <div className="flex gap-1 bg-surface rounded-xl p-1 border border-surface2">
                 <button onClick={() => setCalView('parcial')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
@@ -1252,7 +1252,11 @@ export function DocenteClient({
               <span className="text-xs text-ink3">
                 {calView === 'parcial' ? `Trimestre ${trimestre} · Parcial ${parcial}` : `Resumen Trimestre ${trimestre}`}
               </span>
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-2">
+                <button onClick={() => window.print()}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-surface2 text-xs font-semibold text-ink3 hover:text-ink hover:bg-surface2 transition-all">
+                  <Printer size={13} /> Exportar PDF
+                </button>
                 <button onClick={openNewCat}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-surface2 text-xs font-semibold text-ink3 hover:text-ink hover:bg-surface2 transition-all">
                   <Settings size={13} /> Categorías
@@ -1350,8 +1354,8 @@ export function DocenteClient({
                           const triAvg = getTrimestreAvg(st.id)
                           return (
                             <tr key={st.id} className="hover:bg-bg/40 transition-colors">
-                              <td className="px-4 py-2.5">
-                                <span className="font-medium text-xs text-ink truncate block w-40" title={st.full_name}>
+                              <td className="px-4 py-2.5 min-w-[220px] w-[220px] whitespace-normal">
+                                <span className="font-medium text-xs text-ink break-words leading-5" title={st.full_name}>
                                   {st.full_name}
                                 </span>
                               </td>
@@ -1388,7 +1392,7 @@ export function DocenteClient({
                   </div>
 
                   {/* Crear examen trimestral */}
-                  <div className="bg-surface rounded-2xl border border-surface2 p-4">
+                  <div className="bg-surface rounded-2xl border border-surface2 p-4 print:hidden">
                     <h3 className="font-bold text-sm text-ink mb-3">
                       + Examen Trimestral · T{trimestre}
                     </h3>
@@ -1533,7 +1537,7 @@ export function DocenteClient({
             )}
 
             {/* Formulario nueva tarea */}
-            <div className="bg-surface rounded-2xl border border-surface2 p-4">
+            <div className="bg-surface rounded-2xl border border-surface2 p-4 print:hidden">
               <h3 className="font-bold text-sm text-ink mb-3">
                 + Nueva actividad · T{trimestre} P{parcial}
               </h3>
@@ -1686,8 +1690,8 @@ export function DocenteClient({
                       const avg = getWeightedAvg(st.id, sortedAssignments)
                       return (
                         <tr key={st.id} className="hover:bg-bg/40 transition-colors group">
-                          <td className="px-4 py-2.5 sticky left-0 bg-surface group-hover:bg-bg/40 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)] border-r border-surface/50 transition-colors">
-                            <span className="font-medium text-xs text-ink truncate block w-40" title={st.full_name}>{st.full_name}</span>
+                          <td className="px-4 py-2.5 sticky left-0 bg-surface group-hover:bg-bg/40 z-10 shadow-[2px_0_4px_rgba(0,0,0,0.04)] border-r border-surface/50 transition-colors min-w-[220px] w-[220px] whitespace-normal">
+                            <span className="font-medium text-xs text-ink break-words leading-5" title={st.full_name}>{st.full_name}</span>
                           </td>
                           {(() => {
                             const cells: React.ReactNode[] = []
