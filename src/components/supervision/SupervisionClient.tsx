@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ChevronDown, BookOpen, ClipboardCheck, Users, AlertTriangle, CheckCircle, Clock, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { ChevronDown, BookOpen, ClipboardCheck, Users, AlertTriangle, CheckCircle, Clock, XCircle, ThumbsUp, ThumbsDown, Printer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cualitativo } from '@/lib/utils'
 
@@ -637,24 +637,39 @@ function CalificacionesTab({ assignments, grades, students, categories, filterTr
 
   return (
     <div className="space-y-4 animate-fade-in">
+      <style>{`
+        @media print {
+          @page { size: landscape; margin: 1cm; }
+          body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        }
+      `}</style>
       {/* Trimestre filter */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-bold text-ink3 uppercase tracking-wider">Trimestre:</span>
-        {[1, 2, 3].map(t => (
-          <button
-            key={t}
-            onClick={() => setFilterTrimestre(t)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              filterTrimestre === t ? 'bg-violet2 text-white' : 'bg-bg text-ink3 hover:bg-[rgba(124,109,250,0.1)]'
-            }`}
-          >
-            T{t}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-4 print:hidden">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-ink3 uppercase tracking-wider">Trimestre:</span>
+          {[1, 2, 3].map(t => (
+            <button
+              key={t}
+              onClick={() => setFilterTrimestre(t)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterTrimestre === t ? 'bg-violet2 text-white' : 'bg-bg text-ink3 hover:bg-[rgba(124,109,250,0.1)]'
+              }`}
+            >
+              T{t}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="w-9 h-9 rounded-xl border border-[rgba(0,0,0,0.06)] flex items-center justify-center text-ink3 hover:text-violet2 hover:bg-[rgba(124,109,250,0.04)] hover:border-[rgba(124,109,250,0.15)] transition-all bg-surface shadow-sm"
+          title="Exportar a PDF"
+        >
+          <Printer size={16} />
+        </button>
       </div>
 
       {filtered.length > 0 && students.length > 0 ? (
-        <div className="overflow-x-auto custom-scrollbar">
+        <div className="overflow-x-auto custom-scrollbar print:overflow-visible">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-bg">
@@ -675,7 +690,9 @@ function CalificacionesTab({ assignments, grades, students, categories, filterTr
             <tbody>
               {students.map((st: any) => (
                 <tr key={st.id} className="border-t border-[rgba(0,0,0,0.04)] hover:bg-[rgba(0,0,0,0.02)]">
-                  <td className="p-2 font-medium text-xs sticky left-0 bg-surface z-10">{st.full_name}</td>
+                  <td className="p-2 font-medium text-xs sticky left-0 bg-surface z-10 min-w-[200px] w-[200px] whitespace-normal print:w-auto print:whitespace-normal break-words leading-5">
+                    {st.full_name}
+                  </td>
                   {filtered.map((a: any) => {
                     const g = getGrade(a.id, st.id)
                     const score = g?.score
