@@ -171,7 +171,7 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
   return (
     <div className="space-y-6">
       {/* ── Teacher selector cards ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 print:hidden">
         {teachers.map(t => {
           const s = teacherStats[t.id] || { subjects: 0, assignments: 0, gradesEntered: 0, attendanceRecords: 0, behaviorRecords: 0 }
           const selected = t.id === selectedTeacherId
@@ -229,7 +229,7 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
       {selectedTeacherId && (
         <div className="bg-surface rounded-2xl border border-[rgba(0,0,0,0.05)] overflow-hidden shadow-sm">
           {/* Subject selector */}
-          <div className="p-4 border-b border-[rgba(0,0,0,0.05)] bg-bg/50">
+          <div className="p-4 border-b border-[rgba(0,0,0,0.05)] bg-bg/50 print:hidden">
             <div className="flex flex-wrap items-center gap-3">
               <label className="text-xs font-bold text-ink3 uppercase tracking-wider">Materia:</label>
               <div className="flex flex-wrap gap-2">
@@ -256,7 +256,7 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
           {/* Tabs */}
           {selectedSubjectId && (
             <>
-              <div className="flex border-b border-[rgba(0,0,0,0.05)] overflow-x-auto">
+              <div className="flex border-b border-[rgba(0,0,0,0.05)] overflow-x-auto print:hidden">
                 {tabs.map(tab => (
                   <button
                     key={tab.key}
@@ -279,7 +279,12 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
               </div>
 
               {/* Tab content */}
-              <div className="p-5">
+              <div className="p-5 print:p-0">
+                <div className="hidden print:block mb-6">
+                  <h2 className="text-xl font-bold uppercase tracking-wider">{teachers.find(t => t.id === selectedTeacherId)?.full_name}</h2>
+                  <h3 className="text-lg text-ink3">{selectedSubject?.name} — {selectedSubject?.course?.name} {selectedSubject?.course?.parallel || ''}</h3>
+                </div>
+
                 {activeTab === 'resumen' && (
                   <ResumenTab
                     subject={selectedSubject}
