@@ -469,8 +469,8 @@ export function MisNotasClient(props: Props) {
                           {b.count > 0 ? `${b.count} act.` : '—'}
                         </span>
                         <span className="font-bold tabular-nums shrink-0 w-12 text-right"
-                              style={{ color: !((isParentView || hasDebt) && isExamOrEvaluation('', b.category.id, categories)) && b.avg != null ? levelForScore(b.avg).color : '#CBD5E1' }}>
-                          {(isParentView || hasDebt) && isExamOrEvaluation('', b.category.id, categories) ? '—' : (isQuali && b.avg != null ? getQualitativeGradeForNumber(b.avg)?.id || '—' : (b.avg != null ? b.avg.toFixed(2) : '—'))}
+                              style={{ color: !(hasDebt && isExamOrEvaluation('', b.category.id, categories)) && b.avg != null ? levelForScore(b.avg).color : '#CBD5E1' }}>
+                          {hasDebt && isExamOrEvaluation('', b.category.id, categories) ? '—' : (isQuali && b.avg != null ? getQualitativeGradeForNumber(b.avg)?.id || '—' : (b.avg != null ? b.avg.toFixed(2) : '—'))}
                         </span>
                         <span className="text-ink4 shrink-0 text-[10px] w-10 text-right">
                           {Number(b.category.weight_percent).toFixed(0)}%
@@ -507,8 +507,8 @@ export function MisNotasClient(props: Props) {
                                 {a.parcial ? ` · P${a.parcial}` : ''}
                               </p>
                             </div>
-                            <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${(isParentView || hasDebt) && isExamOrEvaluation(a.title, a.category_id, categories) ? 'text-slate-500' : (isQuali ? 'text-ink2' : lvl.text)}`}>
-                              {(isParentView || hasDebt) && isExamOrEvaluation(a.title, a.category_id, categories) ? '—' : (isQuali && score != null ? getQualitativeGradeForNumber(score)?.id || '—' : (score != null ? score.toFixed(1) : '—'))}
+                            <span className={`shrink-0 w-12 text-right font-bold tabular-nums ${hasDebt && isExamOrEvaluation(a.title, a.category_id, categories) ? 'text-slate-500' : (isQuali ? 'text-ink2' : lvl.text)}`}>
+                              {hasDebt && isExamOrEvaluation(a.title, a.category_id, categories) ? '—' : (isQuali && score != null ? getQualitativeGradeForNumber(score)?.id || '—' : (score != null ? score.toFixed(1) : '—'))}
                             </span>
                           </div>
                         )
