@@ -156,6 +156,20 @@ export function LibretasClient({
     )
   }
 
+  function getSubjectParcialAssignments(subjectId: string, t: number, p: number): any[] {
+    return assignments
+      .filter((a: any) =>
+        String(a.subject_id) === String(subjectId) &&
+        Number(a.trimestre) === t &&
+        Number(a.parcial) === p
+      )
+      .sort((a: any, b: any) => {
+        const byCreated = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+        if (byCreated !== 0) return byCreated
+        return String(a.title || '').localeCompare(String(b.title || ''))
+      })
+  }
+
   function getExamScore(studentId: string, subjectId: string, t: number): number | null {
     const examAsgs = assignments.filter((a: any) =>
       String(a.subject_id) === String(subjectId) && Number(a.trimestre) === t && Number(a.parcial) === 0
@@ -385,19 +399,48 @@ export function LibretasClient({
                   {courseSubjects.map((sub: any, idx: number) => {
                     const parcAvg = getParcialAvg(selectedStudentId, sub.id, trimestre, parcialSel)
                     const isQuali = isQualitativeSubject(sub.name)
+                    const qualitativeAssignments = isQuali
+                      ? getSubjectParcialAssignments(sub.id, trimestre, parcialSel)
+                      : []
                     const displayGrade = (val: number | null) => isQuali && val !== null ? getQualitativeGradeForNumber(val)?.id || '' : fmt(val)
                     return (
                       <tr key={sub.id} className={idx % 2 === 0 ? '' : 'bg-gray-50'}>
                         <td className="border border-gray-400 px-2 py-1 text-center font-semibold">{idx + 1}</td>
                         <td className="border border-gray-400 px-2 py-1 font-medium uppercase">{sub.name}</td>
-                        {categories.map((cat: any) => {
+                        {categories.map((cat: any, catIndex: number) => {
+                          if (isQuali) {
+                            const assignmentNota = qualitativeAssignments[catIndex * 2]
+                            const assignmentProm = qualitativeAssignments[catIndex * 2 + 1]
+                            const notaScore = assignmentNota ? getGrade(assignmentNota.id, selectedStudentId) : null
+                            const promScore = assignmentProm ? getGrade(assignmentProm.id, selectedStudentId) : null
+
+                            return (
+                              <>
+                                <td
+                                  key={`${cat.id}-n`}
+                                  className="border border-gray-400 px-1 py-1 text-center"
+                                  title={assignmentNota?.title || ''}
+                                >
+                                  {displayGrade(notaScore)}
+                                </td>
+                                <td
+                                  key={`${cat.id}-p`}
+                                  className="border border-gray-400 px-1 py-1 text-center font-semibold bg-cyan-50"
+                                  title={assignmentProm?.title || ''}
+                                >
+                                  {displayGrade(promScore)}
+                                </td>
+                              </>
+                            )
+                          }
+
                           const catAvg = getCatAvg(selectedStudentId, sub.id, trimestre, parcialSel, cat.id)
                           return (
                             <>
-                              <td key={`${cat.id}-n`} className={`border border-gray-400 px-1 py-1 text-center ${isQuali ? '' : gradeClass(catAvg)}`}>
+                              <td key={`${cat.id}-n`} className={`border border-gray-400 px-1 py-1 text-center ${gradeClass(catAvg)}`}>
                                 {displayGrade(catAvg)}
                               </td>
-                              <td key={`${cat.id}-p`} className={`border border-gray-400 px-1 py-1 text-center font-semibold bg-cyan-50 ${isQuali ? '' : gradeClass(catAvg)}`}>
+                              <td key={`${cat.id}-p`} className={`border border-gray-400 px-1 py-1 text-center font-semibold bg-cyan-50 ${gradeClass(catAvg)}`}>
                                 {displayGrade(catAvg)}
                               </td>
                             </>
