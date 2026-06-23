@@ -496,9 +496,9 @@ export function DocenteClient({
     setEditingGrades(prev => ({ ...prev, [`${assignmentId}_${studentId}`]: value }))
   }
 
-  async function handleSaveGrade(assignmentId: string, studentId: string) {
+  async function handleSaveGrade(assignmentId: string, studentId: string, directValue?: string) {
     const key = `${assignmentId}_${studentId}`
-    const val = editingGrades[key]
+    const val = directValue ?? editingGrades[key]
     if (val === undefined) return
     const score = parseFloat(val)
     if (isNaN(score)) return
@@ -506,28 +506,44 @@ export function DocenteClient({
     const existing = grades.find(
       (g: any) => g.assignment_id === assignmentId && g.student_id === studentId
     )
-    if (existing) {
-      setGrades(grades.map((g: any) => g.id === existing.id ? { ...g, score } : g))
-      await fetch('/api/docente/grades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:   JSON.stringify({ existingId: existing.id, score }),
-      })
-    } else {
-      const id = uuidv4()
-      const newGrade = { id, assignment_id: assignmentId, student_id: studentId, score,
-        created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
-      setGrades(prev => [...prev, newGrade])
-      await fetch('/api/docente/grades', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:   JSON.stringify({ id, assignment_id: assignmentId, student_id: studentId, score }),
-      })
+    const previousGrades = grades
+
+    try {
+      if (existing) {
+        setGrades(grades.map((g: any) => g.id === existing.id ? { ...g, score } : g))
+        const res = await fetch('/api/docente/grades', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:   JSON.stringify({ existingId: existing.id, score }),
+        })
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}))
+          throw new Error(payload?.error || 'No se pudo actualizar la nota')
+        }
+      } else {
+        const id = uuidv4()
+        const newGrade = { id, assignment_id: assignmentId, student_id: studentId, score,
+          created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+        setGrades(prev => [...prev, newGrade])
+        const res = await fetch('/api/docente/grades', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:   JSON.stringify({ id, assignment_id: assignmentId, student_id: studentId, score }),
+        })
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}))
+          throw new Error(payload?.error || 'No se pudo registrar la nota')
+        }
+      }
+
+      const updated = { ...editingGrades }
+      delete updated[key]
+      setEditingGrades(updated)
+      toast.success('Nota guardada', { icon: '📝' })
+    } catch (error: any) {
+      setGrades(previousGrades)
+      toast.error(error?.message || 'Error al guardar la nota')
     }
-    const updated = { ...editingGrades }
-    delete updated[key]
-    setEditingGrades(updated)
-    toast.success('Nota guardada', { icon: '📝' })
   }
 
   function getGrade(assignmentId: string, studentId: string): number | null {
@@ -1475,8 +1491,11 @@ export function DocenteClient({
                                       value={cur === '' ? '' : QUALITATIVE_SCALE.find(g => g.numericValue === Math.round(Number(cur)))?.id || ''}
                                       onChange={e => {
                                         const num = getNumericValueForQualitative(e.target.value)
-                                        handleGradeChange(a.id, st.id, num !== null ? String(num) : '')
-                                        setTimeout(() => handleSaveGrade(a.id, st.id), 50)
+                                        const nextValue = num !== null ? String(num) : ''
+                                        handleGradeChange(a.id, st.id, nextValue)
+                                        if (nextValue !== '') {
+                                          void handleSaveGrade(a.id, st.id, nextValue)
+                                        }
                                       }}
                                       className={`w-16 h-8 text-center text-xs font-bold bg-transparent border-b-2 rounded-none outline-none transition-all appearance-none cursor-pointer
                                         ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
@@ -1728,8 +1747,11 @@ export function DocenteClient({
                                       value={cur === '' ? '' : QUALITATIVE_SCALE.find(g => g.numericValue === Math.round(Number(cur)))?.id || ''}
                                       onChange={e => {
                                         const num = getNumericValueForQualitative(e.target.value)
-                                        handleGradeChange(a.id, st.id, num !== null ? String(num) : '')
-                                        setTimeout(() => handleSaveGrade(a.id, st.id), 50)
+                                        const nextValue = num !== null ? String(num) : ''
+                                        handleGradeChange(a.id, st.id, nextValue)
+                                        if (nextValue !== '') {
+                                          void handleSaveGrade(a.id, st.id, nextValue)
+                                        }
                                       }}
                                       className={`w-16 h-8 text-center text-xs font-bold bg-transparent border-b-2 rounded-none outline-none transition-all appearance-none cursor-pointer
                                         ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
