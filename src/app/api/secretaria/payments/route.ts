@@ -34,7 +34,7 @@ async function findRecurringConflict(admin: ReturnType<typeof createAdminClient>
 
   const { data: candidates, error } = await admin
     .from('payments' as any)
-    .select('id, type, due_date, description')
+    .select('*')
     .eq('institution_id', input.institutionId)
     .eq('student_id', input.studentId)
     .eq('type', input.type)
@@ -50,6 +50,7 @@ async function findRecurringConflict(admin: ReturnType<typeof createAdminClient>
 
   return {
     error: `Ya existe un cobro de ${input.type} para ese mismo periodo.`,
+    conflict,
   }
 }
 
@@ -168,7 +169,21 @@ export async function POST(req: Request) {
   })
 
   if (recurringConflict?.error) {
-    return NextResponse.json({ error: recurringConflict.error }, { status: 409 })
+    let conflictPayment = recurringConflict.conflict || null
+
+    if (conflictPayment?.id) {
+      const { data: abonos } = await admin
+        .from('payment_abonos' as any)
+        .select('*')
+        .eq('institution_id', profile.institution_id)
+        .eq('payment_id', conflictPayment.id)
+        .order('paid_at', { ascending: false })
+        .order('created_at', { ascending: false })
+
+      conflictPayment = attachAbonosToPayments([conflictPayment], abonos || [])[0] || conflictPayment
+    }
+
+    return NextResponse.json({ error: recurringConflict.error, conflictPayment }, { status: 409 })
   }
 
   // Forzamos institution_id del usuario autenticado (ignoramos el del body si viene)

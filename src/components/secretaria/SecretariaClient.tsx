@@ -510,15 +510,35 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     if (!res.ok) {
       setPayments(prev => prev.filter(p => p.id !== payload.id))
       let errorMessage = 'Error al generar cobro'
+      let conflictPayment: any = null
 
       try {
         const errorJson = await res.json()
         if (typeof errorJson?.error === 'string' && errorJson.error.trim()) {
           errorMessage = errorJson.error
         }
+        if (errorJson?.conflictPayment) {
+          conflictPayment = errorJson.conflictPayment
+        }
       } catch {}
 
       if (res.status === 409) {
+        if (conflictPayment) {
+          setPayments(prev => {
+            const withoutOptimistic = prev.filter(p => p.id !== payload.id)
+            const existingIndex = withoutOptimistic.findIndex((payment: any) => payment.id === conflictPayment.id)
+            if (existingIndex >= 0) {
+              const next = [...withoutOptimistic]
+              next[existingIndex] = conflictPayment
+              return next
+            }
+            return [conflictPayment, ...withoutOptimistic]
+          })
+          toast.success('El cobro ya existia. Se abrio el registro pendiente.')
+          openAbono(conflictPayment)
+          return
+        }
+
         try {
           const refreshRes = await fetch('/api/secretaria/payments')
           const refreshJson = await refreshRes.json()
