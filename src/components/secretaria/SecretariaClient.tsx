@@ -10,7 +10,7 @@ import {
   Pencil, Save, Table as TableIcon, LayoutList, Settings, HandCoins, History, Download,
 } from 'lucide-react'
 import { updateInstitutionFinancial, syncPendingPayments } from '@/lib/actions/institution'
-import { getAppliedAmount, getComputedPaymentStatus, getRemainingAmount } from '@/lib/payment-progress'
+import { getAppliedAmount, getComputedPaymentStatus, getRemainingAmount, inferPaymentType } from '@/lib/payment-progress'
 import { SaldosAnterioresTab } from './SaldosAnterioresTab'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -83,6 +83,14 @@ function getMonthKeyFromPayment(payment: any) {
   }
 
   return ''
+}
+
+function isMatriculaPayment(payment: any) {
+  return inferPaymentType(payment) === 'matricula'
+}
+
+function isPensionPayment(payment: any) {
+  return inferPaymentType(payment) === 'pension'
 }
 
 const STATUS_CONFIG = {
@@ -318,12 +326,12 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       const cellPayments = tablePayments.filter((p: any) => p.student_id === sid)
 
       const matricula = pickPreferredPayment(
-        cellPayments.filter((p: any) => p.type === 'matricula')
+        cellPayments.filter((p: any) => isMatriculaPayment(p))
       )
 
       // Map payments to months
       const monthPaymentsByKey: Record<string, any[]> = {}
-      cellPayments.filter((p: any) => p.type === 'pension').forEach((p: any) => {
+      cellPayments.filter((p: any) => isPensionPayment(p)).forEach((p: any) => {
         const matchedMonth = getMonthKeyFromPayment(p)
 
         if (matchedMonth) {
@@ -378,13 +386,14 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         const course = courseIds
           .map((courseId: string) => coursesById[courseId])
           .find(Boolean) || null
-        const monthKey = payment.type === 'pension' ? getMonthKeyFromPayment(payment) : ''
+        const normalizedType = inferPaymentType(payment)
+        const monthKey = normalizedType === 'pension' ? getMonthKeyFromPayment(payment) : ''
         const dueDate = payment?.due_date || null
         let periodLabel = ''
 
-        if (payment.type === 'matricula') {
+        if (normalizedType === 'matricula') {
           periodLabel = dueDate ? String(new Date(`${dueDate}T00:00:00`).getFullYear()) : ''
-        } else if (payment.type === 'pension') {
+        } else if (normalizedType === 'pension') {
           periodLabel = monthKey || ''
         }
 
@@ -395,7 +404,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
           courseName: course?.name || '',
           parallel: course?.parallel || '',
           shift: course?.shift || '',
-          type: payment.type || '',
+          type: normalizedType || payment.type || '',
           description: payment.description || '',
           periodLabel,
           computedStatus: payment.computedStatus,
@@ -1341,8 +1350,8 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                             {stuCourse.name} {stuCourse.parallel || ''}
                           </span>
                         )}
-                        {p.type === 'matricula' && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>MATRICULA</span>}
-                        {p.type === 'pension' && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#d97706' }}>PENSION</span>}
+                        {isMatriculaPayment(p) && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>MATRICULA</span>}
+                        {isPensionPayment(p) && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0" style={{ backgroundColor: 'rgba(245,158,11,0.1)', color: '#d97706' }}>PENSION</span>}
                       </div>
                       <p className="text-xs text-ink3 truncate">{p.description}</p>
                     </div>
