@@ -11,11 +11,24 @@ export type PaymentAbono = {
 
 export type PaymentWithAbonos = {
   id?: string
+  type?: string | null
+  description?: string | null
   amount?: number | null
   status?: string | null
   due_date?: string | null
   paid_date?: string | null
   abonos?: PaymentAbono[] | null
+}
+
+export function inferPaymentType(payment: { type?: string | null; description?: string | null }) {
+  if (payment.type === 'matricula' || payment.type === 'pension' || payment.type === 'otro') {
+    return payment.type
+  }
+
+  const description = String(payment.description || '').toLowerCase()
+  if (description.includes('matricula')) return 'matricula'
+  if (description.includes('pension')) return 'pension'
+  return payment.type || null
 }
 
 export function getAppliedAmount(payment: PaymentWithAbonos) {
@@ -57,7 +70,7 @@ export function getComputedPaymentStatus(payment: PaymentWithAbonos): PaymentSta
 export function attachAbonosToPayments<T extends { id?: string | null }>(
   payments: T[],
   abonos: PaymentAbono[]
-): Array<T & { abonos: PaymentAbono[] }> {
+): Array<T & { abonos: PaymentAbono[]; type?: string | null }> {
   const abonosByPayment: Record<string, PaymentAbono[]> = {}
 
   for (const abono of abonos || []) {
@@ -69,6 +82,7 @@ export function attachAbonosToPayments<T extends { id?: string | null }>(
 
   return payments.map((payment) => ({
     ...payment,
+    type: inferPaymentType(payment as any),
     abonos: payment.id ? (abonosByPayment[payment.id] || []) : [],
   }))
 }
