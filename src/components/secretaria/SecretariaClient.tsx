@@ -508,8 +508,47 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     })
     setSaving(false)
     if (!res.ok) {
-      toast.error('Error al generar cobro')
       setPayments(prev => prev.filter(p => p.id !== payload.id))
+      let errorMessage = 'Error al generar cobro'
+
+      try {
+        const errorJson = await res.json()
+        if (typeof errorJson?.error === 'string' && errorJson.error.trim()) {
+          errorMessage = errorJson.error
+        }
+      } catch {}
+
+      if (res.status === 409) {
+        try {
+          const refreshRes = await fetch('/api/secretaria/payments')
+          const refreshJson = await refreshRes.json()
+          const refreshedPayments = Array.isArray(refreshJson?.data) ? refreshJson.data : []
+
+          if (refreshedPayments.length > 0) {
+            setPayments(refreshedPayments)
+
+            const existingPayment = refreshedPayments.find((payment: any) => {
+              if (payment.student_id !== selectedStudent) return false
+              if (newType === 'matricula') return isMatriculaPayment(payment)
+              if (newType === 'pension') {
+                return isPensionPayment(payment) && (
+                  (newDueDate && payment.due_date === newDueDate) ||
+                  (desc && payment.description === desc)
+                )
+              }
+              return false
+            })
+
+            if (existingPayment) {
+              toast.success('El cobro ya existia. Se abrio el registro pendiente.')
+              openAbono(existingPayment)
+              return
+            }
+          }
+        } catch {}
+      }
+
+      toast.error(errorMessage)
     } else {
       toast.success('Cobro registrado')
     }
