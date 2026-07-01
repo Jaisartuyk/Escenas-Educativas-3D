@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { SupervisionClient } from '@/components/supervision/SupervisionClient'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
@@ -93,17 +94,21 @@ export default async function DocenciaPage() {
       const assignmentChunks = chunkArray(assignmentIds, 50)
       
       for (const chunk of assignmentChunks) {
-        const [gRes, subRes] = await Promise.all([
-          admin
-            .from('grades')
-            .select('assignment_id, student_id, score')
-            .in('assignment_id', chunk),
+        const [chunkGrades, subRes] = await Promise.all([
+          fetchAllRows(async (from, to) => {
+            const { data } = await admin
+              .from('grades')
+              .select('assignment_id, student_id, score')
+              .in('assignment_id', chunk)
+              .range(from, to)
+            return data
+          }),
           admin
             .from('assignment_submissions' as any)
             .select('id, assignment_id, student_id, comment, file_url, submitted_at, student:profiles(id, full_name)')
             .in('assignment_id', chunk)
         ])
-        if (gRes.data) grades.push(...gRes.data)
+        grades.push(...chunkGrades)
         if (subRes.data) submissions.push(...subRes.data)
       }
     }

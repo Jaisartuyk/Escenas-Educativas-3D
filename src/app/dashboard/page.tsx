@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AdminStatsCharts } from '@/components/dashboard/AdminStatsCharts'
 
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
+
 export const dynamic    = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 export const revalidate = 0
@@ -104,11 +106,15 @@ export default async function DashboardPage() {
       
       let allGrades: any[] = []
       for (const chunk of assignmentChunks) {
-        const { data } = await admin
-          .from('grades')
-          .select('assignment_id, student_id')
-          .in('assignment_id', chunk)
-        if (data) allGrades.push(...data)
+        const chunkGrades = await fetchAllRows(async (from, to) => {
+          const { data } = await admin
+            .from('grades')
+            .select('assignment_id, student_id')
+            .in('assignment_id', chunk)
+            .range(from, to)
+          return data
+        })
+        allGrades.push(...chunkGrades)
       }
 
       const { data: allEnrs } = await admin
@@ -402,10 +408,14 @@ export default async function DashboardPage() {
   ];
 
   // 3. Asistencia por Nivel (Escuela vs Colegio)
-  const { data: attData } = await admin
+  const attData = await fetchAllRows(async (from, to) => {
+    const { data } = await admin
     .from('attendance')
     .select('status, subject_id')
-    .in('subject_id', subjectIds.length > 0 ? subjectIds : ['none']);
+    .in('subject_id', subjectIds.length > 0 ? subjectIds : ['none'])
+    .range(from, to);
+    return data;
+  });
 
   const { data: subData } = await admin
     .from('subjects')

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { EntregasClient } from '@/components/docente/EntregasClient'
 import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -108,11 +109,15 @@ export default async function EntregasPage() {
   if (assignmentIds.length > 0) {
     const assignmentChunks = chunkArray(assignmentIds, 50)
     for (const chunk of assignmentChunks) {
-      const { data } = await admin
-        .from('grades')
-        .select('*')
-        .in('assignment_id', chunk)
-      if (data) grades.push(...data)
+      const chunkGrades = await fetchAllRows(async (from, to) => {
+        const { data } = await admin
+          .from('grades')
+          .select('*')
+          .in('assignment_id', chunk)
+          .range(from, to)
+        return data
+      })
+      grades.push(...chunkGrades)
     }
   }
 

@@ -158,10 +158,14 @@ export default async function LibretasPage({
   // Attendance data for annual report
   let attendance: any[] = []
   if (subjectIds.length > 0) {
-    const { data: attData } = await admin
+    const attData = await fetchAllRows(async (from, to) => {
+      const { data } = await admin
       .from('attendance')
       .select('student_id, subject_id, status, date')
       .in('subject_id', subjectIds)
+        .range(from, to)
+      return data
+    })
 
     attendance = attData || []
   }
@@ -169,10 +173,14 @@ export default async function LibretasPage({
   // Behavior data for annual report
   let behaviors: any[] = []
   if (subjectIds.length > 0) {
-    const { data: behData } = await admin
+    const behData = await fetchAllRows(async (from, to) => {
+      const { data } = await admin
       .from('behaviors')
       .select('student_id, subject_id, type, description, created_at')
       .in('subject_id', subjectIds)
+        .range(from, to)
+      return data
+    })
     behaviors = behData || []
   }
 

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { DirectorioTutorClient } from '@/components/tutorias/DirectorioTutorClient'
 import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,10 +47,14 @@ export default async function EstudiantesTutorPage() {
 
     const studentIds = enrollmentsRes.map((en: any) => en.student_id).filter(Boolean)
     if (studentIds.length > 0) {
-      const { data: attendanceData } = await admin
+      const attendanceData = await fetchAllRows(async (from, to) => {
+        const { data } = await admin
         .from('attendance')
         .select('id, student_id, status, date, justification_status, justification_text')
         .in('student_id', studentIds)
+        .range(from, to)
+        return data
+      })
       attendanceRecords = attendanceData || []
     }
   }

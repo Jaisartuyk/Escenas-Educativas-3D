@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AsistenciasClient } from '@/components/asistencias/AsistenciasClient'
 import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,22 +55,28 @@ export default async function AsistenciasPage() {
 
       const studentIds = enrollmentsRes.map(e => e.student_id)
       if (studentIds.length > 0) {
-        const { data: attData } = await admin
+        const attData = await fetchAllRows(async (from, to) => {
+          const { data } = await admin
           .from('attendance')
           .select('id, student_id, status, date, justification_status, justification_text')
           .in('student_id', studentIds)
           .order('date', { ascending: false })
-          .limit(50000)
+          .range(from, to)
+          return data
+        })
         attendanceGlobal = attData || []
 
         // Traer justificaciones de los estudiantes tutorados (con nombre + materia)
-        const { data: justData } = await admin
+        const justData = await fetchAllRows(async (from, to) => {
+          const { data } = await admin
           .from('attendance')
           .select('id, student_id, subject_id, status, date, justification_status, justification_text, justification_file_url')
           .in('student_id', studentIds)
           .not('justification_status', 'is', null)
           .order('date', { ascending: false })
-          .limit(50000)
+          .range(from, to)
+          return data
+        })
 
         // Enriquecer con nombre del estudiante + nombre de la materia
         const subjIds = Array.from(new Set((justData || []).map((j: any) => j.subject_id).filter(Boolean)))

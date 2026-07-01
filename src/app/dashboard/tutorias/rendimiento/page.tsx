@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { RendimientoClient } from '@/components/tutorias/RendimientoClient'
 import { resolveTutoredCoursesForTeacher } from '@/lib/mensajes/access'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 
 export const dynamic = 'force-dynamic'
@@ -84,11 +85,15 @@ export default async function RendimientoTutorPage() {
       const assignmentIds = assignments.map(a => a.id)
       const assignmentChunks = chunkArray(assignmentIds, 50)
       for (const chunk of assignmentChunks) {
-        const { data: gData } = await admin
-          .from('grades')
-          .select('assignment_id, student_id, score')
-          .in('assignment_id', chunk)
-        if (gData) grades.push(...gData)
+        const chunkGrades = await fetchAllRows(async (from, to) => {
+          const { data } = await admin
+            .from('grades')
+            .select('assignment_id, student_id, score')
+            .in('assignment_id', chunk)
+            .range(from, to)
+          return data
+        })
+        grades.push(...chunkGrades)
       }
     }
   }
