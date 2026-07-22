@@ -30,17 +30,19 @@ function formatType(value?: string | null) {
   return value || 'Cobro'
 }
 
-function statusLabel(status: 'pagado' | 'parcial' | 'atrasado' | 'proximo' | 'pendiente') {
+function statusLabel(status: 'pagado' | 'parcial' | 'becado' | 'atrasado' | 'proximo' | 'pendiente') {
   if (status === 'pagado') return 'Pagado'
   if (status === 'parcial') return 'Abonado'
+  if (status === 'becado') return 'Beca total'
   if (status === 'atrasado') return 'Atrasado'
   if (status === 'proximo') return 'Por vencer'
   return 'Pendiente'
 }
 
-const STATUS_STYLES: Record<'pagado' | 'parcial' | 'atrasado' | 'proximo' | 'pendiente', string> = {
+const STATUS_STYLES: Record<'pagado' | 'parcial' | 'becado' | 'atrasado' | 'proximo' | 'pendiente', string> = {
   pagado: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   parcial: 'bg-sky-50 text-sky-700 border-sky-200',
+  becado: 'bg-teal-50 text-teal-700 border-teal-200',
   atrasado: 'bg-rose-50 text-rose-700 border-rose-200',
   proximo: 'bg-amber-50 text-amber-700 border-amber-200',
   pendiente: 'bg-slate-50 text-slate-600 border-slate-200',
@@ -105,7 +107,7 @@ export default async function FinanzasPage({
       .eq('student_id', studentId),
     admin
       .from('payments' as any)
-      .select('id, student_id, type, amount, status, due_date, paid_date, description, created_at')
+      .select('id, student_id, type, amount, status, due_date, paid_date, description, created_at, scholarship_id')
       .eq('institution_id', profile.institution_id)
       .eq('student_id', studentId)
       .order('due_date', { ascending: true, nullsFirst: false })
@@ -149,7 +151,7 @@ export default async function FinanzasPage({
 
   const stats = {
     totalPendiente: enrichedPayments
-      .filter((p: any) => p.computedStatus !== 'pagado')
+      .filter((p: any) => p.computedStatus !== 'pagado' && p.computedStatus !== 'becado')
       .reduce((sum: number, p: any) => sum + Number(p.remainingAmount || 0), 0),
     totalPagado: enrichedPayments
       .reduce((sum: number, p: any) => sum + Number(p.appliedAmount || 0), 0),

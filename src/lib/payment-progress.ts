@@ -1,4 +1,4 @@
-export type PaymentStatus = 'pagado' | 'parcial' | 'atrasado' | 'proximo' | 'pendiente'
+export type PaymentStatus = 'pagado' | 'parcial' | 'becado' | 'atrasado' | 'proximo' | 'pendiente'
 
 export type PaymentAbono = {
   id?: string
@@ -17,6 +17,7 @@ export type PaymentWithAbonos = {
   status?: string | null
   due_date?: string | null
   paid_date?: string | null
+  scholarship_id?: string | null
   abonos?: PaymentAbono[] | null
 }
 
@@ -55,6 +56,7 @@ export function getComputedPaymentStatus(payment: PaymentWithAbonos): PaymentSta
 
   if (payment.status === 'pagado' || (total > 0 && applied >= total)) return 'pagado'
   if (applied > 0) return 'parcial'
+  if (payment.scholarship_id && total === 0) return 'becado'
   if (!payment.due_date) return 'pendiente'
 
   const today = new Date()

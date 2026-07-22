@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getProfile } from '@/lib/auth/ownership'
 import { v5 as uuidv5 } from 'uuid'
 import { buildRecurringPaymentDescription } from '@/lib/payment-period'
+import { getScholarshipAmount } from '@/lib/student-scholarships'
 
 // POST /api/enrollments  body: { student_id, course_id }  → insert + auto-create payments
 // DELETE /api/enrollments?student_id=X&course_id=Y       → delete enrollment + related payments
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
   // Verificar que el curso pertenece a la institución del admin
   const { data: course } = await admin
     .from('courses')
-    .select('institution_id, name')
+    .select('institution_id, name, shift')
     .eq('id', course_id)
     .single()
   if (!course || (course as any).institution_id !== profile.institution_id) {
@@ -62,6 +63,20 @@ export async function POST(req: Request) {
 
   const instId = (course as any).institution_id
   const courseName = (course as any).name || ''
+  const shift = String((course as any).shift || '').toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina'
+
+  const [{ data: institution }, { data: scholarship }] = await Promise.all([
+    admin.from('institutions').select('settings').eq('id', instId).single(),
+    admin.from('student_scholarships' as any)
+      .select('id, amount_to_pay, active')
+      .eq('institution_id', instId)
+      .eq('student_id', student_id)
+      .eq('active', true)
+      .maybeSingle(),
+  ])
+
+  const financial = (institution as any)?.settings?.financial || {}
+  const prices = financial?.[shift] || { matricula: 35, pension: 60 }
 
   // 3. Create pending payments with deterministic ids so re-enrollment or later generation
   // never creates a second cobro for the same academic period.
@@ -76,7 +91,7 @@ export async function POST(req: Request) {
     id: buildPaymentId(instId, student_id, 'matricula', `matricula:${year}`),
     institution_id: instId,
     student_id,
-    amount: 0, // amount set by secretary
+    amount: Number(prices.matricula ?? 35),
     description: buildRecurringPaymentDescription('matricula', year, null, courseName),
     status: 'pendiente',
     type: 'matricula',
@@ -91,7 +106,8 @@ export async function POST(req: Request) {
       id: buildPaymentId(instId, student_id, 'pension', `pension:${pensionYear}-${periodMonth}`),
       institution_id: instId,
       student_id,
-      amount: 0, // amount set by secretary
+      amount: getScholarshipAmount(scholarship as any, Number(prices.pension ?? 60)),
+      scholarship_id: (scholarship as any)?.id || null,
       description: buildRecurringPaymentDescription('pension', pensionYear, month, courseName),
       status: 'pendiente',
       type: 'pension',

@@ -80,12 +80,13 @@ export default async function SecretariaPage() {
   }
 
   // Cargar datos en paralelo con adminClient
-  const [studentsRes, coursesRes, enrollsRes, paymentsData, instRes] = await Promise.all([
+  const [studentsRes, coursesRes, enrollsRes, paymentsData, instRes, scholarshipsRes] = await Promise.all([
     admin.from('profiles').select('id, full_name, email').eq('institution_id', instId).eq('role', 'student').order('full_name'),
     admin.from('courses').select('id, name, parallel, level, shift').eq('institution_id', instId),
     admin.from('enrollments').select('course_id, student_id'),
     fetchAllPayments(),
     admin.from('institutions').select('settings').eq('id', instId).single(),
+    admin.from('student_scholarships' as any).select('*').eq('institution_id', instId).eq('active', true),
   ])
 
   const validStudentIds = new Set((studentsRes.data || []).map((student: any) => student.id))
@@ -113,6 +114,7 @@ export default async function SecretariaPage() {
         enrollments={scopedEnrollments}
         initialPayments={attachAbonosToPayments(paymentsData || [], abonosData)}
         financialSettings={instSettings.financial || {}}
+        initialScholarships={scholarshipsRes.data || []}
       />
     </div>
   )
