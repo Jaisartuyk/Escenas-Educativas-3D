@@ -4,6 +4,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { canManageFinances, getProfile } from '@/lib/auth/ownership'
 
 function generateJoinCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -71,6 +72,15 @@ export async function joinInstitution(code: string): Promise<{ error?: string }>
 }
 
 export async function updateInstitutionFinancial(id: string, financial: any): Promise<{ error?: string, updated?: number }> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const profile = await getProfile(user.id)
+  if (!profile?.institution_id || profile.institution_id !== id || !canManageFinances(profile.role)) {
+    return { error: 'Sin permiso' }
+  }
+
   const admin = createAdminClient()
   
   // 1. Get current settings
@@ -99,7 +109,7 @@ export async function updateInstitutionFinancial(id: string, financial: any): Pr
   return { updated: syncResult.updated || 0 }
 }
 
-export async function syncPendingPayments(institutionId: string): Promise<{ updated?: number, error?: string }> {
+async function syncPendingPayments(institutionId: string): Promise<{ updated?: number, error?: string }> {
   const admin = createAdminClient()
   
   // 1. Get settings
@@ -136,41 +146,66 @@ export async function syncPendingPayments(institutionId: string): Promise<{ upda
     if (c) shiftsByStudent[e.student_id] = c.shift
   })
   
-  // 3. Get pending payments (only matricula and pension)
+  const { data: scholarships } = await (admin as any)
+    .from('student_scholarships')
+    .select('id, student_id, amount_to_pay, active')
+    .eq('institution_id', institutionId)
+    .eq('active', true)
+
+  const scholarshipsByStudent: Record<string, any> = {}
+  scholarships?.forEach((scholarship: any) => {
+    scholarshipsByStudent[scholarship.student_id] = scholarship
+  })
+
+  // Solo se sincronizan cobros pendientes; los pagados y parciales son historial contable.
   const { data: pending } = await (admin as any)
     .from('payments')
-    .select('id, student_id, type, amount, status, description, due_date, institution_id')
+    .select('id, student_id, type, amount, status, scholarship_id')
     .eq('institution_id', institutionId)
-    .neq('status', 'pagado')
+    .eq('status', 'pendiente')
     .in('type', ['matricula', 'pension'])
     
   if (!pending || pending.length === 0) return { updated: 0 }
   
-  let updatedCount = 0
-  const updates: any[] = []
+  const paymentIds = pending.map((payment: any) => payment.id)
+  const { data: abonos } = await (admin as any)
+    .from('payment_abonos')
+    .select('payment_id')
+    .eq('institution_id', institutionId)
+    .in('payment_id', paymentIds)
+
+  const paymentIdsWithAbonos = new Set((abonos || []).map((abono: any) => abono.payment_id))
+  const updates: Array<{ id: string; amount: number; scholarship_id: string | null }> = []
   
   pending.forEach((p: any) => {
+    if (paymentIdsWithAbonos.has(p.id)) return
     const shift = (shiftsByStudent[p.student_id]?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina') as 'matutina' | 'vespertina'
     const prices = financial[shift] || { matricula: 35, pension: 60 }
-    const targetAmount = p.type === 'matricula' ? prices.matricula : prices.pension
+    const scholarship = p.type === 'pension' ? scholarshipsByStudent[p.student_id] : null
+    const targetAmount = Number(scholarship ? scholarship.amount_to_pay : (p.type === 'matricula' ? prices.matricula : prices.pension))
+    const scholarshipId = scholarship?.id || null
     
-    if (p.amount !== targetAmount) {
-      updates.push({ ...p, amount: targetAmount, institution_id: institutionId })
-      updatedCount++
+    if (Number(p.amount) !== targetAmount || (p.scholarship_id || null) !== scholarshipId) {
+      updates.push({ id: p.id, amount: targetAmount, scholarship_id: scholarshipId })
     }
   })
   
-  // 4. Batch update
-  if (updates.length > 0) {
-    const { error } = await (admin as any)
-      .from('payments')
-      .upsert(updates, { onConflict: 'id' })
-      
-    if (error) return { error: error.message }
+  for (let start = 0; start < updates.length; start += 50) {
+    const chunk = updates.slice(start, start + 50)
+    const results = await Promise.all(chunk.map((update) =>
+      (admin as any)
+        .from('payments')
+        .update({ amount: update.amount, scholarship_id: update.scholarship_id })
+        .eq('id', update.id)
+        .eq('institution_id', institutionId)
+    ))
+
+    const failed = results.find((result: any) => result.error)
+    if (failed?.error) return { error: failed.error.message }
   }
   
   revalidatePath('/dashboard/secretaria')
-  return { updated: updatedCount }
+  return { updated: updates.length }
 }
 
 export async function updateLibretasVisibility(id: string, isPublished: boolean): Promise<{ error?: string }> {

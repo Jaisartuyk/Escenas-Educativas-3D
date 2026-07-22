@@ -47,6 +47,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Este cobro ya está pagado' }, { status: 400 })
   }
 
+  if ((payment as any).scholarship_id && Number((payment as any).amount) === 0) {
+    return NextResponse.json({ error: 'Este estudiante tiene beca total y no genera saldo.' }, { status: 400 })
+  }
+
   const { data: existingAbonos, error: abonosError } = await admin
     .from('payment_abonos' as any)
     .select('*')

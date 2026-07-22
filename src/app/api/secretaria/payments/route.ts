@@ -186,10 +186,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: recurringConflict.error, conflictPayment }, { status: 409 })
   }
 
-  // Forzamos institution_id del usuario autenticado (ignoramos el del body si viene)
+  const { data: student } = await admin
+    .from('profiles')
+    .select('institution_id, role')
+    .eq('id', body?.student_id)
+    .single()
+
+  if (!student || (student as any).institution_id !== profile.institution_id || (student as any).role !== 'student') {
+    return NextResponse.json({ error: 'El estudiante no pertenece a tu institucion.' }, { status: 403 })
+  }
+
+  let scholarship: any = null
+  if (normalizedType === 'pension') {
+    const { data } = await admin
+      .from('student_scholarships' as any)
+      .select('id, amount_to_pay, active')
+      .eq('institution_id', profile.institution_id)
+      .eq('student_id', body.student_id)
+      .eq('active', true)
+      .maybeSingle()
+    scholarship = data
+  }
+
+  const safeBody = { ...body }
+  delete safeBody.institution_id
+  delete safeBody.scholarship_id
+  if (scholarship) {
+    safeBody.amount = Number(scholarship.amount_to_pay)
+    safeBody.scholarship_id = scholarship.id
+  }
+
+  // Forzamos institution_id y cualquier valor de beca desde el servidor.
   const { data, error } = await admin
     .from('payments' as any)
-    .insert({ ...body, type: normalizedType, institution_id: profile.institution_id })
+    .insert({ ...safeBody, type: normalizedType, institution_id: profile.institution_id })
     .select('*')
     .single()
 
@@ -226,7 +256,7 @@ export async function PATCH(req: Request) {
   const admin = createAdminClient()
   const { data: existing } = await admin
     .from('payments' as any)
-    .select('institution_id, student_id, status, description, amount, type, due_date')
+    .select('institution_id, student_id, status, description, amount, type, due_date, scholarship_id')
     .eq('id', id)
     .single()
   if ((existing as any)?.institution_id !== profile.institution_id) {
@@ -235,6 +265,15 @@ export async function PATCH(req: Request) {
 
   // Evitar que se modifique institution_id v??a body
   delete (updates as any).institution_id
+  delete (updates as any).scholarship_id
+
+  if ((existing as any)?.scholarship_id && (updates as any).amount !== undefined && Number((updates as any).amount) !== Number((existing as any).amount)) {
+    return NextResponse.json({ error: 'El valor de un cobro becado se cambia desde la opcion Becas.' }, { status: 400 })
+  }
+
+  if ((existing as any)?.scholarship_id && Number((existing as any).amount) === 0 && (updates as any).status === 'pagado') {
+    return NextResponse.json({ error: 'Una beca total no se registra como dinero pagado.' }, { status: 400 })
+  }
 
   const nextType = normalizeRecurringType((updates as any).type ?? (existing as any)?.type)
   if (!nextType) {

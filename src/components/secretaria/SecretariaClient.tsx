@@ -8,9 +8,11 @@ import {
   DollarSign, Users, TrendingUp, CalendarDays,
   ChevronDown, Filter, Trash2, CreditCard, GraduationCap,
   Pencil, Save, Table as TableIcon, LayoutList, Settings, HandCoins, History, Download,
+  Award,
 } from 'lucide-react'
-import { updateInstitutionFinancial, syncPendingPayments } from '@/lib/actions/institution'
+import { updateInstitutionFinancial } from '@/lib/actions/institution'
 import { getAppliedAmount, getComputedPaymentStatus, getRemainingAmount, inferPaymentType } from '@/lib/payment-progress'
+import { getScholarshipCourseGroup, SCHOLARSHIP_AMOUNTS } from '@/lib/student-scholarships'
 import { SaldosAnterioresTab } from './SaldosAnterioresTab'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,6 +30,7 @@ function paymentSortScore(payment: any) {
   const status = getComputedPaymentStatus(payment)
   const statusScore =
     status === 'pagado' ? 4 :
+    status === 'becado' ? 4 :
     status === 'parcial' ? 3.5 :
     status === 'proximo' ? 3 :
     status === 'pendiente' ? 2 :
@@ -96,6 +99,7 @@ function isPensionPayment(payment: any) {
 const STATUS_CONFIG = {
   pagado:    { label: 'PAGADO',     icon: Check,          bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-200', dot: '#10b981' },
   parcial:   { label: 'ABONADO',    icon: HandCoins,      bg: 'bg-sky-50',      text: 'text-sky-700',     border: 'border-sky-200',     dot: '#0ea5e9' },
+  becado:    { label: 'BECADO',      icon: Award,          bg: 'bg-teal-50',     text: 'text-teal-700',    border: 'border-teal-200',    dot: '#14b8a6' },
   proximo:   { label: 'POR VENCER', icon: Clock,          bg: 'bg-amber-50',    text: 'text-amber-700',   border: 'border-amber-200',   dot: '#f59e0b' },
   atrasado:  { label: 'ATRASADO',   icon: AlertTriangle,  bg: 'bg-rose-50',     text: 'text-rose-700',    border: 'border-rose-200',    dot: '#ef4444' },
   pendiente: { label: 'PENDIENTE',  icon: CalendarDays,   bg: 'bg-slate-50',    text: 'text-slate-600',   border: 'border-slate-200',   dot: '#94a3b8' },
@@ -104,6 +108,7 @@ const STATUS_CONFIG = {
 const STATUS_CELL: Record<string, string> = {
   pagado:    'bg-emerald-100 text-emerald-800 border-emerald-300',
   parcial:   'bg-sky-100 text-sky-800 border-sky-300',
+  becado:    'bg-teal-100 text-teal-800 border-teal-300',
   proximo:   'bg-amber-100 text-amber-800 border-amber-300',
   atrasado:  'bg-rose-100 text-rose-800 border-rose-300',
   pendiente: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -113,8 +118,9 @@ const MISSING_CELL = 'bg-amber-50 text-amber-800 border-amber-300 border-dashed'
 const EXPECTED_PENSION_MONTHS = new Set(['May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Ene', 'Feb'])
 
 // ─── Componente principal ────────────────────────────────────────────────────
-export function SecretariaClient({ institutionId, students, courses, enrollments, initialPayments, isTutorMode, financialSettings, userRole }: any) {
+export function SecretariaClient({ institutionId, students, courses, enrollments, initialPayments, initialScholarships, isTutorMode, financialSettings, userRole }: any) {
   const [payments, setPayments]        = useState<any[]>(initialPayments || [])
+  const [scholarships, setScholarships] = useState<any[]>(initialScholarships || [])
   const [mainTab, setMainTab]          = useState<'actual' | 'anteriores'>('actual')
   const [showForm, setShowForm]        = useState(false)
   const [viewMode, setViewMode]        = useState<'tabla' | 'lista'>('tabla')
@@ -134,6 +140,10 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
   const [saving, setSaving]           = useState(false)
   const [exporting, setExporting]     = useState(false)
   const [showConfig, setShowConfig]   = useState(false)
+  const [showScholarships, setShowScholarships] = useState(false)
+  const [scholarshipStudentId, setScholarshipStudentId] = useState('')
+  const [scholarshipAmount, setScholarshipAmount] = useState('none')
+  const [scholarshipNote, setScholarshipNote] = useState('')
   const [finConfig, setFinConfig]     = useState({
     matutina:   { matricula: 35, pension: 60, ...financialSettings?.matutina },
     vespertina: { matricula: 35, pension: 60, ...financialSettings?.vespertina },
@@ -154,9 +164,19 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     return type === 'matricula' ? finConfig.matutina.matricula : finConfig.matutina.pension
   }
 
-  function getExpectedAmountForShift(shift: string | undefined, type: 'matricula' | 'pension') {
+  const scholarshipsByStudent = useMemo(() => {
+    const map: Record<string, any> = {}
+    ;(scholarships || []).forEach((scholarship: any) => {
+      if (scholarship?.active !== false) map[scholarship.student_id] = scholarship
+    })
+    return map
+  }, [scholarships])
+
+  function getExpectedAmountForShift(shift: string | undefined, type: 'matricula' | 'pension', studentId?: string) {
     const shiftKey = shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina'
-    return type === 'matricula' ? finConfig[shiftKey].matricula : finConfig[shiftKey].pension
+    if (type === 'matricula') return finConfig[shiftKey].matricula
+    const scholarship = studentId ? scholarshipsByStudent[studentId] : null
+    return scholarship ? Number(scholarship.amount_to_pay) : finConfig[shiftKey].pension
   }
 
   // ── Cargar pagos con abonos al montar (SSR puede no tener abonos adjuntos) ─
@@ -205,6 +225,14 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     })
     return map
   }, [enrollments])
+
+  const selectedScholarshipCourse = useMemo(() => {
+    const courseIds = studentCourses[scholarshipStudentId] || []
+    return courseIds.map((courseId) => coursesById[courseId]).find(Boolean) || null
+  }, [scholarshipStudentId, studentCourses, coursesById])
+
+  const selectedScholarshipGroup = getScholarshipCourseGroup(selectedScholarshipCourse)
+  const selectedScholarshipOptions = SCHOLARSHIP_AMOUNTS[selectedScholarshipGroup]
 
   const availableShifts: string[] = useMemo(() =>
     Array.from(new Set((courses || []).map((c: any) => c.shift as string).filter(Boolean))),
@@ -440,6 +468,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
     const courseLabel = stuCourse ? `${stuCourse.name} ${stuCourse.parallel || ''}`.trim() : ''
     const shift = (stuCourse?.shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina') as 'matutina' | 'vespertina'
     const prices = finConfig[shift]
+    const scholarship = scholarshipsByStudent[studentId]
 
     if (type === 'matricula') {
       setNewAmount(String(prices.matricula))
@@ -447,7 +476,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       const today = new Date()
       setNewDueDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15).toISOString().split('T')[0])
     } else if (type === 'pension' && month) {
-      setNewAmount(String(prices.pension))
+      setNewAmount(String(scholarship ? scholarship.amount_to_pay : prices.pension))
       const monthIdx = MESES.indexOf(month)
       const academicMonths = [4, 5, 6, 7, 8, 9, 10, 11, 0, 1]
       const targetMonth = academicMonths[monthIdx]
@@ -690,6 +719,47 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
       toast.success(`Configuración guardada${typeof res.updated === 'number' ? ` y ${res.updated} cobros sincronizados` : ' y cobros sincronizados'}`)
       setShowConfig(false)
     }
+  }
+
+  function selectScholarshipStudent(studentId: string) {
+    setScholarshipStudentId(studentId)
+    const current = scholarshipsByStudent[studentId]
+    setScholarshipAmount(current ? String(Number(current.amount_to_pay)) : 'none')
+    setScholarshipNote(current?.note || '')
+  }
+
+  async function saveScholarship() {
+    if (!scholarshipStudentId) return toast.error('Selecciona un estudiante')
+
+    setSaving(true)
+    const res = await fetch('/api/secretaria/scholarships', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        student_id: scholarshipStudentId,
+        amount_to_pay: scholarshipAmount === 'none' ? null : Number(scholarshipAmount),
+        note: scholarshipNote,
+      }),
+    })
+    const json = await res.json().catch(() => ({}))
+    setSaving(false)
+
+    if (!res.ok) return toast.error(json.error || 'No se pudo guardar la beca')
+
+    setScholarships((current: any[]) => {
+      const withoutStudent = current.filter((item: any) => item.student_id !== scholarshipStudentId)
+      return json.data ? [json.data, ...withoutStudent] : withoutStudent
+    })
+
+    const paymentsRes = await fetch('/api/secretaria/payments', { cache: 'no-store' })
+    const paymentsJson = await paymentsRes.json().catch(() => ({}))
+    if (paymentsJson?.data) setPayments(paymentsJson.data)
+
+    toast.success(
+      scholarshipAmount === 'none'
+        ? `Beca retirada; ${json.updated || 0} pensiones pendientes restauradas`
+        : `Beca guardada; ${json.updated || 0} pensiones pendientes actualizadas`
+    )
   }
 
   async function exportExcel() {
@@ -953,7 +1023,19 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                     {exporting ? 'Exportando...' : 'Exportar Excel'}
                   </button>
                   <button
-                    onClick={() => setShowConfig(!showConfig)}
+                    onClick={() => {
+                      setShowScholarships(!showScholarships)
+                      setShowConfig(false)
+                      setShowForm(false)
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors flex-shrink-0 ${
+                      showScholarships ? 'bg-teal-50 text-teal-700 border-teal-200' : 'border-surface2 text-ink3 hover:bg-surface2'
+                    }`}
+                  >
+                    <Award size={14} /> Becas
+                  </button>
+                  <button
+                    onClick={() => { setShowConfig(!showConfig); setShowScholarships(false); setShowForm(false) }}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors flex-shrink-0 ${
                       showConfig ? 'bg-violet-100 text-violet-700 border-violet-200' : 'border-surface2 text-ink3 hover:bg-surface2'
                     }`}
@@ -970,7 +1052,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                     {generating ? 'Generando...' : 'Generar cobros'}
                   </button>
                   <button
-                    onClick={() => { setShowForm(!showForm); setShowConfig(false) }}
+                    onClick={() => { setShowForm(!showForm); setShowConfig(false); setShowScholarships(false) }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:shadow-lg flex-shrink-0"
                     style={{ backgroundColor: '#7C6DFA' }}
                   >
@@ -1026,6 +1108,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 <option value="todos">Todos los estados</option>
                 <option value="pagado">Pagados</option>
                 <option value="parcial">Abonados</option>
+                <option value="becado">Beca total</option>
                 <option value="pendiente">Pendientes</option>
                 <option value="proximo">Por vencer</option>
                 <option value="atrasado">Atrasados</option>
@@ -1100,6 +1183,65 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
         )}
 
         {/* ── Configuration panel ─────────────────────────────────────────── */}
+        {showScholarships && (
+          <div className="border-b border-surface2 bg-bg p-6 animate-in slide-in-from-top-4 duration-300">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
+                  <Award size={16} className="text-teal-600" /> Becas de pensión
+                </h3>
+                <p className="mt-1 text-xs text-ink3">
+                  Solo cambia pensiones pendientes sin abonos. Los pagos y abonos registrados no se modifican.
+                </p>
+              </div>
+              <button onClick={() => setShowScholarships(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-ink4 hover:bg-surface2 hover:text-ink">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-[minmax(240px,1fr)_minmax(220px,0.8fr)_minmax(220px,1fr)_auto] md:items-end">
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-ink4">Estudiante</label>
+                <select value={scholarshipStudentId} onChange={(event) => selectScholarshipStudent(event.target.value)}
+                  className="w-full rounded-xl border border-surface2 bg-surface px-3 py-2.5 text-sm focus:border-teal-400 focus:outline-none">
+                  <option value="">Seleccionar estudiante</option>
+                  {[...(students || [])].sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || '')).map((student: any) => (
+                    <option key={student.id} value={student.id}>{student.full_name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-ink4">Valor mensual</label>
+                <select value={scholarshipAmount} onChange={(event) => setScholarshipAmount(event.target.value)} disabled={!scholarshipStudentId}
+                  className="w-full rounded-xl border border-surface2 bg-surface px-3 py-2.5 text-sm focus:border-teal-400 focus:outline-none disabled:opacity-50">
+                  <option value="none">Sin beca</option>
+                  {selectedScholarshipOptions.map((amount) => (
+                    <option key={amount} value={amount}>{amount === 0 ? 'Beca total - $0' : `Paga $${amount}`}</option>
+                  ))}
+                </select>
+                {scholarshipStudentId && (
+                  <p className="mt-1 text-[10px] font-medium text-teal-700">
+                    Nivel: {selectedScholarshipGroup === 'escuela' ? 'Escuela' : 'Colegio'}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-ink4">Observación</label>
+                <input value={scholarshipNote} onChange={(event) => setScholarshipNote(event.target.value)} disabled={!scholarshipStudentId}
+                  placeholder="Ej. resolución o motivo"
+                  className="w-full rounded-xl border border-surface2 bg-surface px-3 py-2.5 text-sm focus:border-teal-400 focus:outline-none disabled:opacity-50" />
+              </div>
+
+              <button onClick={saveScholarship} disabled={saving || !scholarshipStudentId}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50">
+                <Save size={15} /> {saving ? 'Guardando...' : 'Guardar beca'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {showConfig && (
           <div className="p-6 border-b border-surface2 bg-bg space-y-6 animate-in slide-in-from-top-4 duration-300">
             <div className="flex items-center justify-between">
@@ -1269,7 +1411,15 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                       {rows.map((row, ri) => (
                         <tr key={row.studentId} className={`border-b border-surface2 hover:bg-bg/50 ${ri % 2 === 0 ? '' : 'bg-[rgba(0,0,0,0.015)]'}`}>
                           <td className="px-4 py-2.5 font-semibold text-sm sticky left-0 bg-surface z-10 whitespace-nowrap">
-                            {row.name}
+                            <span>{row.name}</span>
+                            {scholarshipsByStudent[row.studentId] && (
+                              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[9px] font-bold text-teal-700">
+                                <Award size={10} />
+                                {Number(scholarshipsByStudent[row.studentId].amount_to_pay) === 0
+                                  ? 'Beca total'
+                                  : `Beca $${Number(scholarshipsByStudent[row.studentId].amount_to_pay).toFixed(0)}`}
+                              </span>
+                            )}
                           </td>
                           <td className="px-2 py-2.5 text-center">
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-surface2 text-ink3">
@@ -1303,7 +1453,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                 className={`inline-flex items-center justify-center px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${MISSING_CELL} ${!isTutorMode ? 'cursor-pointer hover:shadow-sm' : ''}`}
                                 title={isTutorMode ? 'Matrícula no generada todavía' : 'Matrícula no generada todavía - clic para emitir'}
                               >
-                                {formatMoney(getExpectedAmountForShift(row.shift, 'matricula')).replace('$', '').trim()}
+                                {formatMoney(getExpectedAmountForShift(row.shift, 'matricula', row.studentId)).replace('$', '').trim()}
                               </button>
                             )}
                           </td>
@@ -1323,7 +1473,9 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                       : `Crear pensión de ${m}`}
                                   >
                                     {expectedPensionMonth
-                                      ? formatMoney(getExpectedAmountForShift(row.shift, 'pension')).replace('$', '').trim()
+                                      ? (getExpectedAmountForShift(row.shift, 'pension', row.studentId) === 0
+                                        ? 'BECA'
+                                        : formatMoney(getExpectedAmountForShift(row.shift, 'pension', row.studentId)).replace('$', '').trim())
                                       : '?'}
                                   </button>
                                 </td>
@@ -1336,17 +1488,19 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                                   onClick={() => {
                                     if (isTutorMode) return
                                     if (status === 'parcial') { openAbono(payment); return }
-                                    if (status !== 'pagado') markAsPaid(payment.id)
+                                    if (status !== 'pagado' && status !== 'becado') markAsPaid(payment.id)
                                   }}
-                                  className={`inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${STATUS_CELL[status]} ${!isTutorMode && status !== 'pagado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
+                                  className={`inline-flex items-center justify-center w-full px-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${STATUS_CELL[status]} ${!isTutorMode && status !== 'pagado' && status !== 'becado' ? 'cursor-pointer hover:shadow-sm' : ''}`}
                                   title={
                                     status === 'pagado' ? `Pagado: ${formatDate(payment.paid_date)}` :
+                                    status === 'becado' ? 'Beca total: no genera saldo pendiente' :
                                     status === 'parcial' ? `Abonado $${(payment.appliedAmount || 0).toFixed(2)} · Restan $${(payment.remainingAmount || 0).toFixed(2)} ? Clic para abonar más` :
                                     status === 'atrasado' ? `Atrasado${!isTutorMode ? ' ? Clic para pagar' : ''}` :
                                     `Pendiente ${formatMoney(payment.remainingAmount || payment.amount)}${!isTutorMode ? ' ? Clic para pagar' : ''}`
                                   }
                                 >
-                                  {status === 'pagado' ? '?' :
+                                  {status === 'pagado' ? '✓' :
+                                   status === 'becado' ? 'BECA' :
                                    status === 'parcial' ? `+${Number(payment.remainingAmount || 0).toFixed(0)}` :
                                    Number(payment.amount) === 0 ? '?' :
                                    formatMoney(payment.amount).replace('$', '').trim()}
@@ -1365,6 +1519,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 <span className="font-bold uppercase tracking-wider">Leyenda:</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" /> Pagado</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-sky-100 border border-sky-300 inline-block" /> Abonado</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-teal-100 border border-teal-300 inline-block" /> Beca total</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 inline-block" /> Pendiente</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-100 border border-amber-300 inline-block" /> Por vencer</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-rose-100 border border-rose-300 inline-block" /> Atrasado</span>
@@ -1436,7 +1591,11 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                           className="bg-bg border border-violet/30 rounded-lg px-2 py-1 text-xs font-bold w-[80px] text-right" autoFocus />
                       ) : (
                         <p className={`font-display font-bold text-sm ${Number(p.amount) === 0 ? 'text-amber-500' : ''}`}>
-                          {Number(p.amount) === 0 ? 'Por definir' : formatMoney(p.computedStatus === 'pagado' ? p.amount : (p.remainingAmount || p.amount))}
+                          {p.computedStatus === 'becado'
+                            ? 'Beca total'
+                            : Number(p.amount) === 0
+                              ? 'Por definir'
+                              : formatMoney(p.computedStatus === 'pagado' ? p.amount : (p.remainingAmount || p.amount))}
                         </p>
                       )}
                       {editingId !== p.id && p.computedStatus === 'parcial' && (
@@ -1454,19 +1613,19 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                           <button onClick={() => saveEdit(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-violet/10" title="Guardar">
                             <Save size={14} style={{ color: '#7C6DFA' }} />
                           </button>
-                        ) : p.computedStatus !== 'pagado' ? (
+                        ) : p.computedStatus !== 'pagado' && p.computedStatus !== 'becado' ? (
                           <button onClick={() => startEdit(p)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface2" title="Editar">
                             <Pencil size={14} className="text-ink4" />
                           </button>
                         ) : null}
 
-                        {p.computedStatus !== 'pagado' && editingId !== p.id && (
+                        {p.computedStatus !== 'pagado' && p.computedStatus !== 'becado' && editingId !== p.id && (
                           <button onClick={() => markAsPaid(p.id)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-emerald-50" title="Marcar pagado">
                             <Check size={16} style={{ color: '#10b981' }} />
                           </button>
                         )}
 
-                        {editingId !== p.id && p.computedStatus !== 'pagado' && (
+                        {editingId !== p.id && p.computedStatus !== 'pagado' && p.computedStatus !== 'becado' && (
                           <button onClick={() => openAbono(p)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-sky-50" title="Registrar abono">
                             <HandCoins size={16} className="text-sky-600" />
                           </button>

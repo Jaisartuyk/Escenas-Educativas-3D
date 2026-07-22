@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { v5 as uuidv5 } from 'uuid'
 import { buildRecurringPaymentDescription, getRecurringPaymentPeriodKey } from '@/lib/payment-period'
 import { canManageFinances } from '@/lib/auth/ownership'
+import { getScholarshipAmount } from '@/lib/student-scholarships'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,6 +88,19 @@ export async function POST() {
     return NextResponse.json({ generated: 0 })
   }
 
+  const enrollmentStudentIds = Array.from(new Set((enrollments as EnrollmentRow[]).map((row) => row.student_id)))
+  const { data: scholarships } = await admin
+    .from('student_scholarships' as any)
+    .select('id, student_id, amount_to_pay, active')
+    .eq('institution_id', instId)
+    .eq('active', true)
+    .in('student_id', enrollmentStudentIds)
+
+  const scholarshipsByStudent = new Map<string, any>()
+  for (const scholarship of scholarships || []) {
+    scholarshipsByStudent.set((scholarship as any).student_id, scholarship)
+  }
+
   const enrollmentByStudent = new Map<string, EnrollmentRow>()
   for (const enrollment of enrollments as EnrollmentRow[]) {
     if (!enrollmentByStudent.has(enrollment.student_id)) {
@@ -141,6 +155,7 @@ export async function POST() {
     const courseName = course ? `${course.name} ${course.parallel || ''}`.trim() : ''
     const shift = (course?.shift?.toLowerCase() === 'vespertina' ? 'vespertina' : 'matutina') as 'matutina' | 'vespertina'
     const prices = financial[shift] || { matricula: 35, pension: 60 }
+    const scholarship = scholarshipsByStudent.get(enrollment.student_id)
 
     const matriculaPeriodKey = `matricula:${year}`
     if (!studentPeriodKeys.has(matriculaPeriodKey)) {
@@ -177,7 +192,8 @@ export async function POST() {
             id: buildPaymentId(instId, enrollment.student_id, 'pension', pensionPeriodKey),
             institution_id: instId,
             student_id: enrollment.student_id,
-            amount: prices.pension || 60,
+            amount: getScholarshipAmount(scholarship, Number(prices.pension ?? 60)),
+            scholarship_id: scholarship?.id || null,
             description: buildRecurringPaymentDescription('pension', pensionYear, month.idx, courseName),
             type: 'pension',
             status: 'pendiente',
