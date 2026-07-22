@@ -99,7 +99,7 @@ function isPensionPayment(payment: any) {
 const STATUS_CONFIG = {
   pagado:    { label: 'PAGADO',     icon: Check,          bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-200', dot: '#10b981' },
   parcial:   { label: 'ABONADO',    icon: HandCoins,      bg: 'bg-sky-50',      text: 'text-sky-700',     border: 'border-sky-200',     dot: '#0ea5e9' },
-  becado:    { label: 'BECADO',      icon: Award,          bg: 'bg-teal-50',     text: 'text-teal-700',    border: 'border-teal-200',    dot: '#14b8a6' },
+  becado:    { label: 'BECADO',      icon: Award,          bg: 'bg-emerald-50',  text: 'text-emerald-700', border: 'border-emerald-200', dot: '#059669' },
   proximo:   { label: 'POR VENCER', icon: Clock,          bg: 'bg-amber-50',    text: 'text-amber-700',   border: 'border-amber-200',   dot: '#f59e0b' },
   atrasado:  { label: 'ATRASADO',   icon: AlertTriangle,  bg: 'bg-rose-50',     text: 'text-rose-700',    border: 'border-rose-200',    dot: '#ef4444' },
   pendiente: { label: 'PENDIENTE',  icon: CalendarDays,   bg: 'bg-slate-50',    text: 'text-slate-600',   border: 'border-slate-200',   dot: '#94a3b8' },
@@ -108,7 +108,7 @@ const STATUS_CONFIG = {
 const STATUS_CELL: Record<string, string> = {
   pagado:    'bg-emerald-100 text-emerald-800 border-emerald-300',
   parcial:   'bg-sky-100 text-sky-800 border-sky-300',
-  becado:    'bg-teal-100 text-teal-800 border-teal-300',
+  becado:    'bg-emerald-100 text-emerald-800 border-emerald-300',
   proximo:   'bg-amber-100 text-amber-800 border-amber-300',
   atrasado:  'bg-rose-100 text-rose-800 border-rose-300',
   pendiente: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -1029,7 +1029,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                       setShowForm(false)
                     }}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-colors flex-shrink-0 ${
-                      showScholarships ? 'bg-teal-50 text-teal-700 border-teal-200' : 'border-surface2 text-ink3 hover:bg-surface2'
+                      showScholarships ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'border-surface2 text-ink3 hover:bg-surface2'
                     }`}
                   >
                     <Award size={14} /> Becas
@@ -1188,7 +1188,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="flex items-center gap-2 text-sm font-bold text-ink">
-                  <Award size={16} className="text-teal-600" /> Becas de pensión
+                  <Award size={16} className="text-emerald-600" /> Becas de pensión
                 </h3>
                 <p className="mt-1 text-xs text-ink3">
                   Solo cambia pensiones pendientes sin abonos. Los pagos y abonos registrados no se modifican.
@@ -1203,7 +1203,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               <div>
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-ink4">Estudiante</label>
                 <select value={scholarshipStudentId} onChange={(event) => selectScholarshipStudent(event.target.value)}
-                  className="w-full rounded-xl border border-surface2 bg-surface px-3 py-2.5 text-sm focus:border-teal-400 focus:outline-none">
+                  className="w-full rounded-xl border border-surface2 bg-surface px-3 py-2.5 text-sm focus:border-emerald-400 focus:outline-none">
                   <option value="">Seleccionar estudiante</option>
                   {[...(students || [])].sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || '')).map((student: any) => (
                     <option key={student.id} value={student.id}>{student.full_name}</option>
@@ -1214,14 +1214,14 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
               <div>
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-ink4">Valor mensual</label>
                 <select value={scholarshipAmount} onChange={(event) => setScholarshipAmount(event.target.value)} disabled={!scholarshipStudentId}
-                  className="w-full rounded-xl border border-surface2 bg-surface px-3 py-2.5 text-sm focus:border-teal-400 focus:outline-none disabled:opacity-50">
+                  className="w-full rounded-xl border border-surface2 bg-surface px-3 py-2.5 text-sm focus:border-emerald-400 focus:outline-none disabled:opacity-50">
                   <option value="none">Sin beca</option>
                   {selectedScholarshipOptions.map((amount) => (
                     <option key={amount} value={amount}>{amount === 0 ? 'Beca total - $0' : `Paga $${amount}`}</option>
                   ))}
                 </select>
                 {scholarshipStudentId && (
-                  <p className="mt-1 text-[10px] font-medium text-teal-700">
+                  <p className="mt-1 text-[10px] font-medium text-emerald-700">
                     Nivel: {selectedScholarshipGroup === 'escuela' ? 'Escuela' : 'Colegio'}
                   </p>
                 )}
@@ -1231,11 +1231,11 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-ink4">Observación</label>
                 <input value={scholarshipNote} onChange={(event) => setScholarshipNote(event.target.value)} disabled={!scholarshipStudentId}
                   placeholder="Ej. resolución o motivo"
-                  className="w-full rounded-xl border border-surface2 bg-surface px-3 py-2.5 text-sm focus:border-teal-400 focus:outline-none disabled:opacity-50" />
+                  className="w-full rounded-xl border border-surface2 bg-surface px-3 py-2.5 text-sm focus:border-emerald-400 focus:outline-none disabled:opacity-50" />
               </div>
 
               <button onClick={saveScholarship} disabled={saving || !scholarshipStudentId}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50">
+                className="inline-flex h-[42px] min-w-[150px] items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:opacity-100">
                 <Save size={15} /> {saving ? 'Guardando...' : 'Guardar beca'}
               </button>
             </div>
@@ -1413,7 +1413,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                           <td className="px-4 py-2.5 font-semibold text-sm sticky left-0 bg-surface z-10 whitespace-nowrap">
                             <span>{row.name}</span>
                             {scholarshipsByStudent[row.studentId] && (
-                              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[9px] font-bold text-teal-700">
+                              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-700">
                                 <Award size={10} />
                                 {Number(scholarshipsByStudent[row.studentId].amount_to_pay) === 0
                                   ? 'Beca total'
@@ -1519,7 +1519,7 @@ export function SecretariaClient({ institutionId, students, courses, enrollments
                 <span className="font-bold uppercase tracking-wider">Leyenda:</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" /> Pagado</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-sky-100 border border-sky-300 inline-block" /> Abonado</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-teal-100 border border-teal-300 inline-block" /> Beca total</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block" /> Beca total</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 border border-slate-200 inline-block" /> Pendiente</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-100 border border-amber-300 inline-block" /> Por vencer</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-rose-100 border border-rose-300 inline-block" /> Atrasado</span>

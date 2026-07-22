@@ -42,7 +42,7 @@ function statusLabel(status: 'pagado' | 'parcial' | 'becado' | 'atrasado' | 'pro
 const STATUS_STYLES: Record<'pagado' | 'parcial' | 'becado' | 'atrasado' | 'proximo' | 'pendiente', string> = {
   pagado: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   parcial: 'bg-sky-50 text-sky-700 border-sky-200',
-  becado: 'bg-teal-50 text-teal-700 border-teal-200',
+  becado: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   atrasado: 'bg-rose-50 text-rose-700 border-rose-200',
   proximo: 'bg-amber-50 text-amber-700 border-amber-200',
   pendiente: 'bg-slate-50 text-slate-600 border-slate-200',
