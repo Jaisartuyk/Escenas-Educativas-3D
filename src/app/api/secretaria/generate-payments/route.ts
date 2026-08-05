@@ -32,8 +32,58 @@ type ExistingPayment = {
   due_date?: string | null
 }
 
+type ScholarshipRow = {
+  id: string
+  student_id: string
+  amount_to_pay: number
+  active: boolean
+}
+
 function buildPaymentId(institutionId: string, studentId: string, type: 'matricula' | 'pension', cycleKey: string) {
   return uuidv5(`${institutionId}:${studentId}:${type}:${cycleKey}`, PAYMENT_NAMESPACE)
+}
+
+async function fetchAllExistingPayments(admin: ReturnType<typeof createAdminClient>, institutionId: string) {
+  const rows: ExistingPayment[] = []
+  const pageSize = 1000
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await admin
+      .from('payments' as any)
+      .select('id, student_id, type, status, amount, description, due_date')
+      .eq('institution_id', institutionId)
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1)
+
+    if (error) return { rows: [], error }
+    const page = (data || []) as ExistingPayment[]
+    rows.push(...page)
+    if (page.length < pageSize) break
+  }
+
+  return { rows, error: null }
+}
+
+async function fetchAllActiveScholarships(admin: ReturnType<typeof createAdminClient>, institutionId: string) {
+  const rows: ScholarshipRow[] = []
+  const pageSize = 1000
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await admin
+      .from('student_scholarships' as any)
+      .select('id, student_id, amount_to_pay, active')
+      .eq('institution_id', institutionId)
+      .eq('active', true)
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1)
+
+    if (error) return { rows: [], error }
+    const page = (data || []) as ScholarshipRow[]
+    rows.push(...page)
+    if (page.length < pageSize) break
+  }
+
+  return { rows, error: null }
 }
 
 // POST - generate pending payments for all enrolled students who do not have them yet
@@ -66,6 +116,13 @@ export async function POST() {
     admin.from('institutions').select('settings').eq('id', instId).single(),
   ])
 
+  if (coursesRes.error) {
+    return NextResponse.json({ error: `No se pudieron cargar los cursos: ${coursesRes.error.message}` }, { status: 500 })
+  }
+  if (instRes.error) {
+    return NextResponse.json({ error: `No se pudo cargar la configuracion financiera: ${instRes.error.message}` }, { status: 500 })
+  }
+
   const courses = ((coursesRes.data || []) as CourseRow[])
   const financial = (instRes.data as any)?.settings?.financial || {}
 
@@ -79,26 +136,34 @@ export async function POST() {
     coursesById[course.id] = course
   }
 
-  const { data: enrollments } = await admin
+  const { data: enrollments, error: enrollmentsError } = await admin
     .from('enrollments')
     .select('student_id, course_id')
     .in('course_id', courseIds)
+
+  if (enrollmentsError) {
+    return NextResponse.json({ error: `No se pudieron cargar las matriculas: ${enrollmentsError.message}` }, { status: 500 })
+  }
 
   if (!enrollments || enrollments.length === 0) {
     return NextResponse.json({ generated: 0 })
   }
 
-  const enrollmentStudentIds = Array.from(new Set((enrollments as EnrollmentRow[]).map((row) => row.student_id)))
-  const { data: scholarships } = await admin
-    .from('student_scholarships' as any)
-    .select('id, student_id, amount_to_pay, active')
-    .eq('institution_id', instId)
-    .eq('active', true)
-    .in('student_id', enrollmentStudentIds)
+  const [scholarshipsResult, existingPaymentsResult] = await Promise.all([
+    fetchAllActiveScholarships(admin, instId),
+    fetchAllExistingPayments(admin, instId),
+  ])
+
+  if (scholarshipsResult.error) {
+    return NextResponse.json({ error: `No se pudieron cargar las becas: ${scholarshipsResult.error.message}` }, { status: 500 })
+  }
+  if (existingPaymentsResult.error) {
+    return NextResponse.json({ error: `No se pudieron cargar los cobros existentes: ${existingPaymentsResult.error.message}` }, { status: 500 })
+  }
 
   const scholarshipsByStudent = new Map<string, any>()
-  for (const scholarship of scholarships || []) {
-    scholarshipsByStudent.set((scholarship as any).student_id, scholarship)
+  for (const scholarship of scholarshipsResult.rows) {
+    scholarshipsByStudent.set(scholarship.student_id, scholarship)
   }
 
   const enrollmentByStudent = new Map<string, EnrollmentRow>()
@@ -108,13 +173,8 @@ export async function POST() {
     }
   }
 
-  const { data: existingPayments } = await admin
-    .from('payments' as any)
-    .select('id, student_id, type, status, amount, description, due_date')
-    .eq('institution_id', instId)
-
   const paymentsByStudent: Record<string, ExistingPayment[]> = {}
-  for (const payment of (existingPayments || []) as ExistingPayment[]) {
+  for (const payment of existingPaymentsResult.rows) {
     if (!paymentsByStudent[payment.student_id]) {
       paymentsByStudent[payment.student_id] = []
     }
@@ -210,12 +270,15 @@ export async function POST() {
     const CHUNK_SIZE = 500
     for (let i = 0; i < allPayments.length; i += CHUNK_SIZE) {
       const chunk = allPayments.slice(i, i + CHUNK_SIZE)
-      const { error } = await admin.from('payments' as any).upsert(chunk, { onConflict: 'id' })
+      const { data: inserted, error } = await admin
+        .from('payments' as any)
+        .upsert(chunk, { onConflict: 'id', ignoreDuplicates: true })
+        .select('id')
       if (error) {
         console.error('[secretaria/generate-payments] insert error', error)
         return NextResponse.json({ error: error.message, generated: successCount }, { status: 500 })
       }
-      successCount += chunk.length
+      successCount += inserted?.length || 0
     }
   }
 
