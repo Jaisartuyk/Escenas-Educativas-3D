@@ -37,6 +37,7 @@ export default async function SecretariaPage() {
         .select('*')
         .eq('institution_id', instId)
         .order('created_at', { ascending: false })
+        .order('id', { ascending: true })
         .range(from, from + step - 1)
         
       if (error || !data || data.length === 0) break
@@ -66,6 +67,7 @@ export default async function SecretariaPage() {
           .in('payment_id', chunk)
           .order('paid_at', { ascending: false })
           .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
           .range(from, from + step - 1)
 
         if (error || !data || data.length === 0) break

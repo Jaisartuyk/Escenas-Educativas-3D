@@ -81,6 +81,7 @@ export async function GET(req: Request) {
       .select('*')
       .eq('institution_id', institutionId)
       .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
       .range(from, from + step - 1)
 
     if (studentIds.length > 0) {
@@ -116,6 +117,7 @@ export async function GET(req: Request) {
           .in('payment_id', chunk)
           .order('paid_at', { ascending: false })
           .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
           .range(from, from + step - 1)
 
         if (abonosError) return { error: abonosError.message, data: [] }
@@ -179,6 +181,7 @@ export async function POST(req: Request) {
         .eq('payment_id', conflictPayment.id)
         .order('paid_at', { ascending: false })
         .order('created_at', { ascending: false })
+        .order('id', { ascending: true })
 
       conflictPayment = attachAbonosToPayments([conflictPayment], abonos || [])[0] || conflictPayment
     }
