@@ -6,7 +6,7 @@ import {
   Plus, Users, ClipboardList, BarChart2,
   CheckCircle2, XCircle, Clock3, ThumbsUp, ThumbsDown,
   Star, Trash2, BookOpen, CalendarDays, Settings, X,
-  Upload, Paperclip, Printer
+  Upload, Paperclip, Printer, Lock, Unlock
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
@@ -435,11 +435,33 @@ export function DocenteClient({
     })
     const data = await res.json()
     if (data.error) { toast.error(data.error); setSavingAct(false); return }
-    setAssignments(prev => prev.map(a => a.id === editActivity.id ? { ...a, ...payload } : a))
+    setAssignments((prev: any[]) => prev.map((a: any) => a.id === editActivity.id ? { ...a, ...payload } : a))
     setEditActivity(null)
     setSavingAct(false)
     toast.success('Actividad actualizada')
   }
+
+  async function toggleLockActivity(lockState: boolean) {
+    if (!editActivity) return
+    if (lockState && !window.confirm('¿Estás seguro que deseas CERRAR Y BLOQUEAR esta actividad? Una vez cerrada, no podrás modificar las notas.')) return
+    
+    setSavingAct(true)
+    const res = await fetch(`/api/docente/assignments/${editActivity.id}/lock`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_locked: lockState }),
+    })
+    const data = await res.json()
+    setSavingAct(false)
+    if (data.error) {
+      toast.error(data.error)
+      return
+    }
+    toast.success(lockState ? 'Actividad bloqueada con éxito.' : 'Actividad desbloqueada con éxito.')
+    setAssignments(prev => prev.map(a => a.id === editActivity.id ? { ...a, is_locked: lockState } : a))
+    setEditActivity((prev: any) => prev ? { ...prev, is_locked: lockState } : null)
+  }
+
   async function deleteActivity() {
     if (!editActivity) return
     if (!confirm('¿Eliminar esta actividad y todas sus calificaciones?')) return
@@ -1680,7 +1702,7 @@ export function DocenteClient({
                             <th key={a.id} className="px-3 py-3 text-center font-medium min-w-[100px] cursor-pointer hover:bg-bg/60 transition-colors"
                               style={{ borderTop: `3px solid ${getCatColor(a.category_id)}` }}
                               onClick={() => openActivityModal(a)}>
-                              <div className="truncate w-20 mx-auto font-semibold text-ink2" title={a.title}>{a.title}</div>
+                              <div className="truncate w-20 mx-auto font-semibold flex justify-center items-center gap-1 text-ink2" title={a.title}>{a.is_locked && <Lock size={10} className="text-rose-500"/>}{a.title}</div>
                               <div className="text-[9px] font-normal mt-0.5 normal-case tracking-normal" style={{ color: getCatColor(a.category_id) }}>
                                 {getCatName(a.category_id)}
                               </div>
@@ -2273,6 +2295,16 @@ export function DocenteClient({
                 <Trash2 size={14} /> Eliminar
               </button>
               <div className="flex gap-3">
+                {profile?.role === 'teacher' && !editActivity?.is_locked && (
+                  <button onClick={(e) => { e.preventDefault(); toggleLockActivity(true); }} className="px-4 py-2 rounded-xl text-sm font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors flex items-center gap-1.5">
+                    <Lock size={14} /> Cerrar Actividad
+                  </button>
+                )}
+                {profile?.role === 'admin' && editActivity?.is_locked && (
+                  <button onClick={(e) => { e.preventDefault(); toggleLockActivity(false); }} className="px-4 py-2 rounded-xl text-sm font-semibold text-teal-600 bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors flex items-center gap-1.5">
+                    <Unlock size={14} /> Desbloquear Actividad
+                  </button>
+                )}
                 <button onClick={() => setEditActivity(null)}
                   className="px-5 py-2 rounded-xl text-sm font-semibold text-ink3 border border-surface2 hover:bg-surface2 transition-colors">
                   Descartar
