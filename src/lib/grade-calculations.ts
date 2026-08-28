@@ -15,14 +15,15 @@ export function calculateWeightedAssignmentAverage<TAssignment extends WeightedA
 ): number | null {
   if (assignments.length === 0) return null
 
-  const scores = assignments
-    .map(getScore)
-    .filter((score): score is number => score !== null && !Number.isNaN(score))
+  const normalizedGetScore = (assignment: TAssignment) => {
+    const score = getScore(assignment)
+    return score !== null && !Number.isNaN(score) ? score : 0
+  }
 
-  if (scores.length === 0) return null
+  const scores = assignments.map(normalizedGetScore)
 
   if (categories.length === 0) {
-    return scores.reduce((sum, score) => sum + score, 0) / scores.length
+    return scores.reduce((sum, score) => sum + score, 0) / assignments.length
   }
 
   const knownCategoryIds = new Set(categories.map((category) => category.id))
@@ -31,13 +32,11 @@ export function calculateWeightedAssignmentAverage<TAssignment extends WeightedA
 
   categories.forEach((category) => {
     const categoryAssignments = assignments.filter((assignment) => String(assignment.category_id) === String(category.id))
-    const categoryScores = categoryAssignments
-      .map(getScore)
-      .filter((score): score is number => score !== null && !Number.isNaN(score))
+    const categoryScores = categoryAssignments.map(normalizedGetScore)
 
-    if (categoryScores.length === 0) return
+    if (categoryAssignments.length === 0) return
 
-    const categoryAverage = categoryScores.reduce((sum, score) => sum + score, 0) / categoryScores.length
+    const categoryAverage = categoryScores.reduce((sum, score) => sum + score, 0) / categoryAssignments.length
     // Support both weight_percent and legacy weight fields
     const categoryWeight = Number(category.weight_percent ?? category.weight ?? 0) / 100
 
@@ -50,12 +49,10 @@ export function calculateWeightedAssignmentAverage<TAssignment extends WeightedA
   const uncategorizedAssignments = assignments.filter(
     (assignment) => !assignment.category_id || !knownCategoryIds.has(assignment.category_id),
   )
-  const uncategorizedScores = uncategorizedAssignments
-    .map(getScore)
-    .filter((score): score is number => score !== null && !Number.isNaN(score))
+  const uncategorizedScores = uncategorizedAssignments.map(normalizedGetScore)
 
-  if (uncategorizedScores.length > 0) {
-    const uncategorizedAverage = uncategorizedScores.reduce((sum, score) => sum + score, 0) / uncategorizedScores.length
+  if (uncategorizedAssignments.length > 0) {
+    const uncategorizedAverage = uncategorizedScores.reduce((sum, score) => sum + score, 0) / uncategorizedAssignments.length
     const configuredWeight = categories.reduce((sum, category) => sum + Number(category.weight_percent ?? category.weight ?? 0) / 100, 0)
     const remainingWeight = Math.max(0, 1 - configuredWeight)
 
