@@ -27,6 +27,16 @@ export async function POST(req: Request) {
       .single()
     const assignmentId = (existing as any)?.assignment_id
     if (!assignmentId) return NextResponse.json({ error: 'Nota no encontrada' }, { status: 404 })
+    
+    // VERIFICAR BLOQUEO
+    const { data: asgData } = await admin.from('assignments').select('is_locked').eq('id', assignmentId).single()
+    if (asgData?.is_locked) {
+      const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single()
+      if (profile?.role !== 'admin') {
+        return NextResponse.json({ error: 'Esta actividad está cerrada y bloqueada. Solicita a administración que la desbloquee.' }, { status: 403 })
+      }
+    }
+
     const { data: existingGrade } = await admin
       .from('grades')
       .select('student_id')
@@ -43,6 +53,15 @@ export async function POST(req: Request) {
   } else {
     if (!body.assignment_id) return NextResponse.json({ error: 'Falta assignment_id' }, { status: 400 })
     if (!body.student_id) return NextResponse.json({ error: 'Falta student_id' }, { status: 400 })
+
+    // VERIFICAR BLOQUEO
+    const { data: asgData } = await admin.from('assignments').select('is_locked').eq('id', body.assignment_id).single()
+    if (asgData?.is_locked) {
+      const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single()
+      if (profile?.role !== 'admin') {
+        return NextResponse.json({ error: 'Esta actividad está cerrada y bloqueada. Solicita a administración que la desbloquee.' }, { status: 403 })
+      }
+    }
 
     const owns = await teacherOwnsAssignment(user.id, body.assignment_id)
     if (!owns) return NextResponse.json({ error: 'No tienes permiso sobre esta tarea' }, { status: 403 })
