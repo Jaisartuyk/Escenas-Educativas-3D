@@ -11,8 +11,8 @@ export type StudentScholarship = {
 }
 
 export const SCHOLARSHIP_AMOUNTS: Record<ScholarshipCourseGroup, number[]> = {
-  escuela: [0, 30, 35],
-  colegio: [0, 30, 40],
+  escuela: [0, 25, 30, 35],
+  colegio: [0, 25, 30, 40],
 }
 
 export function getScholarshipCourseGroup(course?: { name?: string | null; level?: string | null } | null): ScholarshipCourseGroup {
