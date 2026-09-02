@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss'
+import colors from 'tailwindcss/colors'
 
 const config: Config = {
   content: [
@@ -20,9 +21,9 @@ const config: Config = {
         surface2:'#F8FAFC',
         violet:  '#4F46E5', // Indigo 600
         violet2: '#6366F1', // Indigo 500
-        rose:    '#F43F5E', // Rose 500
-        teal:    '#10B981', // Emerald 500
-        amber:   '#F59E0B', // Amber 500
+        rose:    { ...colors.rose, DEFAULT: '#F43F5E' },
+        teal:    { ...colors.emerald, DEFAULT: '#10B981' },
+        amber:   { ...colors.amber, DEFAULT: '#F59E0B' },
         ink:     '#0F172A', // Slate 900
         ink2:    '#334155', // Slate 700
         ink3:    '#64748B', // Slate 500

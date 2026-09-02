@@ -485,7 +485,7 @@ export function ProfileDetailsPanel({
                                     <button
                                       type="button"
                                       onClick={() => setResettingPassword(prev => prev === rep.linkedId ? null : rep.linkedId)}
-                                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 transition-colors whitespace-nowrap"
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100 transition-colors whitespace-nowrap shadow-xs"
                                     >
                                       <KeyRound size={11} />
                                       {resettingPassword === rep.linkedId ? 'Cancelar' : 'Clave'}
@@ -517,22 +517,22 @@ export function ProfileDetailsPanel({
 
                           {/* Panel de reseteo de contraseña */}
                           {resettingPassword === rep.linkedId && (
-                            <div className="mt-3 p-3 rounded-xl border border-amber-200 bg-amber-50/60">
-                              <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700 mb-2">🔐 Nueva contraseña para {rep.title}</p>
+                            <div className="mt-3 p-3.5 rounded-xl border border-amber-300 bg-amber-50/90 shadow-sm">
+                              <p className="text-[11px] font-bold uppercase tracking-wider text-amber-900 mb-2">🔐 Nueva contraseña para {rep.title}</p>
                               <div className="flex gap-2">
                                 <input
                                   type="text"
                                   value={resetPasswordForms[rep.linkedId] || ''}
                                   onChange={e => setResetPasswordForms(prev => ({ ...prev, [rep.linkedId]: e.target.value }))}
                                   placeholder="Mínimo 6 caracteres"
-                                  className="input-base flex-1 text-sm"
+                                  className="input-base flex-1 text-sm bg-white"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => handleResetPassword(rep.linkedId)}
-                                  className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white hover:bg-amber-600 transition-colors whitespace-nowrap"
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-violet hover:bg-violet2 text-white px-4 py-2 text-xs font-bold shadow-md hover:shadow transition-all whitespace-nowrap active:scale-95 cursor-pointer"
                                 >
-                                  <KeyRound size={13} /> Aplicar
+                                  <Save size={14} /> Guardar
                                 </button>
                               </div>
                             </div>
@@ -654,14 +654,14 @@ export function ProfileDetailsPanel({
                       value={resetPasswordForms[user.id] || ''}
                       onChange={e => setResetPasswordForms(prev => ({ ...prev, [user.id]: e.target.value }))}
                       placeholder="Nueva contraseña (mín. 6 caracteres)"
-                      className="input-base flex-1 text-sm"
+                      className="input-base flex-1 text-sm bg-white"
                     />
                     <button
                       type="button"
                       onClick={() => handleResetPassword(user.id)}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-2 text-xs font-bold text-white hover:bg-amber-600 transition-colors whitespace-nowrap"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-violet hover:bg-violet2 text-white px-4 py-2 text-xs font-bold shadow-md hover:shadow transition-all whitespace-nowrap active:scale-95 cursor-pointer"
                     >
-                      <KeyRound size={13} /> Aplicar
+                      <Save size={14} /> Guardar
                     </button>
                   </div>
                 </div>
