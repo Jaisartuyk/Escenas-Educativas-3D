@@ -68,8 +68,30 @@ export async function GET(request: Request) {
     })
   }
 
-  // 4) Perfiles de estudiantes
-  const studentIds = Array.from(new Set((enrollments || []).map((e: any) => e.student_id as string)))
+  // 4) Perfiles de estudiantes y exclusión de retirados/suspendidos
+  const { data: teacherProfile } = await admin
+    .from('profiles')
+    .select('institution_id')
+    .eq('id', user.id)
+    .single()
+
+  let directory: Record<string, any> = {}
+  if (teacherProfile?.institution_id) {
+    const { data: inst } = await admin
+      .from('institutions')
+      .select('settings')
+      .eq('id', teacherProfile.institution_id)
+      .single()
+    directory = (inst as any)?.settings?.directory || {}
+  }
+
+  // Filtrar solo matrículas de alumnos activos
+  const activeEnrollments = (enrollments || []).filter((e: any) => {
+    const status = directory[e.student_id]?.status
+    return status !== 'retirado' && status !== 'suspendido'
+  })
+
+  const studentIds = Array.from(new Set(activeEnrollments.map((e: any) => e.student_id as string)))
   const { data: profiles } = await admin
     .from('profiles')
     .select('id, full_name, email')
@@ -78,7 +100,7 @@ export async function GET(request: Request) {
   const profilesById: Record<string, any> = {}
   ;(profiles || []).forEach((p: any) => { profilesById[p.id] = p })
 
-  const merged = (enrollments || []).map((e: any) => ({
+  const merged = activeEnrollments.map((e: any) => ({
     course_id:  e.course_id,
     student_id: e.student_id,
     student:    profilesById[e.student_id] || null,

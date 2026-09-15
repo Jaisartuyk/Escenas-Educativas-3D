@@ -33,6 +33,7 @@ export function PersonalClient({ institutionId, currentRole, institutionName, te
   const [searchStudents, setSearchStudents] = useState('')
   const [searchParents, setSearchParents] = useState('')
   const [filterStudentCourse, setFilterStudentCourse] = useState('all')
+  const [filterStudentStatus, setFilterStudentStatus] = useState<'all' | 'active' | 'retirado'>('all')
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -374,7 +375,35 @@ export function PersonalClient({ institutionId, currentRole, institutionName, te
 
         {/* ── ALUMNOS ── */}
         <div className="bg-bg border border-surface rounded-2xl p-5">
-           <h4 className="font-bold mb-3 text-teal">Alumnos Inscritos ({students.length})</h4>
+           <div className="flex items-center justify-between mb-2">
+             <h4 className="font-bold text-teal">Alumnos ({students.length})</h4>
+           </div>
+
+           {/* Filtro por estado: Todos / Activos / Retirados */}
+           <div className="flex gap-1 mb-2 bg-surface p-1 rounded-xl border border-surface2">
+             <button
+               type="button"
+               onClick={() => setFilterStudentStatus('all')}
+               className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${filterStudentStatus === 'all' ? 'bg-teal text-white shadow-xs' : 'text-ink3 hover:text-ink'}`}
+             >
+               Todos ({students.length})
+             </button>
+             <button
+               type="button"
+               onClick={() => setFilterStudentStatus('active')}
+               className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${filterStudentStatus === 'active' ? 'bg-emerald-600 text-white shadow-xs' : 'text-ink3 hover:text-ink'}`}
+             >
+               Activos ({students.filter(s => localMetaData[s.id]?.status !== 'retirado' && localMetaData[s.id]?.status !== 'suspendido').length})
+             </button>
+             <button
+               type="button"
+               onClick={() => setFilterStudentStatus('retirado')}
+               className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${filterStudentStatus === 'retirado' ? 'bg-rose-600 text-white shadow-xs' : 'text-ink3 hover:text-ink'}`}
+             >
+               Retirados ({students.filter(s => localMetaData[s.id]?.status === 'retirado' || localMetaData[s.id]?.status === 'suspendido').length})
+             </button>
+           </div>
+
            <input
              type="text"
              value={searchStudents}
@@ -396,6 +425,9 @@ export function PersonalClient({ institutionId, currentRole, institutionName, te
              const q = searchStudents.toLowerCase().trim()
              const filtered = students
                .filter(s => {
+                 const isRet = localMetaData[s.id]?.status === 'retirado' || localMetaData[s.id]?.status === 'suspendido'
+                 if (filterStudentStatus === 'active' && isRet) return false
+                 if (filterStudentStatus === 'retirado' && !isRet) return false
                  if (filterStudentCourse !== 'all') {
                    const enrolled = (enrollmentsRef || []).some((e: any) => e.student_id === s.id && e.course_id === filterStudentCourse)
                    if (!enrolled) return false
@@ -406,25 +438,33 @@ export function PersonalClient({ institutionId, currentRole, institutionName, te
                .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
              return (
                <>
-                 {(q || filterStudentCourse !== 'all') && <p className="text-[10px] text-ink4 mb-2">{filtered.length} de {students.length} encontrados</p>}
+                 {(q || filterStudentCourse !== 'all' || filterStudentStatus !== 'all') && <p className="text-[10px] text-ink4 mb-2">{filtered.length} de {students.length} encontrados</p>}
                  <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                    {filtered.map(s => {
                      const meta = localMetaData[s.id] || {}
+                     const isRet = meta.status === 'retirado' || meta.status === 'suspendido'
                      return (
-                     <div key={s.id} onClick={() => setSelectedUser(s)} className="p-3 bg-[rgba(38,215,180,0.05)] text-teal rounded-xl border border-[rgba(38,215,180,0.1)] cursor-pointer hover:bg-[rgba(38,215,180,0.1)] transition-colors flex items-center gap-3">
-                       {meta.avatar_url ? (
-                         <img src={meta.avatar_url} className="w-10 h-10 rounded-full object-cover border border-teal" />
-                       ) : (
-                         <div className="w-10 h-10 rounded-full bg-[rgba(38,215,180,0.15)] flex items-center justify-center text-teal font-bold text-xs">{s.full_name.charAt(0)}</div>
-                       )}
-                       <div>
-                         <p className="font-medium text-sm">{s.full_name}</p>
-                         <p className="text-xs opacity-70">{s.email}</p>
+                     <div key={s.id} onClick={() => setSelectedUser(s)} className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${isRet ? 'bg-rose-50/60 border-rose-200 hover:bg-rose-100/60' : 'bg-[rgba(38,215,180,0.05)] border-[rgba(38,215,180,0.1)] hover:bg-[rgba(38,215,180,0.1)]'}`}>
+                       <div className="flex items-center gap-3 min-w-0">
+                         {meta.avatar_url ? (
+                           <img src={meta.avatar_url} className={`w-10 h-10 rounded-full object-cover border ${isRet ? 'border-rose-300 opacity-60' : 'border-teal'}`} />
+                         ) : (
+                           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${isRet ? 'bg-rose-100 text-rose-700' : 'bg-[rgba(38,215,180,0.15)] text-teal'}`}>{s.full_name.charAt(0)}</div>
+                         )}
+                         <div className="min-w-0">
+                           <p className={`font-medium text-sm truncate ${isRet ? 'text-rose-900 line-through opacity-80' : 'text-teal'}`}>{s.full_name}</p>
+                           <p className="text-xs opacity-70 truncate">{s.email}</p>
+                         </div>
                        </div>
+                       {isRet && (
+                         <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 border border-rose-300">
+                           RETIRADO
+                         </span>
+                       )}
                      </div>
                      )
                    })}
-                   {filtered.length === 0 && <p className="text-xs text-ink4 italic text-center py-4">{q || filterStudentCourse !== 'all' ? 'Sin resultados' : 'Sin alumnos verificados.'}</p>}
+                   {filtered.length === 0 && <p className="text-xs text-ink4 italic text-center py-4">{q || filterStudentCourse !== 'all' || filterStudentStatus !== 'all' ? 'Sin resultados con estos filtros' : 'Sin alumnos verificados.'}</p>}
                  </div>
                </>
              )

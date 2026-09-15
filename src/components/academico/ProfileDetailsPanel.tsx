@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { X, Camera, Phone, Mail, User2, Save, Trash2, AlertTriangle, KeyRound, CheckCircle2 } from 'lucide-react'
+import { X, Camera, Phone, Mail, User2, Save, Trash2, AlertTriangle, KeyRound, CheckCircle2, UserMinus, UserCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { updateProfileMetadata, deleteInstitutionUser, createParentAccessFromStudentProfile, updateUserProfileCore, unlinkParentFromStudent } from '@/lib/actions/users'
 import { createClient } from '@/lib/supabase/client'
@@ -329,6 +329,33 @@ export function ProfileDetailsPanel({
     }
   }
 
+  const handleToggleStatus = async () => {
+    const isCurrentlyRetirado = data.status === 'retirado' || data.status === 'suspendido'
+    const newStatus = isCurrentlyRetirado ? 'active' : 'retirado'
+    const confirmMsg = isCurrentlyRetirado
+      ? '¿Reactivar este alumno para que vuelva a aparecer en las listas docentes?'
+      : '¿Marcar como RETIRADO? El alumno ya no aparecerá en las listas de los profesores y sus accesos serán suspendidos, pero sus notas y asistencias históricas se conservarán intactas.'
+    if (!window.confirm(confirmMsg)) return
+
+    const t = toast.loading('Actualizando estado...')
+    try {
+      const res = await fetch('/api/admin/toggle-student-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: user.id, status: newStatus })
+      })
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error || 'Error al actualizar')
+
+      const updatedMeta = { ...data, status: newStatus, withdrawn_at: newStatus === 'retirado' ? new Date().toISOString() : null }
+      setData(updatedMeta)
+      onUpdate(updatedMeta)
+      toast.success(newStatus === 'retirado' ? 'Alumno marcado como RETIRADO' : 'Alumno reactivado exitosamente', { id: t })
+    } catch (err: any) {
+      toast.error(err.message || 'Error al cambiar estado', { id: t })
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex justify-center items-start pt-20 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
       <div className="w-full max-w-md bg-surface rounded-2xl h-[calc(100vh-120px)] shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
@@ -365,6 +392,47 @@ export function ProfileDetailsPanel({
                user.role === 'secretary' ? 'Secretaría' : 
                user.role === 'supervisor' ? 'Supervisor' : 'Rector'}
             </p>
+
+            {user.role === 'student' && (
+              <div className="mt-2.5 flex flex-col items-center gap-2">
+                <div className="flex items-center gap-2">
+                  {data.status === 'retirado' || data.status === 'suspendido' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-700 border border-rose-300 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                      ALUMNO RETIRADO
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      ALUMNO ACTIVO
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleToggleStatus}
+                    className={`text-xs font-bold px-3 py-1 rounded-xl border transition-all flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-95 ${
+                      data.status === 'retirado' || data.status === 'suspendido'
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                        : 'border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                    }`}
+                  >
+                    {data.status === 'retirado' || data.status === 'suspendido' ? (
+                      <><UserCheck size={13} /> Reactivar Alumno</>
+                    ) : (
+                      <><UserMinus size={13} /> Marcar Retirado</>
+                    )}
+                  </button>
+                </div>
+
+                {(data.status === 'retirado' || data.status === 'suspendido') && (
+                  <div className="w-full mt-1 p-2.5 rounded-xl border border-rose-200 bg-rose-50/70 text-rose-800 text-center">
+                    <p className="text-[11px] font-semibold leading-tight">
+                      🚫 Oculto en las listas docentes. Sus notas y asistencias están respaldadas.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Form Section */}
