@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ChevronDown, BookOpen, ClipboardCheck, Users, AlertTriangle, CheckCircle, Clock, XCircle, ThumbsUp, ThumbsDown, Printer } from 'lucide-react'
+import { ChevronDown, BookOpen, ClipboardCheck, Users, AlertTriangle, CheckCircle, Clock, XCircle, ThumbsUp, ThumbsDown, Printer, Lock, Unlock } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
 import { cualitativo } from '@/lib/utils'
 
@@ -86,10 +87,34 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
   )
 
   // Assignments for current subject
+  const [assignmentsList, setAssignmentsList] = useState(assignments)
   const subjectAssignments = useMemo(() =>
-    assignments.filter(a => a.subject_id === selectedSubjectId),
-    [assignments, selectedSubjectId]
+    assignmentsList.filter(a => a.subject_id === selectedSubjectId),
+    [assignmentsList, selectedSubjectId]
   )
+
+  async function toggleLockAssignment(assignmentId: string, currentLocked: boolean) {
+    const newLock = !currentLocked
+    const msg = newLock
+      ? '¿Cerrar y bloquear esta actividad? El docente ya no podrá modificar las notas.'
+      : '¿Desbloquear esta actividad para que el docente pueda volver a modificar las notas?'
+    if (!window.confirm(msg)) return
+
+    const t = toast.loading('Actualizando estado...')
+    try {
+      const res = await fetch(`/api/docente/assignments/${assignmentId}/lock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_locked: newLock })
+      })
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error || 'Error al cambiar estado')
+      setAssignmentsList(prev => prev.map(a => a.id === assignmentId ? { ...a, is_locked: newLock } : a))
+      toast.success(newLock ? 'Actividad cerrada y bloqueada.' : 'Actividad desbloqueada exitosamente. El docente ya puede modificar notas.', { id: t })
+    } catch (err: any) {
+      toast.error(err.message, { id: t })
+    }
+  }
 
   // Grades for subject assignments
   const subjectGrades = useMemo(() => {
@@ -306,6 +331,7 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
                     setFilterTrimestre={setFilterTrimestre}
                     parcialesCount={parcialesCount}
                     submissions={submissions}
+                    onToggleLock={toggleLockAssignment}
                   />
                 )}
                 {activeTab === 'calificaciones' && (
@@ -317,6 +343,7 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
                     filterTrimestre={filterTrimestre}
                     setFilterTrimestre={setFilterTrimestre}
                     parcialesCount={parcialesCount}
+                    onToggleLock={toggleLockAssignment}
                   />
                 )}
                 {activeTab === 'asistencia' && (
@@ -468,7 +495,7 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB: Tareas
 // ═══════════════════════════════════════════════════════════════════════════════
-function TareasTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount, submissions = [] }: any) {
+function TareasTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount, submissions = [], onToggleLock }: any) {
   const filtered = assignments.filter((a: any) => a.trimestre === filterTrimestre)
 
   // Group by parcial
@@ -524,13 +551,45 @@ function TareasTab({ assignments, grades, students, categories, filterTrimestre,
                             {cat.name}
                           </span>
                         )}
+                        {a.is_locked ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                            <Lock size={10} /> Notas Bloqueadas
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                            <Unlock size={10} /> Notas Abiertas
+                          </span>
+                        )}
                       </div>
                       {a.description && <p className="text-xs text-ink3 mt-1 line-clamp-2">{a.description}</p>}
-                      {a.due_date && (
-                        <p className="text-[10px] text-ink4 mt-1">
-                          Vence: {new Date(a.due_date).toLocaleDateString('es-EC')}
-                        </p>
-                      )}
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                        {a.due_date && (
+                          <p className="text-[10px] text-ink4">
+                            Vence: {new Date(a.due_date).toLocaleDateString('es-EC')}
+                          </p>
+                        )}
+                        {onToggleLock && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleLock(a.id, !!a.is_locked)}
+                            className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer shadow-xs active:scale-95 ${
+                              a.is_locked
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                                : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
+                            }`}
+                          >
+                            {a.is_locked ? (
+                              <>
+                                <Unlock size={12} className="text-emerald-600" /> Desbloquear para Docente
+                              </>
+                            ) : (
+                              <>
+                                <Lock size={12} className="text-rose-500" /> Bloquear Notas
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right ml-3 flex-shrink-0">
                       <p className="text-lg font-bold text-violet2">{scored.length}/{students.length}</p>
@@ -597,7 +656,7 @@ function TareasTab({ assignments, grades, students, categories, filterTrimestre,
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB: Calificaciones (grade matrix)
 // ═══════════════════════════════════════════════════════════════════════════════
-function CalificacionesTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount }: any) {
+function CalificacionesTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount, onToggleLock }: any) {
   const filtered = assignments.filter((a: any) => a.trimestre === filterTrimestre)
 
   function getGrade(assignmentId: string, studentId: string) {
@@ -681,8 +740,24 @@ function CalificacionesTab({ assignments, grades, students, categories, filterTr
                 <th className="text-left p-2 text-xs font-bold text-ink3 sticky left-0 bg-bg z-10 min-w-[160px]">Alumno</th>
                 {filtered.map((a: any) => (
                   <th key={a.id} className="p-2 text-xs font-medium text-ink3 text-center min-w-[60px]" title={a.title}>
-                    <div className="truncate max-w-[80px]">{a.title}</div>
-                    <div className="text-[9px] text-ink4 font-normal">P{a.parcial}</div>
+                    <div className="truncate max-w-[90px] mx-auto font-semibold">{a.title}</div>
+                    <div className="flex items-center justify-center gap-1 text-[9px] text-ink4 mt-0.5">
+                      <span>P{a.parcial}</span>
+                      {onToggleLock && (
+                        <button
+                          type="button"
+                          onClick={() => onToggleLock(a.id, !!a.is_locked)}
+                          title={a.is_locked ? 'Actividad cerrada. Clic para desbloquear y permitir al docente editar notas.' : 'Actividad abierta. Clic para bloquear notas.'}
+                          className={`p-0.5 rounded cursor-pointer transition-colors ${
+                            a.is_locked
+                              ? 'text-rose-500 hover:bg-rose-100'
+                              : 'text-emerald-600 hover:bg-emerald-100'
+                          }`}
+                        >
+                          {a.is_locked ? <Lock size={11} /> : <Unlock size={11} />}
+                        </button>
+                      )}
+                    </div>
                   </th>
                 ))}
                 {Array.from({ length: parcialesCount }, (_, i) => (
