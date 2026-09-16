@@ -71,7 +71,7 @@ export default async function DocenciaPage() {
     for (const chunk of subjectChunks) {
       const [aRes, attRes, behRes] = await Promise.all([
         admin.from('assignments')
-          .select('id, subject_id, title, description, trimestre, parcial, category_id, due_date, created_at')
+          .select('id, subject_id, title, description, start_date, due_date, due_time, trimestre, parcial, category_id, attachment_urls, is_locked, created_at, updated_at')
           .in('subject_id', chunk)
           .order('created_at', { ascending: false }),
         admin.from('attendance')
