@@ -116,6 +116,48 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
     }
   }
 
+  async function toggleBulkLock(params: { assignment_ids?: string[], parcial?: number, trimestre?: number, lockState: boolean, label: string }) {
+    const { assignment_ids, parcial, trimestre, lockState, label } = params
+    const actionName = lockState ? 'BLOQUEAR' : 'DESBLOQUEAR'
+    const confirmMsg = lockState
+      ? `¿Estás seguro de BLOQUEAR ${label}? El docente no podrá modificar notas en estas actividades.`
+      : `¿Estás seguro de DESBLOQUEAR ${label}? El docente podrá volver a editar notas.`
+    
+    if (!window.confirm(confirmMsg)) return
+
+    const t = toast.loading(`${lockState ? 'Bloqueando' : 'Desbloqueando'} ${label}...`)
+    try {
+      const res = await fetch('/api/docente/assignments/bulk-lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject_id: selectedSubjectId,
+          trimestre,
+          parcial,
+          assignment_ids,
+          is_locked: lockState
+        })
+      })
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error || 'Error al actualizar')
+
+      setAssignmentsList(prev => prev.map(a => {
+        let match = false
+        if (assignment_ids && assignment_ids.includes(a.id)) match = true
+        else if (a.subject_id === selectedSubjectId) {
+          if (trimestre && a.trimestre !== trimestre) match = false
+          else if (parcial !== undefined && a.parcial !== parcial) match = false
+          else match = true
+        }
+        return match ? { ...a, is_locked: lockState } : a
+      }))
+
+      toast.success(`${label} ${lockState ? 'bloqueado' : 'desbloqueado'} con éxito.`, { id: t })
+    } catch (err: any) {
+      toast.error(err.message, { id: t })
+    }
+  }
+
   // Grades for subject assignments
   const subjectGrades = useMemo(() => {
     const aIds = new Set(subjectAssignments.map(a => a.id))
@@ -332,6 +374,7 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
                     parcialesCount={parcialesCount}
                     submissions={submissions}
                     onToggleLock={toggleLockAssignment}
+                    onToggleBulkLock={toggleBulkLock}
                   />
                 )}
                 {activeTab === 'calificaciones' && (
@@ -344,6 +387,7 @@ export function SupervisionClient({ teachers, courses, subjects, enrollments, as
                     setFilterTrimestre={setFilterTrimestre}
                     parcialesCount={parcialesCount}
                     onToggleLock={toggleLockAssignment}
+                    onToggleBulkLock={toggleBulkLock}
                   />
                 )}
                 {activeTab === 'asistencia' && (
@@ -495,7 +539,7 @@ function StatCard({ icon, label, value, color }: { icon: string; label: string; 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB: Tareas
 // ═══════════════════════════════════════════════════════════════════════════════
-function TareasTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount, submissions = [], onToggleLock }: any) {
+function TareasTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount, submissions = [], onToggleLock, onToggleBulkLock }: any) {
   const filtered = assignments.filter((a: any) => a.trimestre === filterTrimestre)
 
   // Group by parcial
@@ -506,143 +550,219 @@ function TareasTab({ assignments, grades, students, categories, filterTrimestre,
     byParcial[p].push(a)
   })
 
+  const allFilteredLocked = filtered.length > 0 && filtered.every((a: any) => a.is_locked)
+  const anyFilteredLocked = filtered.some((a: any) => a.is_locked)
+
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Trimestre filter */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-bold text-ink3 uppercase tracking-wider">Trimestre:</span>
-        {[1, 2, 3].map(t => (
-          <button
-            key={t}
-            onClick={() => setFilterTrimestre(t)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              filterTrimestre === t
-                ? 'bg-violet2 text-white'
-                : 'bg-bg text-ink3 hover:bg-[rgba(124,109,250,0.1)]'
-            }`}
-          >
-            T{t}
-          </button>
-        ))}
+      {/* Trimestre filter + bulk actions */}
+      <div className="flex items-center justify-between gap-4 flex-wrap pb-2 border-b border-surface2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-ink3 uppercase tracking-wider">Trimestre:</span>
+          {[1, 2, 3].map(t => (
+            <button
+              key={t}
+              onClick={() => setFilterTrimestre(t)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterTrimestre === t
+                  ? 'bg-violet2 text-white'
+                  : 'bg-bg text-ink3 hover:bg-[rgba(124,109,250,0.1)]'
+              }`}
+            >
+              T{t}
+            </button>
+          ))}
+        </div>
+
+        {onToggleBulkLock && filtered.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-ink4 font-medium">Trimestre {filterTrimestre}:</span>
+            <button
+              type="button"
+              onClick={() => onToggleBulkLock({
+                trimestre: filterTrimestre,
+                lockState: false,
+                label: `todo el Trimestre ${filterTrimestre}`
+              })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              <Unlock size={13} /> Desbloquear Todo T{filterTrimestre}
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggleBulkLock({
+                trimestre: filterTrimestre,
+                lockState: true,
+                label: `todo el Trimestre ${filterTrimestre}`
+              })}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-all cursor-pointer shadow-xs active:scale-95"
+            >
+              <Lock size={13} /> Bloquear Todo T{filterTrimestre}
+            </button>
+          </div>
+        )}
       </div>
 
-      {Object.keys(byParcial).sort((a, b) => Number(a) - Number(b)).map(parcial => (
-        <div key={parcial} className="space-y-2">
-          <h4 className="text-sm font-bold text-ink2">
-            {Number(parcial) === 0 ? 'Examen Trimestral' : `Parcial ${parcial}`}
-          </h4>
-          <div className="space-y-2">
-            {byParcial[Number(parcial)].map((a: any) => {
-              const aGrades = grades.filter((g: any) => g.assignment_id === a.id)
-              const scored = aGrades.filter((g: any) => g.score !== null)
-              const avg = scored.length > 0
-                ? scored.reduce((s: number, g: any) => s + Number(g.score), 0) / scored.length
-                : null
-              const cat = categories.find((c: any) => c.id === a.category_id)
+      {Object.keys(byParcial).sort((a, b) => Number(a) - Number(b)).map(parcialStr => {
+        const parcialNum = Number(parcialStr)
+        const pAsgs = byParcial[parcialNum]
+        const allParcialLocked = pAsgs.length > 0 && pAsgs.every((a: any) => a.is_locked)
 
-              return (
-                <div key={a.id} className="bg-bg rounded-xl border border-[rgba(0,0,0,0.04)] overflow-hidden">
-                  <div className="flex items-start justify-between p-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-sm">{a.title}</p>
-                        {cat && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: cat.color + '20', color: cat.color }}>
-                            {cat.name}
-                          </span>
-                        )}
-                        {a.is_locked ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
-                            <Lock size={10} /> Notas Bloqueadas
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-                            <Unlock size={10} /> Notas Abiertas
-                          </span>
-                        )}
-                      </div>
-                      {a.description && <p className="text-xs text-ink3 mt-1 line-clamp-2">{a.description}</p>}
-                      <div className="flex items-center gap-3 mt-2 flex-wrap">
-                        {a.due_date && (
-                          <p className="text-[10px] text-ink4">
-                            Vence: {new Date(a.due_date).toLocaleDateString('es-EC')}
-                          </p>
-                        )}
-                        {onToggleLock && (
-                          <button
-                            type="button"
-                            onClick={() => onToggleLock(a.id, !!a.is_locked)}
-                            className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer shadow-xs active:scale-95 ${
-                              a.is_locked
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
-                                : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
-                            }`}
-                          >
-                            {a.is_locked ? (
-                              <>
-                                <Unlock size={12} className="text-emerald-600" /> Desbloquear para Docente
-                              </>
-                            ) : (
-                              <>
-                                <Lock size={12} className="text-rose-500" /> Bloquear Notas
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right ml-3 flex-shrink-0">
-                      <p className="text-lg font-bold text-violet2">{scored.length}/{students.length}</p>
-                      <p className="text-[10px] text-ink4">calificados</p>
-                      {avg !== null && (
-                        <p className={`text-xs font-bold mt-1 ${cualitativo(avg).color}`}>
-                          Prom: {avg.toFixed(1)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+        return (
+          <div key={parcialStr} className="space-y-2 p-3 rounded-2xl bg-surface/50 border border-surface2/80">
+            <div className="flex items-center justify-between gap-3 flex-wrap pb-1">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-black text-ink2">
+                  {parcialNum === 0 ? 'Examen Trimestral' : `Parcial ${parcialNum}`}
+                </h4>
+                <span className="text-[11px] text-ink4 font-medium">({pAsgs.length} actividades)</span>
+              </div>
 
-                  {/* Submissions section */}
-                  {(() => {
-                    const aSubmissions = submissions.filter((s: any) => s.assignment_id === a.id)
-                    if (aSubmissions.length === 0) return (
-                      <div className="px-4 pb-3 text-xs text-ink4 italic">Sin entregas de alumnos aún.</div>
-                    )
-                    return (
-                      <div className="border-t border-[rgba(0,0,0,0.04)] bg-surface">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-ink4 px-4 pt-3 pb-2">
-                          Entregas ({aSubmissions.length})
-                        </p>
-                        <div className="space-y-2 px-4 pb-3">
-                          {aSubmissions.map((s: any) => {
-                            const student = students.find((st: any) => st.id === s.student_id) ||
-                              (s.student as any)
-                            return (
-                              <div key={s.id} className="flex items-start justify-between gap-3 p-2 rounded-lg bg-bg border border-[rgba(0,0,0,0.04)]">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold text-ink truncate">{student?.full_name || 'Alumno'}</p>
-                                  <p className="text-[10px] text-ink4">{new Date(s.submitted_at).toLocaleString('es-ES')}</p>
-                                  {s.comment && <p className="text-xs text-ink3 mt-0.5 line-clamp-2 italic">"{s.comment}"</p>}
-                                </div>
-                                {s.file_url && (
-                                  <a href={s.file_url} target="_blank" rel="noreferrer"
-                                    className="flex-shrink-0 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
-                                    📎 Archivo
-                                  </a>
-                                )}
-                              </div>
-                            )
-                          })}
+              {onToggleBulkLock && pAsgs.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onToggleBulkLock({
+                      trimestre: filterTrimestre,
+                      parcial: parcialNum,
+                      assignment_ids: pAsgs.map((a: any) => a.id),
+                      lockState: false,
+                      label: `el Parcial ${parcialNum} (T${filterTrimestre})`
+                    })}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Unlock size={11} /> Desbloquear Parcial {parcialNum}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onToggleBulkLock({
+                      trimestre: filterTrimestre,
+                      parcial: parcialNum,
+                      assignment_ids: pAsgs.map((a: any) => a.id),
+                      lockState: true,
+                      label: `el Parcial ${parcialNum} (T${filterTrimestre})`
+                    })}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Lock size={11} /> Bloquear Parcial {parcialNum}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              {pAsgs.map((a: any) => {
+                const aGrades = grades.filter((g: any) => g.assignment_id === a.id)
+                const scored = aGrades.filter((g: any) => g.score !== null)
+                const avg = scored.length > 0
+                  ? scored.reduce((s: number, g: any) => s + Number(g.score), 0) / scored.length
+                  : null
+                const cat = categories.find((c: any) => c.id === a.category_id)
+
+                return (
+                  <div key={a.id} className="bg-bg rounded-xl border border-[rgba(0,0,0,0.04)] overflow-hidden">
+                    <div className="flex items-start justify-between p-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-sm">{a.title}</p>
+                          {cat && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: cat.color + '20', color: cat.color }}>
+                              {cat.name}
+                            </span>
+                          )}
+                          {a.is_locked ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                              <Lock size={10} /> Notas Bloqueadas
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                              <Unlock size={10} /> Notas Abiertas
+                            </span>
+                          )}
+                        </div>
+                        {a.description && <p className="text-xs text-ink3 mt-1 line-clamp-2">{a.description}</p>}
+                        <div className="flex items-center gap-3 mt-2 flex-wrap">
+                          {a.due_date && (
+                            <p className="text-[10px] text-ink4">
+                              Vence: {new Date(a.due_date).toLocaleDateString('es-EC')}
+                            </p>
+                          )}
+                          {onToggleLock && (
+                            <button
+                              type="button"
+                              onClick={() => onToggleLock(a.id, !!a.is_locked)}
+                              className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer shadow-xs active:scale-95 ${
+                                a.is_locked
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                                  : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
+                              }`}
+                            >
+                              {a.is_locked ? (
+                                <>
+                                  <Unlock size={12} className="text-emerald-600" /> Desbloquear para Docente
+                                </>
+                              ) : (
+                                <>
+                                  <Lock size={12} className="text-rose-500" /> Bloquear Notas
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
-                    )
-                  })()}
-                </div>
-              )
-            })}
+                      <div className="text-right ml-3 flex-shrink-0">
+                        <p className="text-lg font-bold text-violet2">{scored.length}/{students.length}</p>
+                        <p className="text-[10px] text-ink4">calificados</p>
+                        {avg !== null && (
+                          <p className={`text-xs font-bold mt-1 ${cualitativo(avg).color}`}>
+                            Prom: {avg.toFixed(1)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Submissions section */}
+                    {(() => {
+                      const aSubmissions = submissions.filter((s: any) => s.assignment_id === a.id)
+                      if (aSubmissions.length === 0) return (
+                        <div className="px-4 pb-3 text-xs text-ink4 italic">Sin entregas de alumnos aún.</div>
+                      )
+                      return (
+                        <div className="border-t border-[rgba(0,0,0,0.04)] bg-surface">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-ink4 px-4 pt-3 pb-2">
+                            Entregas ({aSubmissions.length})
+                          </p>
+                          <div className="space-y-2 px-4 pb-3">
+                            {aSubmissions.map((s: any) => {
+                              const student = students.find((st: any) => st.id === s.student_id) ||
+                                (s.student as any)
+                              return (
+                                <div key={s.id} className="flex items-start justify-between gap-3 p-2 rounded-lg bg-bg border border-[rgba(0,0,0,0.04)]">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-ink truncate">{student?.full_name || 'Alumno'}</p>
+                                    <p className="text-[10px] text-ink4">{new Date(s.submitted_at).toLocaleString('es-ES')}</p>
+                                    {s.comment && <p className="text-xs text-ink3 mt-0.5 line-clamp-2 italic">"{s.comment}"</p>}
+                                  </div>
+                                  {s.file_url && (
+                                    <a href={s.file_url} target="_blank" rel="noreferrer"
+                                      className="flex-shrink-0 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors">
+                                      📎 Archivo
+                                    </a>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
 
       {filtered.length === 0 && (
         <div className="text-center py-8 text-ink4">
@@ -656,7 +776,7 @@ function TareasTab({ assignments, grades, students, categories, filterTrimestre,
 // ═══════════════════════════════════════════════════════════════════════════════
 // TAB: Calificaciones (grade matrix)
 // ═══════════════════════════════════════════════════════════════════════════════
-function CalificacionesTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount, onToggleLock }: any) {
+function CalificacionesTab({ assignments, grades, students, categories, filterTrimestre, setFilterTrimestre, parcialesCount, onToggleLock, onToggleBulkLock }: any) {
   const filtered = assignments.filter((a: any) => a.trimestre === filterTrimestre)
 
   function getGrade(assignmentId: string, studentId: string) {
@@ -707,8 +827,8 @@ function CalificacionesTab({ assignments, grades, students, categories, filterTr
           body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         }
       `}</style>
-      {/* Trimestre filter */}
-      <div className="flex items-center justify-between gap-4 print:hidden">
+      {/* Trimestre filter + bulk actions */}
+      <div className="flex items-center justify-between gap-4 flex-wrap print:hidden">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-ink3 uppercase tracking-wider">Trimestre:</span>
           {[1, 2, 3].map(t => (
@@ -723,13 +843,42 @@ function CalificacionesTab({ assignments, grades, students, categories, filterTr
             </button>
           ))}
         </div>
-        <button
-          onClick={() => window.print()}
-          className="w-9 h-9 rounded-xl border border-[rgba(0,0,0,0.06)] flex items-center justify-center text-ink3 hover:text-violet2 hover:bg-[rgba(124,109,250,0.04)] hover:border-[rgba(124,109,250,0.15)] transition-all bg-surface shadow-sm"
-          title="Exportar a PDF"
-        >
-          <Printer size={16} />
-        </button>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {onToggleBulkLock && filtered.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => onToggleBulkLock({
+                  trimestre: filterTrimestre,
+                  lockState: false,
+                  label: `todo el Trimestre ${filterTrimestre}`
+                })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition-all cursor-pointer shadow-xs active:scale-95"
+              >
+                <Unlock size={13} /> Desbloquear Todo T{filterTrimestre}
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleBulkLock({
+                  trimestre: filterTrimestre,
+                  lockState: true,
+                  label: `todo el Trimestre ${filterTrimestre}`
+                })}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-all cursor-pointer shadow-xs active:scale-95"
+              >
+                <Lock size={13} /> Bloquear Todo T{filterTrimestre}
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => window.print()}
+            className="w-9 h-9 rounded-xl border border-[rgba(0,0,0,0.06)] flex items-center justify-center text-ink3 hover:text-violet2 hover:bg-[rgba(124,109,250,0.04)] hover:border-[rgba(124,109,250,0.15)] transition-all bg-surface shadow-sm"
+            title="Exportar a PDF"
+          >
+            <Printer size={16} />
+          </button>
+        </div>
       </div>
 
       {filtered.length > 0 && students.length > 0 ? (

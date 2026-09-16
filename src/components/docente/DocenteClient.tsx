@@ -1510,6 +1510,7 @@ export function DocenteClient({
                                   <td key={a.id} className={`px-3 py-2 text-center ${!isEdit && score !== null ? gradeBg(score) : ''}`}>
                                   {isQuali ? (
                                     <select
+                                      disabled={profile?.role !== 'admin' && !!a.is_locked}
                                       value={cur === '' ? '' : QUALITATIVE_SCALE.find(g => g.numericValue === Math.round(Number(cur)))?.id || ''}
                                       onChange={e => {
                                         const num = getNumericValueForQualitative(e.target.value)
@@ -1519,8 +1520,9 @@ export function DocenteClient({
                                           void handleSaveGrade(a.id, st.id, nextValue)
                                         }
                                       }}
-                                      className={`w-16 h-8 text-center text-xs font-bold bg-transparent border-b-2 rounded-none outline-none transition-all appearance-none cursor-pointer
-                                        ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
+                                      className={`w-16 h-8 text-center text-xs font-bold bg-transparent border-b-2 rounded-none outline-none transition-all appearance-none ${
+                                        profile?.role !== 'admin' && a.is_locked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'
+                                      } ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
                                     >
                                       <option value="">—</option>
                                       {QUALITATIVE_SCALE.map(g => (
@@ -1530,13 +1532,15 @@ export function DocenteClient({
                                   ) : (
                                     <input
                                       type="number" min="0" max="10" step="0.01"
+                                      disabled={profile?.role !== 'admin' && !!a.is_locked}
                                       value={cur}
                                       onChange={e => handleGradeChange(a.id, st.id, e.target.value)}
                                       onBlur={() => handleSaveGrade(a.id, st.id)}
                                       onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
                                       placeholder="—"
-                                      className={`w-16 h-8 text-center text-sm font-bold bg-transparent border-b-2 rounded-none outline-none transition-all
-                                        ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
+                                      className={`w-16 h-8 text-center text-sm font-bold bg-transparent border-b-2 rounded-none outline-none transition-all ${
+                                        profile?.role !== 'admin' && a.is_locked ? 'cursor-not-allowed opacity-75' : ''
+                                      } ${isEdit ? 'border-teal text-teal' : score !== null ? `border-transparent ${gradeColor(score)}` : 'border-transparent text-ink4 hover:border-surface2'}`}
                                     />
                                   )}
                                   </td>
@@ -1564,6 +1568,80 @@ export function DocenteClient({
 
             {/* ═══ VISTA POR PARCIAL ═══ */}
             {calView === 'parcial' && (<>
+
+            {/* Banner de estado de bloqueo del Parcial */}
+            {sortedAssignments.length > 0 && (
+              <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 flex-wrap ${
+                sortedAssignments.every((a: any) => a.is_locked)
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : sortedAssignments.some((a: any) => a.is_locked)
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {sortedAssignments.every((a: any) => a.is_locked) ? (
+                    <>
+                      <Lock size={16} className="text-rose-600 shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold">Parcial {parcial} (Trimestre {trimestre}) Bloqueado</p>
+                        <p className="text-[11px] text-rose-700/80">Todas las actividades están cerradas. Para modificar notas, solicita a Administración que lo desbloquee.</p>
+                      </div>
+                    </>
+                  ) : sortedAssignments.some((a: any) => a.is_locked) ? (
+                    <>
+                      <Lock size={16} className="text-amber-600 shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold">Parcial {parcial} (Trimestre {trimestre}) Parcialmente Bloqueado</p>
+                        <p className="text-[11px] text-amber-700/80">Algunas actividades ya están cerradas y no permiten cambios.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Unlock size={16} className="text-emerald-600 shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold">Parcial {parcial} (Trimestre {trimestre}) Abierto</p>
+                        <p className="text-[11px] text-emerald-700/80">Puedes ingresar o modificar las notas de tus actividades.</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Botón para que el docente pueda cerrar todo el parcial cuando termine */}
+                {profile?.role === 'teacher' && !sortedAssignments.every((a: any) => a.is_locked) && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!window.confirm(`¿Estás seguro de CERRAR Y BLOQUEAR todas las notas del Parcial ${parcial}? Una vez cerrado, no podrás hacer más cambios a menos que Administración lo desbloquee.`)) return
+                      try {
+                        const res = await fetch('/api/docente/assignments/bulk-lock', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            subject_id: selectedSubjectId,
+                            trimestre,
+                            parcial,
+                            is_locked: true
+                          })
+                        })
+                        const json = await res.json()
+                        if (!res.ok || json.error) throw new Error(json.error || 'Error al cerrar parcial')
+                        setAssignments(prev => prev.map(a => 
+                          (a.subject_id === selectedSubjectId && a.trimestre === trimestre && a.parcial === parcial)
+                            ? { ...a, is_locked: true }
+                            : a
+                        ))
+                        toast.success(`Parcial ${parcial} cerrado correctamente`)
+                      } catch (err: any) {
+                        toast.error(err.message)
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-all shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <Lock size={12} /> Cerrar y Bloquear Parcial {parcial}
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Leyenda de categorías */}
             {categories.length > 0 && !isQuali && (
@@ -1766,6 +1844,7 @@ export function DocenteClient({
                                 <td key={a.id} className={`px-3 py-2 text-center border-l border-surface/30 ${!isEdit && score !== null ? gradeBg(score) : ''}`}>
                                   {isQuali ? (
                                     <select
+                                      disabled={profile?.role !== 'admin' && !!a.is_locked}
                                       value={cur === '' ? '' : QUALITATIVE_SCALE.find(g => g.numericValue === Math.round(Number(cur)))?.id || ''}
                                       onChange={e => {
                                         const num = getNumericValueForQualitative(e.target.value)
@@ -1786,6 +1865,7 @@ export function DocenteClient({
                                   ) : (
                                     <input
                                     type="number" min="0" max="10" step="0.01"
+                                      disabled={profile?.role !== 'admin' && !!a.is_locked}
                                     value={cur}
                                     onChange={e => handleGradeChange(a.id, st.id, e.target.value)}
                                     onBlur={() => handleSaveGrade(a.id, st.id)}
