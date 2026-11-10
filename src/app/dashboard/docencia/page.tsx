@@ -69,11 +69,16 @@ export default async function DocenciaPage() {
     const subjectChunks = chunkArray(subjectIds, 50)
     
     for (const chunk of subjectChunks) {
-      const [aRes, attRes, behRes] = await Promise.all([
-        admin.from('assignments')
-          .select('id, subject_id, title, description, start_date, due_date, due_time, trimestre, parcial, category_id, attachment_urls, is_locked, created_at, updated_at')
-          .in('subject_id', chunk)
-          .order('created_at', { ascending: false }),
+      const [chunkAssignments, attRes, behRes] = await Promise.all([
+        fetchAllRows(async (from, to) => {
+          const { data } = await admin
+            .from('assignments')
+            .select('id, subject_id, title, description, start_date, due_date, due_time, trimestre, parcial, category_id, attachment_urls, is_locked, created_at, updated_at')
+            .in('subject_id', chunk)
+            .order('created_at', { ascending: false })
+            .range(from, to)
+          return data
+        }),
         admin.from('attendance')
           .select('id, student_id, subject_id, status, date, justification_status, justification_text, justification_file_url')
           .in('subject_id', chunk)
@@ -84,7 +89,7 @@ export default async function DocenciaPage() {
           .in('subject_id', chunk)
           .order('created_at', { ascending: false }),
       ])
-      if (aRes.data) assignments.push(...aRes.data)
+      if (chunkAssignments) assignments.push(...chunkAssignments)
       if (attRes.data) attendance.push(...attRes.data)
       if (behRes.data) behaviors.push(...behRes.data)
     }
