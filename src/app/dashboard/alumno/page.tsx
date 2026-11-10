@@ -5,6 +5,7 @@ import { AlumnoClient } from '@/components/alumno/AlumnoClient'
 import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
 import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
@@ -107,21 +108,29 @@ export default async function AlumnoPage({
 
   // ── 3. Tareas Asignadas (Assignments) ──────────────────────────────────────
   let assignments: any[] = []
+  const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+    Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+
   if (subjectIds.length > 0) {
-    const { data } = await admin
-      .from('assignments')
-      .select('*')
-      .in('subject_id', subjectIds)
-      .order('created_at', { ascending: false })
-    assignments = data || []
+    const subjectChunks = chunkArray(subjectIds, 50)
+    for (const chunk of subjectChunks) {
+      const chunkAssignments = await fetchAllRows(async (from, to) => {
+        const { data } = await admin
+          .from('assignments')
+          .select('*')
+          .in('subject_id', chunk)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+        return data
+      })
+      assignments.push(...chunkAssignments)
+    }
   }
 
   // ── 4. Calificaciones del Alumno (Grades) ──────────────────────────────────
   let grades: any[] = []
   const assignmentIds = assignments.map((a: any) => a.id)
   if (assignmentIds.length > 0) {
-    const chunkArray = <T,>(arr: T[], size: number): T[][] =>
-      Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
     const assignmentChunks = chunkArray(assignmentIds, 50)
     
     for (const chunk of assignmentChunks) {

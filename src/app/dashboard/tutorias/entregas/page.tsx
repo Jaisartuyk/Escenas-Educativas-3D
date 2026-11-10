@@ -56,21 +56,28 @@ export default async function TutoriasEntregasPage() {
 
   // Assignments
   let assignments: any[] = []
+  const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+    Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+
   if (subjectIds.length > 0) {
-    const { data } = await admin
-      .from('assignments')
-      .select('id, subject_id, title, description, start_date, due_date, due_time, trimestre, parcial, category_id, attachment_urls, created_at, updated_at')
-      .in('subject_id', subjectIds)
-      .order('created_at', { ascending: false })
-    assignments = data || []
+    const subjectChunks = chunkArray(subjectIds, 50)
+    for (const chunk of subjectChunks) {
+      const chunkAssignments = await fetchAllRows(async (from, to) => {
+        const { data } = await admin
+          .from('assignments')
+          .select('id, subject_id, title, description, start_date, due_date, due_time, trimestre, parcial, category_id, attachment_urls, created_at, updated_at')
+          .in('subject_id', chunk)
+          .order('created_at', { ascending: false })
+          .range(from, to)
+        return data
+      })
+      assignments.push(...chunkAssignments)
+    }
   }
 
   // Submissions (Entregas)
   let submissions: any[] = []
   const assignmentIds = assignments.map((a: any) => a.id)
-  
-  const chunkArray = <T,>(arr: T[], size: number): T[][] =>
-    Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
 
   if (assignmentIds.length > 0) {
     const assignmentChunks = chunkArray(assignmentIds, 50)
