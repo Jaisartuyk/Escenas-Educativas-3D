@@ -6,7 +6,7 @@ import {
   Plus, Users, ClipboardList, BarChart2,
   CheckCircle2, XCircle, Clock3, ThumbsUp, ThumbsDown,
   Star, Trash2, BookOpen, CalendarDays, Settings, X,
-  Upload, Paperclip, Printer, Lock, Unlock
+  Upload, Paperclip, Printer, Lock, Unlock, Pencil
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { v4 as uuidv4 } from 'uuid'
@@ -1489,8 +1489,57 @@ export function DocenteClient({
                           <tr className="bg-bg3 text-xs uppercase tracking-wider border-b border-surface2">
                             <th className="px-4 py-2 text-left font-bold w-48">Estudiante</th>
                             {examAssignments.map((a: any) => (
-                              <th key={a.id} className="px-3 py-2 text-center font-medium min-w-[100px]">
-                                {a.title}
+                              <th key={a.id} className="px-3 py-2 text-center font-medium min-w-[140px]">
+                                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                  <span className="font-semibold text-ink2">{a.title}</span>
+                                  <div className="flex items-center gap-1 print:hidden">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newTitle = window.prompt('Editar nombre del examen:', a.title)
+                                        if (newTitle && newTitle.trim() && newTitle.trim() !== a.title) {
+                                          const trimmed = newTitle.trim()
+                                          fetch('/api/docente/assignments', {
+                                            method: 'PUT',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ id: a.id, title: trimmed }),
+                                          }).then(async r => {
+                                            const d = await r.json()
+                                            if (d.error) toast.error(d.error)
+                                            else {
+                                              setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, title: trimmed } : x))
+                                              toast.success('Nombre actualizado')
+                                            }
+                                          }).catch(() => toast.error('Error al actualizar'))
+                                        }
+                                      }}
+                                      title="Editar nombre del examen"
+                                      className="p-1 rounded text-ink4 hover:text-violet hover:bg-violet/10 transition-colors"
+                                    >
+                                      <Pencil size={12} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (!window.confirm(`¿Estás seguro de eliminar "${a.title}" y sus calificaciones?`)) return
+                                        fetch(`/api/docente/assignments?id=${a.id}`, { method: 'DELETE' })
+                                          .then(r => {
+                                            if (r.ok) {
+                                              setAssignments(prev => prev.filter(x => x.id !== a.id))
+                                              setGrades(prev => prev.filter((g: any) => g.assignment_id !== a.id))
+                                              toast.success('Examen eliminado')
+                                            } else {
+                                              toast.error('Error al eliminar')
+                                            }
+                                          }).catch(() => toast.error('Error de red'))
+                                      }}
+                                      title="Eliminar examen"
+                                      className="p-1 rounded text-ink4 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                </div>
                               </th>
                             ))}
                           </tr>

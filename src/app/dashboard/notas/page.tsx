@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation'
 import { ChildScopeSelector } from '@/components/family/ChildScopeSelector'
 import { MisNotasClient } from '@/components/notas/MisNotasClient'
 import { getLinkedChildrenForParent, getPrimaryLinkedChildForParent } from '@/lib/parents'
+import { fetchAllRows } from '@/lib/supabase/fetch-all'
 import { filterSubjectsForInstitution } from '@/lib/subject-visibility'
 import { checkStudentDebt } from '@/lib/financial-status'
 
@@ -94,17 +95,11 @@ export default async function NotasPage({
 
   const [
     { data: categories },
-    { data: assignments },
-    { data: grades },
     { data: attendance },
     { data: behaviors },
     { data: scheduleConfig },
   ] = await Promise.all([
     admin.from('grade_categories').select('*').eq('institution_id', instId).order('sort_order'),
-    subjectIds.length
-      ? admin.from('assignments').select('id, subject_id, title, trimestre, parcial, category_id, created_at').in('subject_id', subjectIds)
-      : Promise.resolve({ data: [] }),
-    Promise.resolve({ data: [] }), // placeholder, se hace abajo
     subjectIds.length
       ? admin.from('attendance').select('student_id, subject_id, status, date').eq('student_id', effectiveStudentId).in('subject_id', subjectIds)
       : Promise.resolve({ data: [] }),
@@ -114,12 +109,30 @@ export default async function NotasPage({
     admin.from('schedule_configs' as any).select('parciales_count').eq('institution_id', instId).maybeSingle(),
   ])
 
+  // Tareas de todas las materias del estudiante (sin límite de 1000)
+  let assignments: any[] = []
+  const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+    Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
+
+  if (subjectIds.length > 0) {
+    const subjectChunks = chunkArray(subjectIds, 50)
+    for (const chunk of subjectChunks) {
+      const chunkAssignments = await fetchAllRows(async (from, to) => {
+        const { data } = await admin
+          .from('assignments')
+          .select('id, subject_id, title, trimestre, parcial, category_id, created_at')
+          .in('subject_id', chunk)
+          .range(from, to)
+        return data
+      })
+      assignments.push(...chunkAssignments)
+    }
+  }
+
   // Calificaciones del estudiante sobre sus assignments
   let myGrades: any[] = []
-  const assignmentIds = (assignments || []).map((a: any) => a.id)
+  const assignmentIds = assignments.map((a: any) => a.id)
   if (assignmentIds.length > 0) {
-    const chunkArray = <T,>(arr: T[], size: number): T[][] =>
-      Array.from({ length: Math.ceil(arr.length / size) }, (v, i) => arr.slice(i * size, i * size + size))
     const assignmentChunks = chunkArray(assignmentIds, 50)
     
     for (const chunk of assignmentChunks) {

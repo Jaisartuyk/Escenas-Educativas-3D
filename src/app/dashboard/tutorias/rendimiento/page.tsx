@@ -74,11 +74,15 @@ export default async function RendimientoTutorPage() {
 
     const subjectChunks = chunkArray(relatedSubjectIds, 50)
     for (const chunk of subjectChunks) {
-      const { data: aData } = await admin
-        .from('assignments')
-        .select('id, subject_id, title, trimestre, parcial, category_id')
-        .in('subject_id', chunk)
-      if (aData) assignments.push(...aData)
+      const chunkAssignments = await fetchAllRows(async (from, to) => {
+        const { data } = await admin
+          .from('assignments')
+          .select('id, subject_id, title, trimestre, parcial, category_id')
+          .in('subject_id', chunk)
+          .range(from, to)
+        return data
+      })
+      assignments.push(...chunkAssignments)
     }
 
     if (assignments.length > 0) {
