@@ -40,8 +40,49 @@ export function AsistenciasClient({ tutoredCourses = [], enrollments = [], atten
       .sort((a: any, b: any) => (a.student?.full_name || '').localeCompare(b.student?.full_name || ''))
   }, [enrollments, selectedCourse])
 
+  const currentCourse = useMemo(() => {
+    return tutoredCourses.find((c: any) => c.id === selectedCourse)
+  }, [tutoredCourses, selectedCourse])
+
   const attendanceStats = useMemo(() => buildAttendanceSummaries(attendanceGlobal), [attendanceGlobal])
   const dedupedAttendance = useMemo(() => dedupeAttendanceByStudentAndDate(attendanceGlobal), [attendanceGlobal])
+
+  // Identificar la última fecha y semana con asistencias registradas para el curso seleccionado
+  const latestRecordedWeekStart = useMemo(() => {
+    const studentIds = new Set(currentEnrollments.map((e: any) => e.student_id))
+    const courseDates = dedupedAttendance
+      .filter(record => studentIds.has(record.student_id))
+      .map(record => record.date)
+      .sort()
+      .reverse()
+
+    if (courseDates.length === 0) return null
+    return getMondayOfWeek(new Date(`${courseDates[0]}T12:00:00`))
+  }, [currentEnrollments, dedupedAttendance])
+
+  // Comprobar si hoy (siendo día entre semana) ya tiene asistencia en este curso
+  const todayStatus = useMemo(() => {
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
+    const todayISO = toISO(now)
+
+    const studentIds = new Set(currentEnrollments.map((e: any) => e.student_id))
+    let countToday = 0
+    for (const record of dedupedAttendance) {
+      if (record.date === todayISO && studentIds.has(record.student_id)) {
+        countToday++
+      }
+    }
+
+    return {
+      isWeekday,
+      todayISO,
+      hasAttendance: countToday > 0,
+      countToday,
+    }
+  }, [currentEnrollments, dedupedAttendance])
+
   const weeklyDates = useMemo(() => Array.from({ length: 5 }, (_, index) => addDays(weekStart, index)), [weekStart])
   const weeklyDateKeys = useMemo(() => weeklyDates.map((date) => toISO(date)), [weeklyDates])
 
@@ -146,6 +187,49 @@ export function AsistenciasClient({ tutoredCourses = [], enrollments = [], atten
         <div className="space-y-4">
           {tutoredCourses.length > 0 ? (
             <>
+              {/* Notificación proactiva para tutores si hoy no se ha registrado asistencia */}
+              {todayStatus.isWeekday && !todayStatus.hasAttendance && currentEnrollments.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-900">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700">
+                      <AlertTriangle size={20} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">
+                        {currentCourse ? `${currentCourse.name} ${currentCourse.parallel || ''}` : 'Este curso'} aún no tiene asistencia registrada el día de hoy ({formatDate(todayStatus.todayISO)})
+                      </p>
+                      <p className="text-xs text-amber-800/80 mt-0.5">
+                        Si el docente de la primera o segunda hora no la registró, cualquier docente de las siguientes horas o el tutor pueden registrarla directamente.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReportType('Toma de asistencia')}
+                    className="whitespace-nowrap px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shadow-sm transition-colors"
+                  >
+                    Tomar Asistencia Ahora
+                  </button>
+                </div>
+              )}
+
+              {/* Banner informativo si la semana actual no tiene registros pero existen semanas previas */}
+              {currentWeekAttendanceMap.size === 0 && latestRecordedWeekStart && (
+                <div className="flex items-center justify-between gap-3 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-900 text-xs">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays size={16} className="text-indigo-600" />
+                    <span>No hay registros en la semana seleccionada. La última semana con registros es la del <strong>{formatWeekRange(latestRecordedWeekStart)}</strong>.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setWeekStart(latestRecordedWeekStart)}
+                    className="font-bold underline text-indigo-700 hover:text-indigo-900 whitespace-nowrap"
+                  >
+                    Ver última semana con datos →
+                  </button>
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-4">
                 <div className="relative min-w-[260px]">
                   <select

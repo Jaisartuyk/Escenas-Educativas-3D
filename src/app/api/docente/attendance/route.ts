@@ -105,14 +105,6 @@ export async function GET(req: Request) {
         .eq('id', user.id)
         .single()
 
-      const policy = getSharedAttendancePolicy({
-        settings,
-        course,
-        date,
-        teacherName: ((profile as any)?.full_name as string | undefined) || '',
-        teacherHasFullCourseControl: teacherHasFullCourseControl(courseSubjects, user.id),
-      })
-
       const subjectIds = courseSubjects.map(subject => subject.id)
       const { data, error } = await admin
         .from('attendance' as any)
@@ -126,6 +118,17 @@ export async function GET(req: Request) {
       for (const row of (data || []) as any[]) {
         if (!byStudent.has(row.student_id)) byStudent.set(row.student_id, row)
       }
+
+      const hasExistingAttendance = byStudent.size > 0
+
+      const policy = getSharedAttendancePolicy({
+        settings,
+        course,
+        date,
+        teacherName: ((profile as any)?.full_name as string | undefined) || '',
+        teacherHasFullCourseControl: teacherHasFullCourseControl(courseSubjects, user.id),
+        hasExistingAttendance,
+      })
 
       return NextResponse.json({
         data: Array.from(byStudent.values()),
@@ -164,15 +167,21 @@ export async function GET(req: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+    const datesWithAttendance = new Set(
+      ((data || []) as any[]).map(row => row.date)
+    )
+
     const policies = Object.fromEntries(
       weekDates.map((current) => {
         const dateKey = current.toISOString().split('T')[0]
+        const hasExisting = datesWithAttendance.has(dateKey)
         const policy = getSharedAttendancePolicy({
           settings,
           course,
           date: dateKey,
           teacherName: ((profile as any)?.full_name as string | undefined) || '',
           teacherHasFullCourseControl: teacherHasFullCourseControl(courseSubjects, user.id),
+          hasExistingAttendance: hasExisting,
         })
         return [dateKey, policy]
       })
@@ -210,12 +219,24 @@ export async function POST(req: Request) {
         .eq('id', user.id)
         .single()
 
+      // Comprobar si ya existe asistencia previa para esta fecha en el curso
+      const subjectIds = courseSubjects.map(subject => subject.id)
+      const { data: existingRecords } = await admin
+        .from('attendance' as any)
+        .select('id')
+        .in('subject_id', subjectIds.length > 0 ? subjectIds : [subject_id])
+        .eq('date', date)
+        .limit(1)
+
+      const hasExistingAttendance = Boolean(existingRecords && existingRecords.length > 0)
+
       const policy = getSharedAttendancePolicy({
         settings,
         course,
         date,
         teacherName: ((profile as any)?.full_name as string | undefined) || '',
         teacherHasFullCourseControl: teacherHasFullCourseControl(courseSubjects, user.id),
+        hasExistingAttendance,
       })
 
       if (!policy.canTeacherEdit) {
@@ -246,14 +267,14 @@ export async function POST(req: Request) {
         )
       }
 
-      const subjectIds = courseSubjects.map(subject => subject.id)
+      const currentSubjectIds = subjectIds.length > 0 ? subjectIds : [subject_id]
       await admin
         .from('attendance' as any)
         .delete()
-        .in('subject_id', subjectIds.length > 0 ? subjectIds : [subject_id])
+        .in('subject_id', currentSubjectIds)
         .eq('date', date)
 
-      const rows = (subjectIds.length > 0 ? subjectIds : [subject_id]).flatMap(currentSubjectId =>
+      const rows = currentSubjectIds.flatMap(currentSubjectId =>
         entries.map((entry: any) => ({
           subject_id: currentSubjectId,
           student_id: entry.student_id,

@@ -10,8 +10,9 @@ type SharedAttendancePolicy = {
   sharedMode: boolean
   authorityTeacherName: string | null
   authoritySubjectName: string | null
-  authoritySource: 'tutor' | 'first-hour' | 'fallback'
+  authoritySource: 'tutor' | 'first-hour' | 'cascade' | 'fallback'
   canTeacherEdit: boolean
+  hasExistingAttendance: boolean
   dayLabel: string
   courseLabel: string
 }
@@ -108,12 +109,14 @@ export function getSharedAttendancePolicy(params: {
   date: string
   teacherName: string
   teacherHasFullCourseControl?: boolean
+  hasExistingAttendance?: boolean
 }): SharedAttendancePolicy {
   const courseLabel = buildCourseLabel(params.course)
   const parsedDate = new Date(`${params.date}T12:00:00`)
   const dayLabel = DAY_NAMES[parsedDate.getDay()] || 'Lunes'
   const teacherName = normalizeText(params.teacherName)
   const slotMatch = findScheduleSlot(params.settings, courseLabel)
+  const hasExistingAttendance = Boolean(params.hasExistingAttendance)
 
   let authorityTeacherName: string | null = null
   let authoritySubjectName: string | null = null
@@ -137,10 +140,24 @@ export function getSharedAttendancePolicy(params: {
     }
   }
 
-  const canTeacherEdit =
-    Boolean(params.teacherHasFullCourseControl) ||
+  // Lógica progresiva en cascada:
+  // 1. Si el docente tiene control total (o es tutor / admin), puede editar.
+  // 2. Si no hay docente de primera hora o tutor asignado, cualquier docente del curso puede registrar (fallback).
+  // 3. Si coincide con el docente de primera hora / tutor designado, puede editar.
+  // 4. Si aún NO se ha tomado asistencia en todo el día para ese curso (hasExistingAttendance === false),
+  //    cualquier docente del curso (2da, 3ra, 4ta hora, etc.) tiene permiso de tomarla (cascada progresiva).
+  const isDesignatedAuthority =
     !authorityTeacherName ||
     normalizeText(authorityTeacherName) === teacherName
+
+  const canTeacherEdit =
+    Boolean(params.teacherHasFullCourseControl) ||
+    isDesignatedAuthority ||
+    !hasExistingAttendance
+
+  if (!isDesignatedAuthority && !hasExistingAttendance) {
+    authoritySource = 'cascade'
+  }
 
   return {
     sharedMode: true,
@@ -148,6 +165,7 @@ export function getSharedAttendancePolicy(params: {
     authoritySubjectName,
     authoritySource,
     canTeacherEdit,
+    hasExistingAttendance,
     dayLabel,
     courseLabel,
   }

@@ -49,49 +49,72 @@ export default async function AsistenciasPage() {
 
     const tutoredCourseIds = tutoredCourses.map(c => c.id)
 
-    if (tutoredCourseIds.length > 0) {
-      const { data: eData } = await admin.from('enrollments').select('*, student:profiles(id, full_name, email)').in('course_id', tutoredCourseIds)
-      enrollmentsRes = eData || []
+    const chunkArray = <T,>(arr: T[], size: number): T[][] =>
+      Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size))
 
-      const studentIds = enrollmentsRes.map(e => e.student_id)
+    if (tutoredCourseIds.length > 0) {
+      const courseChunks = chunkArray(tutoredCourseIds, 50)
+      for (const cChunk of courseChunks) {
+        const { data: eData } = await admin
+          .from('enrollments')
+          .select('*, student:profiles(id, full_name, email)')
+          .in('course_id', cChunk)
+        if (eData) enrollmentsRes.push(...eData)
+      }
+
+      const studentIds = Array.from(new Set(enrollmentsRes.map(e => e.student_id).filter(Boolean)))
       if (studentIds.length > 0) {
-        const attData = await fetchAllRows(async (from, to) => {
-          const { data } = await admin
-          .from('attendance')
-          .select('id, student_id, status, date, justification_status, justification_text')
-          .in('student_id', studentIds)
-          .order('date', { ascending: false })
-          .range(from, to)
-          return data
-        })
-        attendanceGlobal = attData || []
+        const studentChunks = chunkArray(studentIds, 50)
+
+        // Traer todas las asistencias chunked por student_id sin límites ni truncamiento
+        for (const sChunk of studentChunks) {
+          const attChunk = await fetchAllRows(async (from, to) => {
+            const { data } = await admin
+              .from('attendance')
+              .select('id, student_id, status, date, justification_status, justification_text')
+              .in('student_id', sChunk)
+              .order('date', { ascending: false })
+              .range(from, to)
+            return data
+          })
+          if (attChunk) attendanceGlobal.push(...attChunk)
+        }
 
         // Traer justificaciones de los estudiantes tutorados (con nombre + materia)
-        const justData = await fetchAllRows(async (from, to) => {
-          const { data } = await admin
-          .from('attendance')
-          .select('id, student_id, subject_id, status, date, justification_status, justification_text, justification_file_url')
-          .in('student_id', studentIds)
-          .not('justification_status', 'is', null)
-          .order('date', { ascending: false })
-          .range(from, to)
-          return data
-        })
+        let rawJustifications: any[] = []
+        for (const sChunk of studentChunks) {
+          const justChunk = await fetchAllRows(async (from, to) => {
+            const { data } = await admin
+              .from('attendance')
+              .select('id, student_id, subject_id, status, date, justification_status, justification_text, justification_file_url')
+              .in('student_id', sChunk)
+              .not('justification_status', 'is', null)
+              .order('date', { ascending: false })
+              .range(from, to)
+            return data
+          })
+          if (justChunk) rawJustifications.push(...justChunk)
+        }
 
         // Enriquecer con nombre del estudiante + nombre de la materia
-        const subjIds = Array.from(new Set((justData || []).map((j: any) => j.subject_id).filter(Boolean)))
+        const subjIds = Array.from(new Set(rawJustifications.map((j: any) => j.subject_id).filter(Boolean)))
         let subjMap = new Map<string, string>()
         if (subjIds.length > 0) {
-          const { data: subj } = await admin
-            .from('subjects')
-            .select('id, name')
-            .in('id', subjIds)
-          subjMap = new Map<string, string>(((subj || []) as any[]).map(s => [s.id as string, (s.name as string) || '']))
+          const subjChunks = chunkArray(subjIds, 50)
+          for (const sjChunk of subjChunks) {
+            const { data: subj } = await admin
+              .from('subjects')
+              .select('id, name')
+              .in('id', sjChunk)
+            for (const s of subj || []) {
+              subjMap.set(s.id as string, (s.name as string) || '')
+            }
+          }
         }
         const studMap = new Map<string, string>(
           enrollmentsRes.map((e: any) => [e.student_id, e.student?.full_name || 'Alumno'])
         )
-        justifications = (justData || []).map((j: any) => ({
+        justifications = rawJustifications.map((j: any) => ({
           ...j,
           student_name: studMap.get(j.student_id) || 'Alumno',
           subject_name: subjMap.get(j.subject_id) || 'Materia',
