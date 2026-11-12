@@ -23,8 +23,9 @@ type SharedAttendancePolicy = {
   sharedMode: boolean
   authorityTeacherName: string | null
   authoritySubjectName: string | null
-  authoritySource: 'tutor' | 'first-hour' | 'fallback'
+  authoritySource: 'tutor' | 'first-hour' | 'cascade' | 'fallback'
   canTeacherEdit: boolean
+  hasExistingAttendance: boolean
   dayLabel: string
   courseLabel: string
 }
@@ -203,7 +204,9 @@ export function TomaAsistencia() {
     ? ` desde la primera hora (${sharedPolicy.authoritySubjectName})`
     : sharedPolicy?.authoritySource === 'tutor'
       ? ' como docente titular del curso'
-      : ''
+      : sharedPolicy?.authoritySource === 'cascade'
+        ? ' (toma habilitada por turno siguiente)'
+        : ''
 
   if (loading && subjects.length === 0) {
     return <div className="text-center py-10">Cargando materias...</div>
@@ -245,10 +248,12 @@ export function TomaAsistencia() {
       )}
 
       {sharedPolicy?.sharedMode && (
-        <div className={`rounded-xl border p-4 text-sm ${editingLocked ? 'border-amber/20 bg-amber/10 text-amber' : 'border-sky-200 bg-sky/10 text-sky-700'}`}>
+        <div className={`rounded-xl border p-4 text-sm ${editingLocked ? 'border-amber/20 bg-amber/10 text-amber' : sharedPolicy.authoritySource === 'cascade' ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-sky-200 bg-sky/10 text-sky-700'}`}>
           {editingLocked
-            ? `La asistencia oficial de ${sharedPolicy.courseLabel} del ${sharedPolicy.dayLabel} la registra ${sharedPolicy.authorityTeacherName || 'el docente responsable'}${authorityContext}. Aquí verás la misma asistencia que se comparte al resto de materias.`
-            : `Estás registrando la asistencia oficial de ${sharedPolicy.courseLabel} para ${sharedPolicy.dayLabel}. Esta toma se reflejará en todas las materias del curso para esta fecha.`}
+            ? `La asistencia oficial de ${sharedPolicy.courseLabel} del ${sharedPolicy.dayLabel} ya fue registrada por ${sharedPolicy.authorityTeacherName || 'el docente responsable'}${authorityContext}. Si algún estudiante ausente se incorporó a tu hora, puedes marcar su llegada tardía abajo.`
+            : sharedPolicy.authoritySource === 'cascade'
+              ? `Ningún docente previo registró la asistencia de ${sharedPolicy.courseLabel} para hoy ${sharedPolicy.dayLabel}. Como docente de este período, tienes autorización completa para tomarla. Se replicará automáticamente a todas las materias del curso.`
+              : `Estás registrando la asistencia oficial de ${sharedPolicy.courseLabel} para ${sharedPolicy.dayLabel}. Esta toma se reflejará en todas las materias del curso para esta fecha.`}
         </div>
       )}
 
