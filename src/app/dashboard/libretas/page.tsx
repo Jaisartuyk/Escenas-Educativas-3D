@@ -184,6 +184,21 @@ export default async function LibretasPage({
     behaviors = behData || []
   }
 
+  // Tutor behavior notes & observations
+  let tutorNotes: any[] = []
+  if (courseIds.length > 0) {
+    try {
+      const { data: tnData } = await admin
+        .from('libreta_tutor_notes' as any)
+        .select('*')
+        .eq('institution_id', instId)
+        .in('course_id', courseIds)
+      tutorNotes = tnData || []
+    } catch (e) {
+      console.warn('Error fetching libreta_tutor_notes:', e)
+    }
+  }
+
   // Check visibility for parents/students
   const isFamilyRole = profile.role === 'student' || isParentMode
   
@@ -276,6 +291,7 @@ export default async function LibretasPage({
             tutores={tutores}
             attendance={filteredAttendance}
             behaviors={filteredBehaviors}
+            tutorNotes={tutorNotes}
             libretasPublished={libretasPublished}
             institutionId={instId}
             hasDebt={hasDebt}
