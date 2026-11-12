@@ -82,12 +82,11 @@ export function ComportamientoTutorClient({
     return init
   })
 
-  // Change course or trimestre: rebuild local drafts
-  const handleSelectTrimestre = (t: number) => {
-    setSelectedTrimestre(t)
+  // Rebuild local drafts when selectedCourseId or selectedTrimestre changes
+  const updateEntriesFor = (courseId: string, trim: number) => {
     const nextEntries: Record<string, { grade: string; observation: string }> = {}
     for (const note of existingNotes) {
-      if (note.trimestre === t) {
+      if (note.trimestre === trim) {
         nextEntries[note.student_id] = {
           grade: note.behavior_grade || '',
           observation: note.observation || '',
@@ -95,6 +94,16 @@ export function ComportamientoTutorClient({
       }
     }
     setEntries(nextEntries)
+  }
+
+  const handleSelectCourse = (courseId: string) => {
+    setSelectedCourseId(courseId)
+    updateEntriesFor(courseId, selectedTrimestre)
+  }
+
+  const handleSelectTrimestre = (t: number) => {
+    setSelectedTrimestre(t)
+    updateEntriesFor(selectedCourseId, t)
   }
 
   const students = studentsByCourse[selectedCourseId] || []
@@ -222,7 +231,7 @@ export function ComportamientoTutorClient({
             </label>
             <select
               value={selectedCourseId}
-              onChange={e => setSelectedCourseId(e.target.value)}
+              onChange={e => handleSelectCourse(e.target.value)}
               className="bg-bg border border-surface2 rounded-xl px-3 py-2 text-sm text-ink outline-none focus:border-violet"
             >
               {courses.map(c => (
