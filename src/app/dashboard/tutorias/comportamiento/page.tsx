@@ -43,14 +43,20 @@ export default async function ComportamientoTutorPage({
   let courses: { id: string; name: string }[] = []
   if (isTeacher) {
     const tutoredCourses = await resolveTutoredCoursesForTeacher(admin as any, user.id)
-    courses = tutoredCourses.map((c: any) => ({ id: c.id, name: c.name }))
+    courses = tutoredCourses.map((c: any) => ({
+      id: c.id,
+      name: `${c.name}${c.parallel ? ` ${c.parallel}` : ''}`.trim(),
+    }))
   } else {
     const { data: allCourses } = await admin
       .from('courses')
-      .select('id, name')
+      .select('id, name, parallel')
       .eq('institution_id', instId)
       .order('name')
-    courses = allCourses || []
+    courses = (allCourses || []).map((c: any) => ({
+      id: c.id,
+      name: `${c.name}${c.parallel ? ` ${c.parallel}` : ''}`.trim(),
+    }))
   }
 
   if (courses.length === 0) {
@@ -72,11 +78,14 @@ export default async function ComportamientoTutorPage({
 
   const courseIds = courses.map(c => c.id)
 
+  const settings = (profile as any).institutions?.settings || {}
+  const directory = settings.directory || {}
+
   // Obtener estudiantes de los cursos tutoreados
   const enrollments = await fetchAllRows(async (from, to) => {
     const { data } = await admin
       .from('enrollments')
-      .select('course_id, student:profiles(id, full_name, cedula, status)')
+      .select('course_id, student:profiles(id, full_name, email)')
       .in('course_id', courseIds)
       .range(from, to)
     return data
@@ -89,14 +98,22 @@ export default async function ComportamientoTutorPage({
 
   for (const en of (enrollments || [])) {
     const st = (en as any).student
-    if (st && (!st.status || st.status === 'active')) {
+    if (st) {
+      const studentStatus = directory[st.id]?.status
+      // Ocultar solo si está marcado explícitamente como retirado o suspendido
+      if (studentStatus === 'retirado' || studentStatus === 'suspendido') {
+        continue
+      }
+
+      const cedula = directory[st.id]?.dni || directory[st.id]?.cedula || undefined
+
       if (!studentsByCourse[en.course_id]) {
         studentsByCourse[en.course_id] = []
       }
       studentsByCourse[en.course_id].push({
         id: st.id,
         full_name: st.full_name || 'Estudiante',
-        cedula: st.cedula || undefined,
+        cedula,
       })
     }
   }
@@ -122,7 +139,6 @@ export default async function ComportamientoTutorPage({
     console.warn('Error reading libreta_tutor_notes:', e)
   }
 
-  const settings = (profile as any).institutions?.settings || {}
   const libretasPublished = settings.libretas_published === true
 
   return (
