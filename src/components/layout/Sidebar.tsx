@@ -90,6 +90,7 @@ const NAV_TUTORIAS_GROUP: NavGroup = {
     { href: '/dashboard/tutorias/estudiantes', icon: '🧑‍🎓', label: 'Estudiantes'},
     { href: '/dashboard/tutorias/pensiones', icon: '💰', label: 'Pensiones'    },
     { href: '/dashboard/tutorias/rendimiento', icon: '📊', label: 'Rendimiento'},
+    { href: '/dashboard/tutorias/comportamiento', icon: '⭐', label: 'Comportamiento'},
     { href: '/dashboard/libretas',     icon: '📓', label: 'Libretas'      },
   ]
 }

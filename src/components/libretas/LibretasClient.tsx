@@ -55,6 +55,7 @@ interface Props {
   tutores?: Record<string, string>
   attendance?: any[]
   behaviors?: any[]
+  tutorNotes?: any[]
   libretasPublished?: boolean
   institutionId?: string
   hasDebt?: boolean
@@ -63,7 +64,7 @@ interface Props {
 export function LibretasClient({
   role, institutionName, courses, enrollments, subjects, assignments, grades,
   categories, currentUserId, parcialesCount = 2, tutores = {},
-  attendance = [], behaviors = [], libretasPublished = false, institutionId, hasDebt = false
+  attendance = [], behaviors = [], tutorNotes = [], libretasPublished = false, institutionId, hasDebt = false
 }: Props) {
   const isFamilyRole = role === 'student' || role === 'parent'
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '')
@@ -218,12 +219,28 @@ export function LibretasClient({
     }
   }
 
-  // Behavior for a student
-  function getBehavior(studentId: string) {
+  // Behavior for a student (prioritizes tutor input if defined for this trimestre, falls back to behavior logs)
+  function getBehavior(studentId: string, trim?: number) {
+    const targetTrim = trim || trimestre
+    const tutorNote = tutorNotes.find(
+      (n: any) => n.student_id === studentId && n.trimestre === targetTrim && n.course_id === selectedCourseId
+    )
+    if (tutorNote && tutorNote.behavior_grade) {
+      return tutorNote.behavior_grade
+    }
     const studentBeh = behaviors.filter((b: any) => b.student_id === studentId)
     const pos = studentBeh.filter((b: any) => b.type === 'positive').length
     const neg = studentBeh.filter((b: any) => b.type === 'negative').length
     return comportamientoLetra(pos, neg)
+  }
+
+  // Get tutor observation for a student
+  function getTutorObservation(studentId: string, trim?: number): string {
+    const targetTrim = trim || trimestre
+    const tutorNote = tutorNotes.find(
+      (n: any) => n.student_id === studentId && n.trimestre === targetTrim && n.course_id === selectedCourseId
+    )
+    return tutorNote?.observation ? tutorNote.observation.trim() : ''
   }
 
   const gradeClass = (val: number | null) => {
@@ -461,20 +478,48 @@ export function LibretasClient({
                 </tbody>
               </table>
 
-              {/* Comportamiento + Firma */}
-              <div className="mt-6 flex justify-between items-start text-[10px]">
-                <div>
-                  <table className="border-collapse">
-                    <tbody>
-                      <tr>
-                        <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">COMPORT.</td>
-                        <td className="border border-gray-400 px-3 py-1 font-bold text-center">{getBehavior(selectedStudentId)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
+              {/* Comportamiento + Observaciones del Tutor + Firma */}
+              <div className="mt-5 space-y-3 text-[10px]">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="space-y-2">
+                    <table className="border-collapse">
+                      <tbody>
+                        <tr>
+                          <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">COMPORT.</td>
+                          <td className="border border-gray-400 px-3 py-1 font-bold text-center text-sm">{getBehavior(selectedStudentId, trimestre)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Escala de comportamiento explicada */}
+                    <table className="border-collapse text-[8.5px] max-w-md">
+                      <thead>
+                        <tr className="bg-cyan-100">
+                          <th className="border border-gray-400 px-2 py-0.5 text-center font-bold" colSpan={2}>ESCALA DE COMPORTAMIENTO</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td className="border border-gray-400 px-1.5 py-0.5 font-bold text-center w-6 bg-gray-50">S</td><td className="border border-gray-400 px-1.5 py-0.5">Transforma los desacuerdos en oportunidades de crecimiento y cooperación.</td></tr>
+                        <tr><td className="border border-gray-400 px-1.5 py-0.5 font-bold text-center bg-gray-50">F</td><td className="border border-gray-400 px-1.5 py-0.5">Se involucra y participa en iniciativas que favorecen la convivencia pacífica.</td></tr>
+                        <tr><td className="border border-gray-400 px-1.5 py-0.5 font-bold text-center bg-gray-50">U</td><td className="border border-gray-400 px-1.5 py-0.5">Demuestra habilidades para llegar a acuerdos y asumir compromisos.</td></tr>
+                        <tr><td className="border border-gray-400 px-1.5 py-0.5 font-bold text-center bg-gray-50">N</td><td className="border border-gray-400 px-1.5 py-0.5">Requiere acompañamiento comportamental.</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="text-center">
+                    <div className="w-48 border-t border-gray-400 pt-1 mt-12 font-bold text-[9px]">FIRMA DEL TUTOR</div>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="w-48 border-t border-gray-400 pt-1 mt-8 font-bold text-[9px]">FIRMA DEL TUTOR</div>
+
+                {/* Espacio para la observación del tutor */}
+                <div className="border border-gray-400 rounded p-2 text-[9.5px]">
+                  <div className="font-bold text-gray-800 uppercase tracking-wide">
+                    Observaciones y Recomendaciones del Tutor / Trimestre {trimestre}:
+                  </div>
+                  <div className="mt-1 text-gray-700 italic min-h-[22px] whitespace-pre-wrap">
+                    {getTutorObservation(selectedStudentId, trimestre) || 'Sin observaciones registradas para este periodo.'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -556,6 +601,47 @@ export function LibretasClient({
                   })}
                 </tbody>
               </table>
+
+              {/* Comportamiento + Observaciones del Tutor en Acta Trimestral */}
+              <div className="mt-5 space-y-3 text-[10px]">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="space-y-2">
+                    <table className="border-collapse">
+                      <tbody>
+                        <tr>
+                          <td className="border border-gray-400 px-3 py-1 font-bold bg-gray-100">COMPORT. TRIMESTRAL</td>
+                          <td className="border border-gray-400 px-3 py-1 font-bold text-center text-sm">{getBehavior(selectedStudentId, trimestre)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Escala de comportamiento explicada */}
+                    <table className="border-collapse text-[8.5px] max-w-md">
+                      <thead>
+                        <tr className="bg-cyan-100">
+                          <th className="border border-gray-400 px-2 py-0.5 text-center font-bold" colSpan={2}>ESCALA DE COMPORTAMIENTO</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td className="border border-gray-400 px-1.5 py-0.5 font-bold text-center w-6 bg-gray-50">S</td><td className="border border-gray-400 px-1.5 py-0.5">Transforma los desacuerdos en oportunidades de crecimiento y cooperación.</td></tr>
+                        <tr><td className="border border-gray-400 px-1.5 py-0.5 font-bold text-center bg-gray-50">F</td><td className="border border-gray-400 px-1.5 py-0.5">Se involucra y participa en iniciativas que favorecen la convivencia pacífica.</td></tr>
+                        <tr><td className="border border-gray-400 px-1.5 py-0.5 font-bold text-center bg-gray-50">U</td><td className="border border-gray-400 px-1.5 py-0.5">Demuestra habilidades para llegar a acuerdos y asumir compromisos.</td></tr>
+                        <tr><td className="border border-gray-400 px-1.5 py-0.5 font-bold text-center bg-gray-50">N</td><td className="border border-gray-400 px-1.5 py-0.5">Requiere acompañamiento comportamental.</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Espacio para la observación del tutor */}
+                <div className="border border-gray-400 rounded p-2 text-[9.5px]">
+                  <div className="font-bold text-gray-800 uppercase tracking-wide">
+                    Observaciones y Recomendaciones del Tutor / Trimestre {trimestre}:
+                  </div>
+                  <div className="mt-1 text-gray-700 italic min-h-[22px] whitespace-pre-wrap">
+                    {getTutorObservation(selectedStudentId, trimestre) || 'Sin observaciones registradas para este periodo.'}
+                  </div>
+                </div>
+              </div>
 
               {/* Firmas */}
               <div className="mt-12 flex justify-around text-[9px] font-bold uppercase text-gray-500 gap-8 print:mt-16">
@@ -731,6 +817,16 @@ export function LibretasClient({
                   <span><b>AAR</b> (7.00-8.99) Alcanza los aprendizajes</span>
                   <span><b>PAR</b> (4.01-6.99) Proximo a alcanzar</span>
                   <span><b>NAAR</b> (0-4.00) No alcanza</span>
+                </div>
+              </div>
+
+              {/* Observaciones del Tutor para el año escolar */}
+              <div className="mt-4 border border-gray-400 rounded p-2 text-[9.5px]">
+                <div className="font-bold text-gray-800 uppercase tracking-wide">
+                  Observaciones Generales y Recomendaciones del Tutor:
+                </div>
+                <div className="mt-1 text-gray-700 italic min-h-[22px] whitespace-pre-wrap">
+                  {getTutorObservation(selectedStudentId, 3) || getTutorObservation(selectedStudentId, 2) || getTutorObservation(selectedStudentId, 1) || 'Sin observaciones registradas para el estudiante.'}
                 </div>
               </div>
 
